@@ -81,6 +81,15 @@ describe('F0 — a work, one stage, one activity, and what the plan does not kno
     await setValue(session, 'work-name', NAME);
     await setValue(session, 'work-place', 'Somewhere synthetic');
     await setValue(session, 'work-folder', folder);
+    // An unchecked box carries no mark at all: the glyph exists only while checked.
+    const marks = await driver.execute<{ unchecked: number; checked: number }>(
+      `const boxes = Array.from(document.querySelectorAll('[role="dialog"] input[type="checkbox"]'));
+       const glyphs = (b) => b.parentElement.querySelectorAll('svg').length;
+       return { unchecked: boxes.filter((b) => !b.checked).reduce((n, b) => n + glyphs(b), 0),
+                checked: boxes.filter((b) => b.checked).reduce((n, b) => n + glyphs(b), 0) };`,
+    );
+    expect(marks.unchecked).toBe(0);
+    expect(marks.checked).toBe(5);
     await session.screenshot('f0-new-work-en');
     await click(session, 'work-create');
     await go(session, 'dashboard');
