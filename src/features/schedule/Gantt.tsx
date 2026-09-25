@@ -27,6 +27,10 @@ export type GanttRow =
       width: number;
       critical: boolean;
       baseline: { x: number; width: number } | null;
+      /** What the diary says of it (F4): the planned bar stays; this is drawn over it. */
+      state: 'not-started' | 'started' | 'finished';
+      /** The days the diary says it really took, when they fall on the chart. */
+      actual: { x: number; width: number } | null;
     };
 
 /* Drawing units of the SVG's own coordinate system — the chart's geometry, not CSS. */
@@ -185,6 +189,34 @@ export function Gantt({ view, label }: { view: GanttView; label: string }) {
                     : 'fill-accent-subtle stroke-accent [stroke-width:1]'
                 }
               />
+              {/* What the diary says (ADR-020): finished fills a band across the bar and ticks
+                  its end; started marks the bar's first day. Words say the same in the
+                  bar's sentence — the shape is never the only reading. */}
+              {row.state === 'finished' && (
+                <rect
+                  x={x + 3}
+                  y={barY + BAR / 2 - 3}
+                  width={Math.max(w - 6, 2)}
+                  height={6}
+                  rx={3}
+                  className="fill-success"
+                />
+              )}
+              {row.state === 'started' && (
+                <path
+                  d={`M ${x + 2} ${barY + 2} L ${x + 10} ${barY + BAR / 2} L ${x + 2} ${barY + BAR - 2} Z`}
+                  className="fill-caution"
+                />
+              )}
+              {row.actual !== null && (
+                <line
+                  x1={LABEL + row.actual.x * DAY + 2}
+                  x2={LABEL + (row.actual.x + row.actual.width) * DAY - 2}
+                  y1={barY - 3}
+                  y2={barY - 3}
+                  className="stroke-fg-secondary [stroke-width:1.5]"
+                />
+              )}
               {/* The focus ring, drawn: an outline is not something every SVG element gets. */}
               <rect
                 x={2}
