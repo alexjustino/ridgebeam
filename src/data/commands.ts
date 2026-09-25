@@ -1,0 +1,247 @@
+/**
+ * The typed client for the host: one function per command, and nothing else.
+ *
+ * This is the only file that knows `@tauri-apps/api` exists. Every command name and every
+ * top-level argument key is the host's snake_case (`activity_add({ stage_id, name })`); every shape
+ * inside is its serde camelCase (`src-tauri/src/contract.rs`), written once here so that no
+ * component ever spells a command. The plan's shapes are the domain's (`@/domain/plan`), because the domain
+ * reads the snapshot exactly as the host hands it over.
+ *
+ * There is no command here that sets progress, and there never will be: progress is derived
+ * from the diary (SPEC §2.6). Every plan command answers with the whole `WorkSnapshot` — the F0
+ * scale is small enough that the screen never has to guess what changed.
+ */
+
+import { invoke } from '@tauri-apps/api/core';
+
+import type { Holiday, WorkSnapshot } from '@/domain/plan';
+import {
+  readLanguage,
+  readLens,
+  readTheme,
+  type LanguageChoice,
+  type LensChoice,
+  type ThemeChoice,
+} from '@/domain/settings';
+
+export type { WorkSnapshot };
+
+// ── Shapes ───────────────────────────────────────────────────────────────────
+
+/** What the running binary says about itself. */
+export interface SystemInfo {
+  product: string;
+  version: string;
+  os: string;
+  arch: string;
+  appDataDir: string;
+  /** True when `RIDGEBEAM_DATA_DIR` moved the application data (debug builds only). */
+  databaseRelocated: boolean;
+}
+
+/** The person's choices, kept in the application database. */
+export interface Settings {
+  language: LanguageChoice;
+  theme: ThemeChoice;
+  lens: LensChoice;
+}
+
+/** The keys `settings_set` accepts. The host refuses any other with `settings_key`. */
+export type SettingKey = keyof Settings;
+
+/** A work the application database remembers having opened. */
+export interface RecentWork {
+  workId: string;
+  name: string;
+  folder: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  openedAt: string;
+  /** False when the folder is no longer where it was. */
+  present: boolean;
+}
+
+/** What a new work starts from. */
+export interface WorkDraft {
+  name: string;
+  place: string;
+  /** `YYYY-MM-DD`. */
+  startDate: string;
+  /** ISO 4217. */
+  currency: string;
+  /** Seven characters, Monday first: `1111100`. */
+  workingDays: string;
+  hoursPerDay: number;
+}
+
+/** The open work, named. */
+export interface WorkSummary {
+  workId: string;
+  name: string;
+  folder: string;
+}
+
+export interface WorkPatch {
+  name?: string;
+  place?: string;
+  startDate?: string;
+  currency?: string;
+}
+
+export interface CalendarDraft {
+  workingDays: string;
+  hoursPerDay: number;
+}
+
+/**
+ * What may change on an activity. An absent field is left alone; `null` says "not known",
+ * which is how a duration or a responsible is taken back. A duration is a JSON number — a whole
+ * number of working days — never a string.
+ */
+export interface ActivityPatch {
+  name?: string;
+  durationDays?: number | null;
+  responsibleId?: string | null;
+}
+
+/** The files and pragmas Diagnostics shows, read back from the connections. */
+export interface Diagnostics {
+  app: { databasePath: string; schemaVersion: number };
+  work: null | {
+    folder: string;
+    databasePath: string;
+    schemaVersion: number;
+    /** `wal`. */
+    journalMode: string;
+    /** `off`, `normal`, `full` or `extra`. */
+    synchronous: string;
+    foreignKeys: boolean;
+  };
+}
+
+/** The Windows accent ramp, for the token layer. */
+export interface AccentRamp {
+  accent: string;
+  light1: string;
+  light2: string;
+  light3: string;
+  dark1: string;
+  dark2: string;
+  dark3: string;
+  /** False when this is the built-in default rather than the person's Windows setting. */
+  fromSystem: boolean;
+}
+
+/** The bounds the host keeps (it trims, and refuses beyond these with `invalid_input`). */
+export const LIMITS = {
+  name: 120,
+  place: 200,
+  durationDays: 3650,
+  hoursPerDay: 24,
+} as const;
+
+// ── The application ──────────────────────────────────────────────────────────
+
+export function systemInfo(): Promise<SystemInfo> {
+  return invoke<SystemInfo>('system_info');
+}
+
+export function accentRamp(): Promise<AccentRamp> {
+  return invoke<AccentRamp>('accent_ramp');
+}
+
+export function diagnostics(): Promise<Diagnostics> {
+  return invoke<Diagnostics>('diagnostics');
+}
+
+/**
+ * Read whatever the host holds as the settings this build understands. Reading forgives — a
+ * value a newer build wrote falls back to the default — and writing does not: the host's
+ * refusal is shown in its own sentence.
+ */
+function readSettings(raw: Partial<Record<SettingKey, unknown>> | null | undefined): Settings {
+  return {
+    language: readLanguage(raw?.language),
+    theme: readTheme(raw?.theme),
+    lens: readLens(raw?.lens),
+  };
+}
+
+/** What the window uses when the host cannot answer: every default. */
+export const BUILT_IN_SETTINGS: Settings = readSettings(null);
+
+export async function settingsGet(): Promise<Settings> {
+  return readSettings(await invoke<Partial<Record<SettingKey, unknown>>>('settings_get'));
+}
+
+export async function settingsSet(key: SettingKey, value: string): Promise<Settings> {
+  return readSettings(
+    await invoke<Partial<Record<SettingKey, unknown>>>('settings_set', { key, value }),
+  );
+}
+
+export function recentWorks(): Promise<RecentWork[]> {
+  return invoke<RecentWork[]>('recent_works');
+}
+
+// ── The work ─────────────────────────────────────────────────────────────────
+
+export function workCreate(folder: string, draft: WorkDraft): Promise<WorkSummary> {
+  return invoke<WorkSummary>('work_create', { folder, draft });
+}
+
+export function workOpen(folder: string): Promise<WorkSummary> {
+  return invoke<WorkSummary>('work_open', { folder });
+}
+
+export async function workClose(): Promise<void> {
+  await invoke<null>('work_close');
+}
+
+export function workCurrent(): Promise<WorkSummary | null> {
+  return invoke<WorkSummary | null>('work_current');
+}
+
+export function workGet(): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('work_get');
+}
+
+export function workUpdate(patch: WorkPatch): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('work_update', { patch });
+}
+
+export function calendarSet(
+  calendar: CalendarDraft,
+  holidays: readonly Holiday[],
+): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('calendar_set', { calendar, holidays });
+}
+
+// ── The plan ─────────────────────────────────────────────────────────────────
+
+export function personAdd(name: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('person_add', { name });
+}
+
+export function stageAdd(name: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('stage_add', { name });
+}
+
+export function stageRename(id: string, name: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('stage_rename', { id, name });
+}
+
+export function stageRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('stage_remove', { id });
+}
+
+export function activityAdd(stageId: string, name: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('activity_add', { stage_id: stageId, name });
+}
+
+export function activityUpdate(id: string, patch: ActivityPatch): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('activity_update', { id, patch });
+}
+
+export function activityRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('activity_remove', { id });
+}

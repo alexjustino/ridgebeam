@@ -25,10 +25,44 @@ or wordmark to endorse or promote derived products. See Section 6 of the License
 --------------------------------------------------------------------------------
 THIRD-PARTY COMPONENTS
 
-This product does not yet bundle any third-party component: the repository holds
-documents only. The stack it is built to — Tauri, React, Vite, TypeScript,
-Tailwind CSS, TanStack Query, rusqlite / SQLite, serde — enters this list as each
-component is adopted, after the dependency audit that slice F0 puts in place, and
-the authoritative list is the one generated from the dependency manifests
-(Cargo.toml, package.json). Full licence texts are retained in the lockfiles and
-reproduced in the distributed package.
+This product bundles or depends on third-party components distributed under
+their own licenses. The list below is what is adopted today, from package.json
+and src-tauri/Cargo.toml; each was chosen for its licence and maintenance and is
+checked by the dependency audit in CI (npm audit, cargo audit). The
+authoritative list is the one generated from the dependency manifests and their
+lockfiles, and a dependency added without a line here is an incomplete one.
+
+The interface (package.json):
+
+  Tauri .......................... Apache-2.0 OR MIT
+  Tauri dialog and log plugins ... MIT OR Apache-2.0
+  React, React DOM ............... MIT
+  Vite ........................... MIT
+  TypeScript ..................... Apache-2.0
+  Tailwind CSS ................... MIT
+  TanStack Query ................. MIT
+  Fluent UI System Icons ......... MIT
+
+The host (src-tauri/Cargo.toml):
+
+  tauri, tauri-build ............. Apache-2.0 OR MIT
+  tauri-plugin-dialog ............ Apache-2.0 OR MIT
+  tauri-plugin-log ............... Apache-2.0 OR MIT
+  serde, serde_json .............. MIT OR Apache-2.0
+  thiserror ...................... MIT OR Apache-2.0
+  rusqlite / SQLite .............. MIT / Public Domain
+  log ............................ MIT OR Apache-2.0
+  uuid ........................... Apache-2.0 OR MIT
+  chrono ......................... MIT OR Apache-2.0
+  windows ........................ MIT OR Apache-2.0
+
+SQLite is compiled into the binary from the amalgamation rusqlite bundles; its
+authors have dedicated it to the public domain.
+
+Vite, TypeScript and Tailwind CSS are listed because the distributed interface
+is their output. The test runners, linters, formatters, axe-core and the
+WebDriver harness are used only in development, are not distributed, and are
+not listed here.
+
+Full license texts of the above are retained in the dependency lockfiles and
+are reproduced in the distributed package.

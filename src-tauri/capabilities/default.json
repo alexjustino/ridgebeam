@@ -1,0 +1,20 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The capabilities the main window is granted, and nothing more. Every entry is here because a feature needs it. The window may be dragged, minimised, maximised, closed and themed. The dialog plugin may only open and save: it returns a path a person chose — the folder a work lives in — and only the host's own commands read or write there, inside that folder. There is no filesystem plugin, so nothing can walk a directory; no shell plugin, so nothing can run a program; and no HTTP plugin, so nothing can reach the network.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-close",
+    "core:window:allow-set-theme",
+    "core:window:allow-theme",
+    "core:event:default",
+    "log:default",
+    "dialog:allow-open",
+    "dialog:allow-save"
+  ]
+}

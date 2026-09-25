@@ -27,6 +27,12 @@ works/
 *.pfx
 secrets/
 
+# End-to-end artefacts (screenshots written by the suite)
+e2e/artefacts/
+
+# Generated coverage
+coverage/
+
 # Editors and OS
 .DS_Store
 Thumbs.db
