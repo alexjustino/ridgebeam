@@ -4,7 +4,9 @@ import type { ReactNode } from 'react';
  * A row of tabs.
  *
  * Arrow keys move between tabs, which is what the pattern requires and what a
- * plain row of buttons does not give you.
+ * plain row of buttons does not give you. Each tab carries its id as `data-tab`, and, given a
+ * `panelId`, the tabs and the one panel point at each other (`aria-controls` / the tab's `id`,
+ * `${panelId}-tab-${id}`, for the panel's `aria-labelledby`).
  */
 export interface Tab {
   id: string;
@@ -19,6 +21,7 @@ export function TabStrip({
   active,
   onSelect,
   actions,
+  panelId,
 }: {
   /** The accessible name of the strip. Required — a strip with no name is a list of words. */
   label: string;
@@ -26,6 +29,8 @@ export function TabStrip({
   active: string;
   onSelect: (id: string) => void;
   actions?: ReactNode;
+  /** The id of the `role="tabpanel"` the strip controls. */
+  panelId?: string;
 }) {
   const move = (from: number, step: number) => {
     const next = tabs[(from + step + tabs.length) % tabs.length];
@@ -40,6 +45,9 @@ export function TabStrip({
           return (
             <button
               key={tab.id}
+              id={panelId === undefined ? undefined : `${panelId}-tab-${tab.id}`}
+              data-tab={tab.id}
+              aria-controls={panelId}
               role="tab"
               type="button"
               aria-selected={selected}

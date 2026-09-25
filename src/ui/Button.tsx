@@ -6,12 +6,22 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
  * Three appearances, matching Fluent: `accent` for the one primary action on a
  * surface, `standard` for everything else, `subtle` for actions that live
  * inside dense chrome such as a toolbar.
+ *
+ * Two sizes: `standard` takes the density's control height; `compact` is for the title bar, where
+ * the strip is one control tall and a control must fit inside it.
  */
 
 export type ButtonAppearance = 'accent' | 'standard' | 'subtle';
+export type ButtonSize = 'standard' | 'compact';
+
+const SIZE: Record<ButtonSize, string> = {
+  standard: 'h-(--density-control) px-3 text-body',
+  compact: 'h-6 px-2 text-caption',
+};
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   appearance?: ButtonAppearance;
+  size?: ButtonSize;
   icon?: ReactNode;
 }
 
@@ -24,6 +34,7 @@ const APPEARANCE: Record<ButtonAppearance, string> = {
 
 export function Button({
   appearance = 'standard',
+  size = 'standard',
   icon,
   className = '',
   children,
@@ -33,8 +44,9 @@ export function Button({
     <button
       type="button"
       className={[
-        'inline-flex items-center justify-center gap-2 rounded-md border px-3',
-        'h-(--density-control) text-body font-semibold whitespace-nowrap',
+        'inline-flex items-center justify-center gap-2 rounded-md border',
+        SIZE[size],
+        'font-semibold whitespace-nowrap',
         'transition-colors duration-100 ease-easy',
         'disabled:cursor-not-allowed disabled:text-fg-disabled disabled:bg-card disabled:border-stroke-subtle',
         APPEARANCE[appearance],
