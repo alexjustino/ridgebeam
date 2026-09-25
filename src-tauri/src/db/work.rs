@@ -7,10 +7,24 @@
 //!
 //! Every write is one transaction. There is no statement here that writes
 //! progress, because there is no column for it.
+//!
+//! Rooms and the rooms an activity touches are in `db::rooms`; order — moves,
+//! and positions closed up after a removal — is in `db::order`.
+//!
+//! # Changelog of this repository
+//!
+//! - F0: the work row, the calendar and its holidays, people, stages and
+//!   activities; the snapshot.
+//! - F1: an activity's quantity and unit, and the pairing between them; rooms
+//!   and each activity's rooms in the snapshot; a person renamed or removed;
+//!   positions closed up after a removal.
+
+use std::collections::HashMap;
 
 use rusqlite::{params, Connection, OptionalExtension};
 
-use crate::contract::{Activity, Calendar, Holiday, Person, Stage, Work, WorkSnapshot};
+use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, WorkSnapshot};
+use crate::db::order::{ACTIVITIES, STAGES};
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
 
@@ -139,9 +153,37 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
 
+    let rooms = conn
+        .prepare("SELECT id, position, name FROM room ORDER BY position")?
+        .query_map([], |row| {
+            Ok(Room {
+                id: row.get(0)?,
+                position: row.get(1)?,
+                name: row.get(2)?,
+            })
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+
+    // Each activity's rooms, in the rooms' order.
+    let mut rooms_of: HashMap<String, Vec<String>> = HashMap::new();
+    let links = conn
+        .prepare(
+            "SELECT ar.activity_id, ar.room_id
+             FROM activity_room ar JOIN room r ON r.id = ar.room_id
+             ORDER BY r.position",
+        )?
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    for (activity, room) in links {
+        rooms_of.entry(activity).or_default().push(room);
+    }
+
     let activities = conn
         .prepare(
-            "SELECT a.id, a.stage_id, a.position, a.name, a.duration_days, a.responsible_id
+            "SELECT a.id, a.stage_id, a.position, a.name, a.duration_days, a.responsible_id,
+                    a.quantity, a.unit
              FROM activity a JOIN stage s ON s.id = a.stage_id
              ORDER BY s.position, a.position",
         )?
@@ -153,9 +195,18 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
                 name: row.get(3)?,
                 duration_days: row.get(4)?,
                 responsible_id: row.get(5)?,
+                room_ids: Vec::new(),
+                quantity: row.get(6)?,
+                unit: row.get(7)?,
             })
         })?
-        .collect::<std::result::Result<Vec<_>, _>>()?;
+        .collect::<std::result::Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(|mut activity| {
+            activity.room_ids = rooms_of.remove(&activity.id).unwrap_or_default();
+            activity
+        })
+        .collect();
 
     Ok(WorkSnapshot {
         work: work(conn)?,
@@ -163,6 +214,7 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         holidays,
         people,
         stages,
+        rooms,
         activities,
     })
 }
@@ -226,6 +278,31 @@ pub fn add_person(conn: &Connection, name: &str) -> Result<String> {
     Ok(id)
 }
 
+/// Rename a person.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when the person is not in this work.
+pub fn rename_person(conn: &Connection, id: &str, name: &str) -> Result<()> {
+    let changed = conn.execute(
+        "UPDATE person SET name = ?2 WHERE id = ?1",
+        params![id, name],
+    )?;
+    found(changed, PERSON_NOT_FOUND)
+}
+
+/// Remove a person. Every activity they were responsible for is left with
+/// nobody responsible — the schema's `ON DELETE SET NULL` — and readiness will
+/// say so.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when the person is not in this work.
+pub fn remove_person(conn: &Connection, id: &str) -> Result<()> {
+    let changed = conn.execute("DELETE FROM person WHERE id = ?1", [id])?;
+    found(changed, PERSON_NOT_FOUND)
+}
+
 /// Add a stage after the last one; returns its id.
 ///
 /// # Errors
@@ -254,14 +331,18 @@ pub fn rename_stage(conn: &Connection, id: &str, name: &str) -> Result<()> {
     found(changed, STAGE_NOT_FOUND)
 }
 
-/// Remove a stage and, with it, its activities.
+/// Remove a stage and, with it, its activities; the stages after it close up.
 ///
 /// # Errors
 ///
 /// [`Error::InvalidInput`] when the stage is not in this work.
 pub fn remove_stage(conn: &Connection, id: &str) -> Result<()> {
-    let changed = conn.execute("DELETE FROM stage WHERE id = ?1", [id])?;
-    found(changed, STAGE_NOT_FOUND)
+    let tx = conn.unchecked_transaction()?;
+    let changed = tx.execute("DELETE FROM stage WHERE id = ?1", [id])?;
+    found(changed, STAGE_NOT_FOUND)?;
+    STAGES.close_gaps(&tx, None)?;
+    tx.commit()?;
+    Ok(())
 }
 
 /// Add an activity at the end of a stage; returns its id.
@@ -286,7 +367,7 @@ pub fn add_activity(conn: &Connection, stage_id: &str, name: &str) -> Result<Str
 
 /// What an activity update changes. `None` leaves a field alone; `Some(None)`
 /// clears it.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ActivityChange {
     /// A new name.
     pub name: Option<String>,
@@ -294,7 +375,15 @@ pub struct ActivityChange {
     pub duration_days: Option<Option<i64>>,
     /// A new responsible, or nobody.
     pub responsible_id: Option<Option<String>>,
+    /// A new quantity, or none — which takes the unit with it.
+    pub quantity: Option<Option<f64>>,
+    /// A new unit, or none. Already trimmed; an empty one is none.
+    pub unit: Option<Option<String>>,
 }
+
+/// The sentence for a unit with no quantity beside it.
+pub const UNIT_WITHOUT_QUANTITY: &str =
+    "A unit needs a quantity: say how much before saying in what.";
 
 /// Change an activity.
 ///
@@ -330,29 +419,74 @@ pub fn update_activity(conn: &Connection, id: &str, change: &ActivityChange) -> 
             params![id, responsible],
         )?;
     }
+    if change.quantity.is_some() || change.unit.is_some() {
+        let (quantity, unit) = quantity_and_unit(&tx, id, change)?;
+        tx.execute(
+            "UPDATE activity SET quantity = ?2, unit = ?3 WHERE id = ?1",
+            params![id, quantity, unit],
+        )?;
+    }
     tx.commit()?;
     Ok(())
 }
 
-/// Remove an activity.
+/// The quantity and unit an activity will hold after `change`.
+///
+/// A unit sent explicitly is taken as sent. A quantity cleared without a unit
+/// being sent takes the unit with it: "12 m²" with the 12 removed is not "m²".
+/// Whatever the result, a unit with no quantity is refused.
+fn quantity_and_unit(
+    conn: &Connection,
+    id: &str,
+    change: &ActivityChange,
+) -> Result<(Option<f64>, Option<String>)> {
+    let (held_quantity, held_unit): (Option<f64>, Option<String>) = conn.query_row(
+        "SELECT quantity, unit FROM activity WHERE id = ?1",
+        [id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    let quantity = change.quantity.unwrap_or(held_quantity);
+    let unit = match (&change.quantity, &change.unit) {
+        (_, Some(unit)) => unit.clone(),
+        (Some(None), None) => None,
+        (_, None) => held_unit,
+    };
+    if unit.is_some() && quantity.is_none() {
+        return Err(Error::InvalidInput(UNIT_WITHOUT_QUANTITY.into()));
+    }
+    Ok((quantity, unit))
+}
+
+/// Remove an activity; the activities after it in its stage close up.
 ///
 /// # Errors
 ///
 /// [`Error::InvalidInput`] when the activity is not in this work.
 pub fn remove_activity(conn: &Connection, id: &str) -> Result<()> {
-    let changed = conn.execute("DELETE FROM activity WHERE id = ?1", [id])?;
-    found(changed, ACTIVITY_NOT_FOUND)
+    let tx = conn.unchecked_transaction()?;
+    let stage = ACTIVITIES.scope_of(&tx, id)?;
+    tx.execute("DELETE FROM activity WHERE id = ?1", [id])?;
+    ACTIVITIES.close_gaps(&tx, stage.as_deref())?;
+    tx.commit()?;
+    Ok(())
 }
 
-const STAGE_NOT_FOUND: &str = "That stage is not in this work.";
-const ACTIVITY_NOT_FOUND: &str = "That activity is not in this work.";
-const PERSON_NOT_FOUND: &str = "That person is not in this work.";
+/// The sentence for a stage id that is not in this work.
+pub const STAGE_NOT_FOUND: &str = "That stage is not in this work.";
+/// The sentence for an activity id that is not in this work.
+pub const ACTIVITY_NOT_FOUND: &str = "That activity is not in this work.";
+/// The sentence for a person id that is not in this work.
+pub const PERSON_NOT_FOUND: &str = "That person is not in this work.";
+/// The sentence for a room id that is not in this work.
+pub const ROOM_NOT_FOUND: &str = "That room is not in this work.";
 
-fn exists(conn: &Connection, sql: &str, id: &str) -> Result<bool> {
+/// Whether `sql` (one `?1`) finds a row.
+pub(crate) fn exists(conn: &Connection, sql: &str, id: &str) -> Result<bool> {
     Ok(conn.query_row(sql, [id], |_| Ok(())).optional()?.is_some())
 }
 
-fn found(changed: usize, sentence: &'static str) -> Result<()> {
+/// `Ok` when a statement touched a row; the sentence when it touched none.
+pub(crate) fn found(changed: usize, sentence: &'static str) -> Result<()> {
     if changed == 0 {
         Err(Error::InvalidInput(sentence.into()))
     } else {
@@ -361,7 +495,7 @@ fn found(changed: usize, sentence: &'static str) -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     pub(crate) fn seed() -> NewWork {
@@ -376,7 +510,7 @@ mod tests {
         }
     }
 
-    fn a_work() -> Connection {
+    pub(crate) fn a_work() -> Connection {
         let conn = Connection::open_in_memory().expect("in-memory database");
         crate::db::configure(&conn).expect("pragmas");
         create(&conn, &seed()).expect("create");
@@ -396,7 +530,16 @@ mod tests {
     fn a_new_work_holds_every_table_its_row_and_its_calendar_at_the_current_version() {
         let conn = a_work();
 
-        for table in ["work", "calendar", "holiday", "person", "stage", "activity"] {
+        for table in [
+            "work",
+            "calendar",
+            "holiday",
+            "person",
+            "stage",
+            "activity",
+            "room",
+            "activity_room",
+        ] {
             let found: i64 = conn
                 .query_row(
                     "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
@@ -531,8 +674,13 @@ mod tests {
         let third = add_stage(&conn, "Painting").unwrap();
         let plan = snapshot(&conn).unwrap();
         assert_eq!(
+            plan.stages.iter().map(|s| s.position).collect::<Vec<_>>(),
+            vec![1, 2],
+            "the removal closed the gap (F1), and a new stage goes after the last"
+        );
+        assert_eq!(
             plan.stages.iter().find(|s| s.id == third).unwrap().position,
-            3,
+            2,
             "a new stage goes after the last, whatever was removed"
         );
     }
@@ -636,5 +784,221 @@ mod tests {
         assert_eq!(plan.calendar, calendar);
         let dates: Vec<_> = plan.holidays.iter().map(|h| h.date.as_str()).collect();
         assert_eq!(dates, vec!["2027-01-01"]);
+    }
+
+    /// Write, by hand, a work as F0 left it: schema 1, a stage, an activity
+    /// with a duration and a responsible, and a holiday. Returns the activity's
+    /// id. Synthetic, like every fixture here.
+    pub(crate) fn a_work_at_schema_one(conn: &Connection) -> String {
+        let (_, first) = migrations::WORK.sources()[0];
+        conn.execute_batch(first).expect("migration 001 alone");
+        conn.execute_batch(
+            "INSERT INTO work (id, schema_version, work_id, name, place, start_date, currency,
+                               created_at)
+             VALUES (1, 1, '00000000-0000-7000-8000-000000000001', 'Synthetic F0 work', '',
+                     '2026-10-05', 'BRL', '2026-09-25T12:00:00.000Z');
+             INSERT INTO calendar (id, working_days, hours_per_day) VALUES (1, '1111100', 8);
+             INSERT INTO holiday (date, name) VALUES ('2026-11-02', 'Synthetic holiday');
+             INSERT INTO person (id, name, created_at)
+             VALUES ('00000000-0000-7000-8000-00000000000a', 'A. Tiler', 't');
+             INSERT INTO stage (id, position, name, created_at)
+             VALUES ('00000000-0000-7000-8000-00000000000b', 1, 'Bathroom', 't');
+             INSERT INTO activity (id, stage_id, position, name, duration_days, responsible_id,
+                                   created_at)
+             VALUES ('00000000-0000-7000-8000-00000000000c',
+                     '00000000-0000-7000-8000-00000000000b', 1, 'Tiling', 3,
+                     '00000000-0000-7000-8000-00000000000a', 't');",
+        )
+        .expect("an F0 work's rows");
+        "00000000-0000-7000-8000-00000000000c".into()
+    }
+
+    /// The upgrade a person actually makes: a work written by F0 opens in F1
+    /// and loses nothing — and gains rooms, quantities and units, all empty.
+    #[test]
+    fn a_work_at_schema_one_with_rows_migrates_to_two_without_losing_any() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::configure(&conn).unwrap();
+        let tiling = a_work_at_schema_one(&conn);
+        assert_eq!(migrations::WORK.current_version(&conn), 1);
+
+        migrations::WORK.apply(&conn).expect("migrate 1 → 2");
+
+        assert_eq!(migrations::WORK.current_version(&conn), 2);
+        let plan = snapshot(&conn).unwrap();
+        assert_eq!(plan.work.name, "Synthetic F0 work");
+        assert_eq!(plan.holidays.len(), 1);
+        assert_eq!(plan.people[0].name, "A. Tiler");
+        assert_eq!(plan.stages[0].name, "Bathroom");
+        let activity = &plan.activities[0];
+        assert_eq!(activity.id, tiling);
+        assert_eq!(activity.duration_days, Some(3));
+        assert_eq!(
+            activity.responsible_id.as_deref(),
+            Some(plan.people[0].id.as_str())
+        );
+        assert!(activity.room_ids.is_empty());
+        assert_eq!((activity.quantity, activity.unit.clone()), (None, None));
+        assert!(plan.rooms.is_empty());
+
+        migrations::WORK
+            .apply(&conn)
+            .expect("and again, idempotent");
+        assert_eq!(migrations::WORK.current_version(&conn), 2);
+    }
+
+    fn one_activity(conn: &Connection) -> String {
+        let stage = add_stage(conn, "Bathroom").unwrap();
+        add_activity(conn, &stage, "Lay the floor tile").unwrap()
+    }
+
+    fn quantity_of(conn: &Connection) -> (Option<f64>, Option<String>) {
+        let activity = snapshot(conn).unwrap().activities.remove(0);
+        (activity.quantity, activity.unit)
+    }
+
+    fn set(
+        conn: &Connection,
+        id: &str,
+        quantity: Option<Option<f64>>,
+        unit: Option<Option<&str>>,
+    ) -> Result<()> {
+        update_activity(
+            conn,
+            id,
+            &ActivityChange {
+                quantity,
+                unit: unit.map(|unit| unit.map(str::to_string)),
+                ..ActivityChange::default()
+            },
+        )
+    }
+
+    #[test]
+    fn a_quantity_takes_a_unit_and_clearing_the_quantity_takes_the_unit_with_it() {
+        let conn = a_work();
+        let id = one_activity(&conn);
+
+        set(&conn, &id, Some(Some(12.0)), Some(Some("m²"))).unwrap();
+        assert_eq!(quantity_of(&conn), (Some(12.0), Some("m²".into())));
+
+        set(&conn, &id, Some(Some(14.5)), None).unwrap();
+        assert_eq!(
+            quantity_of(&conn),
+            (Some(14.5), Some("m²".into())),
+            "the unit stays"
+        );
+
+        set(&conn, &id, None, Some(None)).unwrap();
+        assert_eq!(
+            quantity_of(&conn),
+            (Some(14.5), None),
+            "a quantity may stand alone"
+        );
+
+        set(&conn, &id, Some(Some(0.0)), Some(Some("un"))).unwrap();
+        assert_eq!(
+            quantity_of(&conn),
+            (Some(0.0), Some("un".into())),
+            "zero is a quantity"
+        );
+
+        set(&conn, &id, Some(None), None).unwrap();
+        assert_eq!(quantity_of(&conn), (None, None));
+    }
+
+    #[test]
+    fn a_unit_without_a_quantity_is_refused_and_nothing_changes() {
+        let conn = a_work();
+        let id = one_activity(&conn);
+
+        for (quantity, unit) in [(None, Some(Some("m²"))), (Some(None), Some(Some("m²")))] {
+            let refused = set(&conn, &id, quantity, unit).unwrap_err();
+            assert_eq!(refused.kind(), "invalid_input");
+            assert_eq!(refused.to_string(), UNIT_WITHOUT_QUANTITY);
+        }
+        assert_eq!(quantity_of(&conn), (None, None));
+
+        set(&conn, &id, Some(Some(12.0)), Some(Some("m²"))).unwrap();
+        let refused = set(&conn, &id, Some(None), Some(Some("m²"))).unwrap_err();
+        assert_eq!(refused.to_string(), UNIT_WITHOUT_QUANTITY);
+        assert_eq!(
+            quantity_of(&conn),
+            (Some(12.0), Some("m²".into())),
+            "rolled back"
+        );
+    }
+
+    #[test]
+    fn the_schema_refuses_a_negative_quantity_a_textual_one_and_a_unit_on_its_own() {
+        let conn = a_work();
+        let id = one_activity(&conn);
+
+        for assignment in [
+            "quantity = -1",
+            "quantity = 'twelve'",
+            "unit = 'm²'",
+            "quantity = 1, unit = ''",
+            "quantity = 1, unit = '   '",
+            "quantity = 1, unit = '12345678901234567'",
+        ] {
+            let sql = format!("UPDATE activity SET {assignment} WHERE id = '{id}'");
+            assert!(refused_by_the_schema(&conn, &sql), "{assignment}");
+        }
+        conn.execute(
+            "UPDATE activity SET quantity = '12', unit = '1234567890123456' WHERE id = ?1",
+            [&id],
+        )
+        .expect("text that is a number becomes one, and 16 characters fit");
+        assert_eq!(quantity_of(&conn).0, Some(12.0));
+    }
+
+    #[test]
+    fn removing_a_person_leaves_their_activities_with_nobody_responsible() {
+        let conn = a_work();
+        let stage = add_stage(&conn, "Bathroom").unwrap();
+        let tile = add_activity(&conn, &stage, "Tile").unwrap();
+        let grout = add_activity(&conn, &stage, "Grout").unwrap();
+        let tiler = add_person(&conn, "A. Tiler").unwrap();
+        let other = add_person(&conn, "B. Plumber").unwrap();
+        for (activity, person) in [(&tile, &tiler), (&grout, &other)] {
+            update_activity(
+                &conn,
+                activity,
+                &ActivityChange {
+                    responsible_id: Some(Some(person.clone())),
+                    ..ActivityChange::default()
+                },
+            )
+            .unwrap();
+        }
+
+        remove_person(&conn, &tiler).unwrap();
+
+        let plan = snapshot(&conn).unwrap();
+        assert_eq!(plan.people.len(), 1);
+        assert_eq!(plan.activities.len(), 2, "the activities stay");
+        assert_eq!(plan.activities[0].responsible_id, None);
+        assert_eq!(
+            plan.activities[1].responsible_id.as_deref(),
+            Some(other.as_str())
+        );
+    }
+
+    #[test]
+    fn a_person_is_renamed_and_an_unknown_one_is_a_sentence() {
+        let conn = a_work();
+        let id = add_person(&conn, "A. Tiler").unwrap();
+
+        rename_person(&conn, &id, "Ana Tiler").unwrap();
+        assert_eq!(snapshot(&conn).unwrap().people[0].name, "Ana Tiler");
+
+        let nobody = new_id();
+        for refused in [
+            rename_person(&conn, &nobody, "X"),
+            remove_person(&conn, &nobody),
+        ] {
+            assert_eq!(refused.unwrap_err().to_string(), PERSON_NOT_FOUND);
+        }
     }
 }

@@ -11,7 +11,59 @@
 
 use chrono::NaiveDate;
 
+use crate::db::order::Direction;
 use crate::error::{Error, Result};
+
+/// The longest unit a quantity is counted in — `m²`, `m`, `un`, `sacks`.
+pub const MAX_UNIT_CHARS: usize = 16;
+
+/// A quantity: a number, at least 0.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a negative number or one that is not a number.
+pub fn quantity(value: f64) -> Result<f64> {
+    if value.is_finite() && value >= 0.0 {
+        Ok(value)
+    } else {
+        Err(invalid("A quantity is a number, 0 or more."))
+    }
+}
+
+/// A unit: trimmed, at most [`MAX_UNIT_CHARS`] characters. Nothing, or only
+/// spaces, is no unit.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is too long.
+pub fn unit(value: Option<&str>) -> Result<Option<String>> {
+    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    if value.chars().count() > MAX_UNIT_CHARS {
+        return Err(invalid(format!(
+            "A unit is at most {MAX_UNIT_CHARS} characters, such as m² or un."
+        )));
+    }
+    Ok(Some(value.to_string()))
+}
+
+/// Which way a row moves: `up` or `down`, exactly as written.
+///
+/// Taken as text and read here, rather than left to the deserialiser, so that
+/// a direction that is neither is a sentence with a kind like every other
+/// refusal, not an error the interface cannot translate.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for anything else.
+pub fn direction(value: &str) -> Result<Direction> {
+    match value {
+        "up" => Ok(Direction::Up),
+        "down" => Ok(Direction::Down),
+        _ => Err(invalid("A move is up or down.")),
+    }
+}
 
 /// The longest name any row of a work keeps — a work, a stage, an activity, a
 /// person, a holiday. One number for one idea; the schema spells it out in SQL.
@@ -235,6 +287,44 @@ mod tests {
                 duration_days(refused).unwrap_err().kind(),
                 "invalid_input",
                 "`{refused}`"
+            );
+        }
+    }
+
+    #[test]
+    fn a_negative_quantity_is_refused_and_zero_is_a_quantity() {
+        assert_eq!(quantity(12.5).unwrap(), 12.5);
+        assert_eq!(quantity(0.0).unwrap(), 0.0);
+        for refused in [-0.5, -12.0, f64::NAN, f64::INFINITY] {
+            assert_eq!(
+                quantity(refused).unwrap_err().kind(),
+                "invalid_input",
+                "`{refused}`"
+            );
+        }
+    }
+
+    #[test]
+    fn a_unit_is_trimmed_an_empty_one_is_none_and_a_long_one_is_refused() {
+        assert_eq!(unit(Some(" m² ")).unwrap().as_deref(), Some("m²"));
+        assert_eq!(unit(Some("   ")).unwrap(), None);
+        assert_eq!(unit(Some("")).unwrap(), None);
+        assert_eq!(unit(None).unwrap(), None);
+        unit(Some(&"²".repeat(16))).expect("16 characters, whatever their bytes");
+        assert_eq!(
+            unit(Some(&"u".repeat(17))).unwrap_err().kind(),
+            "invalid_input"
+        );
+    }
+
+    #[test]
+    fn a_direction_is_up_or_down_exactly() {
+        assert_eq!(direction("up").unwrap(), Direction::Up);
+        assert_eq!(direction("down").unwrap(), Direction::Down);
+        for refused in ["Up", "left", "", " down"] {
+            assert_eq!(
+                direction(refused).unwrap_err().to_string(),
+                "A move is up or down."
             );
         }
     }

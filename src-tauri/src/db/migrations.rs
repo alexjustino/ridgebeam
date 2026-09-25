@@ -53,10 +53,16 @@ pub const APP: Schema = Schema {
 /// row in one transaction; this runner only ever moves an existing work forward.
 pub const WORK: Schema = Schema {
     name: "work",
-    migrations: &[(
-        "001_init",
-        include_str!("../../work_migrations/001_init.sql"),
-    )],
+    migrations: &[
+        (
+            "001_init",
+            include_str!("../../work_migrations/001_init.sql"),
+        ),
+        (
+            "002_rooms_and_quantities",
+            include_str!("../../work_migrations/002_rooms_and_quantities.sql"),
+        ),
+    ],
     read_version: "SELECT schema_version FROM work WHERE id = 1",
     write_version: "UPDATE work SET schema_version = ?1 WHERE id = 1",
 };

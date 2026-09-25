@@ -10,6 +10,10 @@
 //!
 //! - F0: `calendar_set`, `person_add`, `stage_add`, `stage_rename`,
 //!   `stage_remove`, `activity_add`, `activity_update`, `activity_remove`.
+//! - F1: `person_rename`, `person_remove` (their activities are left with
+//!   nobody responsible); `stage_move` and `activity_move`, one step up or
+//!   down, a no-op at the edge, positions 1..n after; `activity_update` takes a
+//!   quantity and a unit. Rooms are in `commands::rooms`.
 
 use std::collections::BTreeSet;
 
@@ -17,6 +21,7 @@ use tauri::State;
 
 use crate::commands::work::change_work;
 use crate::contract::{ActivityPatch, CalendarDraft, Holiday, WorkSnapshot};
+use crate::db::order::{ACTIVITIES, STAGES};
 use crate::db::work::{self as repo, ActivityChange};
 use crate::error::{Error, Result};
 use crate::folder::OpenWork;
@@ -126,6 +131,61 @@ pub fn activity_remove(open: State<'_, OpenWork>, id: String) -> Result<WorkSnap
     activity_remove_with(&open, &id)
 }
 
+/// Rename a person.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a name that does not fit or a person not in this
+/// work, and the errors of every work command.
+#[tauri::command(rename_all = "snake_case")]
+pub fn person_rename(open: State<'_, OpenWork>, id: String, name: String) -> Result<WorkSnapshot> {
+    person_rename_with(&open, &id, &name)
+}
+
+/// Remove a person. The activities they were responsible for stay, with
+/// nobody responsible.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a person not in this work, and the errors of
+/// every work command.
+#[tauri::command(rename_all = "snake_case")]
+pub fn person_remove(open: State<'_, OpenWork>, id: String) -> Result<WorkSnapshot> {
+    person_remove_with(&open, &id)
+}
+
+/// Move a stage one step, `up` or `down`. At the edge nothing moves, and that
+/// is not an error.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a direction that is neither or a stage not in
+/// this work, and the errors of every work command.
+#[tauri::command(rename_all = "snake_case")]
+pub fn stage_move(
+    open: State<'_, OpenWork>,
+    id: String,
+    direction: String,
+) -> Result<WorkSnapshot> {
+    stage_move_with(&open, &id, &direction)
+}
+
+/// Move an activity one step within its stage, `up` or `down`. At the edge of
+/// its stage nothing moves, and that is not an error.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a direction that is neither or an activity not
+/// in this work, and the errors of every work command.
+#[tauri::command(rename_all = "snake_case")]
+pub fn activity_move(
+    open: State<'_, OpenWork>,
+    id: String,
+    direction: String,
+) -> Result<WorkSnapshot> {
+    activity_move_with(&open, &id, &direction)
+}
+
 /// What [`calendar_set`] does once the state is in hand.
 pub fn calendar_set_with(
     open: &OpenWork,
@@ -203,6 +263,15 @@ pub fn activity_update_with(
             .map(|duration| duration.map(validate::duration_days).transpose())
             .transpose()?,
         responsible_id: patch.responsible_id.clone(),
+        quantity: patch
+            .quantity
+            .map(|quantity| quantity.map(validate::quantity).transpose())
+            .transpose()?,
+        unit: patch
+            .unit
+            .as_ref()
+            .map(|unit| validate::unit(unit.as_deref()))
+            .transpose()?,
     };
     change_work(open, |conn| repo::update_activity(conn, id, &change))
 }
@@ -210,6 +279,29 @@ pub fn activity_update_with(
 /// What [`activity_remove`] does once the state is in hand.
 pub fn activity_remove_with(open: &OpenWork, id: &str) -> Result<WorkSnapshot> {
     change_work(open, |conn| repo::remove_activity(conn, id))
+}
+
+/// What [`person_rename`] does once the state is in hand.
+pub fn person_rename_with(open: &OpenWork, id: &str, name: &str) -> Result<WorkSnapshot> {
+    let name = validate::name("person", name)?;
+    change_work(open, |conn| repo::rename_person(conn, id, &name))
+}
+
+/// What [`person_remove`] does once the state is in hand.
+pub fn person_remove_with(open: &OpenWork, id: &str) -> Result<WorkSnapshot> {
+    change_work(open, |conn| repo::remove_person(conn, id))
+}
+
+/// What [`stage_move`] does once the state is in hand.
+pub fn stage_move_with(open: &OpenWork, id: &str, direction: &str) -> Result<WorkSnapshot> {
+    let direction = validate::direction(direction)?;
+    change_work(open, |conn| STAGES.move_one(conn, id, direction))
+}
+
+/// What [`activity_move`] does once the state is in hand.
+pub fn activity_move_with(open: &OpenWork, id: &str, direction: &str) -> Result<WorkSnapshot> {
+    let direction = validate::direction(direction)?;
+    change_work(open, |conn| ACTIVITIES.move_one(conn, id, direction))
 }
 
 #[cfg(test)]
@@ -365,5 +457,183 @@ mod tests {
             stage_add_with(&open, "").unwrap_err().kind(),
             "invalid_input"
         );
+    }
+
+    fn patch(json: serde_json::Value) -> ActivityPatch {
+        serde_json::from_value(json).expect("a patch the interface could send")
+    }
+
+    /// The plan's order, as the breakdown numbers it: `1`, `1.1`, `1.2`, `2` …
+    fn numbering(plan: &WorkSnapshot) -> Vec<String> {
+        let mut rows = Vec::new();
+        for stage in &plan.stages {
+            rows.push(format!("{} {}", stage.position, stage.name));
+            for activity in plan.activities.iter().filter(|a| a.stage_id == stage.id) {
+                rows.push(format!(
+                    "{}.{} {}",
+                    stage.position, activity.position, activity.name
+                ));
+            }
+        }
+        rows
+    }
+
+    #[test]
+    fn a_stage_moved_down_takes_its_activities_and_the_numbering_follows() {
+        let (_db, open, _scratch) = host_with_a_work();
+        let demolition = stage_add_with(&open, "Demolition").unwrap().stages[0]
+            .id
+            .clone();
+        let bathroom = stage_add_with(&open, "Bathroom").unwrap().stages[1]
+            .id
+            .clone();
+        activity_add_with(&open, &demolition, "Strip out").unwrap();
+        activity_add_with(&open, &bathroom, "Tiling").unwrap();
+        let grout = activity_add_with(&open, &bathroom, "Grout")
+            .unwrap()
+            .activities[2]
+            .id
+            .clone();
+
+        let plan = stage_move_with(&open, &demolition, "down").unwrap();
+        assert_eq!(
+            numbering(&plan),
+            vec![
+                "1 Bathroom",
+                "1.1 Tiling",
+                "1.2 Grout",
+                "2 Demolition",
+                "2.1 Strip out"
+            ]
+        );
+
+        let plan = activity_move_with(&open, &grout, "up").unwrap();
+        assert_eq!(
+            numbering(&plan),
+            vec![
+                "1 Bathroom",
+                "1.1 Grout",
+                "1.2 Tiling",
+                "2 Demolition",
+                "2.1 Strip out"
+            ]
+        );
+        work_close_with(&open);
+    }
+
+    #[test]
+    fn a_move_at_the_edge_returns_the_plan_unchanged_and_a_bad_direction_is_a_sentence() {
+        let (_db, open, _scratch) = host_with_a_work();
+        let stage = stage_add_with(&open, "Bathroom").unwrap().stages[0]
+            .id
+            .clone();
+        let tiling = activity_add_with(&open, &stage, "Tiling")
+            .unwrap()
+            .activities[0]
+            .id
+            .clone();
+        let before = crate::commands::work::work_get_with(&open).unwrap();
+
+        for plan in [
+            stage_move_with(&open, &stage, "up").unwrap(),
+            stage_move_with(&open, &stage, "down").unwrap(),
+            activity_move_with(&open, &tiling, "up").unwrap(),
+            activity_move_with(&open, &tiling, "down").unwrap(),
+        ] {
+            assert_eq!(plan, before);
+        }
+
+        for direction in ["left", "UP", ""] {
+            let refused = stage_move_with(&open, &stage, direction).unwrap_err();
+            assert_eq!(refused.kind(), "invalid_input");
+        }
+        work_close_with(&open);
+    }
+
+    #[test]
+    fn a_quantity_and_its_unit_arrive_through_the_patch_and_a_unit_alone_is_refused() {
+        let (_db, open, _scratch) = host_with_a_work();
+        let stage = stage_add_with(&open, "Bathroom").unwrap().stages[0]
+            .id
+            .clone();
+        let tile = activity_add_with(&open, &stage, "Lay the floor tile")
+            .unwrap()
+            .activities[0]
+            .id
+            .clone();
+
+        let refused =
+            activity_update_with(&open, &tile, &patch(serde_json::json!({ "unit": "m²" })))
+                .unwrap_err();
+        assert_eq!(refused.kind(), "invalid_input");
+        assert_eq!(refused.to_string(), repo::UNIT_WITHOUT_QUANTITY);
+
+        let refused = activity_update_with(
+            &open,
+            &tile,
+            &patch(serde_json::json!({ "quantity": -3, "unit": "m²" })),
+        )
+        .unwrap_err();
+        assert_eq!(refused.to_string(), "A quantity is a number, 0 or more.");
+
+        let plan = activity_update_with(
+            &open,
+            &tile,
+            &patch(serde_json::json!({ "quantity": 12, "unit": " m² " })),
+        )
+        .unwrap();
+        let wire = serde_json::to_value(&plan.activities[0]).unwrap();
+        assert_eq!(wire["quantity"], 12.0);
+        assert_eq!(wire["unit"], "m²");
+
+        let plan =
+            activity_update_with(&open, &tile, &patch(serde_json::json!({ "unit": "" }))).unwrap();
+        assert_eq!(plan.activities[0].unit, None, "an empty unit is no unit");
+        assert_eq!(plan.activities[0].quantity, Some(12.0));
+
+        activity_update_with(&open, &tile, &patch(serde_json::json!({ "unit": "m²" }))).unwrap();
+        let plan = activity_update_with(
+            &open,
+            &tile,
+            &patch(serde_json::json!({ "quantity": null })),
+        )
+        .unwrap();
+        assert_eq!(
+            (plan.activities[0].quantity, plan.activities[0].unit.clone()),
+            (None, None),
+            "clearing the quantity clears the unit"
+        );
+        work_close_with(&open);
+    }
+
+    #[test]
+    fn removing_a_person_clears_every_activity_they_were_responsible_for() {
+        let (_db, open, _scratch) = host_with_a_work();
+        let stage = stage_add_with(&open, "Bathroom").unwrap().stages[0]
+            .id
+            .clone();
+        let tiling = activity_add_with(&open, &stage, "Tiling")
+            .unwrap()
+            .activities[0]
+            .id
+            .clone();
+        let tiler = person_add_with(&open, "A. Tiler").unwrap().people[0]
+            .id
+            .clone();
+        activity_update_with(
+            &open,
+            &tiling,
+            &patch(serde_json::json!({ "responsibleId": tiler })),
+        )
+        .unwrap();
+
+        let plan = person_rename_with(&open, &tiler, "Ana Tiler").unwrap();
+        assert_eq!(plan.people[0].name, "Ana Tiler");
+        let plan = person_remove_with(&open, &tiler).unwrap();
+
+        assert!(plan.people.is_empty());
+        assert_eq!(plan.activities.len(), 1);
+        assert_eq!(plan.activities[0].responsible_id, None);
+        work_close_with(&open);
     }
 }
