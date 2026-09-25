@@ -18,6 +18,12 @@
 
 import { addCalendarDays, isWorkingDay, type WorkingCalendar } from '../calendar';
 import { breakdown } from '../arrangements';
+import {
+  progress as progressOf,
+  type ActivityProgress,
+  type DiaryEntry,
+  type ProgressState,
+} from '../diary';
 import type { Baseline, WorkSnapshot } from '../plan';
 import type { Schedule } from './index';
 
@@ -47,6 +53,21 @@ export interface GanttSpan {
   readonly finish: string;
 }
 
+/** What the diary says of an activity, laid over its planned bar. */
+export interface GanttProgress {
+  readonly state: ProgressState;
+  /**
+   * How much of the bar to fill, 0 to 1: all of it once finished, none before it starts, the share
+   * of quantities done while started, and `null` while started with no quantities to measure (the
+   * bar shows a mark, not an invented fill).
+   */
+  readonly fill: number | null;
+  readonly actualStart: string | null;
+  readonly actualFinish: string | null;
+  /** The span the diary says it ran, first entry to finish (or to the last entry so far). */
+  readonly actual: { readonly x: number; readonly width: number } | null;
+}
+
 /** An activity's bar. */
 export interface GanttBar extends GanttSpan {
   readonly kind: 'bar';
@@ -61,6 +82,8 @@ export interface GanttBar extends GanttSpan {
   readonly critical: boolean;
   /** Where the baseline had it, when the baseline placed it. */
   readonly ghost: GanttSpan | null;
+  /** What the diary says of it; the planned bar stays as it is. */
+  readonly progress: GanttProgress;
 }
 
 /** A dependency arrow from the end of one bar to the start of another. */
@@ -84,13 +107,18 @@ export interface GanttLayout {
   readonly arrows: readonly GanttArrow[];
 }
 
-/** Lay the schedule out, with the baseline's ghosts when one is given. */
+/**
+ * Lay the schedule out, with the baseline's ghosts when one is given and the diary's progress over
+ * each bar when entries are given.
+ */
 export function ganttLayout(
   scheduled: Schedule,
   snapshot: WorkSnapshot,
   calendar: WorkingCalendar,
   baseline: Baseline | null = null,
+  entries: readonly DiaryEntry[] = [],
 ): GanttLayout {
+  const said = progressOf(snapshot, entries);
   const recorded = new Map(
     (baseline?.rows ?? [])
       .filter((row) => row.start !== null && row.finish !== null)
@@ -103,6 +131,12 @@ export function ganttLayout(
   for (const { start, finish } of [...scheduled.dates.values(), ...recorded.values()]) {
     starts.push(start);
     finishes.push(finish);
+  }
+  // The diary's dates too, for the bars that will show them.
+  for (const [id, known] of said) {
+    if (!scheduled.dates.has(id) || known.startedOn === null) continue;
+    starts.push(known.startedOn);
+    finishes.push(known.finishedOn ?? known.lastOn!);
   }
   const first = starts.reduce<string | null>((a, b) => (a === null || b < a ? b : a), null);
   const last = finishes.reduce<string | null>((a, b) => (a === null || b > a ? b : a), null);
@@ -155,6 +189,7 @@ export function ganttLayout(
       slack: timing.slack,
       critical: scheduled.critical.has(row.id),
       ghost: ghost === undefined ? null : span(ghost.start, ghost.finish),
+      progress: barProgress(said.get(row.id)!, span),
     });
   }
 
@@ -181,4 +216,28 @@ export function ganttLayout(
   }
 
   return { columns, rows, arrows };
+}
+
+function barProgress(
+  known: ActivityProgress,
+  span: (start: string, finish: string) => GanttSpan,
+): GanttProgress {
+  let fill: number | null;
+  if (known.state === 'finished') fill = 1;
+  else if (known.state === 'not-started') fill = 0;
+  else fill = known.share === null ? null : known.share / 100;
+
+  const last = known.finishedOn ?? known.lastOn;
+  let actual: GanttProgress['actual'] = null;
+  if (known.startedOn !== null && last !== null) {
+    const { x, width } = span(known.startedOn, last);
+    actual = { x, width };
+  }
+  return {
+    state: known.state,
+    fill,
+    actualStart: known.startedOn,
+    actualFinish: known.finishedOn,
+    actual,
+  };
 }

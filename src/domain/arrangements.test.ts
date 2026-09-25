@@ -10,6 +10,7 @@ import {
 } from './arrangements';
 import type { Activity, Dependency, WorkSnapshot } from './plan';
 import { schedule } from './schedule';
+import { correction, entry, finished, worked } from './__fixtures__/plan';
 
 /** A synthetic work. Nothing in it is a real place, person or price. */
 function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
@@ -239,6 +240,31 @@ describe('the plan by room', () => {
 
   it('is empty for an empty plan', () => {
     expect(byRoom(snapshot())).toEqual([]);
+  });
+});
+
+describe('the checklist, ticked by the diary', () => {
+  it('says every line is not started with no diary', () => {
+    expect(checklist(PLAN, schedule(PLAN)).every((line) => line.done === 'not-started')).toBe(true);
+  });
+
+  it('ticks a line only when an entry says finished, and marks one worked on as started', () => {
+    const entries = [
+      entry(1, '2026-09-01', { done: [finished('strip'), worked('floor')] }),
+      entry(2, '2026-09-02', { done: [worked('grout')] }),
+      correction(3, 2, '2026-09-02', { done: [] }),
+    ];
+    const done = Object.fromEntries(
+      checklist(PLAN, schedule(PLAN), entries).map((line) => [line.activityId, line.done]),
+    );
+    expect(done).toEqual({
+      strip: 'finished',
+      floor: 'started',
+      grout: 'not-started', // the correction took the line back
+      skirting: 'not-started',
+      'remove-sink': 'not-started',
+      ghost: 'not-started',
+    });
   });
 });
 
