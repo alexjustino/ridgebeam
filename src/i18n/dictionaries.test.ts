@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { READINESS_LABEL_KEY, READINESS_MESSAGE_KEYS } from '@/domain/readiness';
+import { DECISIONS_DUE_LABEL_KEY } from '@/domain/decisions';
+import {
+  READINESS_LABEL_KEY,
+  READINESS_MESSAGE_KEYS,
+  RULE_EXPLANATION_KEYS,
+  RULE_LABEL_KEYS,
+} from '@/domain/readiness';
+import { SLIP_LABEL_KEY } from '@/domain/schedule/slip';
 import { LANGUAGES as LANGUAGE_CHOICES } from '@/domain/settings';
 
 import { en } from './en';
@@ -136,6 +143,23 @@ describe('the readiness sentences — slice F0’s proof, in both languages', ()
       expect(dictionary[READINESS_LABEL_KEY], `${language} ${READINESS_LABEL_KEY}`).toBeTruthy();
     }
   });
+});
+
+describe('every rule is named and explained, in both languages (F3)', () => {
+  it.each(LANGUAGES)(
+    '%s carries each rule’s label and its one-sentence explanation',
+    (language) => {
+      const dictionary = DICTIONARIES[language] as Record<string, string>;
+      for (const key of [
+        ...Object.values(RULE_LABEL_KEYS),
+        ...Object.values(RULE_EXPLANATION_KEYS),
+        DECISIONS_DUE_LABEL_KEY,
+        SLIP_LABEL_KEY,
+      ]) {
+        expect(dictionary[key], `${language} ${key}`).toBeTruthy();
+      }
+    },
+  );
 });
 
 describe('the languages', () => {
