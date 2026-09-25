@@ -10,23 +10,25 @@ silence; three lenses over one model; templates are plans) are recorded here by 
 makes each of them true, not before. Slice F0 makes two of them true in part: readiness is a
 measure, for the two rules F0 has ([ADR-008](#adr-008)), and the plan has no progress command
 ([ADR-009](#adr-009)) — the half of "the plan is intent and the diary is fact" that can be true
-before there is a diary. The other four wait for their slices.
+before there is a diary. Slice F1 makes a third true: three lenses over one model
+([ADR-014](#adr-014)). The other three wait for their slices.
 
-| #               | Decision                                                                  | Status                         |
-| --------------- | ------------------------------------------------------------------------- | ------------------------------ |
-| [001](#adr-001) | The product is named Ridgebeam                                            | Accepted — 2026-09-24, by Alex |
-| [002](#adr-002) | Tauri 2 with a deliberately thin Rust host                                | Accepted — 2026-09-25          |
-| [003](#adr-003) | The domain layer is pure TypeScript                                       | Accepted — 2026-09-25          |
-| [004](#adr-004) | A work is a folder, and the application keeps a small database of its own | Accepted — 2026-09-25          |
-| [005](#adr-005) | Fluent is the visual language, with one icon set                          | Accepted — 2026-09-25          |
-| [006](#adr-006) | No network, no telemetry                                                  | Accepted — 2026-09-25          |
-| [007](#adr-007) | Strings are data in two languages, and the glossary is data too           | Accepted — 2026-09-25          |
-| [008](#adr-008) | Readiness is a measure, not a feeling                                     | Accepted — 2026-09-25          |
-| [009](#adr-009) | The plan has no progress command                                          | Accepted — 2026-09-25          |
-| [010](#adr-010) | End-to-end tests drive the real binary                                    | Accepted — 2026-09-25          |
-| [011](#adr-011) | Accessibility is gated, not reviewed                                      | Accepted — 2026-09-25          |
-| [012](#adr-012) | Installers are not code-signed in 1.0.0                                   | Accepted — 2026-09-25          |
-| [013](#adr-013) | Settings are a closed list of keys the host owns                          | Accepted — 2026-09-25          |
+| #               | Decision                                                                                       | Status                         |
+| --------------- | ---------------------------------------------------------------------------------------------- | ------------------------------ |
+| [001](#adr-001) | The product is named Ridgebeam                                                                 | Accepted — 2026-09-24, by Alex |
+| [002](#adr-002) | Tauri 2 with a deliberately thin Rust host                                                     | Accepted — 2026-09-25          |
+| [003](#adr-003) | The domain layer is pure TypeScript                                                            | Accepted — 2026-09-25          |
+| [004](#adr-004) | A work is a folder, and the application keeps a small database of its own                      | Accepted — 2026-09-25          |
+| [005](#adr-005) | Fluent is the visual language, with one icon set                                               | Accepted — 2026-09-25          |
+| [006](#adr-006) | No network, no telemetry                                                                       | Accepted — 2026-09-25          |
+| [007](#adr-007) | Strings are data in two languages, and the glossary is data too                                | Accepted — 2026-09-25          |
+| [008](#adr-008) | Readiness is a measure, not a feeling                                                          | Accepted — 2026-09-25          |
+| [009](#adr-009) | The plan has no progress command                                                               | Accepted — 2026-09-25          |
+| [010](#adr-010) | End-to-end tests drive the real binary                                                         | Accepted — 2026-09-25          |
+| [011](#adr-011) | Accessibility is gated, not reviewed                                                           | Accepted — 2026-09-25          |
+| [012](#adr-012) | Installers are not code-signed in 1.0.0                                                        | Accepted — 2026-09-25          |
+| [013](#adr-013) | Settings are a closed list of keys the host owns                                               | Accepted — 2026-09-25          |
+| [014](#adr-014) | A lens is a vocabulary table over the glossary, and an arrangement; nothing is stored per lens | Accepted — 2026-09-25          |
 
 ---
 
@@ -481,3 +483,56 @@ the application keeps by reading the schema.
 **Cost accepted.** A new setting is a change to the host and to its test, not just to the
 screen. The lens is a person's setting, so two people sharing one Windows account share it — a
 lens stores nothing about the work, so the cost is a word choice, not data.
+
+## ADR-014 — A lens is a vocabulary table over the glossary, and an arrangement; nothing is stored per lens {#adr-014}
+
+**Status.** Accepted — 2026-09-25.
+
+**Context.** "Three lenses, one model" is one of the specification's ADR-PROPOSED decisions, and
+slice F1 is the one that makes it true: the lens switch changes every term through the glossary
+and stores nothing, and the work breakdown and the owner's checklist are the same rows in two
+arrangements (SPEC §7). The engineer calls a piece of work an _activity_ and reads it in a
+numbered breakdown; the architect calls it a _work item_ and reads it by room; the owner calls it
+a _job_ and reads it as a list of what is to be done. The easy way to build that — three screens,
+three sets of labels written into three sets of components, perhaps a column saying which lens a
+row belongs to — is three products that disagree with each other within a week.
+
+**Decision.** A lens is two things and nothing else: **a vocabulary** and **an arrangement**.
+
+- **The vocabulary is a table over the glossary.** A term in
+  [`src/i18n/glossary.json`](../../src/i18n/glossary.json) may carry, per language, a `lenses`
+  object — `{ "engineer": "…", "architect": "…", "owner": "…" }` — with the word that lens uses;
+  a lens with no word of its own shows the term. The sentence that explains a term never varies
+  by lens: a person switching lenses meets new words for the same things, not new definitions.
+  The interface reads every domain noun through one lookup that resolves the language and the
+  current lens together, so no screen can show one lens's word beside another's.
+  `scripts/glossary.mjs` validates the table — lens names from the closed list, no empty word —
+  and [`docs/GLOSSARY.md`](../GLOSSARY.md) shows it, for the terms that vary, beside the rest.
+- **The arrangement is a pure function of the same rows.** The Plan shows the work three ways —
+  the **breakdown** (numbered stages and activities, where editing lives), **by room** (each room
+  with the activities that touch it) and the **checklist** (one line per activity in placement
+  order) — each computed in `src/domain/` from the one snapshot of the work. A test holds the
+  invariant that matters: the three arrangements contain exactly the same activities. The tab
+  that opens first follows the lens — engineer, breakdown; architect, by room; owner, checklist
+  — and any lens can open any tab.
+- **Nothing is stored per lens.** The current lens is a setting of the person's
+  ([ADR-013](#adr-013)), `owner` until they choose otherwise. The work database has no lens
+  column and never will; switching the lens changes words and order on the screen and writes
+  nothing to the work. The domain knows nothing about lenses: vocabulary is data in `src/i18n/`,
+  and an arrangement takes no lens as input.
+- **The checklist sets nothing.** Its box is a mark of the list, not a control: done arrives
+  from the diary in F4 ([ADR-009](#adr-009)).
+
+**Why.** One model with three vocabularies is the product's answer to the incumbents, who each
+chose one reader. Keeping the vocabulary as data means a new term, or a better word for the
+owner, is a change to one file that a gate checks — not a hunt through components. Keeping the
+arrangements pure and computed from the same snapshot means they cannot drift: an activity
+edited in the breakdown is the same row in the checklist on the next render, because there is no
+second copy of it to update.
+
+**Cost accepted.** Some words fit one lens badly in one language and well in the other —
+Portuguese uses _serviço_ for both the architect's and the owner's word for an activity — and the
+table has to say so term by term rather than by rule. Three arrangements are three layouts to
+keep accessible in two languages and two themes. And because a lens is the person's setting, not
+the work's, an engineer and an owner who share one machine account share one lens; since the
+lens stores nothing, what they share is a word choice, never data.
