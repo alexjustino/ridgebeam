@@ -49,6 +49,7 @@ describe('the glossary', () => {
     const keys = new Set(terms.map((term) => term.key));
     for (const used of [
       'work',
+      'plan',
       'stage',
       'activity',
       'duration',
@@ -66,6 +67,8 @@ describe('the glossary', () => {
       'lensEngineer',
       'dashboard',
       'figure',
+      'room',
+      'quantity',
     ]) {
       expect(keys, `the glossary has no ${used}`).toContain(used);
     }

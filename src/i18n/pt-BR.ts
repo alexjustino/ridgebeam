@@ -95,46 +95,105 @@ export const ptBR: Dictionary = {
     'Não foi possível abrir a janela de pastas. Digite ou cole o caminho da pasta.',
 
   // ── Plan ──────────────────────────────────────────────────────────────────
-  'plan.lead':
-    'As etapas em ordem, cada uma com suas atividades. A duração é contada em dias úteis; deixe-a vazia até saber.',
   'plan.people.title': 'Pessoas',
   'plan.people.description':
     'Uma pessoa é um nome, não uma conta. Qualquer pessoa adicionada aqui pode ser responsável por uma atividade.',
   'plan.people.empty': 'Ninguém ainda.',
   'plan.person.name': 'Nome da pessoa',
   'plan.person.add': 'Adicionar pessoa',
-  'plan.stages.title': 'Etapas',
-  'plan.stage.name': 'Nome da nova etapa',
-  'plan.stage.add': 'Adicionar etapa',
-  'plan.stage.remove': 'Remover etapa',
   'plan.stages.emptyTitle': 'Nenhuma etapa ainda',
   'plan.stages.emptyDescription':
     'Uma etapa é um capítulo da obra — demolição, instalações, revestimento. Adicione a primeira acima.',
-  'plan.activities.empty': 'Nenhuma atividade nesta etapa ainda.',
-  'plan.activity.newName': 'Nome da nova atividade em {stage}',
-  'plan.activity.add': 'Adicionar atividade',
-  'plan.column.activity': 'Atividade',
-  'plan.column.duration': 'Duração (dias úteis)',
-  'plan.column.responsible': 'Responsável',
-  'plan.column.actions': 'Ações',
-  'plan.activity.nameOf': 'Nome de {activity}',
-  'plan.activity.durationOf': 'Duração de {activity}, em dias úteis',
-  'plan.activity.responsibleOf': 'Responsável por {activity}',
   'plan.activity.notKnown': 'Ainda não definido',
-  'plan.activity.remove': 'Remover',
   'plan.invalid.duration': 'A duração é um número inteiro de dias úteis, de 1 a {max}.',
   'plan.invalid.name': 'Um nome não pode ficar vazio.',
   'plan.refused': 'Essa alteração não foi guardada',
-  'plan.confirm.stageTitle': 'Remover a etapa “{name}”?',
   'plan.confirm.stageEmpty': 'Ela não tem atividade. Isso não pode ser desfeito.',
   'plan.confirm.stageBody.one':
     'A {count} atividade dela é removida junto. Isso não pode ser desfeito.',
   'plan.confirm.stageBody.other':
     'As {count} atividades dela são removidas junto. Isso não pode ser desfeito.',
-  'plan.confirm.activityTitle': 'Remover a atividade “{name}”?',
   'plan.confirm.activityBody':
     'A duração e o responsável dela vão junto. Isso não pode ser desfeito.',
-  'plan.confirm.activityConfirm': 'Remover atividade',
+
+  // ── Plan: arrangements, rows and order (F1) ─────────────────────────────
+  'shell.lensChosen': 'Lente: {lens}. As palavras de todas as telas a seguem.',
+  'settings.lens.note':
+    'As palavras de todas as telas, e a forma em que o plano abre. Nada de uma obra é guardado por lente: trocar de lente nunca muda um plano.',
+  'plan.lead':
+    'Três formas de ver as mesmas linhas. A estrutura é onde o plano é editado; as outras duas o mostram por onde acontece e como uma lista para seguir.',
+  'plan.tabs': 'Formas de ver o plano',
+  'plan.tab.breakdown': 'Estrutura',
+  'plan.tab.byRoom': 'Por {room}',
+  'plan.tab.checklist': 'Lista',
+  'plan.fieldOf': '{field}: {name}',
+  'plan.unit': 'Unidade',
+  'plan.unitOf': 'Unidade: {name}',
+  'plan.remove': 'Remover',
+  'plan.removeNamed': 'Remover: {name}',
+  'plan.rename': 'Renomear: {name}',
+  'plan.add': 'Adicionar {what}',
+  'plan.toAdd': '{what} a adicionar',
+  'plan.toAddIn': '{what} a adicionar em {where}',
+  'plan.move.up': 'Subir: {name}',
+  'plan.move.down': 'Descer: {name}',
+  'plan.move.hint':
+    'Alt+Seta para cima e Alt+Seta para baixo movem a linha em foco, uma posição por vez.',
+  'plan.move.done': '{name} agora é {number}.',
+  'plan.move.alreadyFirst': '{name} já está no início.',
+  'plan.move.alreadyLast': '{name} já está no fim.',
+  'plan.column.duration': '{duration} (dias úteis)',
+  'plan.activities.empty': 'Nada aqui ainda.',
+  'plan.rooms.title': 'Onde a obra acontece',
+  'plan.rooms.description':
+    'As partes da obra — cozinha, banheiro, telhado. Cada linha do plano diz quais delas ela toca.',
+  'plan.rooms.empty': 'Nada ainda.',
+  'plan.rooms.noneYet': 'Ainda não há {room} no plano — adicione acima.',
+  'plan.quantity.kept': 'Guardado: {amount}',
+  'plan.invalid.quantity': 'Digite um número, 0 ou mais.',
+  'plan.invalid.unitNeedsQuantity': 'A unidade espera um número — digite o número antes.',
+  'plan.confirm.removeTitle': 'Remover “{name}”?',
+  'plan.confirm.personNone': 'Nada no plano cita essa pessoa ainda. Isso não pode ser desfeito.',
+  'plan.confirm.personBody.one':
+    '{count} atividade pela qual essa pessoa responde ficará sem responsável, e a prontidão cai na mesma medida. Isso não pode ser desfeito.',
+  'plan.confirm.personBody.other':
+    '{count} atividades pelas quais essa pessoa responde ficarão sem responsável, e a prontidão cai na mesma medida. Isso não pode ser desfeito.',
+  'plan.confirm.roomNone': 'Nenhuma linha do plano está marcada ali ainda.',
+  'plan.confirm.roomBody.one':
+    'A {count} atividade marcada ali continua no plano; só deixa de estar marcada ali.',
+  'plan.confirm.roomBody.other':
+    'As {count} atividades marcadas ali continuam no plano; só deixam de estar marcadas ali.',
+  'plan.calendar.show': 'Editar',
+  'plan.calendar.hide': 'Fechar',
+  'plan.calendar.hours': '{hours} horas por dia útil',
+  'plan.calendar.noHolidays': 'Nenhum feriado',
+  'plan.calendar.holidays.one': '{count} feriado',
+  'plan.calendar.holidays.other': '{count} feriados',
+  'plan.calendar.badHoliday': '{date} não é um dia do calendário.',
+  'plan.calendar.holidaysTitle': 'Feriados',
+  'plan.calendar.holidayDay': 'Data do feriado',
+  'plan.calendar.holidayName': 'Nome do feriado',
+  'plan.calendar.holidayDate': 'Escolha a data do feriado antes.',
+  'plan.calendar.holidayTwice': '{day} já está na lista.',
+  'plan.calendar.notSaved': 'O calendário não foi salvo',
+  'plan.calendar.save': 'Salvar calendário',
+  'plan.calendar.saved': 'Salvo. A data de término acompanha.',
+  'plan.calendar.unsaved': 'Alterações ainda não salvas.',
+  'plan.byRoom.emptyTitle': 'Nada para organizar ainda',
+  'plan.byRoom.emptyDescription':
+    'Adicione etapas na estrutura e marque em cada linha onde ela acontece.',
+  'plan.byRoom.none': 'Sem {room} ainda',
+  'plan.byRoom.nothing': 'Nada marcado aqui ainda.',
+  'plan.byRoom.alsoIn': 'também em {rooms}',
+  'plan.editInBreakdown': 'Editar na estrutura',
+  'plan.checklist.note':
+    'A caixa é marcada pelo diário, a partir do dia em que ele chegar numa versão seguinte — nada é marcado como feito aqui.',
+  'plan.checklist.days.one': '{count} dia útil',
+  'plan.checklist.days.other': '{count} dias úteis',
+  'plan.checklist.from': 'a partir de {day}',
+  'plan.checklist.emptyTitle': 'Nada para listar ainda',
+  'plan.checklist.emptyDescription':
+    'Cada linha do plano vira uma linha aqui, na ordem em que o calendário a coloca.',
 
   // ── Readiness and the figure ──────────────────────────────────────────────
   'readiness.label': 'Prontidão',
@@ -158,7 +217,6 @@ export const ptBR: Dictionary = {
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
   'dashboard.lead': 'A obra num relance. Cada número abre as linhas de onde veio.',
-  'dashboard.finish.title': 'Data de término',
   'dashboard.finish.unknown': 'Ainda não se sabe — nenhuma atividade tem duração.',
   'dashboard.finish.invalidCalendar':
     'Ainda não se sabe — o calendário de trabalho não pode ser usado.',
@@ -167,7 +225,6 @@ export const ptBR: Dictionary = {
   'dashboard.finish.leftOut.other': 'Não inclui {count} atividades sem duração.',
   'dashboard.finish.sequential':
     'As atividades são postas uma depois da outra, etapa por etapa, a partir da data de início.',
-  'dashboard.calendar.title': 'Calendário de trabalho',
   'dashboard.calendar.start': 'Começa em',
   'dashboard.calendar.days': 'Dias úteis',
   'dashboard.calendar.hours': 'Horas por dia útil',
@@ -198,8 +255,6 @@ export const ptBR: Dictionary = {
   'settings.lens.owner': 'Dono',
   'settings.lens.architect': 'Arquiteto',
   'settings.lens.engineer': 'Engenheiro',
-  'settings.lens.note':
-    'Guardada agora. As telas falam as palavras do dono hoje; as outras lentes passam a mudá-las numa versão seguinte.',
   'settings.refused': 'A escolha não foi guardada',
   'settings.unread': 'Estas são as escolhas padrão',
 

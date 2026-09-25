@@ -8,16 +8,16 @@ Every term Ridgebeam shows, with the plain sentence that explains it, in English
 [`src/i18n/glossary.json`](../src/i18n/glossary.json); the tests read it and so does this page. To change a
 term, edit the JSON and run `npm run glossary`. `npm run check:glossary`, one of the gates,
 fails when this page and the data disagree — and, before that, when any term is missing a
-language, a term or a sentence.
+language, a term or a sentence, or names a lens that does not exist.
 
-A term shown on a screen that is not here is a defect (SPEC §2.13, §6). A lens changes which
-of these words a screen uses; it never stores anything.
+A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-53 terms.
+54 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
 | `work` | work | One build — a renovation, a house, a roof — with its plan, its diary and its money, kept as one folder on your disk. | obra | Uma construção — uma reforma, uma casa, um telhado — com seu plano, seu diário e seu dinheiro, guardada como uma pasta no seu disco. |
+| `plan` | plan | The stages and activities of a work, in order, with what each one needs. It is intent: what actually happened is the diary’s to say. | plano | As etapas e as atividades de uma obra, em ordem, com o que cada uma precisa. É intenção: o que de fato aconteceu é o diário que diz. |
 | `stage` | stage | A chapter of the work — demolition, rough-in, plaster, tiling — that holds activities and cannot start or close before its checks are answered. | etapa | Um capítulo da obra — demolição, instalações, reboco, revestimento — que reúne atividades e não começa nem fecha antes de as suas verificações serem respondidas. |
 | `activity` | activity | One piece of work inside a stage, with a duration, a person responsible and the rooms it touches. | atividade | Um pedaço de trabalho dentro de uma etapa, com duração, um responsável e os cômodos que ela toca. |
 | `duration` | duration | How many working days an activity takes. An activity with no duration cannot be scheduled, and the plan says so. | duração | Quantos dias úteis uma atividade leva. Uma atividade sem duração não entra no cronograma, e o plano avisa. |
@@ -70,3 +70,23 @@ of these words a screen uses; it never stores anything.
 | `figure` | figure | A number on a screen that always knows which rows it was counted from, and opens onto them when clicked. | número | Um valor na tela que sempre sabe de quais linhas foi contado, e abre nelas ao ser clicado. |
 | `report` | weekly report | One page a week, in the owner's words: what was done, what slipped, what to decide, what to pay. | relatório semanal | Uma página por semana, nas palavras do dono: o que foi feito, o que atrasou, o que decidir, o que pagar. |
 | `backup` | backup | The whole work as one file you can copy anywhere and bring back exactly as it was. | cópia de segurança | A obra inteira como um arquivo que você pode copiar para qualquer lugar e trazer de volta exatamente como estava. |
+
+## The lenses
+
+A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a term changes
+with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
+The sentence never changes with the lens, and nothing about a work is stored per lens.
+
+9 of the 54 terms change with the lens.
+
+| Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
+| --- | --- | --- | --- | --- | --- | --- |
+| `plan` | work breakdown | works by room | the plan | estrutura analítica | obra por cômodo | o plano |
+| `stage` | stage | phase | stage | etapa | fase | etapa |
+| `activity` | activity | work item | job | atividade | serviço | serviço |
+| `duration` | duration | duration | how long | duração | duração | quanto tempo |
+| `responsible` | responsible | contractor | who does it | responsável | executor | quem faz |
+| `finishDate` | finish date | finish date | when it ends | data de término | data de término | quando termina |
+| `readiness` | readiness | readiness | how ready the plan is | prontidão | prontidão | quanto o plano está pronto |
+| `room` | area | room | room | área | cômodo | cômodo |
+| `quantity` | quantity | quantity | how much | quantidade | quantidade | quanto |
