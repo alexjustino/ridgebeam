@@ -356,10 +356,25 @@ breaks one is not merged.
   same way. A plan already holding a cycle is not drawn: the Schedule says so, and says which.
   A dependency that joins nothing — onto a stage with no activities — is shown as such, not
   hidden.
+- **A deadline is never typed.** No screen offers a date field for when a decision is due. What
+  a person types is the **lead time** — how many working days between deciding and having — and
+  the deadline is shown beside it, computed and read-only, with its status in words: _due in 3
+  working days_, _due today_, _overdue by 2 working days_, _made on 30 Sep_, or _no deadline yet_
+  with the reason, "nothing in this stage is scheduled" (ADR-017). Where a deadline is shown, it
+  is the domain's: it moves when the schedule moves, and a screen never keeps a copy of it. The
+  same holds for every computed date in the product — a finish date, a start, a slip — none is an
+  input.
+- **Overdue on creation is said, not refused.** A decision whose lead time is longer than the
+  time left is kept, and the row says so the moment it is added or its lead time raised — a
+  caution `InfoBar` on that row, in words: _"Already overdue: 10 working days of lead time, but
+  Tiling starts in 4 working days."_ Refusing it would teach a person to type a shorter lead time
+  than the real one, and the plan must be able to say the truth. The same goes for every fact
+  the plan can hold that is bad news: it is shown, with its reason, never rejected so that the
+  screen can stay green.
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
   `data-destination="<id>"` with the same id the router uses — `dashboard`, `plan`, `schedule`,
-  `settings`, `diagnostics`, `about`. The end-to-end suite and the accessibility audit find destinations by
+  `decisions`, `settings`, `diagnostics`, `about`. The end-to-end suite and the accessibility audit find destinations by
   these attributes and never by visible text, which changes with the language (§9).
 - **Degrade visibly: a missing work folder is a state with a way out.** A recent work whose
   folder is gone is not hidden and not an error dialog: its row says the folder was not found
@@ -394,14 +409,20 @@ Maximising works; the hover flyout does not appear yet.
 ### The rail
 
 The destinations are ordered **the work first, then the product**: Dashboard · Plan ·
-Schedule, then Settings · Diagnostics · About. Between the two groups sits a hairline with `role="separator"` —
+Schedule · Decisions, then Settings · Diagnostics · About. Between the two groups sits a hairline with `role="separator"` —
 a separator and **never** a disabled button, a heading nobody can reach or an empty `div` used as
 a gap: the grouping has to be a fact for somebody who is listening to the rail rather than
 looking at it, and nothing new may appear in the tab order to say it.
 
-With no work open, Dashboard, Plan and Schedule have nothing to show: the Start screen — a new
-work, an open work, the recent works — takes the content region, and the three destinations are
-disabled
+**Decisions** is the owner's _what to decide_: every decision of the work in one list, overdue
+first, then due, then those with no deadline yet, and the made ones last, each with its stage,
+lead time, deadline and days left, and the way to mark it made or reopen it. Names and lead times
+are edited where the rest of the plan is, in the breakdown, and the list links back there — one
+place to edit, as for the arrangements (§8).
+
+With no work open, Dashboard, Plan, Schedule and Decisions have nothing to show: the Start
+screen — a new work, an open work, the recent works — takes the content region, and the four
+destinations are disabled
 with the reason in their accessible description, not removed. A rail that changes shape under
 the keyboard is a rail nobody learns.
 
