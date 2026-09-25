@@ -79,19 +79,65 @@ F7 adds trade, phone, stages and availability.
 | `name`       | TEXT    | not empty                  |
 | `created_at` | TEXT    | UTC                        |
 
-| `activity`       | Type    | Meaning                                                    |
-| ---------------- | ------- | ---------------------------------------------------------- |
-| `id`             | TEXT    | UUID v7                                                    |
-| `stage_id`       | TEXT    | `REFERENCES stage ON DELETE CASCADE`                       |
-| `position`       | INTEGER | order inside the stage, unique per stage                   |
-| `name`           | TEXT    | not empty                                                  |
-| `duration_days`  | INTEGER | working days, `NULL` until known, `> 0` once set           |
-| `responsible_id` | TEXT    | `REFERENCES person ON DELETE SET NULL`, `NULL` until known |
-| `created_at`     | TEXT    | UTC                                                        |
+| `activity`       | Type    | Meaning                                                                                                         |
+| ---------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
+| `id`             | TEXT    | UUID v7                                                                                                         |
+| `stage_id`       | TEXT    | `REFERENCES stage ON DELETE CASCADE`                                                                            |
+| `position`       | INTEGER | order inside the stage, unique per stage                                                                        |
+| `name`           | TEXT    | not empty                                                                                                       |
+| `duration_days`  | INTEGER | working days, `NULL` until known, `> 0` once set                                                                |
+| `responsible_id` | TEXT    | `REFERENCES person ON DELETE SET NULL`, `NULL` until known                                                      |
+| `created_at`     | TEXT    | UTC                                                                                                             |
+| `quantity`       | REAL    | how much of the activity there is — 12 (m² of tile); `NULL` or `>= 0`, a number and never text (F1)             |
+| `unit`           | TEXT    | the quantity's unit as the person writes it — `m²`, `m`, `un`; 1–16 characters, and only beside a quantity (F1) |
+
+**Order is explicit.** `position` is 1, 2, 3 … with no gaps — among stages, and among the
+activities of one stage, and among rooms. The host renumbers them 1 … n in the same transaction as
+every move and every removal — of a stage, an activity or a room — so the numbering a person
+sees (1, 1.1, 1.2 …) is the order on disk. A move is up or down by one place; at the first or
+last place it changes nothing and is not an error. A work created by F0, where a removal could
+leave a gap, has its gaps closed by the first move in that list.
+
+**A quantity is optional, and it is not a readiness rule.** The specification's rules for what
+a plan must know are duration, responsible, decisions, checks, cost and dependencies — not how
+many square metres. A unit means nothing without a quantity, and two guards say so. The host
+checks first and refuses a unit on its own with its own sentence; the schema checks second —
+`unit` is `NULL`, or 1–16 characters that are not blank and only when `quantity` is present,
+a `CHECK` SQLite accepts on the added column and tests against every row. Clearing a quantity
+clears its unit.
 
 **There is no progress column, and there never will be.** Progress is derived from the diary
-(slice F4). Dependencies, rooms and quantities arrive with slices F1 and F2 as tables of their
-own, not as columns here.
+(slice F4). Dependencies with lag arrive with slice F2 as a table of their own, not as columns
+here.
+
+### `room` and `activity_room`
+
+A room — or an area: the bathroom, the north wall, the roof — is a row of the work, the
+architect's and the owner's map of it (F1). An activity touches zero or more rooms.
+
+| `room`       | Type    | Meaning                          |
+| ------------ | ------- | -------------------------------- |
+| `id`         | TEXT    | UUID v7                          |
+| `position`   | INTEGER | order among rooms, unique, 1 … n |
+| `name`       | TEXT    | 1–120 characters, not blank      |
+| `created_at` | TEXT    | UTC                              |
+
+| `activity_room` | Type | Meaning                                 |
+| --------------- | ---- | --------------------------------------- |
+| `activity_id`   | TEXT | `REFERENCES activity ON DELETE CASCADE` |
+| `room_id`       | TEXT | `REFERENCES room ON DELETE CASCADE`     |
+
+The primary key is the pair. Removing a room removes its links and leaves the activities;
+removing an activity removes its links and leaves the rooms. The host replaces an activity's
+set of rooms whole, and refuses a room that is not in the work.
+
+## Nothing is stored per lens, or per arrangement
+
+The breakdown, the works by room and the owner's checklist are three arrangements of the same
+rows, computed by the domain from one snapshot of the work (ADR-014). No table holds an
+arrangement, and the work database has no lens column and never will: the lens is the person's
+setting, in the application database, and it changes the words and the order on the screen,
+never the work.
 
 ## Readiness is computed, not stored
 
@@ -135,13 +181,18 @@ Numbered SQL files compiled into the binary, forward-only, applied in a transact
 moves `work.schema_version`. A release that adds a migration says so in the changelog and is
 covered by a round-trip test that opens a work at version N-1 and migrates it without loss.
 
-| Migration      | Slice | Adds                                                         |
-| -------------- | ----- | ------------------------------------------------------------ |
-| `001_init.sql` | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity` |
+| Migration                      | Slice | Adds                                                             |
+| ------------------------------ | ----- | ---------------------------------------------------------------- |
+| `001_init.sql`                 | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`     |
+| `002_rooms_and_quantities.sql` | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit` |
+
+Migration 002 is the first a released work would meet: a work created at schema 1, with its
+stages and activities, is migrated to schema 2 without loss, and a round-trip test in `cargo
+test` holds it. The migrations live in `src-tauri/work_migrations/`.
 
 ## Not yet in the schema
 
-Rooms, quantities and dependencies with lag (F1–F2) · baselines (F2, F8) · decisions (F3) ·
+Dependencies with lag (F2) · baselines (F2, F8) · decisions (F3) ·
 the diary, its photos and corrections, and the chain (F4) · checks (F5) · planned, committed
 and paid money and the payments ledger (F6) · documents, thumbnails and hashes (F7) · templates
 are files in the repository, not rows (F9).
