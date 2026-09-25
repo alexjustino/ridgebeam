@@ -311,7 +311,26 @@ breaks one is not merged.
   [`src/i18n/glossary.json`](src/i18n/glossary.json), with its plain sentence in both languages,
   rendered into [`docs/GLOSSARY.md`](docs/GLOSSARY.md) by a gate. A new term enters the glossary
   in the same pull request as the screen that first shows it. A lens that shows a term absent
-  from the glossary is a mandatory negative case (SPEC §6).
+  from the glossary is a mandatory negative case (SPEC §6). A domain noun on a screen is read
+  through the one lookup that resolves the language and the lens together (`useTerm`), so it
+  changes with the lens and can never show one lens's word beside another's (ADR-014).
+- **Arrangements are the same rows, never a copy.** The Plan shows the work as a breakdown, by
+  room and as a checklist — three arrangements, each a pure function in `src/domain/` of the one
+  snapshot of the work, and a test holds that they contain exactly the same activities (ADR-014).
+  No arrangement keeps a list of its own, caches a row, or has a field the others lack. **Editing
+  lives in one place**, the breakdown; the other two say where, with a link that opens the
+  breakdown and puts focus on that row. An activity in two rooms appears under both, and the
+  group says so, rather than silently counting it twice. The checklist's box is a mark of the
+  list, drawn, not a control: it cannot be pressed, it has no checked state, and a note beside
+  the list says that done arrives from the diary.
+- **Order is changed by keyboard, and every move is announced.** A stage among stages, or an
+  activity within its stage, moves with **Alt+ArrowUp** and **Alt+ArrowDown** on the focused row,
+  and with **Move up** and **Move down** buttons beside it that do exactly the same thing — the
+  chord is never the only way, and the buttons are labelled, never arrows alone. After a move the
+  focus stays on the row that moved, the numbering follows at once, and the new place is
+  announced through `announce()` in the person's language — _"Tiling moved to position 2 of 3."_
+  At the first or last place nothing moves and nothing fails. A drag handle, if one ever arrives,
+  is a third way, never the first.
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
   `data-destination="<id>"` with the same id the router uses — `dashboard`, `plan`, `settings`,
