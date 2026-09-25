@@ -11,24 +11,28 @@ makes each of them true, not before. Slice F0 makes two of them true in part: re
 measure, for the two rules F0 has ([ADR-008](#adr-008)), and the plan has no progress command
 ([ADR-009](#adr-009)) — the half of "the plan is intent and the diary is fact" that can be true
 before there is a diary. Slice F1 makes a third true: three lenses over one model
-([ADR-014](#adr-014)). The other three wait for their slices.
+([ADR-014](#adr-014)). Slice F2 makes part of a fourth true: the first baseline is taken when
+the plan is approved and no baseline is ever overwritten ([ADR-016](#adr-016)); the reason asked
+on every later change is F8's. The other two wait for their slices.
 
-| #               | Decision                                                                                       | Status                         |
-| --------------- | ---------------------------------------------------------------------------------------------- | ------------------------------ |
-| [001](#adr-001) | The product is named Ridgebeam                                                                 | Accepted — 2026-09-24, by Alex |
-| [002](#adr-002) | Tauri 2 with a deliberately thin Rust host                                                     | Accepted — 2026-09-25          |
-| [003](#adr-003) | The domain layer is pure TypeScript                                                            | Accepted — 2026-09-25          |
-| [004](#adr-004) | A work is a folder, and the application keeps a small database of its own                      | Accepted — 2026-09-25          |
-| [005](#adr-005) | Fluent is the visual language, with one icon set                                               | Accepted — 2026-09-25          |
-| [006](#adr-006) | No network, no telemetry                                                                       | Accepted — 2026-09-25          |
-| [007](#adr-007) | Strings are data in two languages, and the glossary is data too                                | Accepted — 2026-09-25          |
-| [008](#adr-008) | Readiness is a measure, not a feeling                                                          | Accepted — 2026-09-25          |
-| [009](#adr-009) | The plan has no progress command                                                               | Accepted — 2026-09-25          |
-| [010](#adr-010) | End-to-end tests drive the real binary                                                         | Accepted — 2026-09-25          |
-| [011](#adr-011) | Accessibility is gated, not reviewed                                                           | Accepted — 2026-09-25          |
-| [012](#adr-012) | Installers are not code-signed in 1.0.0                                                        | Accepted — 2026-09-25          |
-| [013](#adr-013) | Settings are a closed list of keys the host owns                                               | Accepted — 2026-09-25          |
-| [014](#adr-014) | A lens is a vocabulary table over the glossary, and an arrangement; nothing is stored per lens | Accepted — 2026-09-25          |
+| #               | Decision                                                                                                      | Status                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| [001](#adr-001) | The product is named Ridgebeam                                                                                | Accepted — 2026-09-24, by Alex |
+| [002](#adr-002) | Tauri 2 with a deliberately thin Rust host                                                                    | Accepted — 2026-09-25          |
+| [003](#adr-003) | The domain layer is pure TypeScript                                                                           | Accepted — 2026-09-25          |
+| [004](#adr-004) | A work is a folder, and the application keeps a small database of its own                                     | Accepted — 2026-09-25          |
+| [005](#adr-005) | Fluent is the visual language, with one icon set                                                              | Accepted — 2026-09-25          |
+| [006](#adr-006) | No network, no telemetry                                                                                      | Accepted — 2026-09-25          |
+| [007](#adr-007) | Strings are data in two languages, and the glossary is data too                                               | Accepted — 2026-09-25          |
+| [008](#adr-008) | Readiness is a measure, not a feeling                                                                         | Accepted — 2026-09-25          |
+| [009](#adr-009) | The plan has no progress command                                                                              | Accepted — 2026-09-25          |
+| [010](#adr-010) | End-to-end tests drive the real binary                                                                        | Accepted — 2026-09-25          |
+| [011](#adr-011) | Accessibility is gated, not reviewed                                                                          | Accepted — 2026-09-25          |
+| [012](#adr-012) | Installers are not code-signed in 1.0.0                                                                       | Accepted — 2026-09-25          |
+| [013](#adr-013) | Settings are a closed list of keys the host owns                                                              | Accepted — 2026-09-25          |
+| [014](#adr-014) | A lens is a vocabulary table over the glossary, and an arrangement; nothing is stored per lens                | Accepted — 2026-09-25          |
+| [015](#adr-015) | One scheduling engine: Tessera's, copied literally and extended with the working calendar, lags and baselines | Accepted — 2026-09-25          |
+| [016](#adr-016) | Baselines are insert-only from the first one                                                                  | Accepted — 2026-09-25          |
 
 ---
 
@@ -536,3 +540,117 @@ table has to say so term by term rather than by rule. Three arrangements are thr
 keep accessible in two languages and two themes. And because a lens is the person's setting, not
 the work's, an engineer and an owner who share one machine account share one lens; since the
 lens stores nothing, what they share is a word choice, never data.
+
+## ADR-015 — One scheduling engine: Tessera's, copied literally and extended with the working calendar, lags and baselines {#adr-015}
+
+**Status.** Accepted — 2026-09-25.
+
+**Context.** The specification left the scheduling engine **PROPOSED** (SPEC §3): the critical
+path of a sibling product, Tessera — `graph.ts` and `criticalPath.ts` — copied literally and
+extended, rather than a second engine written from nothing, with KEYSTONE to confirm the choice in
+F2 by a benchmark. The budget it has to meet is SPEC §4's: a work of 2 000 activities and 3 000
+links scheduled in under 100 ms, and its Gantt drawn in under 500 ms, with three times that as
+headroom in CI. Tessera's engine is the classical two-pass method — forward for the earliest
+start, backward for the latest finish, slack as the difference, zero slack as critical — already
+tested, but written for tasks measured in minutes, with no calendar, no lag and no notion of a
+stage.
+
+**Decision.** One engine, taken in two steps that stay visible in the history.
+
+1. **Copied literally.** `src/domain/schedule/graph.ts` and `criticalPath.ts`, with their tests,
+   are Tessera's files at commit `bdbfc4a`, byte for byte below a header that says where they came
+   from. The copy is its own commit, so what was taken and what was changed can be read apart.
+2. **Extended.** The unit becomes **working days**: whole numbers, offsets from day 0, the first
+   working day on or after the work's start date; `toDates` maps offsets to ISO dates through the
+   working calendar's `addWorkingDays`, so a weekend or a holiday is never a working day of any
+   activity. Edges are **finish-to-start with a lag** of zero or more working days. The adjacency
+   maps are built once per plan — no scan of a list of blockers inside a pass — and the
+   topological order breaks ties through a position map, never by searching an array. The
+   minutes helpers Tessera needed are removed; milestones stay in the shape and unused.
+3. **Stages are endpoints, expanded before planning.** A dependency joins two activities, two
+   stages, or one of each. Before the engine runs, a stage endpoint becomes every activity of the
+   stage: _stage S before X_ is every activity of S before X, and the reverse. A dependency onto
+   an empty stage expands to nothing and is **reported as inert**, never dropped in silence.
+4. **Nothing constrains it, so it starts on day 0.** An activity with no dependency starts on the
+   first working day — parallel work is the honest reading of an unlinked plan — and readiness
+   gains a rule that says so (`activity.linked`, [ADR-008](#adr-008)): in a plan of two or more
+   activities, one linked to nothing is not ready. Rules now say when they apply — a rule that
+   does not apply to a row is neither known nor missing — so a plan of one activity has nothing
+   to link, and still reads 1 of 2 on the two rules that do. The schedule replaces F0's placement in
+   sequence entirely.
+5. **A cycle is refused twice** — by the domain, which names the loop before the host is asked,
+   and by the host, which refuses the dependency with the kind `dependency_cycle` and the chain of
+   names. A stored plan that holds a cycle anyway (a file edited by hand) is planned as _cyclic_,
+   and the screen says so instead of drawing a schedule that cannot exist.
+
+**KEYSTONE's confirmation — the benchmark.** `src/domain/schedule/schedule.bench.test.ts`
+builds a seeded work of 2 000 activities in 40 stages with 3 000 links and measures, over five
+runs each, `schedule()` — expanding the stage endpoints, planning, and mapping offsets to dates —
+and `ganttLayout()`. The medians are printed and asserted against the budget with CI's threefold
+headroom: under 300 ms and under 1 500 ms, three times the specification's 100 ms and 500 ms.
+
+| Measured (median of 5, seeded)                              | Median | Under coverage | Budget | Asserted   |
+| ----------------------------------------------------------- | ------ | -------------- | ------ | ---------- |
+| `schedule()` — 2 000 activities, 3 000 links                | 5.3 ms | 8.6 ms         | 100 ms | < 300 ms   |
+| `ganttLayout()` — 2 040 rows, 919 day columns, 3 000 arrows | 5.4 ms | 6.2 ms         | 500 ms | < 1 500 ms |
+
+On the development machine: Windows 11, Node 24, Vitest 4. Both are well under a tenth of their
+budget; the copied engine's shape survives a work a hundred times larger than the ones it was
+written for, and the choice is confirmed. The numbers are one machine's, not a promise about
+every one — the assertion with headroom is what CI holds.
+
+**Why one engine.** Two engines in two sibling products are two sets of bugs about the same
+arithmetic. The copied one arrives with its tests, and the benchmark decides whether its shape
+survives a work a hundred times larger than the ones it was written for — rather than a belief
+that a rewrite would be faster.
+
+**Cost accepted.** **Finish-to-start only**: start-to-start and finish-to-finish, which an
+engineer will ask for, are not in 1.0, and a lag is waiting, never overlap. **No milestones.**
+**No resource levelling**: two activities for the same person are scheduled side by side if
+nothing links them; levelling is named as 2.0, not denied (SPEC R4). **Parallel by default**: an
+unlinked plan finishes early on paper, which is why `activity.linked` makes it visible in
+readiness instead of hiding it. And the copy is a fork: a fix in Tessera's engine is not a fix
+here until somebody carries it over.
+
+## ADR-016 — Baselines are insert-only from the first one {#adr-016}
+
+**Status.** Accepted — 2026-09-25.
+
+**Context.** "The plan is never rewritten in silence" is one of the specification's ADR-PROPOSED
+decisions, and "no baseline overwritten" is half of requirement one (SPEC §4). A baseline is what
+the plan said on the day it was approved: the slip is measured against it, and in a dispute it is
+the record of what was agreed. F2 takes the first baseline; F8 asks for a reason on every change
+after approval and compares any two. The question for F2 is whether the first baseline can be
+written in a way F8 would have to tighten later — and the answer has to be no, because a row that
+was ever updatable cannot be shown never to have been updated.
+
+**Decision.** Baselines are **insert-only from the first one**, enforced in two places, as
+[`SECURITY.md`](../../SECURITY.md) requires of every record.
+
+- **In the schema** (migration 003). `baseline` and `baseline_activity` refuse `UPDATE` and
+  `DELETE` with triggers. `INSERT OR REPLACE` would remove a row without firing a delete
+  trigger when `recursive_triggers` is off, so each table also refuses an insert whose key is
+  already there, before conflict resolution. Rows may be added only to the latest baseline, and
+  `work.approved_at` cannot change once set. Every trigger raises `baseline: append-only`, so no
+  code path — not the product's, not a script's through the database — can change or remove a
+  row.
+- **In the host.** The Rust module that writes baselines contains no `UPDATE` or `DELETE`
+  statement, by rule. `baseline_take` receives the rows the domain computed — the schedule is the
+  domain's ([ADR-003](#adr-003)) — checks that they name every activity of the work exactly once
+  and nothing else, numbers the baseline one more than the last, and writes it in one
+  transaction; the first also sets `work.approved_at`. Approving the plan is taking baseline 1.
+- **A baseline holds a copy, not a reference**: each activity's name, its stage's name, its
+  duration, and its start and finish on the day it was taken — so renaming or removing an
+  activity later changes the plan and never the record of what the plan was.
+- **What F2 does not do**, said plainly: the `reason` column exists and is empty; editing an
+  approved plan does not yet ask for one; only the latest baseline is shown, and the slip is
+  measured against it. F8 adds the reason, the next baselines and the comparison of any two.
+
+**Why.** A table that starts insert-only needs no migration to become trustworthy later, and no
+argument about what happened to its rows before it did.
+
+**Cost accepted.** A baseline taken by mistake is there for good: it can be followed by another,
+never withdrawn. Every baseline copies every activity row, so a work approved many times carries
+many copies — cheap at this scale, and the price of a record that does not depend on rows that can
+change. And between F2 and F8 an approved plan can be edited with no reason asked: the slip shows
+that it moved, not why.
