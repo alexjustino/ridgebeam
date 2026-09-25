@@ -25,6 +25,7 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     calendar: { workingDays: '1111100', hoursPerDay: 8 },
     holidays: [],
     people: [],
+    rooms: [],
     stages: [],
     activities: [],
     ...parts,
@@ -41,7 +42,17 @@ const activity = (
   responsibleId: string | null,
   stageId = BATHROOM.id,
   position = 1,
-): Activity => ({ id, stageId, position, name, durationDays, responsibleId });
+): Activity => ({
+  id,
+  stageId,
+  position,
+  name,
+  durationDays,
+  responsibleId,
+  roomIds: [],
+  quantity: null,
+  unit: null,
+});
 
 describe('the rule table', () => {
   it('holds the two F0 rules, as data, each with its own message key', () => {
@@ -56,6 +67,33 @@ describe('the rule table', () => {
     const keys = [...Object.values(READINESS_MESSAGE_KEYS), READINESS_LABEL_KEY];
     expect(new Set(keys).size).toBe(keys.length);
     for (const key of keys) expect(key).toMatch(/^readiness\./);
+  });
+});
+
+describe('quantity', () => {
+  it('is not a readiness rule: an activity with no quantity and no room is still ready', () => {
+    // The spec's readiness kinds are duration, responsible, decision, check, cost and
+    // dependency. Quantity and rooms are useful and optional; the plan does not need them.
+    expect(RULES.map((rule) => rule.id)).not.toContain('activity.quantity');
+    const plan = snapshot({
+      stages: [BATHROOM],
+      people: [TILER],
+      activities: [activity('tiling', 'Tiling', 3, TILER.id)],
+    });
+    expect(plan.activities[0]).toMatchObject({ quantity: null, unit: null, roomIds: [] });
+    expect(readiness(plan)).toEqual({ known: 2, mustKnow: 2, ratio: 1, missing: [] });
+  });
+
+  it('does not change readiness when it is given', () => {
+    const without = snapshot({
+      stages: [BATHROOM],
+      activities: [activity('tiling', 'Tiling', 3, null)],
+    });
+    const withQuantity = snapshot({
+      ...without,
+      activities: [{ ...activity('tiling', 'Tiling', 3, null), quantity: 12, unit: 'm²' }],
+    });
+    expect(readiness(withQuantity)).toEqual(readiness(without));
   });
 });
 

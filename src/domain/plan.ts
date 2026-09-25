@@ -46,6 +46,14 @@ export interface Holiday {
   readonly name: string;
 }
 
+/** A room or area of the work: the architect's and the owner's map of it. */
+export interface Room {
+  readonly id: string;
+  /** Order among rooms. */
+  readonly position: number;
+  readonly name: string;
+}
+
 /** A person is a row, not a user. */
 export interface Person {
   readonly id: string;
@@ -69,6 +77,12 @@ export interface Activity {
   readonly durationDays: number | null;
   /** The person who answers for it; `null` until known. */
   readonly responsibleId: string | null;
+  /** The rooms it touches, none or several. Order carries no meaning; the rooms' own does. */
+  readonly roomIds: readonly string[];
+  /** How much of it there is, in `unit`, zero or more; `null` when not given. Optional. */
+  readonly quantity: number | null;
+  /** What `quantity` is counted in, as the person writes it: `m²`, `m`, `un`. */
+  readonly unit: string | null;
 }
 
 /** The whole plan of one work, as `work_get` returns it. */
@@ -77,6 +91,7 @@ export interface WorkSnapshot {
   readonly calendar: Calendar;
   readonly holidays: readonly Holiday[];
   readonly people: readonly Person[];
+  readonly rooms: readonly Room[];
   readonly stages: readonly Stage[];
   readonly activities: readonly Activity[];
 }
@@ -96,6 +111,11 @@ export function hasDuration(activity: Activity): boolean {
 /** Stages in the order the plan shows them: by position, then by id when positions tie. */
 export function stagesInOrder(snapshot: WorkSnapshot): Stage[] {
   return [...snapshot.stages].sort((a, b) => a.position - b.position || compareText(a.id, b.id));
+}
+
+/** Rooms in the order the plan shows them: by position, then by id when positions tie. */
+export function roomsInOrder(snapshot: WorkSnapshot): Room[] {
+  return [...snapshot.rooms].sort((a, b) => a.position - b.position || compareText(a.id, b.id));
 }
 
 /**
