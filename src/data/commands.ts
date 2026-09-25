@@ -15,7 +15,7 @@
 import { invoke } from '@tauri-apps/api/core';
 
 import type { Direction } from '@/domain/ordering';
-import type { Holiday, WorkSnapshot } from '@/domain/plan';
+import type { Endpoint, Holiday, WorkSnapshot } from '@/domain/plan';
 import {
   readLanguage,
   readLens,
@@ -106,6 +106,18 @@ export interface ActivityPatch {
   quantity?: number | null;
   /** Up to 16 characters; a unit needs a quantity, and empty is `null`. */
   unit?: string | null;
+}
+
+/**
+ * One activity as the schedule places it now — a row of the baseline being taken. The schedule is
+ * the domain's, so the interface sends where each activity falls; the host reads the name, the
+ * stage and the duration from the file itself, so a baseline records what the work held.
+ */
+export interface BaselineRowDraft {
+  activityId: string;
+  /** `YYYY-MM-DD`, or `null` when the schedule could not place it. */
+  start: string | null;
+  finish: string | null;
 }
 
 /** The files and pragmas Diagnostics shows, read back from the connections. */
@@ -293,4 +305,38 @@ export function activityMove(id: string, direction: Direction): Promise<WorkSnap
 /** Replace the rooms an activity touches with exactly these. */
 export function activitySetRooms(id: string, roomIds: readonly string[]): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('activity_set_rooms', { id, room_ids: roomIds });
+}
+
+// ── Dependencies and baselines (F2) ──────────────────────────────────────────
+
+/**
+ * `blocked` cannot start until `blocker` has finished, plus `lagDays` working days of waiting.
+ * Either end is an activity or a whole stage. A loop is refused by the host with the
+ * `dependency_cycle` kind and the chain by name — after the interface has already refused it.
+ */
+export function dependencyAdd(
+  blocker: Endpoint,
+  blocked: Endpoint,
+  lagDays: number,
+): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('dependency_add', { blocker, blocked, lag_days: lagDays });
+}
+
+export function dependencyUpdate(id: string, lagDays: number): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('dependency_update', { id, lag_days: lagDays });
+}
+
+export function dependencyRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('dependency_remove', { id });
+}
+
+/**
+ * Approve the plan as it is scheduled now: the next baseline, numbered by the host. Insert-only —
+ * there is no command that edits or removes a baseline, and there never will be.
+ */
+export function baselineTake(
+  rows: readonly BaselineRowDraft[],
+  finishDate: string | null,
+): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('baseline_take', { rows, finish_date: finishDate });
 }
