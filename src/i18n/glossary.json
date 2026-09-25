@@ -119,6 +119,17 @@
       }
     },
     {
+      "key": "schedule",
+      "en": {
+        "term": "schedule",
+        "sentence": "When each activity happens: the plan laid on the working calendar, with its dependencies and lags, from the start date to the finish date."
+      },
+      "pt-BR": {
+        "term": "cronograma",
+        "sentence": "Quando cada atividade acontece: o plano posto sobre o calendário de trabalho, com suas dependências e esperas, da data de início à data de término."
+      }
+    },
+    {
       "key": "dependency",
       "en": {
         "term": "dependency",

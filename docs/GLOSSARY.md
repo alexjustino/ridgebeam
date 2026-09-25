@@ -12,7 +12,7 @@ language, a term or a sentence, or names a lens that does not exist.
 
 A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-54 terms.
+55 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
@@ -22,6 +22,7 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `activity` | activity | One piece of work inside a stage, with a duration, a person responsible and the rooms it touches. | atividade | Um pedaço de trabalho dentro de uma etapa, com duração, um responsável e os cômodos que ela toca. |
 | `duration` | duration | How many working days an activity takes. An activity with no duration cannot be scheduled, and the plan says so. | duração | Quantos dias úteis uma atividade leva. Uma atividade sem duração não entra no cronograma, e o plano avisa. |
 | `responsible` | responsible | The person who answers for an activity — the tiler, the electrician, you. An activity with no responsible is not ready. | responsável | A pessoa que responde por uma atividade — o azulejista, o eletricista, você. Uma atividade sem responsável não está pronta. |
+| `schedule` | schedule | When each activity happens: the plan laid on the working calendar, with its dependencies and lags, from the start date to the finish date. | cronograma | Quando cada atividade acontece: o plano posto sobre o calendário de trabalho, com suas dependências e esperas, da data de início à data de término. |
 | `dependency` | dependency | "This cannot start until that has finished." The links that turn a list of activities into a schedule. | dependência | "Isto não começa enquanto aquilo não terminar." Os elos que transformam uma lista de atividades num cronograma. |
 | `lag` | lag | Waiting time built into a dependency — the days the concrete needs to cure before the next activity may start. | espera | Tempo de espera embutido numa dependência — os dias que o concreto precisa curar antes de a próxima atividade poder começar. |
 | `calendar` | working calendar | Which days are working days on this site — usually Monday to Friday, minus holidays — and how many hours each has. Durations are counted on it. | calendário de trabalho | Quais dias são dias úteis nesta obra — em geral segunda a sexta, menos feriados — e quantas horas cada um tem. As durações são contadas nele. |
@@ -77,7 +78,7 @@ A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a 
 with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
 The sentence never changes with the lens, and nothing about a work is stored per lens.
 
-9 of the 54 terms change with the lens.
+9 of the 55 terms change with the lens.
 
 | Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
 | --- | --- | --- | --- | --- | --- | --- |

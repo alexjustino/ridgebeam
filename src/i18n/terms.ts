@@ -31,6 +31,12 @@ export const TERM_KEYS = [
   'person',
   'room',
   'quantity',
+  'schedule',
+  'dependency',
+  'lag',
+  'criticalPath',
+  'baseline',
+  'slip',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];
