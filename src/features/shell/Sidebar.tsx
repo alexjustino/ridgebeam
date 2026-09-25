@@ -1,6 +1,7 @@
 import {
   Board20Regular,
   ClipboardTask20Regular,
+  Notebook20Regular,
   GanttChartRegular,
   Info20Regular,
   Settings20Regular,
@@ -24,7 +25,7 @@ import { useI18n } from '@/i18n/useI18n';
  * Every destination here is built. A destination that is planned and not built is not listed —
  * nothing on the rail pretends to work when it does not.
  *
- * Seven destinations are two groups: the four that show a work, and the three that are about the
+ * Eight destinations are two groups: the five that show a work, and the three that are about the
  * product itself. The gap between them is a `separator`, and never a button, so the rail a
  * keyboard walks through is exactly the destinations it names.
  *
@@ -41,6 +42,7 @@ const ICONS: Record<Destination, ReactNode> = {
   // The Gantt icon ships unsized; it is drawn at the rail's 20 px like the others.
   schedule: <GanttChartRegular fontSize={20} />,
   decisions: <ClipboardTask20Regular />,
+  diary: <Notebook20Regular />,
   settings: <Settings20Regular />,
   diagnostics: <Wrench20Regular />,
   about: <Info20Regular />,
