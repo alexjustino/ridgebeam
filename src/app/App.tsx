@@ -8,6 +8,7 @@ import { AboutPage } from '@/features/about/AboutPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { DiagnosticsPage } from '@/features/diagnostics/DiagnosticsPage';
 import { PlanPage } from '@/features/plan/PlanPage';
+import { SchedulePage } from '@/features/schedule/SchedulePage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { DESTINATION_LABELS, NEEDS_WORK, type Destination } from '@/features/shell/destinations';
 import { Sidebar } from '@/features/shell/Sidebar';
@@ -123,6 +124,9 @@ export function App({ settings }: { settings: Settings }) {
                   calendarOpen={calendarOpen}
                   onCalendarOpen={setCalendarOpen}
                 />
+              )}
+              {!showsStart && destination === 'schedule' && snapshot !== null && (
+                <SchedulePage snapshot={snapshot} />
               )}
               {destination === 'settings' && <SettingsPage settings={settings} />}
               {destination === 'diagnostics' && <DiagnosticsPage />}
