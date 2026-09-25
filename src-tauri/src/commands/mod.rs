@@ -16,6 +16,7 @@
 //! tested without a window.
 
 pub mod decisions;
+pub mod diary;
 pub mod plan;
 pub mod rooms;
 pub mod schedule;

@@ -11,9 +11,13 @@ words, in [`GLOSSARY.md`](GLOSSARY.md).
 ```
 <work folder>/
   work.sqlite3        the work: plan, calendar, people, diary, baselines, money
-  documents/          files copied in (slice F7), named by their hash
-  thumbnails/         thumbnails of the images in documents/ (slice F7)
+  documents/          photos copied in (F4; other documents F7), named <sha-256>.<ext>
+  thumbnails/         a 320 px JPEG of each photo, named <sha-256>.jpg (F4)
 ```
+
+`documents/` and `thumbnails/` exist only once a photo does. A photo's name is the SHA-256 of
+its bytes and its extension comes from the type its magic bytes say it is, never from the name
+it arrived with; the same photo attached twice is one file (ADR-021).
 
 Nothing about a work lives anywhere else. Moving the folder moves the work; the product finds
 it again from a dialog. The database is opened with `journal_mode = WAL`, `synchronous = FULL`,
@@ -223,6 +227,109 @@ domain, not a fact the file could keep. An answer belongs to the making: `CHECK 
 OR made_at IS NOT NULL)`, and reopening a decision clears both. Positions are renumbered 1 … n
 by the host with every move and removal, as for activities.
 
+### The diary — `diary_entry`, `diary_done`, `diary_present`, `diary_photo` — insert-only
+
+An entry is a fact about one day on site (F4, ADR-019). The plan is intent; the diary is fact,
+and progress is derived from it by the domain (ADR-020), never stored.
+
+| `diary_entry`  | Type    | Meaning                                                                                         |
+| -------------- | ------- | ----------------------------------------------------------------------------------------------- |
+| `seq`          | INTEGER | 1, 2, 3 … — the entry's place in the chain; primary key; always the last plus one               |
+| `day`          | TEXT    | the ISO day the entry is about; never in the future (the domain and the host both refuse it)    |
+| `kind`         | TEXT    | `entry` or `correction`                                                                         |
+| `corrects_seq` | INTEGER | for a correction, the earlier entry it corrects (`REFERENCES diary_entry`); `NULL` for an entry |
+| `note`         | TEXT    | what the day was, up to 4 000 characters; for a correction, also what was wrong (required)      |
+| `weather`      | TEXT    | `sun`, `cloud`, `rain`, `storm`, `wind`, `other`, or `NULL`                                     |
+| `lost_day`     | INTEGER | 1 when no work was possible that day                                                            |
+| `hours`        | REAL    | hours worked, 0 to 24, or `NULL`                                                                |
+| `deliveries`   | TEXT    | what arrived, 1–2 000 characters, or `NULL`                                                     |
+| `incidents`    | TEXT    | what went wrong, 1–2 000 characters, or `NULL`                                                  |
+| `visitors`     | TEXT    | who visited, 1–2 000 characters, or `NULL`                                                      |
+| `author_name`  | TEXT    | the display name of the Windows account that wrote it — the product has no accounts of its own  |
+| `created_at`   | TEXT    | UTC, when it was written                                                                        |
+| `prev_hash`    | TEXT    | the `hash` of entry `seq − 1`, 64 lower-case hex; the empty string for the first entry only     |
+| `hash`         | TEXT    | SHA-256 of this entry's canonical form, 64 lower-case hex, unique                               |
+
+A `CHECK` holds the shape: an `entry` corrects nothing; a `correction` corrects an earlier
+`seq`. Indexes on `day` and on `corrects_seq`. A second entry on a day that has one is allowed
+and ordered by `seq`; a replacement is not, because nothing can replace a row.
+
+| `diary_done`  | Type    | Meaning                                                |
+| ------------- | ------- | ------------------------------------------------------ |
+| `entry_seq`   | INTEGER | `REFERENCES diary_entry`                               |
+| `activity_id` | TEXT    | the activity worked on — **no foreign key**, see below |
+| `state`       | TEXT    | `worked` or `finished`                                 |
+| `quantity`    | REAL    | how much was done, `>= 0`, or `NULL`                   |
+| `note`        | TEXT    | 1–500 characters, or `NULL`                            |
+
+| `diary_present` | Type    | Meaning                                 |
+| --------------- | ------- | --------------------------------------- |
+| `entry_seq`     | INTEGER | `REFERENCES diary_entry`                |
+| `person_id`     | TEXT    | the person on site — **no foreign key** |
+
+| `diary_photo`     | Type    | Meaning                                                                                                                                                        |
+| ----------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entry_seq`       | INTEGER | `REFERENCES diary_entry`                                                                                                                                       |
+| `position`        | INTEGER | the photo's order in the entry, from 1                                                                                                                         |
+| `file_hash`       | TEXT    | SHA-256 of the file's bytes — its name in `documents/`; unique within the entry                                                                                |
+| `file_name`       | TEXT    | the name it arrived with, 1–255 characters, kept for the person and never used as a path                                                                       |
+| `bytes`           | INTEGER | its size                                                                                                                                                       |
+| `width`, `height` | INTEGER | its dimensions, read from the header                                                                                                                           |
+| `thumbnail`       | INTEGER | 1 when `thumbnails/<hash>.jpg` was rendered; 0 when the photo was kept but could not be drawn small — not part of the hash: it describes the copy, not the day |
+
+**No foreign key into the plan, on purpose.** A done line names an activity and a presence names
+a person by id: the plan may change after the day — an activity removed, a person removed — and
+the diary must still say what it said. A key with `ON DELETE` would try to change the diary (and
+be refused); a key without one would stop the plan from changing. The host checks the ids exist
+when the entry is written.
+
+**Append-only, in the schema.** On all four tables, `BEFORE UPDATE` and `BEFORE DELETE`
+triggers refuse every edit and removal, and a `BEFORE INSERT` guard refuses a key that is
+already there, so `REPLACE` cannot reach a row with `recursive_triggers` off. A done line, a
+presence or a photo may be added only to the latest entry — the one being written. And
+`diary_continue_the_chain` accepts an entry only as `seq = max + 1` with `prev_hash` equal to
+the previous entry's `hash`. Every trigger raises `diary: append-only`; the host's `db::diary`
+holds no `UPDATE`, `DELETE` or `REPLACE`, and a test reads its source to prove it.
+
+**A correction restates the day.** It carries the full set of facts — done lines, people,
+photos, which it may re-attach by hash without copying anything twice. For everything derived
+from the diary, a corrected entry contributes nothing and its latest correction contributes
+instead; a correction may itself be corrected.
+
+**The canonical form.** An entry's `hash` is the SHA-256 of this UTF-8 string, computed by the
+host before the insert and recomputed by `diary_verify`:
+
+**Version 1**, as written in the header of `src-tauri/src/db/diary.rs`. It is a UTF-8 string
+of **records** joined by U+001E (RECORD SEPARATOR); each record is a **tag** followed by
+**fields**, joined by U+001F (UNIT SEPARATOR). A field is:
+
+- the empty string, for `NULL`;
+- `+` followed by the value, for a value — so the empty text `''` is `+` and differs from
+  `NULL`.
+
+Values are written as: text as stored; whole numbers in decimal (`12`); real numbers as the
+shortest decimal that reads back as the same number, with no exponent (`8`, `7.5`, `0.25` —
+Rust's `Display` for `f64`); `lost_day` as `0` or `1`. No value may contain U+001E or U+001F:
+the host refuses control characters in every text of an entry, and ids and hashes cannot hold
+them.
+
+The records, in this order:
+
+1. `entry.v1` · seq · day · kind · corrects_seq · note · weather · lost_day · hours · deliveries ·
+   incidents · visitors · author_name · created_at · prev_hash
+2. for each done line, sorted by activity id (byte order): `done` · activity_id · state ·
+   quantity · note
+3. for each person present, sorted by id (byte order): `present` · person_id
+4. for each photo, by position: `photo` · file_hash · file_name · bytes · width · height
+
+`hash` is the lower-case hex of SHA-256 over the bytes of that string. A photo's `thumbnail`
+flag is not in it: it describes the copy, not the day. The tag carries the version, so a later
+form can be introduced without making earlier entries unverifiable.
+
+**What verification cannot see.** An entry removed from the _end_ of the diary leaves no
+successor pointing at it, so the chain of what remains still verifies. The export of slice F10
+records the count and the last hash, so that a copy kept elsewhere can show it.
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -280,9 +387,8 @@ the default for a new work is `owner`). A key outside the list is refused by the
   trailing `Z`; dates are ISO 8601 `YYYY-MM-DD` text.
 - Every table that must never lose a row is insert-only: triggers refuse `UPDATE`, `DELETE`
   and `REPLACE`, and the Rust module that writes it contains no `UPDATE` or `DELETE` statement,
-  by rule. **Shipped for the baselines (F2)**; the diary, its photos and corrections (F4) and the
-  payments ledger (F6) follow the same pattern, and each diary entry will carry the hash of the
-  previous one.
+  by rule. **Shipped for the baselines (F2) and the diary (F4)**, whose entries also carry the
+  hash of the one before; the payments ledger (F6) follows the same pattern.
 - Text columns that a person types are bounded by `CHECK (length(...) <= n)` in the schema.
 
 ## Migrations
@@ -291,20 +397,21 @@ Numbered SQL files compiled into the binary, forward-only, applied in a transact
 moves `work.schema_version`. A release that adds a migration says so in the changelog and is
 covered by a round-trip test that opens a work at version N-1 and migrates it without loss.
 
-| Migration                            | Slice | Adds                                                                                                 |
-| ------------------------------------ | ----- | ---------------------------------------------------------------------------------------------------- |
-| `001_init.sql`                       | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`                                         |
-| `002_rooms_and_quantities.sql`       | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit`                                     |
-| `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers |
-| `004_decisions.sql`                  | F3    | `decision`                                                                                           |
+| Migration                            | Slice | Adds                                                                                                   |
+| ------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------ |
+| `001_init.sql`                       | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`                                           |
+| `002_rooms_and_quantities.sql`       | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit`                                       |
+| `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers   |
+| `004_decisions.sql`                  | F3    | `decision`                                                                                             |
+| `005_diary.sql`                      | F4    | `diary_entry`, `diary_done`, `diary_present`, `diary_photo`, with their insert-only and chain triggers |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its
 stages and activities migrates to schema 2 without loss, a work at schema 2 with rooms and
-quantities migrates to schema 3 the same way, and a work at schema 3 with dependencies and a
-baseline migrates to schema 4. The migrations live in `src-tauri/work_migrations/`.
+quantities migrates to schema 3 the same way, a work at schema 3 with dependencies and a
+baseline migrates to schema 4, and a work at schema 4 with decisions migrates to schema 5. The migrations live in `src-tauri/work_migrations/`.
 
 ## Not yet in the schema
 
-The diary, its photos and corrections, and the chain (F4) · checks (F5) · planned, committed
-and paid money and the payments ledger (F6) · documents, thumbnails and hashes (F7) · templates
+Checks (F5) · planned, committed
+and paid money and the payments ledger (F6) · documents other than photos (F7) · templates
 are files in the repository, not rows (F9).

@@ -6,7 +6,8 @@ authors = ["Alex Justino"]
 license = "Apache-2.0"
 repository = "https://github.com/alexjustino/ridgebeam"
 edition = "2021"
-rust-version = "1.80"
+# `image` 0.25.10 declares 1.88 (F4). The crate cannot build on less.
+rust-version = "1.88"
 
 [lib]
 # The `_lib` suffix keeps the library name distinct from the binary on Windows.
@@ -28,9 +29,33 @@ log = "0.4"
 uuid = { version = "1", features = ["v7"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
+# The diary (F4). An entry carries the SHA-256 of its canonical form and of the
+# entry before it; a photo is stored under the SHA-256 of its bytes.
+sha2 = "0.10"
+hex = "0.4"
+# A thumbnail reaches the screen as a `data:` URL: the interface is never handed
+# a path, and there is no asset protocol and no filesystem permission.
+base64 = "0.22"
+# Photos are hostile files. Default features off: only the five formats a photo
+# may arrive as are compiled in, each a decoder reachable from a file, and every
+# one is used under `image::Limits` after the header has been read and capped
+# (SECURITY.md, "Files are hostile"). JPEG is also the thumbnail's encoder.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp"] }
+# Opening a photo with the operating system's own handler, on a click. Used as a
+# Rust library only (`open_path`): the plugin is not registered, so it adds no
+# command the webview could call and no capability.
+tauri-plugin-opener = "2"
+
 [target.'cfg(windows)'.dependencies]
 # The accent colour the desktop uses, read from the system (`os::accent`).
-windows = { version = "0.58", features = ["UI_ViewManagement", "Foundation"] }
+# The accent colour (`os::accent`), and the account's display name, which signs
+# a diary entry (`os::account`) — the product has no accounts of its own.
+windows = { version = "0.58", features = [
+    "UI_ViewManagement",
+    "Foundation",
+    "Win32_Foundation",
+    "Win32_Security_Authentication_Identity",
+] }
 
 [profile.release]
 codegen-units = 1
@@ -52,6 +77,27 @@ strip = true
 #   uuid                          Apache-2.0 OR MIT
 #   chrono                        MIT OR Apache-2.0
 #   windows                       MIT OR Apache-2.0
+#
+# F4 (the diary and its photos) adds five, and pulls in these on Windows
+# (read from `cargo metadata`, normal dependencies only; `png`, `flate2`,
+# `crc32fast`, `miniz_oxide` and `fdeflate` were already in the tree through
+# tauri). None is copyleft:
+#   sha2                          MIT OR Apache-2.0
+#   hex                           MIT OR Apache-2.0
+#   base64                        MIT OR Apache-2.0
+#   image                         MIT OR Apache-2.0
+#     └ zune-jpeg, zune-core      MIT OR Apache-2.0 OR Zlib   (jpeg)
+#     └ png                       MIT OR Apache-2.0           (png)
+#     └ gif, weezl                MIT OR Apache-2.0           (gif)
+#     └ color_quant               MIT                         (gif)
+#     └ image-webp                MIT OR Apache-2.0           (webp)
+#     └ quick-error               MIT OR Apache-2.0           (webp)
+#     └ moxcms, pxfm              BSD-3-Clause OR Apache-2.0  (colour profiles)
+#     └ bytemuck                  Zlib OR Apache-2.0 OR MIT
+#     └ byteorder-lite            Unlicense OR MIT
+#     (bmp needs no crate of its own)
+#   tauri-plugin-opener           Apache-2.0 OR MIT
+#     └ open                      MIT
 #
 # There is no HTTP client, no filesystem plugin and no shell plugin in this
 # list, on purpose: the product makes no network request and runs no program

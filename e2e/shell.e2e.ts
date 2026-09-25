@@ -26,7 +26,7 @@ describe('shell', () => {
     expect(mark).toBeTruthy();
   });
 
-  it('lists every destination, in order, and disables the four that need a work', async () => {
+  it('lists every destination, in order, and disables the five that need a work', async () => {
     const { driver } = session;
     const buttons = await driver.findAll('nav[data-rail] button[data-destination]');
     const ids = await Promise.all(buttons.map((b) => b.attribute('data-destination')));
@@ -35,12 +35,13 @@ describe('shell', () => {
       'plan',
       'schedule',
       'decisions',
+      'diary',
       'settings',
       'diagnostics',
       'about',
     ]);
     const disabled = await Promise.all(buttons.map((b) => b.attribute('aria-disabled')));
-    expect(disabled).toEqual(['true', 'true', 'true', 'true', null, null, null]);
+    expect(disabled).toEqual(['true', 'true', 'true', 'true', 'true', null, null, null]);
   });
 
   it.each(['settings', 'diagnostics', 'about'])('navigates to %s and renders an h1', async (id) => {

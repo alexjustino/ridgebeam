@@ -24,6 +24,10 @@
 //! - F3: decisions (`Decision`, `DecisionPatch`, `WorkSnapshot.decisions`). A
 //!   decision's deadline is not here and never will be: it is computed by the
 //!   domain from the schedule, every time (ADR-017).
+//! - F4: the diary (`EntryDraft`, `DoneDraft`, `DiaryEntry`, `DoneLine`,
+//!   `Photo`, `DiaryRange`, `ChainReport`). Not in `WorkSnapshot`: at 3 000
+//!   entries and 10 000 photos it is read on its own. There is no shape that
+//!   edits an entry; a correction is a new `EntryDraft` of kind `correction`.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -400,6 +404,180 @@ pub struct ActivityPatch {
     /// characters, and only beside a quantity.
     #[serde(default, deserialize_with = "present")]
     pub unit: Option<Option<String>>,
+}
+
+/// What was done to one activity on the day, as the interface sends it.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DoneDraft {
+    /// The activity.
+    pub activity_id: String,
+    /// `worked` or `finished`.
+    pub state: String,
+    /// How much of it was done that day; at least 0.
+    #[serde(default)]
+    pub quantity: Option<f64>,
+    /// A word about it, at most 500 characters.
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+/// A new diary entry — or a correction, which restates the whole day.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntryDraft {
+    /// `YYYY-MM-DD`, never after today.
+    pub day: String,
+    /// `entry` or `correction`.
+    pub kind: String,
+    /// The entry a correction corrects; `null` for an entry.
+    #[serde(default)]
+    pub corrects_seq: Option<i64>,
+    /// What happened, at most 4000 characters; a correction says what was wrong.
+    #[serde(default)]
+    pub note: String,
+    /// `sun`, `cloud`, `rain`, `storm`, `wind`, `other`, or `null`.
+    #[serde(default)]
+    pub weather: Option<String>,
+    /// No work was possible that day.
+    #[serde(default)]
+    pub lost_day: bool,
+    /// Hours worked on site, 0 to 24.
+    #[serde(default)]
+    pub hours: Option<f64>,
+    /// What arrived, at most 2000 characters.
+    #[serde(default)]
+    pub deliveries: Option<String>,
+    /// What went wrong, at most 2000 characters.
+    #[serde(default)]
+    pub incidents: Option<String>,
+    /// Who came to see, at most 2000 characters.
+    #[serde(default)]
+    pub visitors: Option<String>,
+    /// What was done, one line per activity.
+    #[serde(default)]
+    pub done: Vec<DoneDraft>,
+    /// Who was on site, by person id.
+    #[serde(default)]
+    pub present: Vec<String>,
+    /// Files the person chose, as full paths; the host copies each in under its
+    /// caps, or refuses the whole entry.
+    #[serde(default)]
+    pub photo_paths: Vec<String>,
+    /// Photos already in the work, re-attached by their hash; nothing is copied
+    /// twice.
+    #[serde(default)]
+    pub photo_hashes: Vec<String>,
+}
+
+/// One done line, as the diary holds it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DoneLine {
+    /// The activity — which may since have been removed from the plan.
+    pub activity_id: String,
+    /// `worked` or `finished`.
+    pub state: String,
+    /// How much was done; `null` when nobody said.
+    pub quantity: Option<f64>,
+    /// A word about it; `null` when none.
+    pub note: Option<String>,
+}
+
+/// A photo of an entry: a copy the work owns, named by the SHA-256 of its bytes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Photo {
+    /// SHA-256 of the bytes, 64 lowercase hex digits.
+    pub file_hash: String,
+    /// The name the file had when it was chosen.
+    pub file_name: String,
+    /// Its size.
+    pub bytes: i64,
+    /// Its width in pixels, from its header.
+    pub width: i64,
+    /// Its height in pixels, from its header.
+    pub height: i64,
+    /// Whether a thumbnail could be drawn; `false` means the photo was kept
+    /// and the screen says it cannot show it small.
+    pub thumbnail: bool,
+}
+
+/// One diary entry, never edited.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiaryEntry {
+    /// 1, 2, 3 … in the order written — the chain's order.
+    pub seq: i64,
+    /// The day it is about.
+    pub day: String,
+    /// `entry` or `correction`.
+    pub kind: String,
+    /// The entry it corrects; `null` for an entry.
+    pub corrects_seq: Option<i64>,
+    /// What happened; `null` when nothing was written.
+    pub note: Option<String>,
+    /// The weather; `null` when not said.
+    pub weather: Option<String>,
+    /// No work was possible.
+    pub lost_day: bool,
+    /// Hours on site; `null` when not said.
+    pub hours: Option<f64>,
+    /// What arrived.
+    pub deliveries: Option<String>,
+    /// What went wrong.
+    pub incidents: Option<String>,
+    /// Who visited.
+    pub visitors: Option<String>,
+    /// The Windows account that wrote it, by its display name.
+    pub author_name: String,
+    /// When it was written, UTC.
+    pub created_at: String,
+    /// The hash of the entry before it; empty for the first.
+    pub prev_hash: String,
+    /// The SHA-256 of its canonical form.
+    pub hash: String,
+    /// What was done, by activity id.
+    pub done: Vec<DoneLine>,
+    /// Who was on site, by person id, sorted.
+    pub present: Vec<String>,
+    /// Its photos, in the order attached.
+    pub photos: Vec<Photo>,
+}
+
+/// Which days `diary_list` reads; both ends inclusive, either may be left out.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiaryRange {
+    /// The first day, `YYYY-MM-DD`.
+    #[serde(default)]
+    pub from_day: Option<String>,
+    /// The last day, `YYYY-MM-DD`.
+    #[serde(default)]
+    pub to_day: Option<String>,
+}
+
+/// What `diary_verify` found, after recomputing every hash and every link.
+/// `brokenAt`, `problem` and `reason` are present only when the chain is not
+/// intact.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChainReport {
+    /// How many entries the diary holds.
+    pub entries: i64,
+    /// Every hash matches its entry and every entry points at the one before.
+    pub intact: bool,
+    /// The first entry at which the chain breaks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub broken_at: Option<i64>,
+    /// What broke there, as a word the interface translates: `contents` (the
+    /// entry does not match its hash), `link` (it does not point at the entry
+    /// before it), `missing` (the entry is not there).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub problem: Option<&'static str>,
+    /// The same, as an English sentence, for the log and for Diagnostics.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
 }
 
 /// What Diagnostics shows.

@@ -31,6 +31,7 @@ import {
 } from './plan';
 import { ACTIVITY_RULES, type ActivityRuleId } from './readiness/rules';
 import type { Schedule } from './schedule';
+import { progress, type DiaryEntry, type ProgressState } from './diary';
 
 // ── Breakdown ────────────────────────────────────────────────────────────────
 
@@ -173,6 +174,8 @@ export interface ChecklistLine {
   readonly finish: string | null;
   /** What the plan lacks for it, in the readiness rules' order; empty when nothing. */
   readonly missing: readonly ChecklistMissing[];
+  /** Where the diary says it is. The box is ticked by the diary, never by a click. */
+  readonly done: ProgressState;
 }
 
 /**
@@ -180,11 +183,19 @@ export interface ChecklistLine {
  * by start date, ties in breakdown order, then the unplaced ones in breakdown order. Each line lists
  * what the plan lacks for it, tested by the same rules readiness counts, so the two never disagree.
  *
+ * Each line also says where the diary has the activity (`done`): the owner's box is ticked when an
+ * entry says finished, and by nothing else.
+ *
  * Built from the plan's activities, not from the schedule's: an activity the schedule has no dates
  * for is an unplaced line, and dates for an activity that is gone make no line.
  */
-export function checklist(snapshot: WorkSnapshot, scheduled: Schedule): ChecklistLine[] {
+export function checklist(
+  snapshot: WorkSnapshot,
+  scheduled: Schedule,
+  entries: readonly DiaryEntry[] = [],
+): ChecklistLine[] {
   const ordered = activitiesInOrder(snapshot);
+  const states = progress(snapshot, entries);
   const placed = ordered.filter((activity) => scheduled.dates.has(activity.id));
   const unplaced = ordered.filter((activity) => !scheduled.dates.has(activity.id));
   // `Array.prototype.sort` is stable, so equal starts keep breakdown order.
@@ -203,6 +214,7 @@ export function checklist(snapshot: WorkSnapshot, scheduled: Schedule): Checklis
       missing: ACTIVITY_RULES.filter(
         (rule) => rule.applies(activity, snapshot) && !rule.holds(activity, snapshot),
       ).map((rule) => MISSING_OF[rule.id]),
+      done: states.get(activity.id)!.state,
     };
   });
 }

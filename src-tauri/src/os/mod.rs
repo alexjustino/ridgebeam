@@ -9,5 +9,10 @@
 //! starts no processes and makes no network request; the files it writes are
 //! inside the work folder a person chose in a dialog, and in the application
 //! data folder (`crate::folder`, `crate::db`).
+//!
+//! F4 adds two: the account's display name, which signs a diary entry
+//! (`account`), and opening a photo with the system's own handler (in
+//! `crate::files::photos`, on the person's click).
 
 pub mod accent;
+pub mod account;

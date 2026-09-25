@@ -1,5 +1,8 @@
-import { useAccentRamp, useDiagnostics, useSystemInfo } from '@/data/queries';
+import { ShieldCheckmark20Regular } from '@fluentui/react-icons';
+
+import { useAccentRamp, useDiagnostics, useSystemInfo, useVerifyDiary } from '@/data/queries';
 import { useI18n } from '@/i18n/useI18n';
+import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { InfoBar } from '@/ui/InfoBar';
 
@@ -97,6 +100,7 @@ export function DiagnosticsPage() {
           </dl>
         </Card>
       )}
+      {report !== null && report.work !== null && <DiaryCard />}
     </div>
   );
 }
@@ -112,5 +116,68 @@ function Row({ label, value, mono = false }: { label: string; value: string; mon
         {value}
       </dd>
     </>
+  );
+}
+
+/**
+ * The diary's chain, verified on a press (slice F4): the host recomputes every entry's hash and
+ * every link to the one before, and says how many entries it read and whether the chain holds —
+ * or at which entry, and why, it does not. Stated as what it is: tamper-evidence, not proof.
+ */
+function DiaryCard() {
+  const { t, tp, describeError } = useI18n();
+  const verify = useVerifyDiary();
+  const report = verify.data ?? null;
+
+  const status =
+    report === null
+      ? t('diagnostics.diary.notYet')
+      : report.intact
+        ? report.entries === 0
+          ? t('diagnostics.diary.empty')
+          : tp('diagnostics.diary.intact', report.entries)
+        : t('diagnostics.diary.broken', {
+            seq: report.brokenAt,
+            reason:
+              report.problem === 'contents'
+                ? t('diagnostics.diary.problem.contents')
+                : report.problem === 'link'
+                  ? t('diagnostics.diary.problem.link')
+                  : report.problem === 'missing'
+                    ? t('diagnostics.diary.problem.missing')
+                    : report.reason,
+          });
+
+  return (
+    <Card title={t('diagnostics.diary.title')} description={t('diary.chain.note')}>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          icon={<ShieldCheckmark20Regular />}
+          data-testid="diary-verify"
+          disabled={verify.isPending}
+          onClick={() => verify.mutate()}
+        >
+          {verify.isPending ? t('common.working') : t('diagnostics.diary.verify')}
+        </Button>
+        <span
+          data-testid="chain-status"
+          data-intact={report === null ? undefined : String(report.intact)}
+          className={
+            report !== null && !report.intact
+              ? 'text-body font-semibold text-danger'
+              : 'text-body text-fg'
+          }
+        >
+          {status}
+        </span>
+      </div>
+      {verify.isError && (
+        <div className="mt-3">
+          <InfoBar severity="danger" title={t('common.hostSilent')}>
+            {describeError(verify.error)}
+          </InfoBar>
+        </div>
+      )}
+    </Card>
   );
 }

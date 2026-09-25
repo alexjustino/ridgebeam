@@ -13,7 +13,9 @@
  *
  * Diagnostics sits under `['diagnostics']` and is re-read whenever its screen opens, because the
  * files it describes change under it — a work opened, a work closed. The Windows accent ramp sits
- * under `['accent']`, read once per window.
+ * under `['accent']`, read once per window. The diary is `['diary']` — not in the snapshot — and
+ * every entry written invalidates it; a thumbnail is `['photo', hash]`, read once, because a photo
+ * stored by its hash never changes.
  */
 
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
@@ -34,6 +36,11 @@ import {
   decisionReopen,
   decisionUpdate,
   dependencyAdd,
+  diaryEntryAdd,
+  diaryList,
+  diaryVerify,
+  photoOpen,
+  photoThumbnail,
   dependencyRemove,
   dependencyUpdate,
   calendarSet,
@@ -65,6 +72,7 @@ import {
   type BaselineRowDraft,
   type CalendarDraft,
   type DecisionPatch,
+  type EntryDraft,
   type SettingKey,
   type Settings,
   type WorkDraft,
@@ -79,6 +87,8 @@ export const keys = {
   recent: ['recent'] as const,
   work: ['work'] as const,
   diagnostics: ['diagnostics'] as const,
+  diary: ['diary'] as const,
+  photo: (hash: string) => ['photo', hash] as const,
 };
 
 // ── The application ──────────────────────────────────────────────────────────
@@ -157,6 +167,7 @@ async function reread(client: QueryClient): Promise<void> {
     client.invalidateQueries({ queryKey: keys.work }),
     client.invalidateQueries({ queryKey: keys.recent }),
     client.invalidateQueries({ queryKey: keys.diagnostics }),
+    client.invalidateQueries({ queryKey: keys.diary }),
   ]);
 }
 
@@ -183,6 +194,7 @@ export function useCloseWork() {
     mutationFn: workClose,
     onSuccess: async () => {
       client.setQueryData(keys.work, null);
+      client.removeQueries({ queryKey: keys.diary });
       await Promise.all([
         client.invalidateQueries({ queryKey: keys.recent }),
         client.invalidateQueries({ queryKey: keys.diagnostics }),
@@ -345,4 +357,37 @@ export function useMakeDecision() {
 
 export function useReopenDecision() {
   return useWorkCommand((id: string) => decisionReopen(id));
+}
+
+// ── The diary (F4) ───────────────────────────────────────────────────────────
+
+/** The whole diary, newest first. Closing or opening a work re-reads it. */
+export function useDiary(enabled: boolean) {
+  return useQuery({ queryKey: keys.diary, queryFn: () => diaryList(), enabled });
+}
+
+/** Write one entry. The diary is read again; the plan is not touched, because it has not changed. */
+export function useAddEntry() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (draft: EntryDraft) => diaryEntryAdd(draft),
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.diary }),
+  });
+}
+
+/** Recompute every hash and link, now: a question asked at a moment, so not cached. */
+export function useVerifyDiary() {
+  return useMutation({ mutationFn: diaryVerify });
+}
+
+export function usePhotoThumbnail(hash: string, available: boolean) {
+  return useQuery({
+    queryKey: keys.photo(hash),
+    queryFn: () => photoThumbnail(hash),
+    enabled: available,
+  });
+}
+
+export function useOpenPhoto() {
+  return useMutation({ mutationFn: photoOpen });
 }
