@@ -39,11 +39,19 @@
 //!   never stores a deadline and never reads the clock to call one overdue:
 //!   the deadline is computed by the domain from the schedule, against a
 //!   "today" the interface passes in (ADR-017).
+//! - F4: the diary — requirement one. Work migration 005 adds four
+//!   append-only tables with a hash chain; `db::diary` holds no statement that
+//!   edits or removes a row, and a test reads its source. Photos are copied in
+//!   by the host under caps (`files::photos`), shown as `data:` URLs, and
+//!   opened with the system's own handler from Rust — the opener plugin is a
+//!   library here, not a registered plugin, so the webview gains no command
+//!   and no capability. An entry is signed with the Windows account's name.
 
 pub mod commands;
 pub mod contract;
 pub mod db;
 pub mod error;
+pub mod files;
 pub mod folder;
 pub mod os;
 pub mod validate;
@@ -128,6 +136,12 @@ pub fn run() {
             commands::decisions::decision_move,
             commands::decisions::decision_make,
             commands::decisions::decision_reopen,
+            commands::diary::diary_entry_add,
+            commands::diary::diary_list,
+            commands::diary::diary_entry,
+            commands::diary::diary_verify,
+            commands::diary::photo_thumbnail,
+            commands::diary::photo_open,
         ])
         .build(tauri::generate_context!())
         .expect("Ridgebeam failed to start");
