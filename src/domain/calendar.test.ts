@@ -12,6 +12,8 @@ import {
   validateCalendar,
   weekdayIndex,
   workingDaysBetween,
+  workingDaysDiff,
+  workingDaysFrom,
   type WorkingCalendar,
 } from './calendar';
 
@@ -340,5 +342,40 @@ describe('no time zone leaks into a day', () => {
     expect(addWorkingDays(WITH_HOLIDAY, '2026-09-04', 1)).toBe('2026-09-08');
     expect(addWorkingDays(WEEKDAYS, '2026-10-30', 1)).toBe('2026-11-02');
     expect(workingDaysBetween(WEEKDAYS, '2026-10-26', '2026-11-06')).toBe(10);
+  });
+});
+
+describe('a run of working days', () => {
+  it('lists the first n working days on or after a day, each the same as counting forward', () => {
+    const days = workingDaysFrom(WITH_HOLIDAY, '2026-09-05', 6);
+    expect(days).toEqual([
+      '2026-09-08',
+      '2026-09-09',
+      '2026-09-10',
+      '2026-09-11',
+      '2026-09-14',
+      '2026-09-15',
+    ]);
+    days.forEach((day, k) => expect(day).toBe(addWorkingDays(WITH_HOLIDAY, '2026-09-05', k)));
+  });
+
+  it('is empty for none, and refuses a negative or fractional count', () => {
+    expect(workingDaysFrom(WEEKDAYS, '2026-09-01', 0)).toEqual([]);
+    expect(() => workingDaysFrom(WEEKDAYS, '2026-09-01', -1)).toThrow(RangeError);
+    expect(() => workingDaysFrom(WEEKDAYS, '2026-09-01', 1.5)).toThrow(RangeError);
+  });
+});
+
+describe('the distance between two working days', () => {
+  it('counts the working days after the first up to the second, signed', () => {
+    expect(workingDaysDiff(WEEKDAYS, '2026-09-04', '2026-09-07')).toBe(1);
+    expect(workingDaysDiff(WITH_HOLIDAY, '2026-09-04', '2026-09-08')).toBe(1);
+    expect(workingDaysDiff(WEEKDAYS, '2026-09-07', '2026-09-04')).toBe(-1);
+    expect(workingDaysDiff(WEEKDAYS, '2026-09-01', '2026-09-15')).toBe(10);
+    expect(workingDaysDiff(WEEKDAYS, '2026-09-15', '2026-09-01')).toBe(-10);
+  });
+
+  it('is 0 for the same day', () => {
+    expect(workingDaysDiff(WEEKDAYS, '2026-09-04', '2026-09-04')).toBe(0);
   });
 });

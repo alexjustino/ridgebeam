@@ -8,7 +8,8 @@ import {
   unknownRoomReferences,
   type BreakdownActivityRow,
 } from './arrangements';
-import { placeActivities, type Activity, type WorkSnapshot } from './plan';
+import type { Activity, Dependency, WorkSnapshot } from './plan';
+import { schedule } from './schedule';
 
 /** A synthetic work. Nothing in it is a real place, person or price. */
 function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
@@ -20,6 +21,7 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
       startDate: '2026-09-01', // a Tuesday
       currency: 'BRL',
       createdAt: '2026-08-20T12:00:00.000Z',
+      approvedAt: null,
     },
     calendar: { workingDays: '1111100', hoursPerDay: 8 },
     holidays: [],
@@ -27,6 +29,8 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     rooms: [],
     stages: [],
     activities: [],
+    dependencies: [],
+    baselines: [],
     ...parts,
   };
 }
@@ -78,9 +82,24 @@ const PLAN = snapshot({
     activity('remove-sink', 'demolition', 2, null, null, ['kitchen']),
     activity('strip', 'demolition', 1, 2, 'tiler', ['kitchen', 'bathroom']),
   ],
+  // strip → floor → grout → skirting, one after another; remove-sink and ghost are linked to nothing.
+  dependencies: [
+    link('l1', 'strip', 'floor'),
+    link('l2', 'floor', 'grout'),
+    link('l3', 'grout', 'skirting'),
+  ],
 });
 
 const ids = (activities: readonly { id: string }[]) => activities.map((a) => a.id);
+
+function link(id: string, blockerId: string, blockedId: string): Dependency {
+  return {
+    id,
+    blocker: { kind: 'activity', id: blockerId },
+    blocked: { kind: 'activity', id: blockedId },
+    lagDays: 0,
+  };
+}
 
 describe('the breakdown', () => {
   const rows = breakdown(PLAN);
@@ -223,10 +242,9 @@ describe('the plan by room', () => {
 });
 
 describe('the checklist', () => {
-  const placement = placeActivities(PLAN);
-  const lines = checklist(PLAN, placement);
+  const lines = checklist(PLAN, schedule(PLAN));
 
-  it('follows the placement, with the unplaced last in plan order', () => {
+  it('follows the schedule, by start, with the unplaced last in plan order', () => {
     expect(lines.map((line) => [line.order, line.activityId, line.start, line.finish])).toEqual([
       [1, 'strip', '2026-09-01', '2026-09-02'],
       [2, 'floor', '2026-09-03', '2026-09-07'],
@@ -237,14 +255,26 @@ describe('the checklist', () => {
     ]);
   });
 
+  it('keeps breakdown order between activities that start on the same day', () => {
+    const parallel = snapshot({ ...PLAN, dependencies: [] });
+    expect(checklist(parallel, schedule(parallel)).map((line) => line.activityId)).toEqual([
+      'strip',
+      'floor',
+      'grout',
+      'skirting',
+      'remove-sink',
+      'ghost',
+    ]);
+  });
+
   it('says on each line what the plan lacks for it, by the readiness rules', () => {
     expect(Object.fromEntries(lines.map((line) => [line.activityId, line.missing]))).toEqual({
       strip: [],
       floor: ['responsible'],
       grout: [],
       skirting: [],
-      'remove-sink': ['duration', 'responsible'],
-      ghost: [],
+      'remove-sink': ['duration', 'responsible', 'linked'],
+      ghost: ['linked'],
     });
   });
 
@@ -257,7 +287,7 @@ describe('the checklist', () => {
       ...PLAN,
       calendar: { workingDays: '0000000', hoursPerDay: 8 },
     });
-    const all = checklist(noWorkingDay, placeActivities(noWorkingDay));
+    const all = checklist(noWorkingDay, schedule(noWorkingDay));
     expect(all.map((line) => line.activityId)).toEqual([
       'strip',
       'remove-sink',
@@ -270,13 +300,16 @@ describe('the checklist', () => {
     expect(all.map((line) => line.order)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
-  it('is built from the plan: a stale placement neither drops nor invents a line', () => {
-    const stale = [
-      { activityId: 'gone-activity', start: '2026-09-01', finish: '2026-09-01' },
-      { activityId: 'floor', start: '2026-09-10', finish: '2026-09-10' },
-      { activityId: 'floor', start: '2026-09-11', finish: '2026-09-11' },
-    ];
-    const result = checklist(PLAN, stale);
+  it('is built from the plan: a schedule of another plan neither drops nor invents a line', () => {
+    const other = snapshot({
+      stages: [{ id: 'tiling', position: 1, name: 'Tiling' }],
+      activities: [
+        activity('floor', 'tiling', 1, 1, null),
+        activity('gone-activity', 'tiling', 2, 1, null),
+      ],
+      work: { ...PLAN.work, startDate: '2026-08-28' },
+    });
+    const result = checklist(PLAN, schedule(other));
     expect(result.map((line) => line.activityId)).toEqual([
       'floor',
       'strip',
@@ -285,11 +318,11 @@ describe('the checklist', () => {
       'skirting',
       'ghost',
     ]);
-    expect(result[0]).toMatchObject({ start: '2026-09-10', finish: '2026-09-10' });
+    expect(result[0]).toMatchObject({ start: '2026-08-28', finish: '2026-08-28' });
   });
 
   it('is empty for an empty plan', () => {
-    expect(checklist(snapshot(), [])).toEqual([]);
+    expect(checklist(snapshot(), schedule(snapshot()))).toEqual([]);
   });
 });
 
@@ -301,7 +334,7 @@ function arrangedIds(plan: WorkSnapshot) {
       .filter((row) => row.kind === 'activity')
       .map((row) => row.id),
     byRoom: byRoom(plan).flatMap((group) => ids(group.activities)),
-    checklist: checklist(plan, placeActivities(plan)).map((line) => line.activityId),
+    checklist: checklist(plan, schedule(plan)).map((line) => line.activityId),
   };
 }
 
@@ -356,8 +389,20 @@ function randomPlan(seed: number): WorkSnapshot {
       pick([null, 'm²']),
     ),
   );
+  const endpoints = [
+    ...activities.map((a) => ({ kind: 'activity' as const, id: a.id })),
+    ...stageIds.map((id) => ({ kind: 'stage' as const, id })),
+    { kind: 'activity' as const, id: 'gone-activity' },
+  ];
+  const dependencies: Dependency[] = Array.from({ length: int(8) }, (_, i) => ({
+    id: `d${i}`,
+    blocker: pick(endpoints),
+    blocked: pick(endpoints),
+    lagDays: pick([0, 0, 1, 3, -1]),
+  }));
   return snapshot({
     calendar: { workingDays: pick(['1111100', '0000001', '0000000']), hoursPerDay: 8 },
+    dependencies,
     holidays: pick([[], [{ date: '2026-09-03', name: 'A holiday' }]]),
     people: [{ id: 'p0', name: 'Person 0' }],
     rooms,
@@ -389,10 +434,12 @@ describe('the three arrangements hold exactly the same activities', () => {
       plan.activities.some((a) => roomsOf(plan, a).length > 1),
     );
     const mixed = plans.filter((plan) => {
-      const placement = placeActivities(plan);
-      return placement.some((row) => 'start' in row) && placement.some((row) => !('start' in row));
+      const scheduled = schedule(plan);
+      return scheduled.dates.size > 0 && scheduled.unplaced.length > 0;
     });
-    for (const found of [stageless, unknownRoom, multiRoom, mixed]) {
+    const cyclic = plans.filter((plan) => schedule(plan).cyclic);
+    const inert = plans.filter((plan) => schedule(plan).inert.length > 0);
+    for (const found of [stageless, unknownRoom, multiRoom, mixed, cyclic, inert]) {
       expect(found.length).toBeGreaterThan(20);
     }
   });

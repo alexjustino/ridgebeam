@@ -1,14 +1,19 @@
 // Copied from Tessera (github.com/alexjustino/tessera) src/domain/graph.test.ts at commit bdbfc4a,
-// under the Apache License 2.0, same author. Copied verbatim; the extension for Ridgebeam
-// (working days, lags, adjacency built once) is a separate change on top of this one.
+// under the Apache License 2.0, same author, and extended for Ridgebeam: edges carry a lag, the
+// loop is named the way the host names it, and the adjacency and ordering are tested directly.
 
 import { describe, expect, it } from 'vitest';
 
 import {
+  adjacency,
   blockedBy,
   blockersOf,
   cycleFrom,
+  cycleThrough,
   describeCycle,
+  edgesInto,
+  edgesOut,
+  order,
   isBlocked,
   reachableFrom,
   readyToStart,
@@ -17,7 +22,11 @@ import {
   type Edge,
 } from './graph';
 
-const edge = (blockerId: string, blockedId: string): Edge => ({ blockerId, blockedId });
+const edge = (blockerId: string, blockedId: string, lagDays = 0): Edge => ({
+  blockerId,
+  blockedId,
+  lagDays,
+});
 
 /** design → build → test → ship, a straight chain. */
 const chain = [edge('design', 'build'), edge('build', 'test'), edge('test', 'ship')];
@@ -51,15 +60,10 @@ describe('reading the graph', () => {
 });
 
 describe('refusing a cycle', () => {
-  it('names the chain the new edge would close', () => {
-    // ship → design would mean design waits on ship, which waits on design.
-    expect(cycleFrom(chain, 'ship', 'design')).toEqual([
-      'design',
-      'build',
-      'test',
-      'ship',
-      'design',
-    ]);
+  it('names the chain the new edge would close, starting where the new link leaves', () => {
+    // ship → design would mean design waits on ship, which waits on design. The loop reads the
+    // way the host says it: across the new link first, then back round.
+    expect(cycleFrom(chain, 'ship', 'design')).toEqual(['ship', 'design', 'build', 'test', 'ship']);
     expect(wouldCycle(chain, 'ship', 'design')).toBe(true);
   });
 
@@ -86,7 +90,7 @@ describe('refusing a cycle', () => {
     // circular. It is the reverse that closes the loop, and the message takes
     // the short way round rather than through b.
     expect(cycleFrom(two, 'a', 'z')).toBeNull();
-    expect(cycleFrom(two, 'z', 'a')).toEqual(['a', 'z', 'a']);
+    expect(cycleFrom(two, 'z', 'a')).toEqual(['z', 'a', 'z']);
   });
 
   it('reads as a sentence a person can act on', () => {
@@ -98,7 +102,8 @@ describe('refusing a cycle', () => {
     expect(describeCycle(['design', 'build', 'test', 'design'], (id) => titles[id] ?? '')).toBe(
       'Ship it → Test it → Fix it → Ship it',
     );
-    expect(describeCycle(['ghost'], () => '')).toBe('Untitled');
+    // The domain holds no words: a gap is a mark, and the interface always passes names.
+    expect(describeCycle(['ghost'], () => '')).toBe('?');
   });
 });
 
@@ -154,5 +159,121 @@ describe('ordering', () => {
   it('is stable: the same input gives the same order', () => {
     const ids = ['ship', 'test', 'build', 'design'];
     expect(topologicalOrder(ids, chain)).toEqual(topologicalOrder(ids, chain));
+  });
+});
+
+describe('the host’s loop, over many links at once', () => {
+  // Foundations → Walls → Plaster, as in the host's own test.
+  const built = [edge('foundations', 'walls'), edge('walls', 'plaster')];
+  const names: Record<string, string> = {
+    foundations: 'Foundations',
+    walls: 'Walls',
+    plaster: 'Plaster',
+  };
+
+  it('reads exactly as the host’s refusal does', () => {
+    const chain = cycleFrom(built, 'plaster', 'foundations')!;
+    expect(describeCycle(chain, (id) => names[id] ?? '')).toBe(
+      'Plaster → Foundations → Walls → Plaster',
+    );
+    expect(describeCycle(cycleFrom(built, 'walls', 'walls')!, (id) => names[id] ?? '')).toBe(
+      'Walls → Walls',
+    );
+  });
+
+  it('names an activity on both sides as waiting on itself, the first of the blocked side', () => {
+    expect(cycleThrough(built, ['a', 'walls', 'b'], ['x', 'b', 'walls'])).toEqual(['b', 'b']);
+  });
+
+  it('searches from every blocked id at once and names the shortest loop', () => {
+    // From x the way back to a blocker is long; from y it is one step.
+    const edges = [edge('x', 'm'), edge('m', 'n'), edge('n', 'a'), edge('y', 'a')];
+    expect(cycleThrough(edges, ['a'], ['x', 'y'])).toEqual(['a', 'y', 'a']);
+  });
+
+  it('is nothing when no blocked id reaches a blocker', () => {
+    expect(cycleThrough(built, ['foundations'], ['plaster'])).toBeNull();
+    expect(cycleThrough(built, [], ['plaster'])).toBeNull();
+    expect(cycleThrough(built, ['plaster'], [])).toBeNull();
+  });
+
+  it('starts once from a blocked id listed twice', () => {
+    expect(cycleThrough(built, ['plaster'], ['foundations', 'foundations'])).toEqual([
+      'plaster',
+      'foundations',
+      'walls',
+      'plaster',
+    ]);
+  });
+});
+
+describe('the adjacency, built once', () => {
+  const edges = [edge('a', 'b', 2), edge('a', 'c'), edge('c', 'b')];
+  const graph = adjacency(edges);
+
+  it('reads the edges out of and into an id, lag included', () => {
+    expect(edgesOut(graph, 'a')).toEqual([edge('a', 'b', 2), edge('a', 'c')]);
+    expect(edgesInto(graph, 'b')).toEqual([edge('a', 'b', 2), edge('c', 'b')]);
+  });
+
+  it('is empty for an id with no edges, rather than undefined', () => {
+    expect(edgesOut(graph, 'b')).toEqual([]);
+    expect(edgesInto(graph, 'a')).toEqual([]);
+    expect(edgesOut(graph, 'nobody')).toEqual([]);
+  });
+});
+
+describe('ordering by position', () => {
+  it('says whether a cycle kept anything out, and still returns every id', () => {
+    const looped = adjacency([edge('b', 'c'), edge('c', 'b')]);
+    expect(order(['a', 'b', 'c', 'd'], looped)).toEqual({
+      ordered: ['a', 'd', 'b', 'c'],
+      cyclic: true,
+    });
+    expect(order(['a', 'b'], adjacency([edge('a', 'b')]))).toEqual({
+      ordered: ['a', 'b'],
+      cyclic: false,
+    });
+  });
+
+  it('keeps an id given twice once, at its first place', () => {
+    expect(order(['a', 'b', 'a'], adjacency([]))).toEqual({ ordered: ['a', 'b'], cyclic: false });
+  });
+
+  it('breaks every tie by position, however the edges release the ids', () => {
+    // Everything waits on `root`; once it is done, all twelve are ready at the same moment and
+    // must leave in the order they were given, not the order the edges named them.
+    const ids = ['root', ...Array.from({ length: 12 }, (_, i) => `n${String(i).padStart(2, '0')}`)];
+    const edges = [...ids.slice(1)].reverse().map((id) => edge('root', id));
+    expect(topologicalOrder(ids, edges)).toEqual(ids);
+  });
+
+  it('agrees with a plain stable Kahn over a generated graph', () => {
+    // The heap must give exactly the order the copied algorithm gave: the smallest position
+    // among the ready ids, every time.
+    let seed = 7;
+    const next = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const ids = Array.from({ length: 60 }, (_, i) => `t${i}`);
+    const edges: Edge[] = [];
+    for (let i = 0; i < 120; i += 1) {
+      const from = Math.floor(next() * 60);
+      const to = Math.floor(next() * 60);
+      if (from < to) edges.push(edge(ids[to]!, ids[from]!));
+    }
+    expect(edges.length).toBeGreaterThan(30);
+    const expected: string[] = [];
+    const remaining = new Map(ids.map((id) => [id, 0]));
+    for (const e of edges) remaining.set(e.blockedId, remaining.get(e.blockedId)! + 1);
+    const done = new Set<string>();
+    while (expected.length < ids.length) {
+      const id = ids.find((candidate) => !done.has(candidate) && remaining.get(candidate) === 0)!;
+      done.add(id);
+      expected.push(id);
+      for (const e of edges) {
+        if (e.blockerId === id) remaining.set(e.blockedId, remaining.get(e.blockedId)! - 1);
+      }
+    }
+    expect(expected).not.toEqual(ids);
+    expect(topologicalOrder(ids, edges)).toEqual(expected);
   });
 });

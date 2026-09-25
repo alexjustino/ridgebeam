@@ -5,7 +5,7 @@
  *   `1.2` …, the engineer's work breakdown and the table the plan is edited in.
  * - **By room**: the rooms in order, each with the activities that touch it; an activity in two
  *   rooms appears under each, and the ones that touch no room are gathered last.
- * - **Checklist**: one line per activity in the order the calendar places them, each saying what
+ * - **Checklist**: one line per activity in the order the schedule places them, each saying what
  *   the plan still lacks for it. The owner's list of what happens next.
  *
  * The invariant this module exists for: **every arrangement holds exactly the activities of the
@@ -22,15 +22,15 @@
 
 import {
   activitiesInOrder,
-  isPlaced,
+  compareText,
   roomsInOrder,
   stagesInOrder,
   type Activity,
-  type Placement,
   type Room,
   type WorkSnapshot,
 } from './plan';
 import { RULES, type RuleId } from './readiness/rules';
+import type { Schedule } from './schedule';
 
 // ── Breakdown ────────────────────────────────────────────────────────────────
 
@@ -155,11 +155,12 @@ export function unknownRoomReferences(snapshot: WorkSnapshot): UnknownRoomRefere
 // ── Checklist ────────────────────────────────────────────────────────────────
 
 /** What a checklist line can say the plan lacks: the readiness rules, by their short name. */
-export type ChecklistMissing = 'duration' | 'responsible';
+export type ChecklistMissing = 'duration' | 'responsible' | 'linked';
 
 const MISSING_OF: Record<RuleId, ChecklistMissing> = {
   'activity.duration': 'duration',
   'activity.responsible': 'responsible',
+  'activity.linked': 'linked',
 };
 
 export interface ChecklistLine {
@@ -175,37 +176,33 @@ export interface ChecklistLine {
 }
 
 /**
- * The checklist: one line per activity, the placed ones in the order the placement gives, then
- * the unplaced ones in plan order. Each line lists what the plan lacks for it, tested by the same
- * rules readiness counts, so the two can never disagree.
+ * The checklist: one line per activity in the order the schedule has them happen: the placed ones
+ * by start date, ties in breakdown order, then the unplaced ones in breakdown order. Each line lists
+ * what the plan lacks for it, tested by the same rules readiness counts, so the two never disagree.
  *
- * Built from the plan's activities, not from the placement: an activity the placement does not
- * mention is an unplaced line, and a placement row for an activity that is gone is no line.
+ * Built from the plan's activities, not from the schedule's: an activity the schedule has no dates
+ * for is an unplaced line, and dates for an activity that is gone make no line.
  */
-export function checklist(snapshot: WorkSnapshot, placement: Placement): ChecklistLine[] {
+export function checklist(snapshot: WorkSnapshot, scheduled: Schedule): ChecklistLine[] {
   const ordered = activitiesInOrder(snapshot);
-  const byId = new Map(ordered.map((activity) => [activity.id, activity]));
+  const placed = ordered.filter((activity) => scheduled.dates.has(activity.id));
+  const unplaced = ordered.filter((activity) => !scheduled.dates.has(activity.id));
+  // `Array.prototype.sort` is stable, so equal starts keep breakdown order.
+  placed.sort((a, b) =>
+    compareText(scheduled.dates.get(a.id)!.start, scheduled.dates.get(b.id)!.start),
+  );
 
-  const placed: Array<{ activity: Activity; start: string; finish: string }> = [];
-  const seen = new Set<string>();
-  for (const row of placement) {
-    const activity = byId.get(row.activityId);
-    if (activity === undefined || !isPlaced(row) || seen.has(row.activityId)) continue;
-    seen.add(row.activityId);
-    placed.push({ activity, start: row.start, finish: row.finish });
-  }
-  const unplaced = ordered
-    .filter((activity) => !seen.has(activity.id))
-    .map((activity) => ({ activity, start: null, finish: null }));
-
-  return [...placed, ...unplaced].map(({ activity, start, finish }, index) => ({
-    activityId: activity.id,
-    stageId: activity.stageId,
-    order: index + 1,
-    start,
-    finish,
-    missing: RULES.filter((rule) => !rule.holds(activity, snapshot)).map(
-      (rule) => MISSING_OF[rule.id],
-    ),
-  }));
+  return [...placed, ...unplaced].map((activity, index) => {
+    const dates = scheduled.dates.get(activity.id);
+    return {
+      activityId: activity.id,
+      stageId: activity.stageId,
+      order: index + 1,
+      start: dates?.start ?? null,
+      finish: dates?.finish ?? null,
+      missing: RULES.filter(
+        (rule) => rule.applies(activity, snapshot) && !rule.holds(activity, snapshot),
+      ).map((rule) => MISSING_OF[rule.id]),
+    };
+  });
 }

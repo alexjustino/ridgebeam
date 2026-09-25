@@ -2,17 +2,18 @@ import { describe, expect, it } from 'vitest';
 
 import {
   activitiesInOrder,
-  finishDate,
+  compareText,
   hasDuration,
-  isPlaced,
-  placeActivities,
+  latestBaseline,
   roomsInOrder,
   stagesInOrder,
   workingCalendarOf,
   type Activity,
+  type Baseline,
   type Stage,
   type WorkSnapshot,
 } from './plan';
+import { schedule } from './schedule';
 
 /** A synthetic work. Nothing in it is a real place, person or price. */
 function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
@@ -24,6 +25,7 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
       startDate: '2026-09-01', // a Tuesday
       currency: 'BRL',
       createdAt: '2026-08-20T12:00:00.000Z',
+      approvedAt: null,
     },
     calendar: { workingDays: '1111100', hoursPerDay: 8 },
     holidays: [],
@@ -31,6 +33,8 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     rooms: [],
     stages: [],
     activities: [],
+    dependencies: [],
+    baselines: [],
     ...parts,
   };
 }
@@ -111,170 +115,6 @@ describe('the calendar of a work', () => {
   });
 });
 
-describe('placing activities, F0 sequential placement', () => {
-  it('places one stage with one activity on the working calendar', () => {
-    const plan = snapshot({
-      stages: [stage('bathroom', 1)],
-      activities: [activity('tiling', 'bathroom', 1, 3)],
-    });
-    // Tuesday 1, Wednesday 2, Thursday 3 September.
-    expect(placeActivities(plan)).toEqual([
-      { activityId: 'tiling', start: '2026-09-01', finish: '2026-09-03' },
-    ]);
-    expect(finishDate(placeActivities(plan))).toBe('2026-09-03');
-  });
-
-  it('starts each activity on the working day after the previous one finishes', () => {
-    const plan = snapshot({
-      stages: [stage('s', 1)],
-      activities: [activity('a', 's', 1, 3), activity('b', 's', 2, 2)],
-    });
-    // a: Tue 1 to Thu 3. b: Fri 4 and, over the weekend, Mon 7.
-    expect(placeActivities(plan)).toEqual([
-      { activityId: 'a', start: '2026-09-01', finish: '2026-09-03' },
-      { activityId: 'b', start: '2026-09-04', finish: '2026-09-07' },
-    ]);
-  });
-
-  it('moves a start date on a Saturday to the Monday', () => {
-    const plan = snapshot({
-      work: { ...snapshot().work, startDate: '2026-09-05' },
-      stages: [stage('s', 1)],
-      activities: [activity('a', 's', 1, 1)],
-    });
-    expect(placeActivities(plan)).toEqual([
-      { activityId: 'a', start: '2026-09-07', finish: '2026-09-07' },
-    ]);
-  });
-
-  it('extends the finish of an activity with a holiday inside it', () => {
-    const without = snapshot({
-      stages: [stage('s', 1)],
-      activities: [activity('a', 's', 1, 5)],
-    });
-    const withHoliday = snapshot({
-      ...without,
-      holidays: [{ date: '2026-09-03', name: 'A holiday' }],
-    });
-    // Five working days from Tuesday 1: Tue, Wed, Thu, Fri, Mon 7.
-    expect(finishDate(placeActivities(without))).toBe('2026-09-07');
-    // Thursday 3 is a holiday: Tue, Wed, Fri, Mon, Tue 8.
-    expect(finishDate(placeActivities(withHoliday))).toBe('2026-09-08');
-  });
-
-  it('respects stage order over the order the activities were added', () => {
-    const plan = snapshot({
-      stages: [stage('tiling', 2), stage('demolition', 1)],
-      activities: [activity('tile', 'tiling', 1, 1), activity('demolish', 'demolition', 1, 1)],
-    });
-    expect(placeActivities(plan)).toEqual([
-      { activityId: 'demolish', start: '2026-09-01', finish: '2026-09-01' },
-      { activityId: 'tile', start: '2026-09-02', finish: '2026-09-02' },
-    ]);
-  });
-
-  it('leaves an activity with no duration unplaced, and still places the ones after it', () => {
-    const plan = snapshot({
-      stages: [stage('s', 1)],
-      activities: [
-        activity('a', 's', 1, 2),
-        activity('unknown', 's', 2, null),
-        activity('zero', 's', 3, 0),
-        activity('b', 's', 4, 1),
-      ],
-    });
-    expect(placeActivities(plan)).toEqual([
-      { activityId: 'a', start: '2026-09-01', finish: '2026-09-02' },
-      { activityId: 'unknown', unplaced: 'no-duration' },
-      { activityId: 'zero', unplaced: 'no-duration' },
-      { activityId: 'b', start: '2026-09-03', finish: '2026-09-03' },
-    ]);
-  });
-
-  it('starts the first placed activity on the start date even when earlier ones have no duration', () => {
-    const plan = snapshot({
-      stages: [stage('s', 1)],
-      activities: [activity('unknown', 's', 1, null), activity('a', 's', 2, 1)],
-    });
-    expect(placeActivities(plan)[1]).toEqual({
-      activityId: 'a',
-      start: '2026-09-01',
-      finish: '2026-09-01',
-    });
-  });
-
-  it('says an activity whose stage is not in the plan has no place', () => {
-    const plan = snapshot({
-      stages: [stage('s', 1)],
-      activities: [activity('ghost', 'gone', 1, 2), activity('a', 's', 1, 1)],
-    });
-    expect(placeActivities(plan)).toEqual([
-      { activityId: 'a', start: '2026-09-01', finish: '2026-09-01' },
-      { activityId: 'ghost', unplaced: 'no-stage' },
-    ]);
-  });
-
-  it('places nothing on a calendar with no working day, and says why, without throwing', () => {
-    const plan = snapshot({
-      calendar: { workingDays: '0000000', hoursPerDay: 8 },
-      stages: [stage('s', 1)],
-      activities: [activity('a', 's', 1, 2)],
-    });
-    expect(() => placeActivities(plan)).not.toThrow();
-    expect(placeActivities(plan)).toEqual([{ activityId: 'a', unplaced: 'invalid-calendar' }]);
-    expect(finishDate(placeActivities(plan))).toBeNull();
-  });
-
-  it('places nothing from a start date that is not a day, and says why', () => {
-    const plan = snapshot({
-      work: { ...snapshot().work, startDate: '2026-02-30' },
-      stages: [stage('s', 1)],
-      activities: [activity('a', 's', 1, 2)],
-    });
-    expect(placeActivities(plan)).toEqual([{ activityId: 'a', unplaced: 'invalid-start' }]);
-  });
-
-  it('has no finish date for an empty plan', () => {
-    expect(placeActivities(snapshot())).toEqual([]);
-    expect(finishDate(placeActivities(snapshot()))).toBeNull();
-  });
-
-  it('has no finish date when no activity has a duration', () => {
-    const plan = snapshot({
-      stages: [stage('s', 1)],
-      activities: [activity('a', 's', 1, null)],
-    });
-    expect(finishDate(placeActivities(plan))).toBeNull();
-  });
-
-  it('gives a stage with nothing in it no days', () => {
-    const plan = snapshot({
-      stages: [stage('empty', 1), stage('s', 2)],
-      activities: [activity('a', 's', 1, 1)],
-    });
-    expect(placeActivities(plan)).toEqual([
-      { activityId: 'a', start: '2026-09-01', finish: '2026-09-01' },
-    ]);
-  });
-});
-
-describe('the finish date', () => {
-  it('is the latest finish, whatever order the rows come in', () => {
-    expect(
-      finishDate([
-        { activityId: 'b', start: '2026-09-08', finish: '2026-09-10' },
-        { activityId: 'x', unplaced: 'no-duration' },
-        { activityId: 'a', start: '2026-09-01', finish: '2026-09-02' },
-      ]),
-    ).toBe('2026-09-10');
-  });
-
-  it('tells a placed row from an unplaced one', () => {
-    expect(isPlaced({ activityId: 'a', start: '2026-09-01', finish: '2026-09-01' })).toBe(true);
-    expect(isPlaced({ activityId: 'a', unplaced: 'no-duration' })).toBe(false);
-  });
-});
-
 describe('rooms', () => {
   it('are taken by position, then by id when positions tie, not by the order they were added', () => {
     const plan = snapshot({
@@ -291,13 +131,40 @@ describe('rooms', () => {
     expect(roomsInOrder(snapshot())).toEqual([]);
   });
 
-  it('do not change where an activity is placed, and neither does its quantity', () => {
+  it('do not change where an activity is scheduled, and neither does its quantity', () => {
     const plain = snapshot({ stages: [stage('s', 1)], activities: [activity('a', 's', 1, 2)] });
     const withRooms = snapshot({
       ...plain,
       rooms: [{ id: 'r', position: 1, name: 'Room' }],
       activities: [{ ...activity('a', 's', 1, 2), roomIds: ['r'], quantity: 12, unit: 'm²' }],
     });
-    expect(placeActivities(withRooms)).toEqual(placeActivities(plain));
+    expect(schedule(withRooms).dates).toEqual(schedule(plain).dates);
+  });
+});
+
+describe('baselines', () => {
+  const baseline = (id: string, number: number): Baseline => ({
+    id,
+    number,
+    takenAt: '2026-09-01T12:00:00.000Z',
+    reason: null,
+    finishDate: null,
+    rows: [],
+  });
+
+  it('are none before the plan is approved', () => {
+    expect(latestBaseline(snapshot())).toBeNull();
+  });
+
+  it('are read latest by number, whatever order the host lists them in', () => {
+    const plan = snapshot({ baselines: [baseline('b2', 2), baseline('b3', 3), baseline('b1', 1)] });
+    expect(latestBaseline(plan)?.id).toBe('b3');
+  });
+});
+
+describe('text order', () => {
+  it('is by code point, the same on every machine', () => {
+    expect(['b', 'a', 'B', 'a'].sort(compareText)).toEqual(['B', 'a', 'a', 'b']);
+    expect(compareText('a', 'a')).toBe(0);
   });
 });

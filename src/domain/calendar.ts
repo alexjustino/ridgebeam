@@ -234,3 +234,34 @@ export function workingDaysBetween(calendar: WorkingCalendar, from: string, to: 
   }
   return count;
 }
+
+/**
+ * The first `count` working days on or after `day`, in order: offset `k` of the result is
+ * `addWorkingDays(calendar, day, k)`, computed in one walk rather than one walk per offset. What
+ * turns a schedule's day offsets into dates.
+ */
+export function workingDaysFrom(calendar: WorkingCalendar, day: string, count: number): string[] {
+  if (!Number.isInteger(count) || count < 0) {
+    throw new RangeError(`A count of working days is a whole number from zero, not ${count}`);
+  }
+  const days: string[] = [];
+  if (count === 0) return days;
+  let current = requireDay(nextWorkingDay(calendar, day));
+  while (days.length < count) {
+    const text = dayOf(current);
+    if (isWorkingDay(calendar, text)) days.push(text);
+    current += 1;
+  }
+  return days;
+}
+
+/**
+ * The signed distance from one working day to another, in working days: how many working days
+ * after `from` the day `to` is, negative when it is before. `0` for the same day. What a slip is
+ * measured in.
+ */
+export function workingDaysDiff(calendar: WorkingCalendar, from: string, to: string): number {
+  if (to === from) return 0;
+  if (to > from) return workingDaysBetween(calendar, addCalendarDays(from, 1), to);
+  return -workingDaysBetween(calendar, addCalendarDays(to, 1), from);
+}

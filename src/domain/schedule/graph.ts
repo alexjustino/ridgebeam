@@ -1,45 +1,74 @@
 // Copied from Tessera (github.com/alexjustino/tessera) src/domain/graph.ts at commit bdbfc4a,
-// under the Apache License 2.0, same author. Copied verbatim; the extension for Ridgebeam
-// (working days, lags, adjacency built once) is a separate change on top of this one.
+// under the Apache License 2.0, same author, and extended for Ridgebeam: an edge carries a lag in
+// working days, adjacency is built once into maps, and the topological tie-break reads a position
+// map instead of scanning the list (ADR-015).
 
 /**
- * What must come first: the dependency graph over tasks.
+ * What must come first: the dependency graph over activities.
  *
- * One edge, one meaning — `blockerId` must be finished before `blockedId` can
- * start. Everything 1.1 adds reads this graph: the timeline draws its arrows
- * from it, the critical path is its longest chain, and capacity is what is left
- * once the chain is laid on a calendar. So the graph is decided here, once, in
- * a module that never touches a database or a screen (ADR-003).
+ * One edge, one meaning: `blockerId` must be finished before `blockedId` can start, and then
+ * `lagDays` more working days must pass (the concrete curing before the next activity). Finish-to-
+ * start is the only kind in 1.0. The critical path is this graph's longest chain, and the Gantt
+ * draws its arrows from it. So the graph is decided here, once, in a module that never touches a
+ * database or a screen.
  *
- * The rule that shapes the rest: **the graph is acyclic, always**. A cycle is
- * not a strange state to render carefully — it is work that can never start, and
- * the honest thing is to refuse the edge that would close it and say which
- * chain it closed.
+ * The rule that shapes the rest: **the graph is acyclic, always**. A cycle is not a strange state
+ * to render carefully: it is work that can never start, and the honest thing is to refuse the edge
+ * that would close it and say which chain it closed.
+ *
+ * Stages are not here. A dependency onto a stage is expanded into activity edges first
+ * (`expand.ts`); this module only knows activities.
  */
 
-/** `blocker` must finish before `blocked` may start. */
+/** `blocker` must finish, and `lagDays` working days pass, before `blocked` may start. */
 export interface Edge {
   blockerId: string;
   blockedId: string;
+  /** Working days of waiting after the blocker finishes; zero or more. */
+  lagDays: number;
 }
 
-/** Adjacency, blocker → the things it blocks. Built once per question. */
-function forward(edges: readonly Edge[]): Map<string, string[]> {
-  const map = new Map<string, string[]>();
+/** Both directions of the graph, built once per question and then only read. */
+export interface Adjacency {
+  /** Blocker → its outgoing edges. */
+  readonly successors: ReadonlyMap<string, readonly Edge[]>;
+  /** Blocked → its incoming edges. */
+  readonly predecessors: ReadonlyMap<string, readonly Edge[]>;
+}
+
+const NONE: readonly Edge[] = [];
+
+/** Index the edges both ways, once. */
+export function adjacency(edges: readonly Edge[]): Adjacency {
+  const successors = new Map<string, Edge[]>();
+  const predecessors = new Map<string, Edge[]>();
   for (const edge of edges) {
-    const list = map.get(edge.blockerId);
-    if (list === undefined) map.set(edge.blockerId, [edge.blockedId]);
-    else list.push(edge.blockedId);
+    const out = successors.get(edge.blockerId);
+    if (out === undefined) successors.set(edge.blockerId, [edge]);
+    else out.push(edge);
+    const into = predecessors.get(edge.blockedId);
+    if (into === undefined) predecessors.set(edge.blockedId, [edge]);
+    else into.push(edge);
   }
-  return map;
+  return { successors, predecessors };
 }
 
-/** The tasks that must finish before this one may start. */
+/** The edges leaving an id, or none. */
+export function edgesOut(graph: Adjacency, id: string): readonly Edge[] {
+  return graph.successors.get(id) ?? NONE;
+}
+
+/** The edges arriving at an id, or none. */
+export function edgesInto(graph: Adjacency, id: string): readonly Edge[] {
+  return graph.predecessors.get(id) ?? NONE;
+}
+
+/** The activities that must finish before this one may start. A one-off question: it scans. */
 export function blockersOf(edges: readonly Edge[], id: string): string[] {
   return edges.filter((edge) => edge.blockedId === id).map((edge) => edge.blockerId);
 }
 
-/** The tasks waiting on this one. */
+/** The activities waiting on this one. A one-off question: it scans. */
 export function blockedBy(edges: readonly Edge[], id: string): string[] {
   return edges.filter((edge) => edge.blockerId === id).map((edge) => edge.blockedId);
 }
@@ -47,70 +76,91 @@ export function blockedBy(edges: readonly Edge[], id: string): string[] {
 /**
  * Everything reachable from `from` by following the arrows, `from` excluded.
  *
- * Breadth-first with a seen set, so a diamond — two paths to the same task —
- * is visited once rather than twice, and a graph that already holds a cycle
- * (which storage refuses, but a corrupted file could carry) terminates instead
- * of hanging the screen.
+ * Breadth-first with a seen set, so a diamond (two paths to the same activity) is visited once
+ * rather than twice, and a graph that already holds a cycle (which storage refuses, but a
+ * corrupted file could carry) terminates instead of hanging the screen.
  */
 export function reachableFrom(edges: readonly Edge[], from: string): Set<string> {
-  const next = forward(edges);
+  const graph = adjacency(edges);
   const seen = new Set<string>();
-  const queue = [...(next.get(from) ?? [])];
+  const queue = edgesOut(graph, from).map((edge) => edge.blockedId);
 
-  while (queue.length > 0) {
-    const id = queue.shift() as string;
+  for (let head = 0; head < queue.length; head += 1) {
+    const id = queue[head]!;
     if (seen.has(id)) continue;
     seen.add(id);
-    for (const onward of next.get(id) ?? []) {
-      if (!seen.has(onward)) queue.push(onward);
+    for (const edge of edgesOut(graph, id)) {
+      if (!seen.has(edge.blockedId)) queue.push(edge.blockedId);
     }
   }
   return seen;
 }
 
 /**
- * The chain that adding `blocker → blocked` would close, or null when it would
- * not close one.
+ * The loop that adding edges from every one of `blockerIds` to every one of `blockedIds` would
+ * close, or null when it would close none.
  *
- * Returned as a path rather than a boolean because "that would make a loop" is
- * not a useful thing to tell somebody. The path is what lets the interface say
- * *which* loop: `Ship it → Test it → Fix it → Ship it`.
+ * Returned as a path rather than a boolean because "that would make a loop" is not a useful thing
+ * to tell somebody. The path is what lets the interface say *which* loop, and it has the shape the
+ * host's refusal has, so the two sentences agree: it starts at the blocker the new link leaves,
+ * crosses the new link, and follows the existing links back to where it started —
+ * `Plaster → Foundations → Walls → Plaster`. An activity on both sides waits on itself:
+ * `Walls → Walls`.
+ *
+ * The search is the host's: first an id on both sides (the first of `blockedIds` that is also a
+ * blocker), then breadth-first from every blocked id at once, in order, to the first blocker
+ * reached, so the shortest loop is the one named.
+ */
+export function cycleThrough(
+  edges: readonly Edge[],
+  blockerIds: readonly string[],
+  blockedIds: readonly string[],
+): string[] | null {
+  const blockers = new Set(blockerIds);
+  const both = blockedIds.find((id) => blockers.has(id));
+  if (both !== undefined) return [both, both];
+
+  const graph = adjacency(edges);
+  const cameFrom = new Map<string, string | null>();
+  const queue: string[] = [];
+  for (const id of blockedIds) {
+    if (cameFrom.has(id)) continue;
+    cameFrom.set(id, null);
+    queue.push(id);
+  }
+
+  for (let head = 0; head < queue.length; head += 1) {
+    const at = queue[head]!;
+    if (blockers.has(at)) {
+      // Walk back to the blocked id the search left from, then close the loop with the new link.
+      const path: string[] = [];
+      let step: string | null | undefined = at;
+      while (typeof step === 'string') {
+        path.unshift(step);
+        step = cameFrom.get(step);
+      }
+      return [at, ...path];
+    }
+    for (const edge of edgesOut(graph, at)) {
+      if (!cameFrom.has(edge.blockedId)) {
+        cameFrom.set(edge.blockedId, at);
+        queue.push(edge.blockedId);
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * The loop that adding `blocker → blocked` would close, or null: `cycleThrough` for one edge.
+ * An activity cannot block itself: `[id, id]`.
  */
 export function cycleFrom(
   edges: readonly Edge[],
   blockerId: string,
   blockedId: string,
 ): string[] | null {
-  // A task cannot block itself.
-  if (blockerId === blockedId) return [blockerId, blockedId];
-
-  // The new edge closes a cycle exactly when the blocker is already reachable
-  // from the blocked task — that is, when the blocked task already has to
-  // finish first, by some route.
-  const next = forward(edges);
-  const path = new Map<string, string | null>([[blockedId, null]]);
-  const queue = [blockedId];
-
-  while (queue.length > 0) {
-    const id = queue.shift() as string;
-    if (id === blockerId) {
-      // Walk the parents back to the start, then close the loop.
-      const chain: string[] = [];
-      let step: string | null | undefined = id;
-      while (typeof step === 'string') {
-        chain.unshift(step);
-        step = path.get(step);
-      }
-      return [...chain, blockedId];
-    }
-    for (const onward of next.get(id) ?? []) {
-      if (!path.has(onward)) {
-        path.set(onward, id);
-        queue.push(onward);
-      }
-    }
-  }
-  return null;
+  return cycleThrough(edges, [blockerId], [blockedId]);
 }
 
 /** Whether adding this edge would close a cycle. */
@@ -118,12 +168,15 @@ export function wouldCycle(edges: readonly Edge[], blockerId: string, blockedId:
   return cycleFrom(edges, blockerId, blockedId) !== null;
 }
 
-/** `Ship it → Test it → Fix it → Ship it`, from a chain of ids and their titles. */
-export function describeCycle(chain: readonly string[], titleOf: (id: string) => string): string {
-  return chain.map((id) => titleOf(id) || 'Untitled').join(' → ');
+/**
+ * `Pour the slab → Cure → Pour the slab`, from a chain of ids and their names. An id with no name
+ * is shown as `?`; the interface passes names, so this is only what a gap looks like.
+ */
+export function describeCycle(chain: readonly string[], nameOf: (id: string) => string): string {
+  return chain.map((id) => nameOf(id) || '?').join(' → ');
 }
 
-/** Whether a task is waiting on something that has not been finished. */
+/** Whether an activity is waiting on something that has not been finished. */
 export function isBlocked(
   edges: readonly Edge[],
   id: string,
@@ -133,10 +186,10 @@ export function isBlocked(
 }
 
 /**
- * The tasks nothing is holding up: incomplete, and with every blocker finished.
+ * The activities nothing is holding up: incomplete, and with every blocker finished.
  *
- * This is what "what can I actually start" means once work has an order, and it
- * is the query the focus mode and the daily plan will both ask.
+ * What "what can start" means once work has an order. Completion comes from the diary (slice F4);
+ * until then nothing calls this with anything but "nothing is complete".
  */
 export function readyToStart(
   ids: readonly string[],
@@ -146,46 +199,94 @@ export function readyToStart(
   return ids.filter((id) => !isComplete(id) && !isBlocked(edges, id, isComplete));
 }
 
+/** The result of ordering: the order, and whether a cycle kept some ids out of it. */
+export interface Ordering {
+  readonly ordered: string[];
+  readonly cyclic: boolean;
+}
+
 /**
- * Every task in an order where each comes after everything blocking it.
+ * Kahn's algorithm over an adjacency built once, with ties broken by position in `ids`.
  *
- * Kahn's algorithm, with ties broken by the order the ids arrived — so the
- * result is stable, and a list that was sorted by position stays as close to
- * that as the dependencies allow. Ids caught in a cycle come last, in their
- * original order, rather than vanishing: a view must draw what is there.
+ * The ready set is a binary heap keyed by position, so the smallest position always leaves first
+ * and a list sorted by position stays as close to that as the dependencies allow, without scanning
+ * the list. Ids caught in a cycle come last, in their original order, rather than vanishing.
  */
-export function topologicalOrder(ids: readonly string[], edges: readonly Edge[]): string[] {
-  const present = new Set(ids);
-  const relevant = edges.filter(
-    (edge) => present.has(edge.blockerId) && present.has(edge.blockedId),
-  );
+export function order(ids: readonly string[], graph: Adjacency): Ordering {
+  const position = new Map<string, number>();
+  ids.forEach((id, index) => {
+    if (!position.has(id)) position.set(id, index);
+  });
+  const present = (edge: Edge) => position.has(edge.blockerId) && position.has(edge.blockedId);
 
   const remaining = new Map<string, number>();
-  for (const id of ids) remaining.set(id, 0);
-  for (const edge of relevant) {
-    remaining.set(edge.blockedId, (remaining.get(edge.blockedId) ?? 0) + 1);
+  for (const id of position.keys()) {
+    remaining.set(id, edgesInto(graph, id).filter(present).length);
   }
 
-  const next = forward(relevant);
-  const ready = ids.filter((id) => remaining.get(id) === 0);
-  const ordered: string[] = [];
+  const heap: number[] = [];
+  for (const [id, count] of remaining) if (count === 0) push(heap, position.get(id)!);
 
-  while (ready.length > 0) {
-    const id = ready.shift() as string;
+  const ordered: string[] = [];
+  while (heap.length > 0) {
+    const id = ids[pop(heap)]!;
     ordered.push(id);
-    for (const onward of next.get(id) ?? []) {
-      const left = (remaining.get(onward) ?? 0) - 1;
-      remaining.set(onward, left);
-      // Insert where the original order says, so ties stay stable.
-      if (left === 0) {
-        const at = ready.findIndex((candidate) => ids.indexOf(candidate) > ids.indexOf(onward));
-        if (at === -1) ready.push(onward);
-        else ready.splice(at, 0, onward);
-      }
+    for (const edge of edgesOut(graph, id)) {
+      if (!present(edge)) continue;
+      const left = remaining.get(edge.blockedId)! - 1;
+      remaining.set(edge.blockedId, left);
+      if (left === 0) push(heap, position.get(edge.blockedId)!);
     }
   }
 
+  const cyclic = ordered.length < position.size;
+  if (!cyclic) return { ordered, cyclic };
   // Whatever a cycle swallowed, in the order it came.
   const placed = new Set(ordered);
-  return [...ordered, ...ids.filter((id) => !placed.has(id))];
+  return {
+    ordered: [...ordered, ...[...position.keys()].filter((id) => !placed.has(id))],
+    cyclic,
+  };
+}
+
+/**
+ * Every activity in an order where each comes after everything blocking it.
+ *
+ * Ties are broken by the order the ids arrived, so the result is stable. Ids caught in a cycle
+ * come last, in their original order, rather than vanishing: a view must draw what is there.
+ */
+export function topologicalOrder(ids: readonly string[], edges: readonly Edge[]): string[] {
+  return order(ids, adjacency(edges)).ordered;
+}
+
+// ── A binary min-heap of positions ───────────────────────────────────────────
+
+function push(heap: number[], value: number): void {
+  heap.push(value);
+  let at = heap.length - 1;
+  while (at > 0) {
+    const parent = (at - 1) >> 1;
+    if (heap[parent]! <= value) break;
+    heap[at] = heap[parent]!;
+    at = parent;
+  }
+  heap[at] = value;
+}
+
+function pop(heap: number[]): number {
+  const top = heap[0]!;
+  const last = heap.pop()!;
+  if (heap.length === 0) return top;
+  let at = 0;
+  for (;;) {
+    const left = 2 * at + 1;
+    if (left >= heap.length) break;
+    const right = left + 1;
+    const child = right < heap.length && heap[right]! < heap[left]! ? right : left;
+    if (heap[child]! >= last) break;
+    heap[at] = heap[child]!;
+    at = child;
+  }
+  heap[at] = last;
+  return top;
 }

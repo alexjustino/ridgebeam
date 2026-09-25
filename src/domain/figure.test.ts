@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   counted,
+  daysFigure,
   percent,
   percentOf,
   summed,
   traceable,
+  type DaysRow,
   type Figure,
   type ReportRow,
 } from './figure';
@@ -148,5 +150,57 @@ describe('every number can be traced to the rows it came from', () => {
     expect(traceable(percent('r', 'r', -1, 2, [row('a'), row('b'), row('c')]))).toBe(false);
     expect(traceable(percent('r', 'r', 0.5, 2, [row('a')]))).toBe(false);
     expect(traceable({ ...percent('r', 'r', 0, 0, [row('a')]), value: 100 })).toBe(false);
+  });
+});
+
+describe('a days figure', () => {
+  const moved = (key: string, days: number, againstFinish: number | null): DaysRow => ({
+    key,
+    itemId: key,
+    title: `Row ${key}`,
+    day: null,
+    minutes: 0,
+    days,
+    againstFinish,
+  });
+
+  it('is 0 with nothing moved', () => {
+    const figure = daysFigure('slip', 'schedule.slip.label', 0, []);
+    expect(figure).toMatchObject({ unit: 'days', value: 0, rows: [] });
+    expect(traceable(figure)).toBe(true);
+  });
+
+  it('moved later is exactly the furthest row past the reference', () => {
+    const rows = [moved('a', 3, 1), moved('b', 2, 2)];
+    expect(traceable(daysFigure('slip', 'l', 2, rows))).toBe(true);
+    expect(traceable(daysFigure('slip', 'l', 1, rows))).toBe(false);
+    expect(traceable(daysFigure('slip', 'l', 3, rows))).toBe(false);
+  });
+
+  it('did not move, or moved earlier, when no row lies beyond it', () => {
+    // A row that slipped inside its float: it moved three days and still finishes before the end.
+    expect(traceable(daysFigure('slip', 'l', 0, [moved('a', 3, -2)]))).toBe(true);
+    expect(traceable(daysFigure('slip', 'l', -1, [moved('a', -1, -1), moved('b', -1, -4)]))).toBe(
+      true,
+    );
+    expect(traceable(daysFigure('slip', 'l', -2, [moved('a', -1, -1)]))).toBe(false);
+    expect(traceable(daysFigure('slip', 'l', 0, [moved('a', 1, 1)]))).toBe(false);
+  });
+
+  it('ignores rows with no date now (removed) when finding the furthest', () => {
+    expect(traceable(daysFigure('slip', 'l', 0, [moved('gone', 0, null)]))).toBe(true);
+    expect(traceable(daysFigure('slip', 'l', 1, [moved('gone', 0, null)]))).toBe(false);
+  });
+
+  it('is broken with a value and no rows, a fraction, or rows that are not days rows', () => {
+    expect(traceable(daysFigure('slip', 'l', 2, []))).toBe(false);
+    expect(traceable(daysFigure('slip', 'l', 1.5, [moved('a', 1.5, 1.5)]))).toBe(false);
+    expect(traceable({ id: 'x', label: 'l', unit: 'days', value: 1, rows: [row('a')] })).toBe(
+      false,
+    );
+  });
+
+  it('is broken when a row is listed twice', () => {
+    expect(traceable(daysFigure('slip', 'l', 1, [moved('a', 1, 1), moved('a', 1, 1)]))).toBe(false);
   });
 });
