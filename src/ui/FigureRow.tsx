@@ -28,6 +28,7 @@ export function FigureRow<Row extends ReportRow>({
   rowsLabel,
   testId = 'figure',
   size = 'display',
+  groupBy,
 }: {
   figure: Figure<Row>;
   /** What the figure is, in words. */
@@ -40,6 +41,11 @@ export function FigureRow<Row extends ReportRow>({
   rowsLabel: string;
   testId?: string;
   size?: 'display' | 'title';
+  /**
+   * When given, the rows are shown under headings — the group each belongs to, groups in their
+   * `order` — and each row keeps its own place inside its group.
+   */
+  groupBy?: (row: Row) => { id: string; label: string; order: number };
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -84,18 +90,52 @@ export function FigureRow<Row extends ReportRow>({
             aria-label={rowsLabel}
             className="flex flex-col gap-1 border-l border-stroke-subtle pl-3"
           >
-            {figure.rows.map((row) => (
-              <li
-                key={row.key}
-                data-testid={`${testId}-row`}
-                className="text-body text-fg-secondary"
-              >
-                {renderRow(row)}
-              </li>
-            ))}
+            {groupBy === undefined
+              ? figure.rows.map((row) => (
+                  <li
+                    key={row.key}
+                    data-testid={`${testId}-row`}
+                    className="text-body text-fg-secondary"
+                  >
+                    {renderRow(row)}
+                  </li>
+                ))
+              : grouped(figure.rows, groupBy).map((group) => (
+                  <li key={group.id} className="flex flex-col gap-1">
+                    <span className="text-caption font-semibold text-fg-tertiary">
+                      {group.label}
+                    </span>
+                    <ul className="flex flex-col gap-1">
+                      {group.rows.map((row) => (
+                        <li
+                          key={row.key}
+                          data-testid={`${testId}-row`}
+                          className="text-body text-fg-secondary"
+                        >
+                          {renderRow(row)}
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
           </ul>
         )}
       </div>
     </div>
   );
+}
+
+/** The rows under their headings: groups in their order, rows in theirs. */
+function grouped<Row>(
+  rows: readonly Row[],
+  groupBy: (row: Row) => { id: string; label: string; order: number },
+): Array<{ id: string; label: string; order: number; rows: Row[] }> {
+  const groups = new Map<string, { id: string; label: string; order: number; rows: Row[] }>();
+  for (const row of rows) {
+    const group = groupBy(row);
+    const found = groups.get(group.id);
+    if (found === undefined) groups.set(group.id, { ...group, rows: [row] });
+    else found.rows.push(row);
+  }
+  return [...groups.values()].sort((a, b) => a.order - b.order);
 }
