@@ -14,6 +14,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 
+import type { DiaryEntry, EntryDraft } from '@/domain/diary';
 import type { Direction } from '@/domain/ordering';
 import type { Endpoint, Holiday, WorkSnapshot } from '@/domain/plan';
 import {
@@ -154,6 +155,9 @@ export const LIMITS = {
   place: 200,
   unit: 16,
   answer: 500,
+  entryNote: 4000,
+  entryText: 2000,
+  doneNote: 500,
   durationDays: 3650,
   hoursPerDay: 24,
 } as const;
@@ -384,4 +388,46 @@ export function decisionMake(id: string, answer: string | null): Promise<WorkSna
 /** Undo the making: the date and the answer both go, because the answer belongs to the making. */
 export function decisionReopen(id: string): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('decision_reopen', { id });
+}
+
+// ── The diary (F4) ───────────────────────────────────────────────────────────
+//
+// The diary is not in the work snapshot: at 3 000 entries and 10 000 photos it would make every
+// plan edit carry the whole record back. It is read on its own, newest first. There is no command
+// that edits or removes an entry, and there never will be: a correction is a new entry.
+
+export type { EntryDraft };
+
+/** What `diary_verify` finds after recomputing every hash and every link. */
+export type ChainReport =
+  | { entries: number; intact: true }
+  | {
+      entries: number;
+      intact: false;
+      brokenAt: number;
+      /** What broke, as a word this build translates; `reason` is the host's English sentence. */
+      problem: 'contents' | 'link' | 'missing';
+      reason: string;
+    };
+
+export function diaryEntryAdd(draft: EntryDraft): Promise<DiaryEntry> {
+  return invoke<DiaryEntry>('diary_entry_add', { draft });
+}
+
+export function diaryList(range?: { fromDay?: string; toDay?: string }): Promise<DiaryEntry[]> {
+  return invoke<DiaryEntry[]>('diary_list', range === undefined ? {} : { range });
+}
+
+export function diaryVerify(): Promise<ChainReport> {
+  return invoke<ChainReport>('diary_verify');
+}
+
+/** A photo's thumbnail as a `data:image/jpeg;base64,…` URL — no file path ever reaches the page. */
+export function photoThumbnail(hash: string): Promise<string> {
+  return invoke<string>('photo_thumbnail', { hash });
+}
+
+/** Open the original with the operating system's own handler — from the host, on a press. */
+export async function photoOpen(hash: string): Promise<void> {
+  await invoke<null>('photo_open', { hash });
 }
