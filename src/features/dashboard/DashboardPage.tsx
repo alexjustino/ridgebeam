@@ -1,6 +1,6 @@
 import { Dismiss20Regular } from '@fluentui/react-icons';
 
-import { finishDate, placeActivities, workingCalendarOf, type WorkSnapshot } from '@/domain/plan';
+import { latestBaseline, workingCalendarOf, type WorkSnapshot } from '@/domain/plan';
 import {
   readiness,
   readinessFigure,
@@ -8,19 +8,22 @@ import {
   type MissingId,
   type ReadinessRow,
 } from '@/domain/readiness';
+import { schedule } from '@/domain/schedule';
+import { slip } from '@/domain/schedule/slip';
+import { SlipFigure } from '@/features/schedule/SlipFigure';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
+import { FigureRow } from '@/ui/FigureRow';
 import { InfoBar } from '@/ui/InfoBar';
-
-import { FigureRow } from './FigureRow';
 
 /** What each kind of missing row lacks, said on the row itself. */
 const ROW_KEYS: Record<MissingId, MessageKey> = {
   'activity.duration': 'readiness.row.activity.duration',
   'activity.responsible': 'readiness.row.activity.responsible',
+  'activity.linked': 'readiness.row.activity.linked',
   'plan.activity': 'readiness.row.plan.activity',
 };
 
@@ -118,24 +121,30 @@ export function DashboardPage({
   );
 }
 
+/**
+ * The finish date, computed from the durations and the links on the working calendar — and, once
+ * the plan is approved, read against the baseline: the baseline's finish, the slip with the same
+ * rows the Schedule page shows, and how many activities are on the critical path.
+ */
 function FinishCard({ snapshot }: { snapshot: WorkSnapshot }) {
   const { t, tp, day } = useI18n();
   const term = useTerms();
-  const placement = placeActivities(snapshot);
-  const finish = finishDate(placement);
-  const reasons = new Set(placement.flatMap((row) => ('unplaced' in row ? [row.unplaced] : [])));
-  const leftOut = placement.filter(
-    (row) => 'unplaced' in row && row.unplaced === 'no-duration',
-  ).length;
+  const scheduled = schedule(snapshot);
+  const finish = scheduled.finishDate;
+  const reasons = new Set(scheduled.unplaced.map((row) => row.reason));
+  const leftOut = scheduled.unplaced.filter((row) => row.reason === 'no-duration').length;
+  const baseline = latestBaseline(snapshot);
 
   const shown =
     finish !== null
       ? day(finish)
-      : reasons.has('invalid-calendar')
-        ? t('dashboard.finish.invalidCalendar')
-        : reasons.has('invalid-start')
-          ? t('dashboard.finish.invalidStart')
-          : t('dashboard.finish.unknown');
+      : scheduled.cyclic
+        ? t('dashboard.finish.cyclic')
+        : reasons.has('invalid-calendar')
+          ? t('dashboard.finish.invalidCalendar')
+          : reasons.has('invalid-start')
+            ? t('dashboard.finish.invalidStart')
+            : t('dashboard.finish.unknown');
 
   return (
     <Card title={term('finishDate', { capital: true })}>
@@ -152,7 +161,24 @@ function FinishCard({ snapshot }: { snapshot: WorkSnapshot }) {
           {tp('dashboard.finish.leftOut', leftOut)}
         </p>
       )}
-      <p className="mt-2 text-caption text-fg-tertiary">{t('dashboard.finish.sequential')}</p>
+      {baseline !== null && (
+        <div className="mt-3 flex flex-col gap-2">
+          <p data-testid="baseline-finish" className="text-body text-fg-secondary">
+            {t('dashboard.baselineFinish', {
+              baseline: term('baseline', { capital: true }),
+              number: baseline.number,
+              day: baseline.finishDate === null ? '—' : day(baseline.finishDate),
+            })}
+          </p>
+          <SlipFigure figure={slip(scheduled, baseline)} size="title" />
+        </div>
+      )}
+      <p data-testid="critical-count" className="mt-3 text-body text-fg">
+        {tp('dashboard.critical', scheduled.critical.size, {
+          label: term('criticalPath', { capital: true }),
+        })}
+      </p>
+      <p className="mt-2 text-caption text-fg-tertiary">{t('dashboard.finish.scheduled')}</p>
     </Card>
   );
 }
