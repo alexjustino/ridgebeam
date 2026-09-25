@@ -123,17 +123,17 @@ npm run gates
 
 runs, and all of them must pass:
 
-| Gate                       | What it protects                                                                 |
-| -------------------------- | -------------------------------------------------------------------------------- |
-| `check:version`            | the version is one fact in every file that declares it                           |
-| `cargo fmt --check`        | Rust formatting                                                                  |
-| `cargo clippy -D warnings` | Rust correctness and idiom                                                       |
-| `cargo test`               | the host: append-only triggers, the chain, copy-in caps, backup round-trip, CSV  |
-| `tsc --noEmit`             | type correctness                                                                 |
-| `eslint`                   | **`react-hooks/rules-of-hooks` is an error**, plus the boundary rule             |
-| `prettier --check`         | formatting                                                                       |
-| `vitest`                   | domain rules, including negative cases; the library schema test                  |
-| `npm run e2e` (separate)   | the real binary through WebDriver — needs a debug build and `msedgedriver`       |
+| Gate                       | What it protects                                                                |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| `check:version`            | the version is one fact in every file that declares it                          |
+| `cargo fmt --check`        | Rust formatting                                                                 |
+| `cargo clippy -D warnings` | Rust correctness and idiom                                                      |
+| `cargo test`               | the host: append-only triggers, the chain, copy-in caps, backup round-trip, CSV |
+| `tsc --noEmit`             | type correctness                                                                |
+| `eslint`                   | **`react-hooks/rules-of-hooks` is an error**, plus the boundary rule            |
+| `prettier --check`         | formatting                                                                      |
+| `vitest`                   | domain rules, including negative cases; the library schema test                 |
+| `npm run e2e` (separate)   | the real binary through WebDriver — needs a debug build and `msedgedriver`      |
 
 > A hook placed after an early return type-checks cleanly and crashes the screen at runtime.
 > That is why the lint gate is mandatory and not advisory.

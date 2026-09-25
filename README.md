@@ -18,10 +18,11 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — named, not yet built.** The product was named on 2026-09-24
-> ([ADR-001](docs/architecture/ADR.md#adr-001)); slice **F0** is next and nothing runs yet.
-> There is no installer. The [specification](docs/SPEC.md) says what 1.0.0 will be and what
-> "done" means for every slice; this section will say exactly how far the code has got.
+> **Status: pre-release — slice F0, the first.** The product was named on 2026-09-24
+> ([ADR-001](docs/architecture/ADR.md#adr-001)). F0 — the foundation, the shell, one stage and
+> readiness — runs from source; nothing after it exists yet, and there is no published
+> installer. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for
+> every slice; [What exists today](#what-exists-today) says exactly how far the code has got.
 
 ## Why
 
@@ -70,28 +71,65 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Documents only:
+Slice **F0**, and only F0:
 
-- [`docs/SPEC.md`](docs/SPEC.md) — the specification, v1.0.0: thesis, the closed scope of 1.0.0
-  and the release train, the architecture, the non-functional requirements, the threat model's
-  outline, the testing pyramid with its mandatory negative cases, the twelve vertical slices with
-  their proofs of done, the definition of done, and the risks.
-- [`docs/architecture/ADR.md`](docs/architecture/ADR.md) — ADR-001, the name, with the
-  collision evidence and what could not be verified.
-- [`CONTRIBUTING.md`](CONTRIBUTING.md), [`VERSIONING.md`](VERSIONING.md),
-  [`CHANGELOG.md`](CHANGELOG.md), [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+- **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
+  existing one; the recent works are listed, and one whose folder has gone says so and offers a
+  way to find it. Everything about a work is one SQLite file inside its folder, checkpointed and
+  closed when the work closes.
+- **Stages and activities on a working calendar.** A start date, working days and hours per
+  day (holidays are counted by the calendar; the screen to enter them arrives with F1); a stage
+  with activities, each with a duration in working days and a responsible. Activities are
+  placed on the calendar one after another — a deliberately simple placement until the critical
+  path arrives in F2.
+- **Readiness.** A figure that says how much of what the plan must know it does know, from two
+  rules — every activity has a duration, every activity has a responsible — that opens onto the
+  rows it counts and says in a sentence what is missing, in English and in Portuguese.
+- **The shell.** Dashboard, Plan, Settings (language, theme, lens), Diagnostics and About, in
+  light and dark, in English and Portuguese. There is no command, field or control that sets
+  progress.
+- **The documents written before the first work:** [`docs/SPEC.md`](docs/SPEC.md), the
+  specification; [`SECURITY.md`](SECURITY.md), the threat model;
+  [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
+  [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
+  generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirteen binding decisions; and
+  [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
+- **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
+  an end-to-end suite that drives the real binary; and a bundle check that holds the installer
+  under 10 MB.
 
-`SECURITY.md`, `DESIGN_SYSTEM.md`, `docs/GLOSSARY.md` and `docs/DATA_MODEL.md` are written in
-slice F0, before the first work is created — not after.
+Not yet, and not pretended: dependencies and the critical path, baselines, decisions, the
+diary, checks, money, people beyond a name, documents and photos, replanning, templates, the
+lenses changing the vocabulary (the setting exists; the words arrive in F1), reports, backup.
+Each arrives with its slice, in the order the [specification](docs/SPEC.md) §7 lists.
+
+## Run it from source
+
+You need Windows 11, [Node.js](https://nodejs.org/) 22 or later, and
+[Rust](https://www.rust-lang.org/tools/install) stable with the MSVC toolchain.
+
+```bash
+npm ci                 # install the exact dependencies in package-lock.json
+npm run tauri dev      # run the application with hot reload
+npm run gates          # the validation battery: what CI runs on every pull request
+npm run e2e            # the end-to-end suite against the debug binary
+```
+
+`npm run e2e` builds the debug binary and drives it through WebDriver, so it needs two drivers
+the repository does not install: `tauri-driver` (`cargo install tauri-driver --locked`) and
+Microsoft Edge WebDriver (`msedgedriver.exe`) matching the WebView2 runtime on the machine,
+with its path in `RIDGEBEAM_E2E_EDGEDRIVER` or on `PATH`. The suite works in a temporary data
+folder and never touches your own works.
 
 ## Roadmap
 
-| Release   | Theme               | Contents                                                                                                                       |
-| --------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Release   | Theme               | Contents                                                                                                                                                                                                                                      |
+| --------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **1.0.0** | The plan            | the work, stages and activities, the schedule with critical path and baselines, decisions, readiness, the diary, checks, money, people, documents, replanning, templates and the library, three lenses, the dashboard, reports, print, backup |
-| 1.1.0     | The site            | the diary from a phone: a companion build of the same app for Android, writing into the same work folder                        |
-| 1.2.0     | The crew            | the work shared between the owner, the engineer and the contractors: file-based sync with conflict rules, a read-only owner view |
-| 2.0       | Only if it earns it | quantities from drawings · price databases per region · IFC import · resource levelling · the network                            |
+| 1.1.0     | The site            | the diary from a phone: a companion build of the same app for Android, writing into the same work folder                                                                                                                                      |
+| 1.2.0     | The crew            | the work shared between the owner, the engineer and the contractors: file-based sync with conflict rules, a read-only owner view                                                                                                              |
+| 2.0       | Only if it earns it | quantities from drawings · price databases per region · IFC import · resource levelling · the network                                                                                                                                         |
 
 Deliberately not in 1.0.0: accounts, sync, a phone or web app, BIM/IFC/CAD import, bills of
 quantities and price databases, invoicing and tax, resource levelling, earned value beyond the
