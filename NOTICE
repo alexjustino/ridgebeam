@@ -55,6 +55,17 @@ The host (src-tauri/Cargo.toml):
   uuid ........................... Apache-2.0 OR MIT
   chrono ......................... MIT OR Apache-2.0
   windows ........................ MIT OR Apache-2.0
+  tauri-plugin-opener ............ Apache-2.0 OR MIT
+  sha2, hex ...................... MIT OR Apache-2.0
+  base64 ......................... MIT OR Apache-2.0
+  image .......................... MIT OR Apache-2.0
+    the decoders its features compile into the binary, one per format a photo
+    may arrive as (BMP needs no crate of its own):
+    zune-jpeg, zune-core ......... MIT OR Apache-2.0 OR Zlib   (JPEG)
+    png, fdeflate, flate2 ........ MIT OR Apache-2.0           (PNG)
+    gif, weezl ................... MIT OR Apache-2.0           (GIF)
+    color_quant .................. MIT                         (GIF)
+    image-webp, quick-error ...... MIT OR Apache-2.0           (WebP)
 
 SQLite is compiled into the binary from the amalgamation rusqlite bundles; its
 authors have dedicated it to the public domain.

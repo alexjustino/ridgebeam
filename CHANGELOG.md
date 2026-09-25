@@ -181,3 +181,53 @@ opens onto each row.
 
 Not yet, said plainly: a decision is needed by its whole stage, so its deadline counts from the
 stage's earliest start rather than from the one activity that needs it.
+
+### Added in F4 — the diary
+
+One-tap and detailed entries with photos copied in; entries append-only with a verified chain;
+an edit refused and a correction offered; progress on the plan derived from the entries; the
+day view; and after a restart, the chain still holds.
+
+- **An entry is a fact about one day**: what was worked on and what was finished (with a
+  quantity where there is one), who was there, the weather, hours, a lost day, deliveries,
+  incidents, visitors, a note and photos, signed with the Windows account's name. A day in the
+  future is refused — by the domain before the host is asked, and by the host against its own
+  clock. A second entry on the same day is allowed and ordered after the first.
+- **Append-only, twice** (ADR-019). Four tables — entries, done lines, people present, photos —
+  refuse `UPDATE`, `DELETE` and `REPLACE` with triggers; a guard refuses a key that exists; a
+  child row can be added only to the entry being written; and a chain trigger accepts only the
+  next entry carrying the previous one's hash. The host's diary module holds no `UPDATE`,
+  `DELETE` or `REPLACE`, and a test reads its source to prove it. There is no edit command.
+- **A correction is a new entry.** _Correct…_ opens the entry's facts as a new entry that names
+  it and asks what was wrong; the day view shows the original struck through, "corrected by #N",
+  beside it. Everything derived from the diary reads the latest correction; a correction may be
+  corrected.
+- **The chain.** Each entry's hash is the SHA-256 of a canonical form of the entry and its
+  children, including the previous hash. **Verify the diary** in Diagnostics recomputes every
+  hash and link — "3 entries, chain intact" or "broken at #2" with the reason — and says what
+  that proves: tamper-evidence, not a signature and not legal proof. `cargo test` tampers with a
+  file from outside — a note rewritten, a photo hash changed, a row deleted — and shows the
+  verification fail at that entry.
+- **Photos are hostile files, copied by the host** (ADR-021): measured before decoding — 25 MiB,
+  the format from the first bytes (JPEG, PNG, WebP, GIF, BMP; HEIC refused by name), 12 000 px
+  from the header — hashed, copied to `documents/<hash>.<ext>` and given a 320 px thumbnail
+  decoded under limits. A refused photo refuses the whole entry, naming the file, and nothing is
+  written. Thumbnails reach the screen as data URLs; there is no asset protocol and no
+  file-system permission; the original opens in the system's viewer, from Rust, on a click. A
+  hostile corpus — a text file named `.jpg`, a lying PNG header, a truncated JPEG, an empty file,
+  a 26 MiB file — is refused in `cargo test`.
+- **Progress is derived, in states** (ADR-020): not started, started, finished, with the day
+  each began and ended, and a share only where the diary recorded quantities against a planned
+  one. The checklist ticks a line the diary says is finished; the Gantt fills finished bars,
+  marks started ones and draws the actual dates; stages count their activities by state.
+- **The Diary destination**, between Decisions and Settings: today at the top, the days below,
+  newest first, each entry with its author, time, work, people, weather, photos and _Correct…_.
+- **The dashboard grows**: this week on site, days without an entry (over working days),
+  weather days lost, _Done_ — finished, started, not started — and the last entries with their
+  photos; each figure opens onto its rows.
+- **Work migration 005** (`005_diary.sql`) adds the four diary tables and their triggers. A work
+  from F3 is migrated when it is opened, without loss. The release checklist gains a step: verify
+  the diary after an upgrade.
+
+Not yet, said plainly: the diary's export with the chain verified in its header is F10's; HEIC
+photos are refused; documents other than photos are F7's.

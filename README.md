@@ -71,7 +71,7 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F3**, and nothing after them:
+Slices **F0** to **F4**, and nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and offers a
@@ -102,21 +102,29 @@ Slices **F0** to **F3**, and nothing after them:
   or has no deadline yet, said in words; one that is already overdue the day it is added is kept,
   and says so. Decisions are edited in the breakdown and listed, most urgent first, on their own
   destination; the dashboard counts those due within five working days.
+- **The diary (F4).** One tap for today — what was worked on and finished, who was there, the
+  weather — or the detailed entry: a note, hours, a lost day, deliveries, incidents, visitors
+  and photos. Entries are **append-only** and each carries the hash of the one before; an entry
+  is never edited, it is **corrected** by a new entry that says what was wrong, and the original
+  stays, struck through. Diagnostics verifies the chain — tamper-evidence, not proof. Photos are
+  copied into the work folder by hash after being measured (25 MiB, 12 000 px, the real format
+  from their first bytes), and shown as thumbnails. **Progress is derived from the diary**, in
+  states — not started, started, finished — on the checklist, the Gantt and the dashboard, with a
+  share only where quantities were recorded; the dashboard also counts days without an entry and
+  weather days lost.
 - **Readiness.** A figure that says how much of what the plan must know it does know, from five
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time — that opens onto the rows it
   counts and says in a sentence what is missing, in English and in Portuguese. Rule by rule on
   the dashboard, each with why it matters; the rules add up to the figure.
-- **The shell.** Dashboard, Plan, Schedule, Decisions, Settings (language, theme, lens),
-  Diagnostics and
-  About, in light and dark, in English and Portuguese. There is no command, field or control that sets
-  progress.
+- **The shell.** Dashboard, Plan, Schedule, Decisions, Diary, Settings (language, theme, lens),
+  Diagnostics and About, in light and dark, in English and Portuguese. There is no command, field or control that sets progress.
 - **The documents written before the first work:** [`docs/SPEC.md`](docs/SPEC.md), the
   specification; [`SECURITY.md`](SECURITY.md), the threat model;
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), eighteen binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), twenty-one binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
@@ -124,8 +132,8 @@ Slices **F0** to **F3**, and nothing after them:
 
 Not yet, and not pretended: a reason asked when an approved plan is edited, later baselines
 and the comparison of any two (F8); a decision tied to one activity rather than its whole
-stage; the diary, checks, money, people beyond a name, documents and photos, templates, reports,
-backup.
+stage; HEIC photos; checks, money, people beyond a name, documents other than photos,
+templates, reports and the diary's export, backup.
 Each arrives with its slice, in the order the [specification](docs/SPEC.md) §7 lists.
 
 ## Run it from source
