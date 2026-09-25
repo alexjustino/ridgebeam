@@ -21,7 +21,8 @@ export function ChoiceGroup<T extends string>({
 }: {
   label: string;
   options: readonly T[];
-  value: T;
+  /** The chosen option, or `null` when none is chosen yet (an optional choice). */
+  value: T | null;
   onChange: (next: T) => void;
   /** Display text per option; the option id is shown, capitalised, without it. */
   labels?: Partial<Record<T, string>>;
@@ -41,6 +42,7 @@ export function ChoiceGroup<T extends string>({
             key={option}
             role="radio"
             aria-checked={option === value}
+            data-value={option}
             appearance={option === value ? 'accent' : compact ? 'subtle' : 'standard'}
             size={compact ? 'compact' : 'standard'}
             onClick={() => onChange(option)}
