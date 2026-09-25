@@ -71,7 +71,7 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0**, **F1** and **F2**, and nothing after them:
+Slices **F0** to **F3**, and nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and offers a
@@ -96,11 +96,19 @@ Slices **F0**, **F1** and **F2**, and nothing after them:
   rewritten; from then on the **slip** is a figure that opens onto every activity whose finish
   moved, on the Schedule and on the Dashboard. The engine is a sibling product's, copied and
   extended (ADR-015), and a 2 000-activity benchmark holds it to the budget.
-- **Readiness.** A figure that says how much of what the plan must know it does know, from three
+- **Decisions (F3).** A decision belongs to a stage — _which tile_ — with a lead time in working
+  days. Its **deadline is computed**, never typed: the stage's earliest start minus the lead time,
+  on the working calendar, so it moves when the schedule moves. A decision is due, overdue, made
+  or has no deadline yet, said in words; one that is already overdue the day it is added is kept,
+  and says so. Decisions are edited in the breakdown and listed, most urgent first, on their own
+  destination; the dashboard counts those due within five working days.
+- **Readiness.** A figure that says how much of what the plan must know it does know, from five
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
-  another — that opens onto the rows it counts and says in a sentence what is missing, in
-  English and in Portuguese.
-- **The shell.** Dashboard, Plan, Schedule, Settings (language, theme, lens), Diagnostics and
+  another; every decision has a deadline and is made in time — that opens onto the rows it
+  counts and says in a sentence what is missing, in English and in Portuguese. Rule by rule on
+  the dashboard, each with why it matters; the rules add up to the figure.
+- **The shell.** Dashboard, Plan, Schedule, Decisions, Settings (language, theme, lens),
+  Diagnostics and
   About, in light and dark, in English and Portuguese. There is no command, field or control that sets
   progress.
 - **The documents written before the first work:** [`docs/SPEC.md`](docs/SPEC.md), the
@@ -108,15 +116,16 @@ Slices **F0**, **F1** and **F2**, and nothing after them:
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), sixteen binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), eighteen binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
 Not yet, and not pretended: a reason asked when an approved plan is edited, later baselines
-and the comparison of any two (F8); decisions, the diary, checks, money, people beyond a name,
-documents and photos, templates, reports, backup.
+and the comparison of any two (F8); a decision tied to one activity rather than its whole
+stage; the diary, checks, money, people beyond a name, documents and photos, templates, reports,
+backup.
 Each arrives with its slice, in the order the [specification](docs/SPEC.md) §7 lists.
 
 ## Run it from source

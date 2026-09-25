@@ -197,6 +197,32 @@ triggers raises the same message, `baseline: append-only`, and the host never is
 that would reach one: the Rust module that writes baselines holds no `UPDATE` or `DELETE`, by
 rule.
 
+### `decision`
+
+A decision belongs to a stage — _which tile_, _which colour_, _which contractor for the roof_ —
+and carries a lead time: the working days between deciding and having what was decided on site
+(F3).
+
+| Column           | Type    | Meaning                                                                       |
+| ---------------- | ------- | ----------------------------------------------------------------------------- |
+| `id`             | TEXT    | UUID v7                                                                       |
+| `stage_id`       | TEXT    | `REFERENCES stage ON DELETE CASCADE` — removing a stage removes its decisions |
+| `position`       | INTEGER | order inside the stage, unique per stage, 1 … n                               |
+| `name`           | TEXT    | 1–120 characters, not blank                                                   |
+| `lead_time_days` | INTEGER | working days between deciding and having, 0 to 3650, default 0                |
+| `made_at`        | TEXT    | UTC, when it was made; `NULL` while it is open                                |
+| `answer`         | TEXT    | what was decided, 1–500 characters, optional — and only on a made decision    |
+| `created_at`     | TEXT    | UTC                                                                           |
+
+**The deadline is never a column** (ADR-017). It is computed by the domain every time: the
+earliest scheduled start among the stage's activities minus the lead time, counted backwards in
+working days on the work's calendar — so it moves when the schedule moves and nobody maintains
+it. A stage with nothing scheduled gives no deadline. There is no _overdue_ column either:
+overdue is the deadline against today, and today is an input the interface passes to the
+domain, not a fact the file could keep. An answer belongs to the making: `CHECK (answer IS NULL
+OR made_at IS NOT NULL)`, and reopening a decision clears both. Positions are renumbered 1 … n
+by the host with every move and removal, as for activities.
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -208,12 +234,27 @@ never the work.
 ## Readiness is computed, not stored
 
 Nothing in the schema records readiness. The domain computes it from the rows every time, from
-a rule table that is data (`src/domain/readiness/rules.ts`): an activity must have a duration
-and a responsible (F0), and, in a plan of two or more activities, must be linked to at least one
-other by a dependency (F2). Each rule says whether it applies to a row in this plan — a rule that
-does not apply is neither known nor missing, so a one-activity plan is not asked to link it to
-anything; each contributes the rows that fail it, the figure is `known / must-know`, and the sentence is built from the failing rows in the person's
-language. Later slices add rules (a stage's decisions, checks and money) without changing the
+a rule table that is data (`src/domain/readiness/rules.ts`, ADR-008 and ADR-018). Each rule says
+whether it **applies** to a row in this plan and whether the row **holds** — knows what the rule
+asks. A rule that does not apply is neither known nor missing: it is not counted, so it cannot
+move the figure. Each row a rule applies to is one _must-know_; each that holds is one _known_;
+each that does not is a _missing_ row, named, and opens from the figure. The figure is `known /
+must-know`; the rules, summed, give exactly that figure; and the sentence is built from the
+count of missing rows per rule, in the person's language.
+
+| Rule                   | Slice | Applies to                               | Holds when                                               | The sentence, in English                 |
+| ---------------------- | ----- | ---------------------------------------- | -------------------------------------------------------- | ---------------------------------------- |
+| `activity.duration`    | F0    | every activity                           | it has a duration of one working day or more             | "1 activity has no duration."            |
+| `activity.responsible` | F0    | every activity                           | its responsible is a person of the work                  | "1 activity has no responsible."         |
+| `activity.linked`      | F2    | every activity, in a plan of two or more | a dependency joins it to another, stages expanded        | "1 activity is not linked to any other." |
+| `decision.deadline`    | F3    | every decision                           | its stage has a scheduled activity, so it has a deadline | "1 decision has no deadline yet."        |
+| `decision.timely`      | F3    | every decision whose deadline is known   | it is made, or its deadline is today or later            | "2 decisions are overdue."               |
+
+A plan with no activity at all is not ready: it has one missing row, "The plan has no activity
+yet.", and a figure of 0 %. The nouns in the sentences follow the lens — the owner reads "job"
+where the engineer reads "activity" (ADR-014). Every rule also has a one-sentence explanation of
+why the plan must know it, in both languages, shown when its line on the dashboard is opened.
+Later slices add rules (a stage's checks and money) as rows of this table, without changing its
 shape.
 
 ## The application database
@@ -255,14 +296,15 @@ covered by a round-trip test that opens a work at version N-1 and migrates it wi
 | `001_init.sql`                       | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`                                         |
 | `002_rooms_and_quantities.sql`       | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit`                                     |
 | `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers |
+| `004_decisions.sql`                  | F3    | `decision`                                                                                           |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its
-stages and activities migrates to schema 2 without loss, and a work at schema 2 with rooms and
-quantities migrates to schema 3 the same way. The migrations live in `src-tauri/work_migrations/`.
+stages and activities migrates to schema 2 without loss, a work at schema 2 with rooms and
+quantities migrates to schema 3 the same way, and a work at schema 3 with dependencies and a
+baseline migrates to schema 4. The migrations live in `src-tauri/work_migrations/`.
 
 ## Not yet in the schema
 
-Decisions (F3) ·
-the diary, its photos and corrections, and the chain (F4) · checks (F5) · planned, committed
+The diary, its photos and corrections, and the chain (F4) · checks (F5) · planned, committed
 and paid money and the payments ledger (F6) · documents, thumbnails and hashes (F7) · templates
 are files in the repository, not rows (F9).
