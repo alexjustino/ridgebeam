@@ -371,10 +371,33 @@ breaks one is not merged.
   than the real one, and the plan must be able to say the truth. The same goes for every fact
   the plan can hold that is bad news: it is shown, with its reason, never rejected so that the
   screen can stay green.
+- **An entry is never edited: it is corrected.** A diary entry has no Edit, no Delete and no
+  field that opens in place. Where a person would expect an edit, the entry offers **Correct…**,
+  which opens the detailed form filled from the entry, as a new entry that names the one it
+  corrects, and asks — required — what was wrong. The day view keeps both: the original struck
+  through with _"corrected by #N"_, the correction beside it, in the same card. The word on the
+  button is _Correct_, never _Edit_, because what it does is not an edit, and a person who has
+  just written the wrong thing should see at once that the record keeps it (ADR-019). A day that
+  already has an entry takes another, ordered after it; nothing offers to replace one.
+- **A photo is a copy the work owns.** Choosing a photo copies it into the work folder, and the
+  screen says so in those words: the list of chosen files before saving shows each one's name,
+  and after saving the photo is shown from the work, not from where it came. A refused photo is
+  named, with the reason, under the control that chose it — the host's own sentence, which names
+  the file and the cap or the format it failed — and nothing of the entry is saved. Thumbnails are images with an `alt` that
+  says what they are (the entry's day and the file's name); the original opens in the system's
+  viewer on a labelled button, never on a bare click of the image alone. A photo whose thumbnail
+  could not be made shows a placeholder that says so, not a broken image (ADR-021).
+- **Progress is a state, not a slider.** An activity is _not started_, _started_ or _finished_,
+  and the diary is the only thing that moves it (ADR-020). The Gantt fills a finished bar solid
+  and marks a started one — by shape and in the bar's accessible name, never colour alone — and
+  keeps the planned bar; the checklist ticks a line when the diary says finished, and the tick is
+  still not a control. A percentage appears only where the diary recorded quantities against a
+  planned quantity, and it never reads 100 % before the diary says finished. No screen shows a
+  number the site did not produce.
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
   `data-destination="<id>"` with the same id the router uses — `dashboard`, `plan`, `schedule`,
-  `decisions`, `settings`, `diagnostics`, `about`. The end-to-end suite and the accessibility audit find destinations by
+  `decisions`, `diary`, `settings`, `diagnostics`, `about`. The end-to-end suite and the accessibility audit find destinations by
   these attributes and never by visible text, which changes with the language (§9).
 - **Degrade visibly: a missing work folder is a state with a way out.** A recent work whose
   folder is gone is not hidden and not an error dialog: its row says the folder was not found
@@ -409,7 +432,7 @@ Maximising works; the hover flyout does not appear yet.
 ### The rail
 
 The destinations are ordered **the work first, then the product**: Dashboard · Plan ·
-Schedule · Decisions, then Settings · Diagnostics · About. Between the two groups sits a hairline with `role="separator"` —
+Schedule · Decisions · Diary, then Settings · Diagnostics · About. Between the two groups sits a hairline with `role="separator"` —
 a separator and **never** a disabled button, a heading nobody can reach or an empty `div` used as
 a gap: the grouping has to be a fact for somebody who is listening to the rail rather than
 looking at it, and nothing new may appear in the tab order to say it.
@@ -420,9 +443,16 @@ lead time, deadline and days left, and the way to mark it made or reopen it. Nam
 are edited where the rest of the plan is, in the breakdown, and the list links back there — one
 place to edit, as for the arrangements (§8).
 
-With no work open, Dashboard, Plan, Schedule and Decisions have nothing to show: the Start
-screen — a new work, an open work, the recent works — takes the content region, and the four
-destinations are disabled
+**Diary** is the site's: _today_ at the top, one tap already on the day — the activities running,
+each with _worked on_ and _finished_, the people present, the weather, and **Save today** — with
+**More…** for the note, hours, a lost day, deliveries, incidents, visitors and photos. Below it,
+the days, newest first, each a card of its entries: who wrote it, when, what was done, who was
+there, the weather and the photos, and **Correct…** on each. A day in the future is refused with
+a sentence before anything is asked of the host.
+
+With no work open, Dashboard, Plan, Schedule, Decisions and Diary have nothing to show: the
+Start screen — a new work, an open work, the recent works — takes the content region, and the
+five destinations are disabled
 with the reason in their accessible description, not removed. A rail that changes shape under
 the keyboard is a rail nobody learns.
 
