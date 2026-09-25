@@ -71,7 +71,7 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** and **F1**, and nothing after them:
+Slices **F0**, **F1** and **F2**, and nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and offers a
@@ -79,8 +79,7 @@ Slices **F0** and **F1**, and nothing after them:
   closed when the work closes.
 - **Stages and activities on a working calendar.** A start date, working days, hours per day
   and holidays, all edited on the Plan; a stage with activities, each with a duration in working
-  days and a responsible. Activities are placed on the calendar one after another — a
-  deliberately simple placement until the critical path arrives in F2.
+  days and a responsible.
 - **The plan (F1).** Rooms and areas, the rooms each activity touches, and an optional quantity
   with its unit (12 m² of tile). Stages, activities and rooms reordered by button or by
   keyboard (Alt+Arrow), with the numbering following. People renamed and removed. The same rows
@@ -90,26 +89,34 @@ Slices **F0** and **F1**, and nothing after them:
   the same things — _activity_, _work item_, _job_ — switched from the title bar, in both
   languages, from a vocabulary table in the glossary. The lens is the person's setting; switching
   it stores nothing in the work.
-- **Readiness.** A figure that says how much of what the plan must know it does know, from two
-  rules — every activity has a duration, every activity has a responsible — that opens onto the
-  rows it counts and says in a sentence what is missing, in English and in Portuguese.
-- **The shell.** Dashboard, Plan, Settings (language, theme, lens), Diagnostics and About, in
-  light and dark, in English and Portuguese. There is no command, field or control that sets
+- **The schedule (F2).** Dependencies between activities or whole stages, finish-to-start with
+  a lag in working days; a dependency that would close a loop is refused, naming the loop. The
+  critical path computed on the working calendar and highlighted on a Gantt — by colour, by a
+  mark and in words — with the finish date. Approving the plan takes baseline 1, which is never
+  rewritten; from then on the **slip** is a figure that opens onto every activity whose finish
+  moved, on the Schedule and on the Dashboard. The engine is a sibling product's, copied and
+  extended (ADR-015), and a 2 000-activity benchmark holds it to the budget.
+- **Readiness.** A figure that says how much of what the plan must know it does know, from three
+  rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
+  another — that opens onto the rows it counts and says in a sentence what is missing, in
+  English and in Portuguese.
+- **The shell.** Dashboard, Plan, Schedule, Settings (language, theme, lens), Diagnostics and
+  About, in light and dark, in English and Portuguese. There is no command, field or control that sets
   progress.
 - **The documents written before the first work:** [`docs/SPEC.md`](docs/SPEC.md), the
   specification; [`SECURITY.md`](SECURITY.md), the threat model;
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), fourteen binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), sixteen binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: dependencies and the critical path, baselines, decisions, the
-diary, checks, money, people beyond a name, documents and photos, replanning, templates,
-reports, backup.
+Not yet, and not pretended: a reason asked when an approved plan is edited, later baselines
+and the comparison of any two (F8); decisions, the diary, checks, money, people beyond a name,
+documents and photos, templates, reports, backup.
 Each arrives with its slice, in the order the [specification](docs/SPEC.md) §7 lists.
 
 ## Run it from source
@@ -140,8 +147,8 @@ folder and never touches your own works.
 | 2.0       | Only if it earns it | quantities from drawings · price databases per region · IFC import · resource levelling · the network                                                                                                                                         |
 
 Deliberately not in 1.0.0: accounts, sync, a phone or web app, BIM/IFC/CAD import, bills of
-quantities and price databases, invoicing and tax, resource levelling, earned value beyond the
-S-curve, weather from the network, macOS, Linux, tablets, plugins, auto-update, AI.
+quantities and price databases, invoicing and tax, resource levelling, dependencies other than
+finish-to-start, milestones, earned value beyond the S-curve, weather from the network, macOS, Linux, tablets, plugins, auto-update, AI.
 
 ## Requirements
 

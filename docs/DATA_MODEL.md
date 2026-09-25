@@ -34,16 +34,17 @@ list of recent works with their folders. It holds nothing about the content of a
 
 One row, `id = 1`, created by the first migration.
 
-| Column           | Type    | Meaning                                                           |
-| ---------------- | ------- | ----------------------------------------------------------------- |
-| `id`             | INTEGER | always 1 (`CHECK (id = 1)`)                                       |
-| `schema_version` | INTEGER | the last migration applied; moves independently of the product    |
-| `work_id`        | TEXT    | UUID v7, the work's identity across renames and moves             |
-| `name`           | TEXT    | what the person calls the work                                    |
-| `place`          | TEXT    | where it is, as the person writes it — never geocoded, never sent |
-| `start_date`     | TEXT    | ISO 8601 date, the first day the schedule may use                 |
-| `currency`       | TEXT    | ISO 4217 code, three letters                                      |
-| `created_at`     | TEXT    | UTC, milliseconds, trailing `Z`                                   |
+| Column           | Type    | Meaning                                                                            |
+| ---------------- | ------- | ---------------------------------------------------------------------------------- |
+| `id`             | INTEGER | always 1 (`CHECK (id = 1)`)                                                        |
+| `schema_version` | INTEGER | the last migration applied; moves independently of the product                     |
+| `work_id`        | TEXT    | UUID v7, the work's identity across renames and moves                              |
+| `name`           | TEXT    | what the person calls the work                                                     |
+| `place`          | TEXT    | where it is, as the person writes it — never geocoded, never sent                  |
+| `start_date`     | TEXT    | ISO 8601 date, the first day the schedule may use                                  |
+| `currency`       | TEXT    | ISO 4217 code, three letters                                                       |
+| `created_at`     | TEXT    | UTC, milliseconds, trailing `Z`                                                    |
+| `approved_at`    | TEXT    | UTC, when baseline 1 was taken; `NULL` until then, and never changed once set (F2) |
 
 ### `calendar` and `holiday`
 
@@ -107,8 +108,7 @@ a `CHECK` SQLite accepts on the added column and tests against every row. Cleari
 clears its unit.
 
 **There is no progress column, and there never will be.** Progress is derived from the diary
-(slice F4). Dependencies with lag arrive with slice F2 as a table of their own, not as columns
-here.
+(slice F4).
 
 ### `room` and `activity_room`
 
@@ -131,6 +131,72 @@ The primary key is the pair. Removing a room removes its links and leaves the ac
 removing an activity removes its links and leaves the rooms. The host replaces an activity's
 set of rooms whole, and refuses a room that is not in the work.
 
+### `dependency`
+
+A dependency says that one thing starts after another has finished (F2). Each end is an
+activity or a stage — _the tiling after the plumbing_, _the finishes after the whole Structure
+stage_ — finish-to-start, with a lag in working days that is waiting, not work.
+
+| Column         | Type    | Meaning                                                       |
+| -------------- | ------- | ------------------------------------------------------------- |
+| `id`           | TEXT    | UUID v7                                                       |
+| `blocker_kind` | TEXT    | `activity` or `stage` — the end that finishes first           |
+| `blocker_id`   | TEXT    | the id of that activity or stage                              |
+| `blocked_kind` | TEXT    | `activity` or `stage` — the end that starts after             |
+| `blocked_id`   | TEXT    | the id of that activity or stage                              |
+| `lag_days`     | INTEGER | working days of waiting between the two, 0 to 3650, default 0 |
+| `created_at`   | TEXT    | UTC                                                           |
+
+The pair of ends is unique, and an end cannot depend on itself (`CHECK`). An end names a row in
+one of two tables, so it cannot be a foreign key: the host removes the dependencies that name an
+activity or a stage in the same transaction that removes it. **A cycle is refused twice** — by
+the domain, which names the loop, and by the host (`dependency_cycle`) — over the graph as the
+domain expands it, where a stage stands for all its activities; SQLite cannot see a cycle.
+Before scheduling, the domain expands every stage end into the stage's activities; a dependency
+onto a stage with no activities joins nothing and is reported as inert (ADR-015).
+
+### `baseline` and `baseline_activity` — insert-only
+
+A baseline is the plan as it was approved: each activity's name, stage, duration, start and
+finish at that moment, and the finish date of the work (F2). Approving the plan takes baseline
+1 and sets `work.approved_at`; slice F8 takes the next ones, each with its reason. The slip is
+measured against the latest. These are the first tables of requirement one: **no row is ever
+changed or removed** (ADR-016).
+
+| `baseline`    | Type    | Meaning                                                                                               |
+| ------------- | ------- | ----------------------------------------------------------------------------------------------------- |
+| `id`          | TEXT    | UUID v7                                                                                               |
+| `number`      | INTEGER | 1, 2, 3 … unique; the host takes one more than the last                                               |
+| `taken_at`    | TEXT    | UTC                                                                                                   |
+| `reason`      | TEXT    | why the plan changed, up to 2 000 characters; `NULL` for baseline 1 and, until F8, for every baseline |
+| `finish_date` | TEXT    | the work's finish date on that day, a real ISO date, or `NULL` when nothing was scheduled             |
+
+| `baseline_activity` | Type    | Meaning                                                                                                                   |
+| ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `baseline_id`       | TEXT    | `REFERENCES baseline`                                                                                                     |
+| `activity_id`       | TEXT    | the activity's id — **not** a foreign key, so an activity removed after approval stays in the baseline it was approved in |
+| `position`          | INTEGER | the row's order in the breakdown when the baseline was taken                                                              |
+| `name`              | TEXT    | the activity's name then, copied                                                                                          |
+| `stage_name`        | TEXT    | its stage's name then, copied                                                                                             |
+| `duration_days`     | INTEGER | 1 to 3650, or `NULL` if it had none                                                                                       |
+| `start`, `finish`   | TEXT    | ISO dates, both or neither, start not after finish                                                                        |
+
+The primary key is `(baseline_id, activity_id)`. The host checks that a baseline's rows name
+every activity of the work exactly once and nothing else, and writes the baseline and its rows
+in one transaction.
+
+**How the schema refuses an edit.** On both tables, `BEFORE UPDATE` and `BEFORE DELETE`
+triggers refuse every change and every removal. `INSERT OR REPLACE` removes the row it replaces
+without firing a delete trigger when `recursive_triggers` is off — SQLite's default — so each
+table also has a `BEFORE INSERT` trigger that refuses an insert whose key is already there; it
+fires before conflict resolution, and the replace never reaches the row (with
+`recursive_triggers` on, as this product opens every file, the delete trigger refuses it too).
+Rows may be added only to the latest baseline, so a past one cannot gain a row it did not have
+when it was approved. And `work.approved_at`, once set, cannot change. Every one of these
+triggers raises the same message, `baseline: append-only`, and the host never issues a statement
+that would reach one: the Rust module that writes baselines holds no `UPDATE` or `DELETE`, by
+rule.
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -142,11 +208,13 @@ never the work.
 ## Readiness is computed, not stored
 
 Nothing in the schema records readiness. The domain computes it from the rows every time, from
-a rule table that is data (`src/domain/readiness/rules.ts`): for slice F0, an activity must have
-a duration and must have a responsible; each rule contributes the rows that fail it, the figure
-is `known / must-know`, and the sentence is built from the failing rows in the person's
-language. Later slices add rules (a stage's decisions, checks and money; declared
-dependencies) without changing the shape.
+a rule table that is data (`src/domain/readiness/rules.ts`): an activity must have a duration
+and a responsible (F0), and, in a plan of two or more activities, must be linked to at least one
+other by a dependency (F2). Each rule says whether it applies to a row in this plan — a rule that
+does not apply is neither known nor missing, so a one-activity plan is not asked to link it to
+anything; each contributes the rows that fail it, the figure is `known / must-know`, and the sentence is built from the failing rows in the person's
+language. Later slices add rules (a stage's decisions, checks and money) without changing the
+shape.
 
 ## The application database
 
@@ -169,10 +237,11 @@ the default for a new work is `owner`). A key outside the list is refused by the
 
 - Identifiers are UUID v7 as 36-character text; timestamps are UTC with milliseconds and a
   trailing `Z`; dates are ISO 8601 `YYYY-MM-DD` text.
-- Every table that must never lose a row (the diary, its photos and corrections, the baselines,
-  the payments ledger — slices F4, F6, F8) is insert-only: triggers refuse `UPDATE`, `DELETE`
+- Every table that must never lose a row is insert-only: triggers refuse `UPDATE`, `DELETE`
   and `REPLACE`, and the Rust module that writes it contains no `UPDATE` or `DELETE` statement,
-  by rule. Each diary entry carries the hash of the previous one.
+  by rule. **Shipped for the baselines (F2)**; the diary, its photos and corrections (F4) and the
+  payments ledger (F6) follow the same pattern, and each diary entry will carry the hash of the
+  previous one.
 - Text columns that a person types are bounded by `CHECK (length(...) <= n)` in the schema.
 
 ## Migrations
@@ -181,18 +250,19 @@ Numbered SQL files compiled into the binary, forward-only, applied in a transact
 moves `work.schema_version`. A release that adds a migration says so in the changelog and is
 covered by a round-trip test that opens a work at version N-1 and migrates it without loss.
 
-| Migration                      | Slice | Adds                                                             |
-| ------------------------------ | ----- | ---------------------------------------------------------------- |
-| `001_init.sql`                 | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`     |
-| `002_rooms_and_quantities.sql` | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit` |
+| Migration                            | Slice | Adds                                                                                                 |
+| ------------------------------------ | ----- | ---------------------------------------------------------------------------------------------------- |
+| `001_init.sql`                       | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`                                         |
+| `002_rooms_and_quantities.sql`       | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit`                                     |
+| `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers |
 
-Migration 002 is the first a released work would meet: a work created at schema 1, with its
-stages and activities, is migrated to schema 2 without loss, and a round-trip test in `cargo
-test` holds it. The migrations live in `src-tauri/work_migrations/`.
+Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its
+stages and activities migrates to schema 2 without loss, and a work at schema 2 with rooms and
+quantities migrates to schema 3 the same way. The migrations live in `src-tauri/work_migrations/`.
 
 ## Not yet in the schema
 
-Dependencies with lag (F2) · baselines (F2, F8) · decisions (F3) ·
+Decisions (F3) ·
 the diary, its photos and corrections, and the chain (F4) · checks (F5) · planned, committed
 and paid money and the payments ledger (F6) · documents, thumbnails and hashes (F7) · templates
 are files in the repository, not rows (F9).
