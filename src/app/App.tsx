@@ -34,6 +34,9 @@ export function App({ settings }: { settings: Settings }) {
   const close = useCloseWork();
   const accent = useAccentRamp();
   const [destination, setDestination] = useState<Destination>('dashboard');
+  // Whether the plan's calendar card is open survives a trip to the dashboard and back: somebody
+  // who opened it to enter holidays and went to look at the finish date comes back to it open.
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // The theme comes from the settings table and is applied here rather than in each screen, so
   // every screen changes at once. The browser store keeps a copy — the guess the next window
@@ -68,7 +71,7 @@ export function App({ settings }: { settings: Settings }) {
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-lg">
-      <TitleBar workName={snapshot?.work.name ?? null} />
+      <TitleBar workName={snapshot?.work.name ?? null} lens />
       <div className="flex min-h-0 flex-1">
         <Sidebar
           active={showsStart ? null : destination}
@@ -115,7 +118,11 @@ export function App({ settings }: { settings: Settings }) {
                 />
               )}
               {!showsStart && destination === 'plan' && snapshot !== null && (
-                <PlanPage snapshot={snapshot} />
+                <PlanPage
+                  snapshot={snapshot}
+                  calendarOpen={calendarOpen}
+                  onCalendarOpen={setCalendarOpen}
+                />
               )}
               {destination === 'settings' && <SettingsPage settings={settings} />}
               {destination === 'diagnostics' && <DiagnosticsPage />}
