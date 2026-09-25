@@ -513,7 +513,10 @@ mod tests {
 
         let state = open(scratch.path()).expect("open an F0 work");
 
-        assert_eq!(migrations::WORK.current_version(&state.conn), 2);
+        assert_eq!(
+            migrations::WORK.current_version(&state.conn),
+            migrations::WORK.target_version()
+        );
         let plan = db::work::snapshot(&state.conn).unwrap();
         assert_eq!(plan.activities[0].name, "Tiling");
         assert_eq!(plan.activities[0].duration_days, Some(3));

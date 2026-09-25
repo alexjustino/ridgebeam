@@ -94,3 +94,52 @@ lens switch changing every term through the glossary while storing nothing.
 - **Work migration 002** (`002_rooms_and_quantities.sql`) adds `room`, `activity_room`,
   `activity.quantity` and `activity.unit`. A work created by F0 is migrated when it is opened,
   without loss.
+
+### Added in F2 — the schedule
+
+Dependencies with lag on the working calendar; the critical path highlighted on a Gantt; the
+finish date; approving the plan takes baseline 1; and a slip that moves every dependent activity
+and the finish date is a figure that carries its rows.
+
+- **Dependencies.** An activity or a whole stage starts after another activity or stage has
+  finished, with a lag of 0 to 3650 working days that is waiting, not work. They are added and
+  removed on the Plan's breakdown, under each activity. A stage stands for all its activities; a
+  dependency onto a stage with no activities joins nothing and is shown as inert. Removing an
+  activity or a stage removes the dependencies that name it.
+- **A cycle is refused twice**, with the loop named in the activities' own words — "Plaster →
+  Foundations → Walls → Plaster" — by the domain before the host is asked, and by the host
+  (`dependency_cycle`). A file that already holds a cycle is not drawn; the Schedule says so.
+- **One scheduling engine** (ADR-015): the critical path of a sibling product, copied literally
+  with its tests and then extended to working days, lags, stage endpoints and the working
+  calendar. An activity nothing constrains starts on the first working day. It replaces F0's
+  placement in sequence.
+- **The Schedule**, a new destination on the rail: a Gantt over working days with weekends and
+  holidays shaded, stages as bands, dependency arrows, the critical path marked by colour, by a
+  heavier stroke and in each bar's accessible name, and also given as a list; activities with no
+  duration listed below the chart with the reason. Every bar is reachable by keyboard.
+- **Approve the plan = baseline 1** (ADR-016). Approving copies every activity's name, stage,
+  duration, start and finish into a baseline and records when. Baselines are insert-only from
+  the first: triggers refuse `UPDATE`, `DELETE` and `REPLACE`, rows may be added only to the
+  latest baseline, the approval instant never changes, and the host holds no statement that
+  would try. The latest baseline is drawn as ghost bars under the current plan.
+- **The slip.** Once a baseline exists, the finish date's slip in working days is a figure — "2
+  days", "0 days", "3 days early" — that opens onto every activity whose finish moved, each with
+  its own days and its baseline and current finish; an activity removed since approval is listed
+  and not counted, and one added since is listed as added. An activity can move inside its
+  float without moving the finish, so each row also says how far its finish lies past the
+  baseline's finish, and a positive slip is the largest of those, never a sum. The Dashboard shows the finish date
+  against the baseline, the same slip figure, and how many activities are on the critical path.
+- **A third readiness rule**: in a plan of two or more activities, one that is linked to nothing
+  is not ready — "1 job is not linked to any other." — the specification's "every dependency
+  that matters is declared", made measurable. Rules now say when they apply: in a plan of one
+  activity there is nothing to link, and the rule counts neither as known nor as missing.
+- **The benchmark.** A seeded work of 2 000 activities in 40 stages with 3 000 links is scheduled,
+  and its Gantt laid out, within SPEC §4's budget with CI's threefold headroom; the medians are
+  recorded in ADR-015: 5.3 ms to schedule and 5.4 ms to lay out, against 100 ms and 500 ms.
+- **Work migration 003** (`003_dependencies_and_baselines.sql`) adds `dependency`,
+  `work.approved_at`, `baseline` and `baseline_activity` with their insert-only triggers. A work
+  from F1 is migrated when it is opened, without loss.
+
+Not yet, said plainly: editing an approved plan does not ask for a reason, and there is no
+second baseline or comparison between baselines — those are F8's. Dependencies are
+finish-to-start only; there are no milestones and no resource levelling.

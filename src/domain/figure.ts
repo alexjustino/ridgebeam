@@ -8,13 +8,20 @@
  *
  * Copied from Tessera (`src/domain/report.ts`, the figure part: `ReportRow`, `Figure`,
  * `summed`, `counted`, `traceable`), with the names kept so the two stay recognisably one
- * pattern. Two changes: a figure's `label` is a message key the interface renders through the
- * i18n tables, never display text; and a third unit, `percent`, for a share of things known,
- * whose rows are the things not yet known.
+ * pattern. Three changes: a figure's `label` is a message key the interface renders through the
+ * i18n tables, never display text; a unit `percent`, for a share of things known, whose rows are
+ * the things not yet known; and a unit `days`, for how far a date has moved, whose rows are what
+ * moved.
  *
  * **A percent figure never reads 100 while the list behind it is not empty.** A rounded share
  * would: 199 of 200 is 99.5, which rounds to 100 with one thing still missing. So the value is
  * capped at 99 whenever anything is missing, and 100 means, exactly, that nothing is.
+ *
+ * **A days figure is the move of one date, and its rows are everything that moved.** The value is
+ * how many working days the finish moved against a reference (a baseline); each row says how far
+ * its own finish now lies from that same reference. The finish is the latest finish, so when it
+ * moved later the value is exactly the furthest row, and when it did not, no row lies beyond it.
+ * With nothing moved, the value is 0.
  *
  * What this module is not: a report. It builds no figure of its own; readiness, and later the
  * schedule, the diary and the money, build theirs with it.
@@ -49,12 +56,24 @@ interface FigureBase<Row extends ReportRow> {
  *
  * - `minutes` adds up what the rows contribute; `count` counts the rows.
  * - `percent` is `round(100 × known / mustKnow)`, capped at 99 while anything is missing, and
- *   its rows are what is not known: exactly `mustKnow − known` of them. A share of nothing (`mustKnow = 0`) is 0, and carries at least
- *   one row saying why there is nothing to measure.
+ *   its rows are what is not known: exactly `mustKnow − known` of them. A share of nothing
+ *   (`mustKnow = 0`) is 0, and carries at least one row saying why there is nothing to measure.
+ * - `days` is a signed number of working days a date moved; its rows are `DaysRow`s.
  */
 export type Figure<Row extends ReportRow = ReportRow> =
-  | (FigureBase<Row> & { unit: 'minutes' | 'count' })
+  | (FigureBase<Row> & { unit: 'minutes' | 'count' | 'days' })
   | (FigureBase<Row> & { unit: 'percent'; known: number; mustKnow: number });
+
+/** A row of a `days` figure: something whose date moved. */
+export interface DaysRow extends ReportRow {
+  /** Working days this row's own date moved, signed: positive later, negative earlier. */
+  days: number;
+  /**
+   * Working days from the figure's reference date to this row's date now, signed; `null` when
+   * the row has no date now (it was removed, or can no longer be placed).
+   */
+  againstFinish: number | null;
+}
 
 /**
  * A figure that adds its rows up, and one that counts them.
@@ -110,6 +129,22 @@ export function percent<Row extends ReportRow>(
   return { id, label, unit: 'percent', value: percentOf(known, mustKnow), known, mustKnow, rows };
 }
 
+/** A figure of how many working days a date moved, with the rows that moved. */
+export function daysFigure<Row extends DaysRow>(
+  id: string,
+  label: string,
+  value: number,
+  rows: readonly Row[],
+): Figure<Row> {
+  return { id, label, unit: 'days', value, rows };
+}
+
+/** A row's distance from the reference date, when it is a days row that has one. */
+function againstFinishOf(row: ReportRow): number | null {
+  const value = (row as Partial<DaysRow>).againstFinish;
+  return typeof value === 'number' ? value : null;
+}
+
 /**
  * Does a figure say what its rows say? The invariant this module promises, as a function so the
  * interface can assert it too.
@@ -119,6 +154,8 @@ export function percent<Row extends ReportRow>(
  * `0 ≤ known ≤ mustKnow`, exactly `mustKnow − known` rows, and the value `percentOf` gives —
  * or, when there is nothing to know, the value 0 and at least one row that says so. A percent
  * that reads 100 with rows behind it, or below 100 with none, is broken whatever its counts.
+ * `days` is a whole number; 0 with no rows; when positive, exactly the furthest `againstFinish`
+ * among the rows; otherwise at least as far as every row's.
  */
 export function traceable<Row extends ReportRow>(figure: Figure<Row>): boolean {
   const keys = new Set(figure.rows.map((row) => row.key));
@@ -133,6 +170,17 @@ export function traceable<Row extends ReportRow>(figure: Figure<Row>): boolean {
     if (known < 0 || known > mustKnow) return false;
     if (mustKnow === 0) return figure.value === 0 && figure.rows.length > 0;
     return figure.rows.length === mustKnow - known && figure.value === percentOf(known, mustKnow);
+  }
+
+  if (figure.unit === 'days') {
+    if (!Number.isInteger(figure.value)) return false;
+    if (figure.rows.length === 0) return figure.value === 0;
+    let furthest = Number.NEGATIVE_INFINITY;
+    for (const row of figure.rows) {
+      const against = againstFinishOf(row);
+      if (against !== null) furthest = Math.max(furthest, against);
+    }
+    return figure.value > 0 ? furthest === figure.value : furthest <= figure.value;
   }
 
   const expected =

@@ -43,6 +43,7 @@ const KINDS: Readonly<Record<string, MessageKey>> = {
   work_not_found: 'errors.workNotFound',
   work_moved: 'errors.workMoved',
   no_work_open: 'errors.noWorkOpen',
+  dependency_cycle: 'errors.dependencyCycle',
   invalid_input: 'errors.invalidInput',
   settings_key: 'errors.settingsKey',
 };

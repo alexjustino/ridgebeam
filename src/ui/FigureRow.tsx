@@ -12,6 +12,11 @@ import { useI18n } from '@/i18n/useI18n';
  * and what pressing it does are its description, so a screen reader hears "50 %, Readiness,
  * press it to list what it counts" and a keyboard reaches it like any other button.
  *
+ * One primitive for every figure (moved here in F2, when the schedule became its second screen):
+ * `testId` names the figure for the end-to-end suite (`<testId>`, `<testId>-value`,
+ * `<testId>-row`), and `size` is `display` for the one number a screen is about and `title` for
+ * a figure that sits beside others.
+ *
  * It stays pressable when there is nothing to list: opening it then says so, which is a fact the
  * reader checked, rather than a disabled control that says nothing.
  */
@@ -21,6 +26,8 @@ export function FigureRow<Row extends ReportRow>({
   value,
   renderRow,
   rowsLabel,
+  testId = 'figure',
+  size = 'display',
 }: {
   figure: Figure<Row>;
   /** What the figure is, in words. */
@@ -31,6 +38,8 @@ export function FigureRow<Row extends ReportRow>({
   renderRow: (row: Row) => ReactNode;
   /** The accessible name of the list the figure opens onto. */
   rowsLabel: string;
+  testId?: string;
+  size?: 'display' | 'title';
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -38,20 +47,21 @@ export function FigureRow<Row extends ReportRow>({
   const broken = !traceable(figure);
 
   return (
-    <div data-testid="figure" data-figure={figure.id} className="flex flex-col gap-2">
+    <div data-testid={testId} data-figure={figure.id} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <span id={`${id}-label`} className="text-body-lg font-semibold text-fg">
           {label}
         </span>
         <button
           type="button"
-          data-testid="figure-value"
+          data-testid={`${testId}-value`}
           aria-expanded={open}
           aria-controls={`${id}-rows`}
           aria-describedby={`${id}-label ${id}-hint`}
           onClick={() => setOpen((value) => !value)}
           className={[
-            'rounded-md px-2 font-display text-display font-semibold text-fg tabular-nums',
+            'rounded-md px-2 font-semibold text-fg tabular-nums',
+            size === 'display' ? 'font-display text-display' : 'text-title',
             'transition-colors duration-100 ease-easy hover:bg-card-hover active:bg-card-active',
           ].join(' ')}
         >
@@ -75,7 +85,11 @@ export function FigureRow<Row extends ReportRow>({
             className="flex flex-col gap-1 border-l border-stroke-subtle pl-3"
           >
             {figure.rows.map((row) => (
-              <li key={row.key} data-testid="figure-row" className="text-body text-fg-secondary">
+              <li
+                key={row.key}
+                data-testid={`${testId}-row`}
+                className="text-body text-fg-secondary"
+              >
                 {renderRow(row)}
               </li>
             ))}

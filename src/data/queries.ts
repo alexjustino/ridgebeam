@@ -19,13 +19,17 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import type { Direction } from '@/domain/ordering';
-import type { Holiday } from '@/domain/plan';
+import type { Endpoint, Holiday } from '@/domain/plan';
 
 import {
   accentRamp,
   activityAdd,
   activityMove,
   activitySetRooms,
+  baselineTake,
+  dependencyAdd,
+  dependencyRemove,
+  dependencyUpdate,
   calendarSet,
   personRemove,
   personRename,
@@ -52,6 +56,7 @@ import {
   workOpen,
   workUpdate,
   type ActivityPatch,
+  type BaselineRowDraft,
   type CalendarDraft,
   type SettingKey,
   type Settings,
@@ -280,5 +285,29 @@ export function useMove() {
 export function useSetActivityRooms() {
   return useWorkCommand(({ id, roomIds }: { id: string; roomIds: readonly string[] }) =>
     activitySetRooms(id, roomIds),
+  );
+}
+
+export function useAddDependency() {
+  return useWorkCommand(
+    ({ blocker, blocked, lagDays }: { blocker: Endpoint; blocked: Endpoint; lagDays: number }) =>
+      dependencyAdd(blocker, blocked, lagDays),
+  );
+}
+
+export function useUpdateDependency() {
+  return useWorkCommand(({ id, lagDays }: { id: string; lagDays: number }) =>
+    dependencyUpdate(id, lagDays),
+  );
+}
+
+export function useRemoveDependency() {
+  return useWorkCommand((id: string) => dependencyRemove(id));
+}
+
+export function useTakeBaseline() {
+  return useWorkCommand(
+    ({ rows, finishDate }: { rows: readonly BaselineRowDraft[]; finishDate: string | null }) =>
+      baselineTake(rows, finishDate),
   );
 }

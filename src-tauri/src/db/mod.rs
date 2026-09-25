@@ -19,7 +19,13 @@
 //!   works, and the work's plan.
 //! - F1: `rooms` (rooms and the rooms an activity touches) and `order` (moves,
 //!   and positions kept 1..n with no gaps); work migration 002.
+//! - F2: `dependencies` (the graph, its cycle guard, its cascade) and
+//!   `baselines` (insert-only, by rule and by trigger); work migration 003.
 
+#[cfg(test)]
+mod append_only_tests;
+pub mod baselines;
+pub mod dependencies;
 pub mod migrations;
 pub mod order;
 pub mod recent;

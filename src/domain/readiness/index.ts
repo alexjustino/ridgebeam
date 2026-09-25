@@ -1,8 +1,9 @@
 /**
  * Readiness: how much of what the plan must know, it does know, as a measure from the rows.
  *
- * Every activity is tested against every rule in `rules.ts`. Each test is one thing the plan
- * must know (`mustKnow`); each that passes is one it knows (`known`); each that fails is a
+ * Every activity is tested against every rule in `rules.ts` that applies to it (the linking rule
+ * asks nothing of a plan with one activity). Each test is one thing the plan must know
+ * (`mustKnow`); each that passes is one it knows (`known`); each that fails is a
  * missing row that names the activity, its stage and the rule. The figure is the share known,
  * and it opens onto exactly those rows, so the number and the list can never disagree.
  *
@@ -40,7 +41,7 @@ export interface MissingRow {
 export interface Readiness {
   /** Things the plan knows. */
   readonly known: number;
-  /** Things the plan must know: every rule, for every activity. */
+  /** Things the plan must know: every rule that applies, for every activity. */
   readonly mustKnow: number;
   /** `known / mustKnow`, from 0 to 1; 0 when there is nothing to know. */
   readonly ratio: number;
@@ -75,6 +76,7 @@ export function readiness(snapshot: WorkSnapshot): Readiness {
 
   for (const activity of activities) {
     for (const rule of RULES) {
+      if (!rule.applies(activity, snapshot)) continue;
       mustKnow += 1;
       if (rule.holds(activity, snapshot)) {
         known += 1;

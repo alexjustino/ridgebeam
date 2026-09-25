@@ -18,6 +18,9 @@
 //! - F1: an activity's quantity and unit, and the pairing between them; rooms
 //!   and each activity's rooms in the snapshot; a person renamed or removed;
 //!   positions closed up after a removal.
+//! - F2: the approval (`approved_at`, set once, by the first baseline); the
+//!   snapshot carries dependencies and baselines; removing an activity or a
+//!   stage removes the dependencies that name it, in the same transaction.
 
 use std::collections::HashMap;
 
@@ -25,6 +28,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, WorkSnapshot};
 use crate::db::order::{ACTIVITIES, STAGES};
+use crate::db::{baselines, dependencies};
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
 
@@ -89,7 +93,8 @@ pub fn create(conn: &Connection, work: &NewWork) -> Result<()> {
 /// [`Error::Database`] when the row cannot be read.
 pub fn work(conn: &Connection) -> Result<Work> {
     let work = conn.query_row(
-        "SELECT work_id, name, place, start_date, currency, created_at FROM work WHERE id = 1",
+        "SELECT work_id, name, place, start_date, currency, created_at, approved_at
+         FROM work WHERE id = 1",
         [],
         |row| {
             Ok(Work {
@@ -99,6 +104,7 @@ pub fn work(conn: &Connection) -> Result<Work> {
                 start_date: row.get(3)?,
                 currency: row.get(4)?,
                 created_at: row.get(5)?,
+                approved_at: row.get(6)?,
             })
         },
     )?;
@@ -216,7 +222,24 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         stages,
         rooms,
         activities,
+        dependencies: dependencies::list(conn)?,
+        baselines: baselines::list(conn)?,
     })
+}
+
+/// Record that the plan was approved, now — once. A work already approved
+/// keeps the instant it was first approved; the schema refuses to change it.
+/// Called by `db::baselines::take` inside the transaction that takes baseline 1.
+///
+/// # Errors
+///
+/// [`Error::Database`] when the row cannot be written.
+pub fn record_approval(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "UPDATE work SET approved_at = ?1 WHERE id = 1 AND approved_at IS NULL",
+        [now()],
+    )?;
+    Ok(())
 }
 
 /// Change the work row. `None` leaves a field alone.
@@ -338,6 +361,7 @@ pub fn rename_stage(conn: &Connection, id: &str, name: &str) -> Result<()> {
 /// [`Error::InvalidInput`] when the stage is not in this work.
 pub fn remove_stage(conn: &Connection, id: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
+    dependencies::remove_naming_stage(&tx, id)?;
     let changed = tx.execute("DELETE FROM stage WHERE id = ?1", [id])?;
     found(changed, STAGE_NOT_FOUND)?;
     STAGES.close_gaps(&tx, None)?;
@@ -465,6 +489,7 @@ fn quantity_and_unit(
 pub fn remove_activity(conn: &Connection, id: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     let stage = ACTIVITIES.scope_of(&tx, id)?;
+    dependencies::remove_naming_activity(&tx, id)?;
     tx.execute("DELETE FROM activity WHERE id = ?1", [id])?;
     ACTIVITIES.close_gaps(&tx, stage.as_deref())?;
     tx.commit()?;
@@ -539,6 +564,9 @@ pub(crate) mod tests {
             "activity",
             "room",
             "activity_room",
+            "dependency",
+            "baseline",
+            "baseline_activity",
         ] {
             let found: i64 = conn
                 .query_row(
@@ -813,18 +841,22 @@ pub(crate) mod tests {
         "00000000-0000-7000-8000-00000000000c".into()
     }
 
-    /// The upgrade a person actually makes: a work written by F0 opens in F1
-    /// and loses nothing — and gains rooms, quantities and units, all empty.
+    /// The upgrade from the first release of the schema: a work written by F0
+    /// opens in this build and loses nothing — and gains rooms, quantities,
+    /// units, dependencies and baselines, all empty.
     #[test]
-    fn a_work_at_schema_one_with_rows_migrates_to_two_without_losing_any() {
+    fn a_work_at_schema_one_with_rows_migrates_to_the_current_version_without_losing_any() {
         let conn = Connection::open_in_memory().unwrap();
         crate::db::configure(&conn).unwrap();
         let tiling = a_work_at_schema_one(&conn);
         assert_eq!(migrations::WORK.current_version(&conn), 1);
 
-        migrations::WORK.apply(&conn).expect("migrate 1 → 2");
+        migrations::WORK.apply(&conn).expect("migrate 1 → head");
 
-        assert_eq!(migrations::WORK.current_version(&conn), 2);
+        assert_eq!(
+            migrations::WORK.current_version(&conn),
+            migrations::WORK.target_version()
+        );
         let plan = snapshot(&conn).unwrap();
         assert_eq!(plan.work.name, "Synthetic F0 work");
         assert_eq!(plan.holidays.len(), 1);
@@ -844,7 +876,10 @@ pub(crate) mod tests {
         migrations::WORK
             .apply(&conn)
             .expect("and again, idempotent");
-        assert_eq!(migrations::WORK.current_version(&conn), 2);
+        assert_eq!(
+            migrations::WORK.current_version(&conn),
+            migrations::WORK.target_version()
+        );
     }
 
     fn one_activity(conn: &Connection) -> String {
@@ -1000,5 +1035,50 @@ pub(crate) mod tests {
         ] {
             assert_eq!(refused.unwrap_err().to_string(), PERSON_NOT_FOUND);
         }
+    }
+
+    /// The upgrade a person makes from F1: a work at schema 2 — with a room, an
+    /// activity touching it, a quantity and a unit — opens in F2 and loses
+    /// nothing, gains no dependency and no baseline, and is not approved.
+    #[test]
+    fn a_work_at_schema_two_with_rows_migrates_to_three_without_losing_any() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::configure(&conn).unwrap();
+        let tiling = a_work_at_schema_one(&conn);
+        migrations::WORK
+            .apply_up_to(&conn, 2)
+            .expect("stand at schema 2");
+        conn.execute_batch(&format!(
+            "INSERT INTO room (id, position, name, created_at)
+             VALUES ('00000000-0000-7000-8000-00000000000d', 1, 'Bathroom', 't');
+             INSERT INTO activity_room (activity_id, room_id)
+             VALUES ('{tiling}', '00000000-0000-7000-8000-00000000000d');
+             UPDATE activity SET quantity = 12, unit = 'm²' WHERE id = '{tiling}';"
+        ))
+        .expect("an F1 work's rows");
+        assert_eq!(migrations::WORK.current_version(&conn), 2);
+
+        migrations::WORK.apply(&conn).expect("migrate 2 → 3");
+
+        assert_eq!(migrations::WORK.current_version(&conn), 3);
+        let plan = snapshot(&conn).unwrap();
+        let activity = &plan.activities[0];
+        assert_eq!(activity.id, tiling);
+        assert_eq!(activity.duration_days, Some(3));
+        assert_eq!(activity.room_ids, vec![plan.rooms[0].id.clone()]);
+        assert_eq!(
+            (activity.quantity, activity.unit.as_deref()),
+            (Some(12.0), Some("m²"))
+        );
+        assert_eq!(plan.people.len(), 1);
+        assert_eq!(plan.holidays.len(), 1);
+        assert!(plan.dependencies.is_empty());
+        assert!(plan.baselines.is_empty());
+        assert_eq!(plan.work.approved_at, None);
+
+        migrations::WORK
+            .apply(&conn)
+            .expect("and again, idempotent");
+        assert_eq!(migrations::WORK.current_version(&conn), 3);
     }
 }

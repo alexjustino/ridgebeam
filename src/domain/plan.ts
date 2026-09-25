@@ -1,22 +1,16 @@
 /**
- * The plan of a work, as the host hands it over, and where its activities fall on the calendar.
+ * The plan of a work, as the host hands it over, and the plain questions asked of it.
  *
  * The types mirror the host's contract (the `work_get` command, docs/DATA_MODEL.md) field for
  * field, in camelCase, so that the data layer passes a snapshot through unchanged.
  *
- * The placement here is **deliberately simple, and temporary**. Slice F0 has no dependencies:
- * stages are taken in position order, activities in position order inside each stage, and each
- * activity starts on the working day after the previous one finishes, the first on the work's
- * start date. That is enough to put one stage with one activity on a working calendar and to
- * give the work a finish date. It is not a schedule: slice F2 replaces it with the critical-path
- * engine (dependencies with lag, float, the critical path, baselines), and nothing should be
- * built on the sequential order it assumes.
+ * Where the activities fall on the calendar is not decided here: that is the schedule
+ * (`schedule/`), which replaced slice F0's sequential placement in slice F2.
  *
- * What this module is not: storage, and not a judge of readiness. It performs no I/O, and an
- * activity it cannot place is reported with the reason, not hidden.
+ * What this module is not: storage, a scheduler or a judge of readiness. It performs no I/O.
  */
 
-import { addWorkingDays, isIsoDay, readCalendar, type WorkingCalendar } from './calendar';
+import { readCalendar, type WorkingCalendar } from './calendar';
 
 // ── The host's contract ──────────────────────────────────────────────────────
 
@@ -31,6 +25,8 @@ export interface Work {
   readonly currency: string;
   /** UTC, milliseconds, trailing `Z`. */
   readonly createdAt: string;
+  /** When the plan was first approved (baseline 1 taken); `null` until then. */
+  readonly approvedAt: string | null;
 }
 
 /** The working calendar as stored: the mask text and the hours. */
@@ -85,6 +81,48 @@ export interface Activity {
   readonly unit: string | null;
 }
 
+/** One end of a dependency: an activity, or a stage standing for all its activities. */
+export interface Endpoint {
+  readonly kind: 'activity' | 'stage';
+  readonly id: string;
+}
+
+/**
+ * `blocker` must finish, and `lagDays` working days pass, before `blocked` may start.
+ * Finish-to-start is the only kind in 1.0.
+ */
+export interface Dependency {
+  readonly id: string;
+  readonly blocker: Endpoint;
+  readonly blocked: Endpoint;
+  /** Working days of waiting, zero or more. Waiting, not work: nobody is on site for it. */
+  readonly lagDays: number;
+}
+
+/** One activity as a baseline recorded it. */
+export interface BaselineRow {
+  readonly activityId: string;
+  readonly name: string;
+  readonly stageName: string;
+  readonly durationDays: number | null;
+  /** `YYYY-MM-DD`, or `null` when the schedule could not place it. */
+  readonly start: string | null;
+  readonly finish: string | null;
+}
+
+/** A photograph of the plan, taken when it was approved. Insert-only; never overwritten. */
+export interface Baseline {
+  readonly id: string;
+  /** 1 for the approval, then 2, 3 … */
+  readonly number: number;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly takenAt: string;
+  /** Why the approved plan was changed; `null` for baseline 1 (and until slice F8 asks). */
+  readonly reason: string | null;
+  readonly finishDate: string | null;
+  readonly rows: readonly BaselineRow[];
+}
+
 /** The whole plan of one work, as `work_get` returns it. */
 export interface WorkSnapshot {
   readonly work: Work;
@@ -94,6 +132,8 @@ export interface WorkSnapshot {
   readonly rooms: readonly Room[];
   readonly stages: readonly Stage[];
   readonly activities: readonly Activity[];
+  readonly dependencies: readonly Dependency[];
+  readonly baselines: readonly Baseline[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────
@@ -145,91 +185,16 @@ export function workingCalendarOf(snapshot: WorkSnapshot): WorkingCalendar | nul
   return result.ok ? result.calendar : null;
 }
 
-// ── The F0 placement ─────────────────────────────────────────────────────────
-
-/** Why an activity has no place on the calendar. */
-export type UnplacedReason =
-  /** It has no duration, or one that is not a whole number of working days above zero. */
-  | 'no-duration'
-  /** Its stage is not in the plan. */
-  | 'no-stage'
-  /** The work's calendar cannot be counted on (no working day, bad hours, bad holiday). */
-  | 'invalid-calendar'
-  /** The work's start date is not a real `YYYY-MM-DD` day. */
-  | 'invalid-start';
-
-export type PlacedActivity =
-  | { readonly activityId: string; readonly start: string; readonly finish: string }
-  | { readonly activityId: string; readonly unplaced: UnplacedReason };
-
-/** Every activity of the plan, in placement order, each placed or said not to be. */
-export type Placement = readonly PlacedActivity[];
-
-/**
- * Place every activity on the work's calendar, one after another (see the module header: this
- * is F0's sequential placement, replaced in F2).
- *
- * The first placed activity starts on the work's start date, moved to the next working day when
- * that is not one; each later one starts on the working day after the previous placed one
- * finishes. An activity with no duration is reported as unplaced and takes no days, so the ones
- * after it are still placed. Never throws: a calendar or start date that cannot be counted on
- * leaves every activity unplaced, with that reason.
- */
-export function placeActivities(snapshot: WorkSnapshot): Placement {
-  const ordered = activitiesInOrder(snapshot);
-  const calendar = workingCalendarOf(snapshot);
-  if (calendar === null) {
-    return ordered.map((activity) => ({ activityId: activity.id, unplaced: 'invalid-calendar' }));
-  }
-  if (!isIsoDay(snapshot.work.startDate)) {
-    return ordered.map((activity) => ({ activityId: activity.id, unplaced: 'invalid-start' }));
-  }
-
-  const stageIds = new Set(snapshot.stages.map((stage) => stage.id));
-  let cursor = snapshot.work.startDate;
-  let placedAny = false;
-  const placement: PlacedActivity[] = [];
-
-  for (const activity of ordered) {
-    if (!stageIds.has(activity.stageId)) {
-      placement.push({ activityId: activity.id, unplaced: 'no-stage' });
-      continue;
-    }
-    if (!hasDuration(activity)) {
-      placement.push({ activityId: activity.id, unplaced: 'no-duration' });
-      continue;
-    }
-    // The first activity starts on the first working day on or after the start date; each
-    // later one on the working day after the previous finish.
-    const start = addWorkingDays(calendar, cursor, placedAny ? 1 : 0);
-    const finish = addWorkingDays(calendar, start, activity.durationDays! - 1);
-    placement.push({ activityId: activity.id, start, finish });
-    cursor = finish;
-    placedAny = true;
-  }
-  return placement;
-}
-
-/** Is this activity on the calendar? */
-export function isPlaced(
-  row: PlacedActivity,
-): row is { readonly activityId: string; readonly start: string; readonly finish: string } {
-  return 'start' in row;
-}
-
-/**
- * The finish date of the work: the latest finish of any placed activity, or `null` when nothing
- * is placed. Computed, never typed (glossary: "finish date").
- */
-export function finishDate(placement: Placement): string | null {
-  let latest: string | null = null;
-  for (const row of placement) {
-    if (isPlaced(row) && (latest === null || row.finish > latest)) latest = row.finish;
+/** The latest baseline, by number, or `null` before the plan is approved. */
+export function latestBaseline(snapshot: WorkSnapshot): Baseline | null {
+  let latest: Baseline | null = null;
+  for (const baseline of snapshot.baselines) {
+    if (latest === null || baseline.number > latest.number) latest = baseline;
   }
   return latest;
 }
 
 /** Code-point order, the same on every machine whatever its locale. */
-function compareText(a: string, b: string): number {
+export function compareText(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
