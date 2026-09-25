@@ -1,0 +1,340 @@
+/**
+ * One end-to-end session: a fresh workspace, the real binary, a WebDriver.
+ *
+ * `tauri-driver` bridges the WebDriver protocol to the platform's own driver
+ * (`msedgedriver` on Windows, matched to the installed WebView2 runtime). It is
+ * started here, told which binary to launch, and torn down with the session.
+ *
+ * The application data folder is never the person's own. `RIDGEBEAM_DATA_DIR` points the
+ * application at a temporary directory, created empty for each session and removed afterwards
+ * — so every run begins from migration 001 on a blank file, and a test that passes has proven
+ * the migrations as well as the screen. The works the suite creates live in temporary folders
+ * the tests make and remove themselves.
+ *
+ * A work is never opened from the command line in this release: the suite creates one through
+ * the Start screen, in a temporary folder of its own, and reopens it from the recent list.
+ *
+ * Environment:
+ *   RIDGEBEAM_E2E_APP         path to the debug binary (default: src-tauri/target/debug/ridgebeam.exe)
+ *   RIDGEBEAM_E2E_EDGEDRIVER  path to msedgedriver.exe (default: `msedgedriver` on PATH)
+ *   RIDGEBEAM_E2E_KEEP        set to keep the temporary workspace for inspection
+ *   RIDGEBEAM_E2E_VERBOSE     set to print the driver's output
+ */
+
+import { spawn, type ChildProcess } from 'node:child_process';
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { connect } from 'node:net';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+import { Driver, xpathLiteral } from './webdriver';
+
+const DRIVER_PORT = 4444;
+const NATIVE_PORT = 4445;
+const BASE = `http://127.0.0.1:${DRIVER_PORT}`;
+
+export interface Session {
+  driver: Driver;
+  /** The temporary application data folder (`RIDGEBEAM_DATA_DIR`). */
+  dataDir: string;
+  /** Save a screenshot beside the test artefacts. */
+  screenshot(name: string): Promise<string>;
+  /** End the session, stop the driver, remove the workspace. */
+  stop(): Promise<void>;
+  /** Close the application and open it again on the same application data folder. */
+  restart(): Promise<void>;
+}
+
+const ROOT = path.resolve(import.meta.dirname, '..');
+const ARTEFACTS = path.join(ROOT, 'e2e', 'artefacts');
+
+function appPath(): string {
+  return (
+    process.env.RIDGEBEAM_E2E_APP ??
+    path.join(ROOT, 'src-tauri', 'target', 'debug', 'ridgebeam.exe')
+  );
+}
+
+function nativeDriver(): string {
+  return process.env.RIDGEBEAM_E2E_EDGEDRIVER ?? 'msedgedriver';
+}
+
+async function waitForDriver(): Promise<void> {
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${BASE}/status`);
+      if (response.ok) return;
+    } catch {
+      // not up yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+  throw new Error('tauri-driver did not come up on port 4444');
+}
+
+function startDriverProcess(dataDir: string): ChildProcess {
+  const env: NodeJS.ProcessEnv = { ...process.env, RIDGEBEAM_DATA_DIR: dataDir };
+  const child = spawn(
+    'tauri-driver',
+    [
+      '--port',
+      String(DRIVER_PORT),
+      '--native-port',
+      String(NATIVE_PORT),
+      '--native-driver',
+      nativeDriver(),
+    ],
+    {
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    },
+  );
+  child.stdout?.on('data', (chunk: Buffer) => {
+    if (process.env.RIDGEBEAM_E2E_VERBOSE) process.stdout.write(`[driver] ${chunk.toString()}`);
+  });
+  child.stderr?.on('data', (chunk: Buffer) => {
+    if (process.env.RIDGEBEAM_E2E_VERBOSE) process.stderr.write(`[driver] ${chunk.toString()}`);
+  });
+  return child;
+}
+
+async function createSession(): Promise<Driver> {
+  const driver = await Driver.create(BASE, {
+    'tauri:options': { application: appPath() },
+  });
+  await selectMainWindow(driver);
+  return driver;
+}
+
+/**
+ * Land on the main window.
+ *
+ * The driver's notion of "current window" is whichever handle it met first,
+ * which is not guaranteed to be the one the product draws in. So every handle
+ * is tried until the one with the navigation rail answers; that is the window
+ * the suite drives.
+ */
+async function selectMainWindow(driver: Driver): Promise<void> {
+  await driver.waitFor(
+    'the main window',
+    async () => {
+      for (const handle of await driver.windowHandles()) {
+        // A handle that is still starting may refuse a switch or a script;
+        // that must not stop the main window from being tried.
+        try {
+          await driver.switchTo(handle);
+          await refuseDevBuild(driver);
+          const isMain = await driver.execute<boolean>(
+            "return document.querySelector('nav[data-rail]') !== null",
+          );
+          if (isMain) return true;
+        } catch (error) {
+          if (process.env.RIDGEBEAM_E2E_VERBOSE) {
+            process.stderr.write(`[session] handle ${handle}: ${String(error)}\n`);
+          }
+        }
+      }
+      return null;
+    },
+    20_000,
+    250,
+  );
+}
+
+/**
+ * A binary built without the Tauri CLI points at the Vite dev server instead
+ * of the embedded page — `cargo test` rebuilds `target/debug/ridgebeam.exe` that
+ * way, silently, as a side effect of linking the integration tests. Driving it
+ * would wait twenty seconds for a window that says "refused to connect". Say
+ * what happened instead.
+ */
+async function refuseDevBuild(driver: Driver): Promise<void> {
+  const url = await driver.execute<string>('return location.href');
+  if (url.startsWith('http://localhost:1420')) {
+    throw new Error(
+      'the binary was built without the Tauri CLI and loads the dev server; run `npm run e2e:build` (cargo test overwrites it)',
+    );
+  }
+}
+
+/** Kill the driver tree: tauri-driver spawns msedgedriver, which spawns the app. */
+function killProcess(child: ChildProcess): Promise<void> {
+  return new Promise((resolve) => {
+    if (child.exitCode !== null) return resolve();
+    child.once('exit', () => resolve());
+    spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true }).once(
+      'exit',
+      () => resolve(),
+    );
+  });
+}
+
+/**
+ * Stop any instance of *this* binary that outlived its driver.
+ *
+ * Scoped to the debug binary's path on purpose: the person running the suite
+ * may have the installed Ridgebeam open, and it is not ours to close. A leftover instance
+ * matters because it still holds the application database the next session relocates to, and
+ * the driver's ports.
+ */
+function stopStrayInstances(): Promise<void> {
+  const binary = appPath().replace(/'/g, "''");
+  const driverBinary = nativeDriver().replace(/'/g, "''");
+  // Three processes, each matched narrowly: our application by path, the native driver by the
+  // path this suite was told to use, and tauri-driver by name — it exists for this suite and
+  // nothing else.
+  const script = [
+    `Get-Process ridgebeam -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq '${binary}' } | Stop-Process -Force -ErrorAction SilentlyContinue`,
+    `Get-Process msedgedriver -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq '${driverBinary}' } | Stop-Process -Force -ErrorAction SilentlyContinue`,
+    `Get-Process tauri-driver -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue`,
+  ].join('; ');
+  return new Promise((resolve) => {
+    spawn('pwsh', ['-NoProfile', '-NonInteractive', '-Command', script], {
+      windowsHide: true,
+      stdio: 'ignore',
+    }).once('exit', () => resolve());
+  });
+}
+
+/** Does anything still accept a connection on this port of this machine? */
+function portAnswers(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = connect({ host: '127.0.0.1', port });
+    const settle = (answers: boolean) => {
+      socket.destroy();
+      resolve(answers);
+    };
+    socket.setTimeout(500);
+    socket.once('connect', () => settle(true));
+    socket.once('timeout', () => settle(false));
+    socket.once('error', () => settle(false));
+  });
+}
+
+/**
+ * Wait until the driver is really gone — both of it.
+ *
+ * `tauri-driver` answers on one port and starts `msedgedriver` on another. A
+ * new driver that binds the first while the old one still holds the second
+ * comes up, answers `/status`, and then dies when it cannot start its own
+ * native driver — which reaches the test as a refused connection one call
+ * later. So both ports are waited for, not just the one that talks.
+ */
+async function waitForDriverGone(): Promise<void> {
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    let talking = true;
+    try {
+      await fetch(`${BASE}/status`);
+    } catch {
+      talking = false;
+    }
+    if (!talking && !(await portAnswers(NATIVE_PORT))) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
+async function teardown(driver: Driver, child: ChildProcess): Promise<void> {
+  await driver.quit().catch(() => undefined);
+  await killProcess(child);
+  await stopStrayInstances();
+  await waitForDriverGone();
+}
+
+export interface SessionOptions {
+  /**
+   * An application database to start from instead of an empty one — how an upgrade suite opens
+   * what an older release wrote. Copied, never opened in place: the fixture stays what it was.
+   */
+  seedWorkspace?: string;
+}
+
+export async function startSession(options: SessionOptions = {}): Promise<Session> {
+  // A previous file's application may still be going down.
+  await stopStrayInstances();
+  await waitForDriverGone();
+
+  const dataDir = await mkdtemp(path.join(tmpdir(), 'ridgebeam-e2e-'));
+  if (options.seedWorkspace !== undefined) {
+    await copyFile(options.seedWorkspace, path.join(dataDir, 'ridgebeam.sqlite3'));
+  }
+  let process_ = startDriverProcess(dataDir);
+  let driver: Driver;
+  try {
+    await waitForDriver();
+    driver = await createSession();
+  } catch (error) {
+    // A session that never came up must not leave a driver holding the port
+    // for the next file: that turns one failure into every failure after it.
+    await killProcess(process_);
+    await stopStrayInstances();
+    throw error;
+  }
+
+  const session: Session = {
+    driver,
+    dataDir,
+    async screenshot(name) {
+      await mkdir(ARTEFACTS, { recursive: true });
+      const file = path.join(ARTEFACTS, `${name}.png`);
+      await writeFile(file, Buffer.from(await driver.screenshot(), 'base64'));
+      return file;
+    },
+    async stop() {
+      await teardown(driver, process_);
+      if (!process.env.RIDGEBEAM_E2E_KEEP) {
+        await rm(dataDir, { recursive: true, force: true }).catch(() => undefined);
+      }
+    },
+    async restart() {
+      await teardown(driver, process_);
+      process_ = startDriverProcess(dataDir);
+      await waitForDriver();
+      driver = await createSession();
+      session.driver = driver;
+    },
+  };
+  return session;
+}
+
+/**
+ * Open a destination from the rail, by its stable name rather than its label — the label is in
+ * whatever language the window is in — and wait until the rail says it is the current page.
+ */
+export async function go(session: Session, destination: string): Promise<void> {
+  const { driver } = session;
+  const selector = `nav[data-rail] button[data-destination="${destination}"]`;
+  await (await driver.waitForElement(selector)).click();
+  await driver.waitFor(`the ${destination} screen`, async () => {
+    const current = await driver.find('nav[data-rail] button[aria-current="page"]');
+    return (await current.attribute('data-destination')) === destination ? true : null;
+  });
+}
+
+/** The two languages, by the autonym the picker shows in every language, and their tags. */
+const LANGUAGE_TAGS = {
+  English: 'en',
+  'Português (Brasil)': 'pt-BR',
+} as const;
+
+export type LanguageName = keyof typeof LANGUAGE_TAGS;
+
+/**
+ * Choose a language the way a person does — Settings, then the language's own name — and wait
+ * until the workspace has kept it and the window speaks it: the choice is pressed, the document's
+ * `lang` is the language's tag, and the pressed choice is the one the table read back.
+ */
+export async function chooseLanguage(session: Session, language: LanguageName): Promise<void> {
+  const { driver } = session;
+  const tag = LANGUAGE_TAGS[language];
+  const radio = `//button[@role="radio" and normalize-space(.)=${xpathLiteral(language)}]`;
+  await go(session, 'settings');
+  await (await driver.findByXPath(radio)).click();
+  await driver.waitFor(`the window in ${language}`, async () => {
+    const lang = await driver.execute<string>('return document.documentElement.lang');
+    const pressed = await (await driver.findByXPath(radio)).attribute('aria-checked');
+    return lang === tag && pressed === 'true' ? true : null;
+  });
+}
