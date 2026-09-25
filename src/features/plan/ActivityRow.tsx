@@ -1,5 +1,5 @@
 import { ArrowDown20Regular, ArrowUp20Regular, Delete20Regular } from '@fluentui/react-icons';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 import { LIMITS } from '@/data/commands';
 import { useSetActivityRooms, useUpdateActivity } from '@/data/queries';
@@ -44,6 +44,7 @@ export function ActivityRow({
   onFocused,
   onMove,
   onRemove,
+  children,
 }: {
   activity: Activity;
   number: string | null;
@@ -55,6 +56,8 @@ export function ActivityRow({
   onFocused: () => void;
   onMove: (direction: Direction) => void;
   onRemove: () => void;
+  /** What follows the row's own fields: its links (F2). */
+  children?: ReactNode;
 }) {
   const { t, number: formatNumber } = useI18n();
   const term = useTerms();
@@ -320,6 +323,7 @@ export function ActivityRow({
           </span>
         </span>
       </div>
+      {children}
     </li>
   );
 }

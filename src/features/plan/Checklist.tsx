@@ -1,7 +1,8 @@
 import { Edit20Regular } from '@fluentui/react-icons';
 
-import { checklist } from '@/domain/arrangements';
-import { placeActivities, type WorkSnapshot } from '@/domain/plan';
+import { checklist, type ChecklistMissing } from '@/domain/arrangements';
+import type { WorkSnapshot } from '@/domain/plan';
+import { schedule } from '@/domain/schedule';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
@@ -9,14 +10,15 @@ import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { EmptyState } from '@/ui/EmptyState';
 
-const MISSING: Record<'duration' | 'responsible', MessageKey> = {
+const MISSING: Record<ChecklistMissing, MessageKey> = {
   duration: 'readiness.row.activity.duration',
   responsible: 'readiness.row.activity.responsible',
+  linked: 'readiness.row.activity.linked',
 };
 
 /**
- * The owner's checklist: the same rows as the breakdown, one line each, in the order the calendar
- * places them (DESIGN_SYSTEM §8: the same rows, never a copy).
+ * The owner's checklist: the same rows as the breakdown, one line each, in the order the schedule
+ * places them (start, then breakdown order) (DESIGN_SYSTEM §8: the same rows, never a copy).
  *
  * The box at the start of a line is drawn, not a control. Nothing on the plan says what is done —
  * that is the diary's to say, from the day it arrives (SPEC §2.6) — so there is nothing here to
@@ -32,7 +34,7 @@ export function Checklist({
 }) {
   const { t, tp, day, number } = useI18n();
   const term = useTerms();
-  const lines = checklist(snapshot, placeActivities(snapshot));
+  const lines = checklist(snapshot, schedule(snapshot));
   const activities = new Map(snapshot.activities.map((activity) => [activity.id, activity]));
   const stageNames = new Map(snapshot.stages.map((stage) => [stage.id, stage.name]));
   const people = new Map(snapshot.people.map((person) => [person.id, person.name]));

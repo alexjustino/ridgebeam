@@ -33,6 +33,8 @@ import { IconButton } from '@/ui/IconButton';
 import { ACTIVITY_COLUMNS, ActivityRow } from './ActivityRow';
 import { AddForm } from './AddForm';
 import { CalendarCard } from './CalendarCard';
+import { useEndpointName } from './endpoints';
+import { LinkChip, LinksLine } from './LinksLine';
 import { chordDirection, useMover } from './moves';
 import { NameField } from './NameField';
 import type { Outcome } from './outcome';
@@ -74,6 +76,7 @@ export function Breakdown({
   const [removal, setRemoval] = useState<Removal | null>(null);
 
   const numbers = new Map(breakdown(snapshot).map((row) => [row.id, row.number]));
+  const endpointName = useEndpointName(snapshot, numbers);
   const stages = stagesInOrder(snapshot);
   const stageIds = stages.map((stage) => stage.id);
   const ordered = activitiesInOrder(snapshot);
@@ -157,6 +160,32 @@ export function Breakdown({
                         })
                       }
                     />
+                    {snapshot.dependencies.some(
+                      (dependency) =>
+                        dependency.blocked.kind === 'stage' && dependency.blocked.id === stage.id,
+                    ) && (
+                      <div className="mb-3 flex flex-col gap-1">
+                        <span className="text-caption font-semibold text-fg-tertiary">
+                          {t('plan.stageLinks')}
+                        </span>
+                        <ul className="flex flex-wrap gap-1.5">
+                          {snapshot.dependencies
+                            .filter(
+                              (dependency) =>
+                                dependency.blocked.kind === 'stage' &&
+                                dependency.blocked.id === stage.id,
+                            )
+                            .map((dependency) => (
+                              <LinkChip
+                                key={dependency.id}
+                                dependency={dependency}
+                                name={endpointName}
+                                outcome={outcome}
+                              />
+                            ))}
+                        </ul>
+                      </div>
+                    )}
                     {activities.length === 0 ? (
                       <p className="text-body text-fg-tertiary">{t('plan.activities.empty')}</p>
                     ) : (
@@ -203,7 +232,15 @@ export function Breakdown({
                                   name: activity.name,
                                 })
                               }
-                            />
+                            >
+                              <LinksLine
+                                activityId={activity.id}
+                                activityName={activity.name}
+                                snapshot={snapshot}
+                                numbers={numbers}
+                                outcome={outcome}
+                              />
+                            </ActivityRow>
                           ))}
                         </ul>
                       </>
