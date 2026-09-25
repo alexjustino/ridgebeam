@@ -81,6 +81,25 @@ export interface Activity {
   readonly unit: string | null;
 }
 
+/**
+ * Something a person has to choose before a stage can go ahead: which tile, where the outlets go.
+ * It belongs to a stage and carries a lead time; its deadline is computed, never stored
+ * (`decisions.ts`). It is made or it is not.
+ */
+export interface Decision {
+  readonly id: string;
+  readonly stageId: string;
+  /** Order inside the stage. */
+  readonly position: number;
+  readonly name: string;
+  /** Working days between deciding and having, zero or more. */
+  readonly leadTimeDays: number;
+  /** When it was made, UTC; `null` while it is open. */
+  readonly madeAt: string | null;
+  /** What was decided, as the person wrote it; only ever set on a made decision. */
+  readonly answer: string | null;
+}
+
 /** One end of a dependency: an activity, or a stage standing for all its activities. */
 export interface Endpoint {
   readonly kind: 'activity' | 'stage';
@@ -134,6 +153,7 @@ export interface WorkSnapshot {
   readonly activities: readonly Activity[];
   readonly dependencies: readonly Dependency[];
   readonly baselines: readonly Baseline[];
+  readonly decisions: readonly Decision[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────
@@ -173,6 +193,28 @@ export function activitiesInOrder(snapshot: WorkSnapshot): Activity[] {
     .filter((activity) => !stageIds.has(activity.stageId))
     .sort(byPosition);
   return [...ordered, ...orphans];
+}
+
+/**
+ * Every decision in the order the plan shows it: stage by stage, by position inside each, then the
+ * decisions whose stage is not in the plan, last, in their own position order.
+ */
+export function decisionsInOrder(snapshot: WorkSnapshot): Decision[] {
+  const byPosition = (a: Decision, b: Decision) =>
+    a.position - b.position || compareText(a.id, b.id);
+  const stageIds = new Set(snapshot.stages.map((stage) => stage.id));
+  const ordered = stagesInOrder(snapshot).flatMap((stage) => decisionsOf(snapshot, stage.id));
+  const orphans = snapshot.decisions
+    .filter((decision) => !stageIds.has(decision.stageId))
+    .sort(byPosition);
+  return [...ordered, ...orphans];
+}
+
+/** A stage's decisions, by position. */
+export function decisionsOf(snapshot: WorkSnapshot, stageId: string): Decision[] {
+  return snapshot.decisions
+    .filter((decision) => decision.stageId === stageId)
+    .sort((a, b) => a.position - b.position || compareText(a.id, b.id));
 }
 
 /** The work's calendar with its holidays, checked, or `null` when it cannot be counted on. */

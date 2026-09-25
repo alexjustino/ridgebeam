@@ -208,6 +208,38 @@ export function nextWorkingDay(calendar: WorkingCalendar, day: string): string {
 }
 
 /**
+ * The last working day on or before `day`: the day itself when it is one. The mirror of
+ * `nextWorkingDay`, with the same refusal of a calendar with no working weekday.
+ */
+export function previousWorkingDay(calendar: WorkingCalendar, day: string): string {
+  if (!calendar.workingDays.includes(true)) {
+    throw new RangeError('This calendar has no working day, so nothing can be counted on it');
+  }
+  // Ends for the same reason `nextWorkingDay` does.
+  let current = requireDay(day);
+  while (!isWorkingDay(calendar, dayOf(current))) current -= 1;
+  return dayOf(current);
+}
+
+/**
+ * The working day `n` whole working days before the last working day on or before `day`.
+ *
+ * `n = 0` is that working day itself: the day when it is one, otherwise the working day before it.
+ * A decision's deadline is the stage's start less its lead time, counted this way: a lead of 0 is
+ * the start itself, a lead of 1 the working day before it.
+ */
+export function subtractWorkingDays(calendar: WorkingCalendar, day: string, n: number): string {
+  if (!Number.isInteger(n) || n < 0) {
+    throw new RangeError(`Working days are counted back in whole days, not ${n}`);
+  }
+  let current = previousWorkingDay(calendar, day);
+  for (let counted = 0; counted < n; counted += 1) {
+    current = previousWorkingDay(calendar, addCalendarDays(current, -1));
+  }
+  return current;
+}
+
+/**
  * The working day `n` whole working days after the first working day on or after `day`.
  *
  * `n = 0` is that first working day itself. An activity of `d` working days starting on
@@ -256,11 +288,12 @@ export function workingDaysFrom(calendar: WorkingCalendar, day: string, count: n
 }
 
 /**
- * The signed distance from one working day to another, in working days: how many working days
- * after `from` the day `to` is, negative when it is before. `0` for the same day. What a slip is
- * measured in.
+ * The signed distance between two days, in working days: how many working days lie strictly after
+ * `from` up to and including `to`, negative (the same count, the other way) when `to` is before
+ * `from`, and `0` for the same day. What a slip and the days left before a deadline are measured
+ * in.
  */
-export function workingDaysDiff(calendar: WorkingCalendar, from: string, to: string): number {
+export function workingDaysUntil(calendar: WorkingCalendar, from: string, to: string): number {
   if (to === from) return 0;
   if (to > from) return workingDaysBetween(calendar, addCalendarDays(from, 1), to);
   return -workingDaysBetween(calendar, addCalendarDays(to, 1), from);

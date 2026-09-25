@@ -29,7 +29,7 @@ import {
   type Room,
   type WorkSnapshot,
 } from './plan';
-import { RULES, type RuleId } from './readiness/rules';
+import { ACTIVITY_RULES, type ActivityRuleId } from './readiness/rules';
 import type { Schedule } from './schedule';
 
 // ── Breakdown ────────────────────────────────────────────────────────────────
@@ -157,7 +157,7 @@ export function unknownRoomReferences(snapshot: WorkSnapshot): UnknownRoomRefere
 /** What a checklist line can say the plan lacks: the readiness rules, by their short name. */
 export type ChecklistMissing = 'duration' | 'responsible' | 'linked';
 
-const MISSING_OF: Record<RuleId, ChecklistMissing> = {
+const MISSING_OF: Record<ActivityRuleId, ChecklistMissing> = {
   'activity.duration': 'duration',
   'activity.responsible': 'responsible',
   'activity.linked': 'linked',
@@ -200,7 +200,7 @@ export function checklist(snapshot: WorkSnapshot, scheduled: Schedule): Checklis
       order: index + 1,
       start: dates?.start ?? null,
       finish: dates?.finish ?? null,
-      missing: RULES.filter(
+      missing: ACTIVITY_RULES.filter(
         (rule) => rule.applies(activity, snapshot) && !rule.holds(activity, snapshot),
       ).map((rule) => MISSING_OF[rule.id]),
     };
