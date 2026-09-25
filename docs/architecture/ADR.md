@@ -13,7 +13,8 @@ measure, for the two rules F0 has ([ADR-008](#adr-008)), and the plan has no pro
 before there is a diary. Slice F1 makes a third true: three lenses over one model
 ([ADR-014](#adr-014)). Slice F2 makes part of a fourth true: the first baseline is taken when
 the plan is approved and no baseline is ever overwritten ([ADR-016](#adr-016)); the reason asked
-on every later change is F8's. The other two wait for their slices.
+on every later change is F8's. Slice F3 makes a fifth true: a decision's deadline is computed
+([ADR-017](#adr-017)). The sixth, templates are plans, waits for F9.
 
 | #               | Decision                                                                                                      | Status                         |
 | --------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -33,6 +34,8 @@ on every later change is F8's. The other two wait for their slices.
 | [014](#adr-014) | A lens is a vocabulary table over the glossary, and an arrangement; nothing is stored per lens                | Accepted — 2026-09-25          |
 | [015](#adr-015) | One scheduling engine: Tessera's, copied literally and extended with the working calendar, lags and baselines | Accepted — 2026-09-25          |
 | [016](#adr-016) | Baselines are insert-only from the first one                                                                  | Accepted — 2026-09-25          |
+| [017](#adr-017) | A decision's deadline is computed, never stored                                                               | Accepted — 2026-09-25          |
+| [018](#adr-018) | Readiness is explained rule by rule, and the rules sum to the figure                                          | Accepted — 2026-09-25          |
 
 ---
 
@@ -654,3 +657,100 @@ never withdrawn. Every baseline copies every activity row, so a work approved ma
 many copies — cheap at this scale, and the price of a record that does not depend on rows that can
 change. And between F2 and F8 an approved plan can be edited with no reason asked: the slip shows
 that it moved, not why.
+
+## ADR-017 — A decision's deadline is computed, never stored {#adr-017}
+
+**Status.** Accepted — 2026-09-25.
+
+**Context.** "A decision's deadline is computed" is one of the specification's ADR-PROPOSED
+decisions (SPEC §3): the last responsible moment to decide is the earliest start of what needs
+the decision, minus its lead time, on the working calendar — and it moves when the schedule
+moves, with nobody maintaining it. Slice F3 makes it true. The tile chosen the day the tiler
+arrived is the product's first example of a build going wrong (SPEC §1): the tile had a lead
+time, nobody counted it backwards from the tiling, and no date in anybody's notes moved when
+the tiling did. A deadline typed by hand is exactly that note.
+
+**Decision.**
+
+- **A decision belongs to a stage** and holds a name ("Which tile"), a **lead time** in working
+  days (0 to 3650 — how long between deciding and having what was decided on site), its order in
+  the stage, and, once made, when (`made_at`) and an optional answer. Nothing else is stored
+  (migration 004): **no deadline column, and no overdue column**. An answer belongs to the
+  making — a decision that is not made has none, and reopening clears both.
+- **The deadline is computed** by the domain every time: the earliest scheduled start among the
+  stage's activities, from the F2 schedule ([ADR-015](#adr-015)), minus the lead time, counted
+  backwards in working days on the work's calendar — a lead time of 0 is the earliest start
+  itself. A stage with nothing scheduled — no durations yet, or a plan with a cycle — gives
+  **no deadline**, and the decision says so in words ("not yet known — nothing in this stage is
+  scheduled") instead of showing a date nobody can stand behind. Add a lag before the stage, and
+  the deadline moves by the same working days.
+- **Today is an input.** The domain never reads the clock. The interface computes the local
+  calendar day in one place and passes it in; the tests pass whatever day they are about. A
+  decision is **made**, **overdue** (its deadline is before today), **due** (with the working
+  days left, 0 meaning today) or **unknown** (no deadline). A made decision is never overdue,
+  whatever its deadline was.
+- **Overdue on creation is said, not refused.** A lead time longer than the time left makes a
+  decision overdue the moment it is added. The plan must be able to say that truth, so the
+  decision is kept and the row says, at once, how late it already is — refusing it would teach a
+  person to type a shorter lead time than the real one.
+
+**Why.** A deadline that is computed cannot be stale: it is recomputed from the schedule and the
+calendar every time it is shown, so the tiling slipping a week moves "Which tile" a week with
+it. A deadline that is typed is right on the day it is typed. And a domain that takes today as
+an input is one whose every date rule — overdue, due in three days, due today on a weekend — can
+be tested on any day of the year.
+
+**Cost accepted.** In 1.0 **a decision is needed by its whole stage**: its deadline counts from
+the stage's earliest start, not from the one activity that actually needs it. A tile decision in
+a stage whose first activity is removing the old tile is due earlier than it has to be. Tying a
+decision to one activity is a later record if it earns one. A decision in a stage with nothing
+scheduled has no deadline, and counts against readiness until the stage is scheduled
+([ADR-018](#adr-018)). And because today is the machine's local day, two people looking at the
+same work on either side of midnight can see a decision as due and as overdue — which is true.
+
+## ADR-018 — Readiness is explained rule by rule, and the rules sum to the figure {#adr-018}
+
+**Status.** Accepted — 2026-09-25.
+
+**Context.** Slice F3's proof is "readiness rule by rule with its explanation; what the plan
+does not know is a list that opens onto each row" (SPEC §7). [ADR-008](#adr-008) made readiness
+a figure computed from rules that are data. With five rules — three about activities, two about
+decisions — a single percentage no longer says enough: _62 %_ could be every duration missing or
+every decision late, and those are different evenings for the person reading it. And F2 showed
+that a rule does not always have a question to ask: a plan of one activity has nothing to link.
+
+**Decision.**
+
+- **A rule says when it applies, and a rule that does not apply is neither known nor missing.**
+  Each rule in `src/domain/readiness/rules.ts` has `applies` and `holds`. Where it does not apply
+  it is not counted at all, so it cannot move the figure: one activity with a duration and no
+  responsible still reads 1 of 2, not 1 of 3. The five rules and when each applies are in
+  [`DATA_MODEL.md`](../DATA_MODEL.md), in words.
+- **The rules sum to the figure.** `readinessByRule` returns one summary per rule, in the rules'
+  order — its known, its must-know and its missing rows — and each is a figure of its own that
+  opens onto its rows. A test holds that the rules' known and must-know add up exactly to the
+  whole figure's: there is no row the figure counts and no rule explains, and none the other
+  way round.
+- **Every rule has an explanation**: one sentence, in both languages, that says why the plan must
+  know it — "Without a duration nothing can be scheduled." — shown under the rule when it is
+  opened. The rule's count says _what_ is missing; the explanation says _why it matters_.
+- **The dashboard shows both readings.** Under the readiness figure, one line per rule — "Durations
+  · 4 of 4", "Decisions in time · 0 of 1" — each a button that opens onto that rule's rows with
+  its explanation; and "what the plan does not know" stays the flat list of every missing row,
+  grouped under the rule it fails. Two readings of one fact, computed from the same rows in the
+  same call (`DESIGN_SYSTEM.md` §2).
+- **Two rules about decisions arrive** ([ADR-017](#adr-017)): every decision must have a
+  deadline — its stage has something scheduled; and every decision whose deadline is known must
+  be made, or not yet overdue.
+
+**Why.** A figure that can be opened is a fact the reader checked (ADR-008); a figure that can be
+opened rule by rule is one they can act on in order. The sum is what keeps the two readings
+honest: a per-rule list that did not add up to the headline would be a second opinion about the
+same plan.
+
+**Cost accepted.** Every rule still weighs the same, per row ([ADR-008](#adr-008)): one overdue
+decision counts as much as one missing duration, although it may cost more. A decision in a
+stage with nothing scheduled is counted once, as missing its deadline, and is not asked whether
+it is in time until the stage is scheduled — so a decision that will be late the day its stage
+is scheduled does not say so before. The rule-by-rule list is where that is visible: the
+decision is under "no deadline yet", with the reason, not absent. That is why the explanation exists.
