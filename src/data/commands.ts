@@ -153,6 +153,7 @@ export const LIMITS = {
   name: 120,
   place: 200,
   unit: 16,
+  answer: 500,
   durationDays: 3650,
   hoursPerDay: 24,
 } as const;
@@ -339,4 +340,48 @@ export function baselineTake(
   finishDate: string | null,
 ): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('baseline_take', { rows, finish_date: finishDate });
+}
+
+// ── Decisions (F3) ───────────────────────────────────────────────────────────
+
+/** What may change on a decision. Its deadline is not here: it is computed, never stored. */
+export interface DecisionPatch {
+  name?: string;
+  /** Working days between deciding and having, 0 to 3650. */
+  leadTimeDays?: number;
+}
+
+export function decisionAdd(
+  stageId: string,
+  name: string,
+  leadTimeDays: number,
+): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('decision_add', {
+    stage_id: stageId,
+    name,
+    lead_time_days: leadTimeDays,
+  });
+}
+
+export function decisionUpdate(id: string, patch: DecisionPatch): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('decision_update', { id, patch });
+}
+
+export function decisionRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('decision_remove', { id });
+}
+
+/** Within its stage. */
+export function decisionMove(id: string, direction: Direction): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('decision_move', { id, direction });
+}
+
+/** Mark it made now, with what was decided — or `null` when nothing needs writing down. */
+export function decisionMake(id: string, answer: string | null): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('decision_make', { id, answer });
+}
+
+/** Undo the making: the date and the answer both go, because the answer belongs to the making. */
+export function decisionReopen(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('decision_reopen', { id });
 }
