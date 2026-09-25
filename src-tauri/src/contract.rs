@@ -21,6 +21,9 @@
 //!   `WorkSnapshot.dependencies`); baselines, insert-only (`Baseline`,
 //!   `BaselineRow`, `BaselineRowDraft`, `WorkSnapshot.baselines`); the moment
 //!   the plan was first approved (`Work.approvedAt`).
+//! - F3: decisions (`Decision`, `DecisionPatch`, `WorkSnapshot.decisions`). A
+//!   decision's deadline is not here and never will be: it is computed by the
+//!   domain from the schedule, every time (ADR-017).
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -232,6 +235,44 @@ pub struct WorkSnapshot {
     pub dependencies: Vec<Dependency>,
     /// Baselines, by number: 1 is the approval.
     pub baselines: Vec<Baseline>,
+    /// Decisions, by their stage's position and then their own.
+    pub decisions: Vec<Decision>,
+}
+
+/// Something the person must decide before a stage can start — "Which tile" —
+/// and how long it takes between deciding and having it on site. Its deadline
+/// is computed by the domain from the schedule; it is not a field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Decision {
+    /// UUID v7.
+    pub id: String,
+    /// The stage that needs it.
+    pub stage_id: String,
+    /// Its order inside the stage: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// What is to be decided.
+    pub name: String,
+    /// Working days between deciding and having, 0 to 3650.
+    pub lead_time_days: i64,
+    /// When it was made, UTC; `null` while it is open.
+    pub made_at: Option<String>,
+    /// What was decided, if the person wrote it; `null` while it is open, and
+    /// may be `null` once made.
+    pub answer: Option<String>,
+}
+
+/// A change to a decision's name or lead time. A field left out is left alone.
+/// Making and reopening are commands of their own, not fields.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DecisionPatch {
+    /// A new name.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// A new lead time, whole working days from 0 to 3650.
+    #[serde(default)]
+    pub lead_time_days: Option<f64>,
 }
 
 /// One end of a dependency: an activity, or a whole stage.

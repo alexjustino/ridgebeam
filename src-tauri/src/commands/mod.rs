@@ -15,6 +15,7 @@
 //! state as plain references, which is what the tests call: the behaviour is
 //! tested without a window.
 
+pub mod decisions;
 pub mod plan;
 pub mod rooms;
 pub mod schedule;

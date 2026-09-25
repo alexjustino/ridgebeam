@@ -66,6 +66,10 @@ pub const WORK: Schema = Schema {
             "003_dependencies_and_baselines",
             include_str!("../../work_migrations/003_dependencies_and_baselines.sql"),
         ),
+        (
+            "004_decisions",
+            include_str!("../../work_migrations/004_decisions.sql"),
+        ),
     ],
     read_version: "SELECT schema_version FROM work WHERE id = 1",
     write_version: "UPDATE work SET schema_version = ?1 WHERE id = 1",

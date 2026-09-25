@@ -34,6 +34,11 @@
 //!   would close a loop over the expanded graph is refused as
 //!   `dependency_cycle`, naming the loop; removing an activity or a stage takes
 //!   its dependencies with it. The schedule itself is the domain's.
+//! - F3: decisions. Work migration 004 adds a decision per stage with a lead
+//!   time, made or not, and an answer that belongs to the making. The host
+//!   never stores a deadline and never reads the clock to call one overdue:
+//!   the deadline is computed by the domain from the schedule, against a
+//!   "today" the interface passes in (ADR-017).
 
 pub mod commands;
 pub mod contract;
@@ -117,6 +122,12 @@ pub fn run() {
             commands::schedule::dependency_update,
             commands::schedule::dependency_remove,
             commands::schedule::baseline_take,
+            commands::decisions::decision_add,
+            commands::decisions::decision_update,
+            commands::decisions::decision_remove,
+            commands::decisions::decision_move,
+            commands::decisions::decision_make,
+            commands::decisions::decision_reopen,
         ])
         .build(tauri::generate_context!())
         .expect("Ridgebeam failed to start");

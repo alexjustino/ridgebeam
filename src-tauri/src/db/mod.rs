@@ -21,10 +21,13 @@
 //!   and positions kept 1..n with no gaps); work migration 002.
 //! - F2: `dependencies` (the graph, its cycle guard, its cascade) and
 //!   `baselines` (insert-only, by rule and by trigger); work migration 003.
+//! - F3: `decisions` (name, lead time, made or not — never a deadline); work
+//!   migration 004.
 
 #[cfg(test)]
 mod append_only_tests;
 pub mod baselines;
+pub mod decisions;
 pub mod dependencies;
 pub mod migrations;
 pub mod order;
