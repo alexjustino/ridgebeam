@@ -4,13 +4,13 @@ import { finishDate, placeActivities, workingCalendarOf, type WorkSnapshot } fro
 import {
   readiness,
   readinessFigure,
-  READINESS_LABEL_KEY,
   sentenceParts,
   type MissingId,
   type ReadinessRow,
 } from '@/domain/readiness';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n } from '@/i18n/useI18n';
+import { useTerms } from '@/i18n/useTerm';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { InfoBar } from '@/ui/InfoBar';
@@ -49,6 +49,7 @@ export function DashboardPage({
   closeError: string | null;
 }) {
   const { t, tp, number } = useI18n();
+  const term = useTerms();
   const measure = readiness(snapshot);
   const figure = readinessFigure(measure);
   const parts = sentenceParts(measure.missing);
@@ -86,7 +87,7 @@ export function DashboardPage({
       <Card>
         <FigureRow<ReadinessRow>
           figure={figure}
-          label={t(READINESS_LABEL_KEY)}
+          label={term('readiness', { capital: true })}
           value={t('figure.percent', { value: number(figure.value) })}
           rowsLabel={t('figure.rows')}
           renderRow={(row) => (
@@ -119,6 +120,7 @@ export function DashboardPage({
 
 function FinishCard({ snapshot }: { snapshot: WorkSnapshot }) {
   const { t, tp, day } = useI18n();
+  const term = useTerms();
   const placement = placeActivities(snapshot);
   const finish = finishDate(placement);
   const reasons = new Set(placement.flatMap((row) => ('unplaced' in row ? [row.unplaced] : [])));
@@ -136,7 +138,7 @@ function FinishCard({ snapshot }: { snapshot: WorkSnapshot }) {
           : t('dashboard.finish.unknown');
 
   return (
-    <Card title={t('dashboard.finish.title')}>
+    <Card title={term('finishDate', { capital: true })}>
       <p
         data-testid="finish-date"
         className={finish !== null ? 'text-subtitle font-semibold text-fg' : 'text-body text-fg'}
@@ -157,10 +159,11 @@ function FinishCard({ snapshot }: { snapshot: WorkSnapshot }) {
 
 function CalendarCard({ snapshot }: { snapshot: WorkSnapshot }) {
   const { t, day, number, workingDays, currency } = useI18n();
+  const term = useTerms();
   const calendar = workingCalendarOf(snapshot);
 
   return (
-    <Card title={t('dashboard.calendar.title')}>
+    <Card title={term('calendar', { capital: true })}>
       {calendar === null ? (
         <p className="text-body text-fg-secondary">{t('dashboard.calendar.unreadable')}</p>
       ) : (

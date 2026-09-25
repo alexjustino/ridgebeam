@@ -108,6 +108,9 @@ describe('accessibility', () => {
     await setValue(session, 'work-folder', path.join(parent, 'kitchen'));
     await (await driver.waitForElement('[data-testid="work-create"]')).click();
     await go(session, 'plan');
+    await (
+      await session.driver.waitForElement('[data-testid="plan-tabs"] [data-tab="breakdown"]')
+    ).click();
     await setValue(session, 'stage-add-name', 'Demolition');
     await (await driver.waitForElement('[data-testid="stage-add"]')).click();
     await driver.waitForElement('[data-stage-id]');
@@ -183,6 +186,9 @@ describe('accessibility', () => {
   it('the confirm dialog takes focus, keeps it, and gives it back on Escape', async () => {
     const { driver } = session;
     await go(session, 'plan');
+    await (
+      await session.driver.waitForElement('[data-testid="plan-tabs"] [data-tab="breakdown"]')
+    ).click();
     const remove = await driver.waitForElement(
       '[data-activity-id] [data-testid="activity-remove"]',
     );

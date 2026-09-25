@@ -3,9 +3,11 @@ import { Checkmark12Filled } from '@fluentui/react-icons';
 /**
  * The canonical checkbox.
  *
- * A real `<input type="checkbox">` sits underneath, visually hidden but present:
- * it carries the accessible role, the keyboard behaviour and the form
- * semantics for free. Only the box is drawn.
+ * The real `<input type="checkbox">` **is** the box: its native look is removed and it is drawn
+ * from the token layer, so it carries the accessible role, the keyboard behaviour, the form
+ * semantics and the global `:focus-visible` ring for free, and it is the element a pointer, a
+ * keyboard and an automation driver all reach. The check mark is drawn over it and takes no
+ * pointer events. (A box drawn beside an invisible input is a box that tools consider not there.)
  */
 export function Checkbox({
   checked,
@@ -27,21 +29,18 @@ export function Checkbox({
         disabled={disabled}
         aria-label={label}
         onChange={(event) => onChange(event.target.checked)}
-        className="peer absolute inset-0 z-10 cursor-pointer opacity-0 disabled:cursor-not-allowed"
-      />
-      <span
-        aria-hidden="true"
         className={[
-          'grid size-4 place-items-center rounded-sm border transition-colors duration-100 ease-easy',
-          checked
-            ? 'border-accent bg-accent text-fg-on-accent'
-            : 'border-stroke-strong bg-card peer-hover:border-fg-secondary',
-          'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-(--focus-ring)',
-          'peer-disabled:border-stroke-subtle peer-disabled:bg-card',
+          'peer size-4 cursor-pointer appearance-none rounded-sm border bg-card',
+          'transition-colors duration-100 ease-easy',
+          'border-stroke-strong hover:border-fg-secondary',
+          'checked:border-accent checked:bg-accent checked:hover:border-accent',
+          'disabled:cursor-not-allowed disabled:border-stroke-subtle disabled:bg-card',
         ].join(' ')}
-      >
-        {checked && <Checkmark12Filled />}
-      </span>
+      />
+      <Checkmark12Filled
+        aria-hidden="true"
+        className="pointer-events-none absolute hidden text-fg-on-accent peer-checked:block"
+      />
     </span>
   );
 }

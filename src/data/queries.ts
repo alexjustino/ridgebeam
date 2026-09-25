@@ -18,9 +18,22 @@
 
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
+import type { Direction } from '@/domain/ordering';
+import type { Holiday } from '@/domain/plan';
+
 import {
   accentRamp,
   activityAdd,
+  activityMove,
+  activitySetRooms,
+  calendarSet,
+  personRemove,
+  personRename,
+  roomAdd,
+  roomMove,
+  roomRemove,
+  roomRename,
+  stageMove,
   activityRemove,
   activityUpdate,
   diagnostics,
@@ -39,6 +52,7 @@ import {
   workOpen,
   workUpdate,
   type ActivityPatch,
+  type CalendarDraft,
   type SettingKey,
   type Settings,
   type WorkDraft,
@@ -218,4 +232,53 @@ export function useUpdateActivity() {
 
 export function useRemoveActivity() {
   return useWorkCommand((id: string) => activityRemove(id));
+}
+
+export function useSetCalendar() {
+  return useWorkCommand(
+    ({ calendar, holidays }: { calendar: CalendarDraft; holidays: readonly Holiday[] }) =>
+      calendarSet(calendar, holidays),
+  );
+}
+
+export function useRenamePerson() {
+  return useWorkCommand(({ id, name }: { id: string; name: string }) => personRename(id, name));
+}
+
+export function useRemovePerson() {
+  return useWorkCommand((id: string) => personRemove(id));
+}
+
+export function useAddRoom() {
+  return useWorkCommand((name: string) => roomAdd(name));
+}
+
+export function useRenameRoom() {
+  return useWorkCommand(({ id, name }: { id: string; name: string }) => roomRename(id, name));
+}
+
+export function useRemoveRoom() {
+  return useWorkCommand((id: string) => roomRemove(id));
+}
+
+/** A move names what moves: a stage, an activity inside its stage, or a room. */
+export type MoveKind = 'stage' | 'activity' | 'room';
+
+const MOVES: Record<MoveKind, (id: string, direction: Direction) => Promise<WorkSnapshot>> = {
+  stage: stageMove,
+  activity: activityMove,
+  room: roomMove,
+};
+
+export function useMove() {
+  return useWorkCommand(
+    ({ kind, id, direction }: { kind: MoveKind; id: string; direction: Direction }) =>
+      MOVES[kind](id, direction),
+  );
+}
+
+export function useSetActivityRooms() {
+  return useWorkCommand(({ id, roomIds }: { id: string; roomIds: readonly string[] }) =>
+    activitySetRooms(id, roomIds),
+  );
 }

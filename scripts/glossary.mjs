@@ -2,8 +2,9 @@
  * The glossary is data; this renders it for people who read the repository.
  *
  * `src/i18n/glossary.json` holds every term the product shows, with its plain
- * sentence, in every language the product speaks (SPEC §2.13). This script
- * checks that file and writes `docs/GLOSSARY.md` from it, so the page a
+ * sentence, in every language the product speaks (SPEC §2.13) — and, where a
+ * term changes with the lens, the word each lens uses instead (ADR-014). This
+ * script checks that file and writes `docs/GLOSSARY.md` from it, so the page a
  * contributor reads and the data the product uses are one fact, not two.
  *
  *   node scripts/glossary.mjs           validate, then write docs/GLOSSARY.md
@@ -15,11 +16,14 @@
  * hand, fails it. Validation failures stop both modes — a glossary with a
  * missing Portuguese sentence is not rendered, because a page that looks
  * complete while the data is not is the defect this exists to prevent.
+ *
+ * `validate` and `render` are exported so they can be exercised on fixtures;
+ * the command runs only when this file is the entry point.
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = 'src/i18n/glossary.json';
@@ -28,18 +32,46 @@ const TARGET = 'docs/GLOSSARY.md';
 /**
  * The column headings for each language, in that language. A language the
  * data declares and this table does not know is a failure, not a guess: the
- * page would otherwise gain two columns headed by a language code.
+ * page would otherwise gain columns headed by a language code.
  */
 const HEADINGS = {
-  en: { name: 'English', term: 'English term', sentence: 'Sentence (en)' },
-  'pt-BR': { name: 'Portuguese (Brazil)', term: 'Termo (pt-BR)', sentence: 'Frase (pt-BR)' },
+  en: {
+    name: 'English',
+    term: 'English term',
+    sentence: 'Sentence (en)',
+    lenses: { engineer: 'Engineer (en)', architect: 'Architect (en)', owner: 'Owner (en)' },
+  },
+  'pt-BR': {
+    name: 'Portuguese (Brazil)',
+    term: 'Termo (pt-BR)',
+    sentence: 'Frase (pt-BR)',
+    lenses: {
+      engineer: 'Engenheiro (pt-BR)',
+      architect: 'Arquiteto (pt-BR)',
+      owner: 'Dono (pt-BR)',
+    },
+  },
 };
+
+/**
+ * The lenses, in the order the page shows them. The same closed list the host
+ * keeps for the `lens` setting (ADR-013); a lens the data names and this list
+ * does not is a failure.
+ */
+const LENSES = ['engineer', 'architect', 'owner'];
 
 /** A key is camelCase: a lower-case letter, then letters and digits. */
 const KEY = /^[a-z][a-zA-Z0-9]*$/;
 
+/** A non-empty, single-line string, or the reason it is not one. */
+function textProblem(value) {
+  if (typeof value !== 'string' || value.trim() === '') return 'is empty';
+  if (/[\r\n]/.test(value)) return 'spans more than one line';
+  return null;
+}
+
 /** Every problem in the data, not just the first. */
-function validate(data) {
+export function validate(data) {
   const problems = [];
 
   const languages = data?.languages;
@@ -82,12 +114,37 @@ function validate(data) {
         continue;
       }
       for (const field of ['term', 'sentence']) {
-        const value = text[field];
-        if (typeof value !== 'string' || value.trim() === '') {
-          problems.push(`${label}: ${language}.${field} is empty`);
-        } else if (/[\r\n]/.test(value)) {
-          problems.push(`${label}: ${language}.${field} spans more than one line`);
+        const problem = textProblem(text[field]);
+        if (problem !== null) problems.push(`${label}: ${language}.${field} ${problem}`);
+      }
+      for (const field of Object.keys(text)) {
+        if (!['term', 'sentence', 'lenses'].includes(field)) {
+          problems.push(`${label}: ${language}.${field} is not a field a term has`);
         }
+      }
+
+      // The lenses are optional; when present, a closed set of names, each
+      // with a word. The sentence never varies by lens, so there is nowhere
+      // here to put one.
+      if (!('lenses' in text)) continue;
+      const lenses = text.lenses;
+      if (lenses === null || typeof lenses !== 'object' || Array.isArray(lenses)) {
+        problems.push(`${label}: ${language}.lenses must be an object of lens to term`);
+        continue;
+      }
+      const names = Object.keys(lenses);
+      if (names.length === 0) {
+        problems.push(`${label}: ${language}.lenses is empty — leave it out instead`);
+      }
+      for (const lens of names) {
+        if (!LENSES.includes(lens)) {
+          problems.push(
+            `${label}: ${language}.lenses.${lens} is not a lens (${LENSES.join(', ')})`,
+          );
+          continue;
+        }
+        const problem = textProblem(lenses[lens]);
+        if (problem !== null) problems.push(`${label}: ${language}.lenses.${lens} ${problem}`);
       }
     }
 
@@ -106,7 +163,27 @@ function cell(text) {
   return text.trim().replace(/\|/g, '\\|');
 }
 
-function render(data) {
+/** The word a lens shows for a term in a language: its own, or the term. */
+function termFor(text, lens) {
+  return text.lenses?.[lens] ?? text.term;
+}
+
+/** A term varies when, in any language, some lens shows a word other than the term. */
+function varies(entry, languages) {
+  return languages.some((language) =>
+    LENSES.some((lens) => termFor(entry[language], lens).trim() !== entry[language].term.trim()),
+  );
+}
+
+function table(header, rows) {
+  return [
+    `| ${header.join(' | ')} |`,
+    `| ${header.map(() => '---').join(' | ')} |`,
+    ...rows.map((cells) => `| ${cells.join(' | ')} |`),
+  ];
+}
+
+export function render(data) {
   const { languages, terms } = data;
   const names = languages.map((language) => HEADINGS[language].name).join(' and ');
 
@@ -114,13 +191,25 @@ function render(data) {
   for (const language of languages) {
     header.push(HEADINGS[language].term, HEADINGS[language].sentence);
   }
-
   const rows = terms.map((entry) => {
     const cells = [`\`${entry.key}\``];
     for (const language of languages) {
       cells.push(cell(entry[language].term), cell(entry[language].sentence));
     }
-    return `| ${cells.join(' | ')} |`;
+    return cells;
+  });
+
+  const lensHeader = ['Key'];
+  for (const language of languages) {
+    for (const lens of LENSES) lensHeader.push(HEADINGS[language].lenses[lens]);
+  }
+  const varying = terms.filter((entry) => varies(entry, languages));
+  const lensRows = varying.map((entry) => {
+    const cells = [`\`${entry.key}\``];
+    for (const language of languages) {
+      for (const lens of LENSES) cells.push(cell(termFor(entry[language], lens)));
+    }
+    return cells;
   });
 
   const lines = [
@@ -134,18 +223,32 @@ function render(data) {
     `[\`${SOURCE}\`](../${SOURCE}); the tests read it and so does this page. To change a`,
     'term, edit the JSON and run `npm run glossary`. `npm run check:glossary`, one of the gates,',
     'fails when this page and the data disagree — and, before that, when any term is missing a',
-    'language, a term or a sentence.',
+    'language, a term or a sentence, or names a lens that does not exist.',
     '',
-    'A term shown on a screen that is not here is a defect (SPEC §2.13, §6). A lens changes which',
-    'of these words a screen uses; it never stores anything.',
+    'A term shown on a screen that is not here is a defect (SPEC §2.13, §6).',
     '',
     `${terms.length} terms.`,
     '',
-    `| ${header.join(' | ')} |`,
-    `| ${header.map(() => '---').join(' | ')} |`,
-    ...rows,
+    ...table(header, rows),
+    '',
+    '## The lenses',
+    '',
+    'A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a term changes',
+    'with the lens, the word each lens shows is below; a lens with no word of its own shows the term.',
+    'The sentence never changes with the lens, and nothing about a work is stored per lens.',
     '',
   ];
+
+  if (varying.length === 0) {
+    lines.push('No term changes with the lens yet.', '');
+  } else {
+    lines.push(
+      `${varying.length} of the ${terms.length} terms change with the lens.`,
+      '',
+      ...table(lensHeader, lensRows),
+      '',
+    );
+  }
   return lines.join('\n');
 }
 
@@ -169,43 +272,50 @@ function differences(expected, actual, limit = 10) {
   return out;
 }
 
-const check = process.argv.includes('--check');
+function main() {
+  const check = process.argv.includes('--check');
 
-let data;
-try {
-  data = JSON.parse(readFileSync(path.join(root, SOURCE), 'utf-8'));
-} catch (error) {
-  console.error(`${SOURCE} could not be read: ${error.message}`);
-  process.exit(1);
+  let data;
+  try {
+    data = JSON.parse(readFileSync(path.join(root, SOURCE), 'utf-8'));
+  } catch (error) {
+    console.error(`${SOURCE} could not be read: ${error.message}`);
+    return 1;
+  }
+
+  const problems = validate(data);
+  if (problems.length > 0) {
+    console.error(`${SOURCE} is not a complete glossary:\n`);
+    for (const problem of problems) console.error(`  ${problem}`);
+    return 1;
+  }
+
+  const expected = render(data);
+  const target = path.join(root, TARGET);
+
+  if (!check) {
+    writeFileSync(target, expected, 'utf-8');
+    console.log(`${TARGET}: ${data.terms.length} terms in ${data.languages.join(', ')}`);
+    return 0;
+  }
+
+  if (!existsSync(target)) {
+    console.error(`${TARGET} does not exist. Run \`npm run glossary\`.`);
+    return 1;
+  }
+
+  const actual = readFileSync(target, 'utf-8');
+  if (actual !== expected) {
+    console.error(`${TARGET} is not what ${SOURCE} generates:\n`);
+    for (const line of differences(expected, actual)) console.error(line);
+    console.error('\nThe JSON is the source. Run `npm run glossary` and commit the page with it.');
+    return 1;
+  }
+
+  console.log(`${TARGET} agrees with ${SOURCE}: ${data.terms.length} terms`);
+  return 0;
 }
 
-const problems = validate(data);
-if (problems.length > 0) {
-  console.error(`${SOURCE} is not a complete glossary:\n`);
-  for (const problem of problems) console.error(`  ${problem}`);
-  process.exit(1);
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.exit(main());
 }
-
-const expected = render(data);
-const target = path.join(root, TARGET);
-
-if (!check) {
-  writeFileSync(target, expected, 'utf-8');
-  console.log(`${TARGET}: ${data.terms.length} terms in ${data.languages.join(', ')}`);
-  process.exit(0);
-}
-
-if (!existsSync(target)) {
-  console.error(`${TARGET} does not exist. Run \`npm run glossary\`.`);
-  process.exit(1);
-}
-
-const actual = readFileSync(target, 'utf-8');
-if (actual !== expected) {
-  console.error(`${TARGET} is not what ${SOURCE} generates:\n`);
-  for (const line of differences(expected, actual)) console.error(line);
-  console.error('\nThe JSON is the source. Run `npm run glossary` and commit the page with it.');
-  process.exit(1);
-}
-
-console.log(`${TARGET} agrees with ${SOURCE}: ${data.terms.length} terms`);

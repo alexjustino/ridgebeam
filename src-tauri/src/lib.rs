@@ -20,6 +20,13 @@
 //!   F0 contract: system, settings, recent works, the work, its calendar,
 //!   people, stages and activities, and diagnostics. There is no command that
 //!   writes progress.
+//! - F1: the plan. Work migration 002 adds rooms, the rooms an activity
+//!   touches, and an activity's quantity and unit. Rooms are added, renamed,
+//!   removed and moved; an activity's rooms are replaced whole; stages, rooms
+//!   and activities move one step up or down, with positions kept 1..n; a
+//!   person is renamed or removed, and their activities are left with nobody
+//!   responsible. The lens is a setting and a vocabulary — nothing about it is
+//!   stored in a work, so nothing about it is here.
 
 pub mod commands;
 pub mod contract;
@@ -90,6 +97,15 @@ pub fn run() {
             commands::plan::activity_add,
             commands::plan::activity_update,
             commands::plan::activity_remove,
+            commands::plan::activity_move,
+            commands::plan::stage_move,
+            commands::plan::person_rename,
+            commands::plan::person_remove,
+            commands::rooms::room_add,
+            commands::rooms::room_rename,
+            commands::rooms::room_remove,
+            commands::rooms::room_move,
+            commands::rooms::activity_set_rooms,
         ])
         .build(tauri::generate_context!())
         .expect("Ridgebeam failed to start");

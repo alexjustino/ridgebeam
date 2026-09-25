@@ -71,17 +71,25 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slice **F0**, and only F0:
+Slices **F0** and **F1**, and nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and offers a
   way to find it. Everything about a work is one SQLite file inside its folder, checkpointed and
   closed when the work closes.
-- **Stages and activities on a working calendar.** A start date, working days and hours per
-  day (holidays are counted by the calendar; the screen to enter them arrives with F1); a stage
-  with activities, each with a duration in working days and a responsible. Activities are
-  placed on the calendar one after another — a deliberately simple placement until the critical
-  path arrives in F2.
+- **Stages and activities on a working calendar.** A start date, working days, hours per day
+  and holidays, all edited on the Plan; a stage with activities, each with a duration in working
+  days and a responsible. Activities are placed on the calendar one after another — a
+  deliberately simple placement until the critical path arrives in F2.
+- **The plan (F1).** Rooms and areas, the rooms each activity touches, and an optional quantity
+  with its unit (12 m² of tile). Stages, activities and rooms reordered by button or by
+  keyboard (Alt+Arrow), with the numbering following. People renamed and removed. The same rows
+  in three arrangements — the numbered **breakdown** where editing lives, the works **by room**,
+  and the owner's **checklist** — with none of them a copy of another.
+- **Three lenses, one model (F1).** The engineer's, the architect's and the owner's words for
+  the same things — _activity_, _work item_, _job_ — switched from the title bar, in both
+  languages, from a vocabulary table in the glossary. The lens is the person's setting; switching
+  it stores nothing in the work.
 - **Readiness.** A figure that says how much of what the plan must know it does know, from two
   rules — every activity has a duration, every activity has a responsible — that opens onto the
   rows it counts and says in a sentence what is missing, in English and in Portuguese.
@@ -93,15 +101,15 @@ Slice **F0**, and only F0:
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirteen binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), fourteen binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
 Not yet, and not pretended: dependencies and the critical path, baselines, decisions, the
-diary, checks, money, people beyond a name, documents and photos, replanning, templates, the
-lenses changing the vocabulary (the setting exists; the words arrive in F1), reports, backup.
+diary, checks, money, people beyond a name, documents and photos, replanning, templates,
+reports, backup.
 Each arrives with its slice, in the order the [specification](docs/SPEC.md) §7 lists.
 
 ## Run it from source

@@ -8,6 +8,7 @@ import {
   type LensChoice,
   type ThemeChoice,
 } from '@/domain/settings';
+import { LENS_KEYS } from '@/features/shell/lenses';
 import type { MessageKey } from '@/i18n/en';
 import { LANGUAGE_AUTONYMS } from '@/i18n/index';
 import { useI18n } from '@/i18n/useI18n';
@@ -20,12 +21,6 @@ const THEME_KEYS: Record<ThemeChoice, MessageKey> = {
   system: 'settings.theme.system',
   light: 'settings.theme.light',
   dark: 'settings.theme.dark',
-};
-
-const LENS_KEYS: Record<LensChoice, MessageKey> = {
-  owner: 'settings.lens.owner',
-  architect: 'settings.lens.architect',
-  engineer: 'settings.lens.engineer',
 };
 
 /**

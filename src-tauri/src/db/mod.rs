@@ -12,9 +12,18 @@
 //! with different lists ([`migrations::APP`], [`migrations::WORK`]), and written
 //! by repositories that hold SQL and no opinion. What a plan means — readiness,
 //! the schedule, what is missing — is pure TypeScript in `src/domain/`.
+//!
+//! # Changelog of this module
+//!
+//! - F0: the two databases, their pragmas and migrations; settings, recent
+//!   works, and the work's plan.
+//! - F1: `rooms` (rooms and the rooms an activity touches) and `order` (moves,
+//!   and positions kept 1..n with no gaps); work migration 002.
 
 pub mod migrations;
+pub mod order;
 pub mod recent;
+pub mod rooms;
 pub mod settings;
 pub mod work;
 

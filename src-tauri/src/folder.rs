@@ -499,4 +499,26 @@ mod tests {
         let absolute = std::env::temp_dir();
         assert_eq!(folder_path(&absolute.to_string_lossy()).unwrap(), absolute);
     }
+
+    /// A work folder written by F0 — a file on disk at schema 1 — is opened by
+    /// F1, migrated in place, and closed back to one file.
+    #[test]
+    fn a_work_folder_written_at_schema_one_opens_migrated_and_keeps_its_rows() {
+        let scratch = Scratch::create();
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+        }
+
+        let state = open(scratch.path()).expect("open an F0 work");
+
+        assert_eq!(migrations::WORK.current_version(&state.conn), 2);
+        let plan = db::work::snapshot(&state.conn).unwrap();
+        assert_eq!(plan.activities[0].name, "Tiling");
+        assert_eq!(plan.activities[0].duration_days, Some(3));
+        assert!(plan.rooms.is_empty());
+        close(state);
+        assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
+    }
 }

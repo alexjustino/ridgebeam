@@ -6,6 +6,7 @@ import {
   hasDuration,
   isPlaced,
   placeActivities,
+  roomsInOrder,
   stagesInOrder,
   workingCalendarOf,
   type Activity,
@@ -27,6 +28,7 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     calendar: { workingDays: '1111100', hoursPerDay: 8 },
     holidays: [],
     people: [],
+    rooms: [],
     stages: [],
     activities: [],
     ...parts,
@@ -41,7 +43,17 @@ const activity = (
   position: number,
   durationDays: number | null,
   responsibleId: string | null = null,
-): Activity => ({ id, stageId, position, name: `Activity ${id}`, durationDays, responsibleId });
+): Activity => ({
+  id,
+  stageId,
+  position,
+  name: `Activity ${id}`,
+  durationDays,
+  responsibleId,
+  roomIds: [],
+  quantity: null,
+  unit: null,
+});
 
 describe('a duration', () => {
   it('is a whole number of working days above zero', () => {
@@ -260,5 +272,32 @@ describe('the finish date', () => {
   it('tells a placed row from an unplaced one', () => {
     expect(isPlaced({ activityId: 'a', start: '2026-09-01', finish: '2026-09-01' })).toBe(true);
     expect(isPlaced({ activityId: 'a', unplaced: 'no-duration' })).toBe(false);
+  });
+});
+
+describe('rooms', () => {
+  it('are taken by position, then by id when positions tie, not by the order they were added', () => {
+    const plan = snapshot({
+      rooms: [
+        { id: 'kitchen', position: 2, name: 'Kitchen' },
+        { id: 'bath-b', position: 1, name: 'Bathroom' },
+        { id: 'bath-a', position: 1, name: 'Bathroom' },
+      ],
+    });
+    expect(roomsInOrder(plan).map((room) => room.id)).toEqual(['bath-a', 'bath-b', 'kitchen']);
+  });
+
+  it('are none in a plan that has none', () => {
+    expect(roomsInOrder(snapshot())).toEqual([]);
+  });
+
+  it('do not change where an activity is placed, and neither does its quantity', () => {
+    const plain = snapshot({ stages: [stage('s', 1)], activities: [activity('a', 's', 1, 2)] });
+    const withRooms = snapshot({
+      ...plain,
+      rooms: [{ id: 'r', position: 1, name: 'Room' }],
+      activities: [{ ...activity('a', 's', 1, 2), roomIds: ['r'], quantity: 12, unit: 'm²' }],
+    });
+    expect(placeActivities(withRooms)).toEqual(placeActivities(plain));
   });
 });

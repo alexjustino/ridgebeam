@@ -101,45 +101,103 @@ export const en = {
     'The folder dialog could not be opened. Type or paste the folder’s path instead.',
 
   // ── Plan ──────────────────────────────────────────────────────────────────
-  'plan.lead':
-    'The stages in order, each with its activities. A duration is counted in working days; leave it empty until you know it.',
   'plan.people.title': 'People',
   'plan.people.description':
     'A person is a name, not an account. Anyone added here can be made responsible for an activity.',
   'plan.people.empty': 'Nobody yet.',
   'plan.person.name': 'Name of the person',
   'plan.person.add': 'Add person',
-  'plan.stages.title': 'Stages',
-  'plan.stage.name': 'Name of the new stage',
-  'plan.stage.add': 'Add stage',
-  'plan.stage.remove': 'Remove stage',
   'plan.stages.emptyTitle': 'No stage yet',
   'plan.stages.emptyDescription':
     'A stage is a chapter of the work — demolition, rough-in, tiling. Add the first one above.',
-  'plan.activities.empty': 'No activity in this stage yet.',
-  'plan.activity.newName': 'Name of the new activity in {stage}',
-  'plan.activity.add': 'Add activity',
-  'plan.column.activity': 'Activity',
-  'plan.column.duration': 'Duration (working days)',
-  'plan.column.responsible': 'Responsible',
-  'plan.column.actions': 'Actions',
-  'plan.activity.nameOf': 'Name of {activity}',
-  'plan.activity.durationOf': 'Duration of {activity}, in working days',
-  'plan.activity.responsibleOf': 'Responsible for {activity}',
   'plan.activity.notKnown': 'Not yet known',
-  'plan.activity.remove': 'Remove',
   'plan.invalid.duration': 'A duration is a whole number of working days, from 1 to {max}.',
   'plan.invalid.name': 'A name cannot be empty.',
   'plan.refused': 'That change was not kept',
-  'plan.confirm.stageTitle': 'Remove the stage “{name}”?',
   'plan.confirm.stageEmpty': 'It has no activity. This cannot be undone.',
   'plan.confirm.stageBody.one': 'Its {count} activity is removed with it. This cannot be undone.',
   'plan.confirm.stageBody.other':
     'Its {count} activities are removed with it. This cannot be undone.',
-  'plan.confirm.activityTitle': 'Remove the activity “{name}”?',
   'plan.confirm.activityBody':
     'Its duration and its responsible go with it. This cannot be undone.',
-  'plan.confirm.activityConfirm': 'Remove activity',
+
+  // ── Plan: arrangements, rows and order (F1) ─────────────────────────────
+  'shell.lensChosen': 'Lens: {lens}. The words on every screen follow it.',
+  'settings.lens.note':
+    'The words on every screen, and the arrangement the plan opens on. Nothing about a work is kept per lens: switching never changes a plan.',
+  'plan.lead':
+    'Three arrangements of the same rows. The breakdown is where the plan is edited; the other two show it by where it happens and as a list to follow.',
+  'plan.tabs': 'Arrangements of the plan',
+  'plan.tab.breakdown': 'Breakdown',
+  'plan.tab.byRoom': 'By {room}',
+  'plan.tab.checklist': 'Checklist',
+  'plan.fieldOf': '{field}: {name}',
+  'plan.unit': 'Unit',
+  'plan.unitOf': 'Unit: {name}',
+  'plan.remove': 'Remove',
+  'plan.removeNamed': 'Remove: {name}',
+  'plan.rename': 'Rename: {name}',
+  'plan.add': 'Add {what}',
+  'plan.toAdd': '{what} to add',
+  'plan.toAddIn': '{what} to add in {where}',
+  'plan.move.up': 'Move up: {name}',
+  'plan.move.down': 'Move down: {name}',
+  'plan.move.hint': 'Alt+Up and Alt+Down move the row that has the focus, one place at a time.',
+  'plan.move.done': '{name} is now {number}.',
+  'plan.move.alreadyFirst': '{name} is already first.',
+  'plan.move.alreadyLast': '{name} is already last.',
+  'plan.column.duration': '{duration} (working days)',
+  'plan.activities.empty': 'Nothing here yet.',
+  'plan.rooms.title': 'Where the work happens',
+  'plan.rooms.description':
+    'The parts of the work — kitchen, bathroom, roof. Each row of the plan says which ones it touches.',
+  'plan.rooms.empty': 'Nothing yet.',
+  'plan.rooms.noneYet': 'There is no {room} in the plan yet — add one above.',
+  'plan.quantity.kept': 'Kept: {amount}',
+  'plan.invalid.quantity': 'Enter a number, 0 or more.',
+  'plan.invalid.unitNeedsQuantity': 'A unit waits for an amount — enter the number first.',
+  'plan.confirm.removeTitle': 'Remove “{name}”?',
+  'plan.confirm.personNone': 'Nothing in the plan names them yet. This cannot be undone.',
+  'plan.confirm.personBody.one':
+    '{count} activity they answer for will be left with no responsible, and readiness will drop by as much. This cannot be undone.',
+  'plan.confirm.personBody.other':
+    '{count} activities they answer for will be left with no responsible, and readiness will drop by as much. This cannot be undone.',
+  'plan.confirm.roomNone': 'No row of the plan is marked there yet.',
+  'plan.confirm.roomBody.one':
+    'The {count} activity marked there stays in the plan; it is just no longer marked there.',
+  'plan.confirm.roomBody.other':
+    'The {count} activities marked there stay in the plan; they are just no longer marked there.',
+  'plan.calendar.show': 'Edit',
+  'plan.calendar.hide': 'Close',
+  'plan.calendar.hours': '{hours} hours per working day',
+  'plan.calendar.noHolidays': 'No holidays',
+  'plan.calendar.holidays.one': '{count} holiday',
+  'plan.calendar.holidays.other': '{count} holidays',
+  'plan.calendar.badHoliday': '{date} is not a day on the calendar.',
+  'plan.calendar.holidaysTitle': 'Holidays',
+  'plan.calendar.holidayDay': 'Holiday date',
+  'plan.calendar.holidayName': 'Holiday name',
+  'plan.calendar.holidayDate': 'Choose the holiday’s date first.',
+  'plan.calendar.holidayTwice': '{day} is already on the list.',
+  'plan.calendar.notSaved': 'The calendar was not saved',
+  'plan.calendar.save': 'Save calendar',
+  'plan.calendar.saved': 'Saved. The finish date follows it.',
+  'plan.calendar.unsaved': 'Changes not saved yet.',
+  'plan.byRoom.emptyTitle': 'Nothing to arrange yet',
+  'plan.byRoom.emptyDescription':
+    'Add stages in the breakdown, and mark on each row where it happens.',
+  'plan.byRoom.none': 'No {room} yet',
+  'plan.byRoom.nothing': 'Nothing is marked here yet.',
+  'plan.byRoom.alsoIn': 'also in {rooms}',
+  'plan.editInBreakdown': 'Edit in the breakdown',
+  'plan.checklist.note':
+    'The box is ticked by the diary, from the day it arrives in a later version — nothing is marked done here.',
+  'plan.checklist.days.one': '{count} working day',
+  'plan.checklist.days.other': '{count} working days',
+  'plan.checklist.from': 'from {day}',
+  'plan.checklist.emptyTitle': 'Nothing to list yet',
+  'plan.checklist.emptyDescription':
+    'Each row of the plan becomes a line here, in the order the calendar places it.',
 
   // ── Readiness and the figure ──────────────────────────────────────────────
   'readiness.label': 'Readiness',
@@ -163,7 +221,6 @@ export const en = {
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
   'dashboard.lead': 'The work at a glance. Every number opens onto the rows it came from.',
-  'dashboard.finish.title': 'Finish date',
   'dashboard.finish.unknown': 'Not yet known — no activity has a duration.',
   'dashboard.finish.invalidCalendar': 'Not yet known — the working calendar cannot be counted on.',
   'dashboard.finish.invalidStart': 'Not yet known — the start date is not a day.',
@@ -171,7 +228,6 @@ export const en = {
   'dashboard.finish.leftOut.other': 'Leaves out {count} activities with no duration.',
   'dashboard.finish.sequential':
     'Activities are placed one after another, stage by stage, from the start date.',
-  'dashboard.calendar.title': 'Working calendar',
   'dashboard.calendar.start': 'Starts',
   'dashboard.calendar.days': 'Working days',
   'dashboard.calendar.hours': 'Hours per working day',
@@ -201,8 +257,6 @@ export const en = {
   'settings.lens.owner': 'Owner',
   'settings.lens.architect': 'Architect',
   'settings.lens.engineer': 'Engineer',
-  'settings.lens.note':
-    'Kept now. The screens speak the owner’s words today; the other lenses change them in a later version.',
   'settings.refused': 'The choice was not kept',
   'settings.unread': 'These are the built-in choices',
 

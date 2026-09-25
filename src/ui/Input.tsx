@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from 'react';
+import type { ComponentProps } from 'react';
 
 import { FIELD_SURFACE } from './fieldSurface';
 
@@ -10,7 +10,7 @@ import { FIELD_SURFACE } from './fieldSurface';
  * surface itself is shared with `TextArea`, which is the same field with more
  * than one line in it.
  */
-export function Input({ className = '', ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ className = '', ...rest }: ComponentProps<'input'>) {
   return (
     <input className={['h-(--density-control)', FIELD_SURFACE, className].join(' ')} {...rest} />
   );

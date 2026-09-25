@@ -14,47 +14,108 @@
       }
     },
     {
+      "key": "plan",
+      "en": {
+        "term": "plan",
+        "sentence": "The stages and activities of a work, in order, with what each one needs. It is intent: what actually happened is the diary’s to say.",
+        "lenses": {
+          "engineer": "work breakdown",
+          "architect": "works by room",
+          "owner": "the plan"
+        }
+      },
+      "pt-BR": {
+        "term": "plano",
+        "sentence": "As etapas e as atividades de uma obra, em ordem, com o que cada uma precisa. É intenção: o que de fato aconteceu é o diário que diz.",
+        "lenses": {
+          "engineer": "estrutura analítica",
+          "architect": "obra por cômodo",
+          "owner": "o plano"
+        }
+      }
+    },
+    {
       "key": "stage",
       "en": {
         "term": "stage",
-        "sentence": "A chapter of the work — demolition, rough-in, plaster, tiling — that holds activities and cannot start or close before its checks are answered."
+        "sentence": "A chapter of the work — demolition, rough-in, plaster, tiling — that holds activities and cannot start or close before its checks are answered.",
+        "lenses": {
+          "engineer": "stage",
+          "architect": "phase",
+          "owner": "stage"
+        }
       },
       "pt-BR": {
         "term": "etapa",
-        "sentence": "Um capítulo da obra — demolição, instalações, reboco, revestimento — que reúne atividades e não começa nem fecha antes de as suas verificações serem respondidas."
+        "sentence": "Um capítulo da obra — demolição, instalações, reboco, revestimento — que reúne atividades e não começa nem fecha antes de as suas verificações serem respondidas.",
+        "lenses": {
+          "engineer": "etapa",
+          "architect": "fase",
+          "owner": "etapa"
+        }
       }
     },
     {
       "key": "activity",
       "en": {
         "term": "activity",
-        "sentence": "One piece of work inside a stage, with a duration, a person responsible and the rooms it touches."
+        "sentence": "One piece of work inside a stage, with a duration, a person responsible and the rooms it touches.",
+        "lenses": {
+          "engineer": "activity",
+          "architect": "work item",
+          "owner": "job"
+        }
       },
       "pt-BR": {
         "term": "atividade",
-        "sentence": "Um pedaço de trabalho dentro de uma etapa, com duração, um responsável e os cômodos que ela toca."
+        "sentence": "Um pedaço de trabalho dentro de uma etapa, com duração, um responsável e os cômodos que ela toca.",
+        "lenses": {
+          "engineer": "atividade",
+          "architect": "serviço",
+          "owner": "serviço"
+        }
       }
     },
     {
       "key": "duration",
       "en": {
         "term": "duration",
-        "sentence": "How many working days an activity takes. An activity with no duration cannot be scheduled, and the plan says so."
+        "sentence": "How many working days an activity takes. An activity with no duration cannot be scheduled, and the plan says so.",
+        "lenses": {
+          "engineer": "duration",
+          "architect": "duration",
+          "owner": "how long"
+        }
       },
       "pt-BR": {
         "term": "duração",
-        "sentence": "Quantos dias úteis uma atividade leva. Uma atividade sem duração não entra no cronograma, e o plano avisa."
+        "sentence": "Quantos dias úteis uma atividade leva. Uma atividade sem duração não entra no cronograma, e o plano avisa.",
+        "lenses": {
+          "engineer": "duração",
+          "architect": "duração",
+          "owner": "quanto tempo"
+        }
       }
     },
     {
       "key": "responsible",
       "en": {
         "term": "responsible",
-        "sentence": "The person who answers for an activity — the tiler, the electrician, you. An activity with no responsible is not ready."
+        "sentence": "The person who answers for an activity — the tiler, the electrician, you. An activity with no responsible is not ready.",
+        "lenses": {
+          "engineer": "responsible",
+          "architect": "contractor",
+          "owner": "who does it"
+        }
       },
       "pt-BR": {
         "term": "responsável",
-        "sentence": "A pessoa que responde por uma atividade — o azulejista, o eletricista, você. Uma atividade sem responsável não está pronta."
+        "sentence": "A pessoa que responde por uma atividade — o azulejista, o eletricista, você. Uma atividade sem responsável não está pronta.",
+        "lenses": {
+          "engineer": "responsável",
+          "architect": "executor",
+          "owner": "quem faz"
+        }
       }
     },
     {
@@ -138,11 +199,21 @@
       "key": "finishDate",
       "en": {
         "term": "finish date",
-        "sentence": "The day the last activity ends, computed from the schedule — never typed."
+        "sentence": "The day the last activity ends, computed from the schedule — never typed.",
+        "lenses": {
+          "engineer": "finish date",
+          "architect": "finish date",
+          "owner": "when it ends"
+        }
       },
       "pt-BR": {
         "term": "data de término",
-        "sentence": "O dia em que a última atividade termina, calculado a partir do cronograma — nunca digitado."
+        "sentence": "O dia em que a última atividade termina, calculado a partir do cronograma — nunca digitado.",
+        "lenses": {
+          "engineer": "data de término",
+          "architect": "data de término",
+          "owner": "quando termina"
+        }
       }
     },
     {
@@ -204,11 +275,21 @@
       "key": "readiness",
       "en": {
         "term": "readiness",
-        "sentence": "How much of what the plan must know, it does know — as a number, and as the list of what is still missing."
+        "sentence": "How much of what the plan must know, it does know — as a number, and as the list of what is still missing.",
+        "lenses": {
+          "engineer": "readiness",
+          "architect": "readiness",
+          "owner": "how ready the plan is"
+        }
       },
       "pt-BR": {
         "term": "prontidão",
-        "sentence": "Quanto do que o plano precisa saber ele já sabe — como um número, e como a lista do que ainda falta."
+        "sentence": "Quanto do que o plano precisa saber ele já sabe — como um número, e como a lista do que ainda falta.",
+        "lenses": {
+          "engineer": "prontidão",
+          "architect": "prontidão",
+          "owner": "quanto o plano está pronto"
+        }
       }
     },
     {
@@ -435,22 +516,42 @@
       "key": "room",
       "en": {
         "term": "room",
-        "sentence": "A room or an area of the work — kitchen, bathroom, roof, garden — that activities touch. The architect's and the owner's map of the work."
+        "sentence": "A room or an area of the work — kitchen, bathroom, roof, garden — that activities touch. The architect's and the owner's map of the work.",
+        "lenses": {
+          "engineer": "area",
+          "architect": "room",
+          "owner": "room"
+        }
       },
       "pt-BR": {
         "term": "cômodo",
-        "sentence": "Um cômodo ou uma área da obra — cozinha, banheiro, telhado, quintal — que as atividades tocam. O mapa da obra para o arquiteto e para o dono."
+        "sentence": "Um cômodo ou uma área da obra — cozinha, banheiro, telhado, quintal — que as atividades tocam. O mapa da obra para o arquiteto e para o dono.",
+        "lenses": {
+          "engineer": "área",
+          "architect": "cômodo",
+          "owner": "cômodo"
+        }
       }
     },
     {
       "key": "quantity",
       "en": {
         "term": "quantity",
-        "sentence": "How much of something an activity covers — square metres of tile, metres of pipe — with its unit."
+        "sentence": "How much of something an activity covers — square metres of tile, metres of pipe — with its unit.",
+        "lenses": {
+          "engineer": "quantity",
+          "architect": "quantity",
+          "owner": "how much"
+        }
       },
       "pt-BR": {
         "term": "quantidade",
-        "sentence": "Quanto de algo uma atividade abrange — metros quadrados de piso, metros de tubo — com a sua unidade."
+        "sentence": "Quanto de algo uma atividade abrange — metros quadrados de piso, metros de tubo — com a sua unidade.",
+        "lenses": {
+          "engineer": "quantidade",
+          "architect": "quantidade",
+          "owner": "quanto"
+        }
       }
     },
     {

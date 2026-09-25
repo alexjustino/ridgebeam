@@ -16,6 +16,7 @@
 //! tested without a window.
 
 pub mod plan;
+pub mod rooms;
 pub mod settings;
 pub mod system;
 pub mod work;

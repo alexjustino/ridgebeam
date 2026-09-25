@@ -93,6 +93,9 @@ describe('F0 — a work, one stage, one activity, and what the plan does not kno
   it('a stage with one activity is scheduled on the working calendar', async () => {
     const { driver } = session;
     await go(session, 'plan');
+    await (
+      await session.driver.waitForElement('[data-testid="plan-tabs"] [data-tab="breakdown"]')
+    ).click();
     await setValue(session, 'stage-add-name', 'Tiling');
     await click(session, 'stage-add');
     await driver.waitForElement('[data-stage-id]');
@@ -135,6 +138,9 @@ describe('F0 — a work, one stage, one activity, and what the plan does not kno
   it('reaches 100 % once a responsible is named — and nothing on the plan sets progress', async () => {
     const { driver } = session;
     await go(session, 'plan');
+    await (
+      await session.driver.waitForElement('[data-testid="plan-tabs"] [data-tab="breakdown"]')
+    ).click();
     await setValue(session, 'person-add-name', 'A. Tiler');
     await click(session, 'person-add');
     await driver.waitFor('the person in the select', async () => {

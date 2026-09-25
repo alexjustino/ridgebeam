@@ -1,71 +1,71 @@
-import { Add20Regular, Delete20Regular, PersonAdd20Regular } from '@fluentui/react-icons';
-import { useId, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useId, useMemo, useState } from 'react';
 
-import { LIMITS } from '@/data/commands';
-import {
-  useAddActivity,
-  useAddPerson,
-  useAddStage,
-  useRemoveActivity,
-  useRemoveStage,
-} from '@/data/queries';
-import { stagesInOrder, type Activity, type Stage, type WorkSnapshot } from '@/domain/plan';
+import { useSettings } from '@/data/queries';
+import type { WorkSnapshot } from '@/domain/plan';
+import { DEFAULT_LENS, type LensChoice } from '@/domain/settings';
 import { useI18n } from '@/i18n/useI18n';
-import { Button } from '@/ui/Button';
-import { Card } from '@/ui/Card';
-import { ConfirmDialog } from '@/ui/ConfirmDialog';
-import { EmptyState } from '@/ui/EmptyState';
+import { useTerms } from '@/i18n/useTerm';
 import { InfoBar } from '@/ui/InfoBar';
-import { Input } from '@/ui/Input';
+import { TabStrip } from '@/ui/TabStrip';
 
-import { ActivityRow } from './ActivityRow';
+import { Breakdown } from './Breakdown';
+import { ByRoom } from './ByRoom';
+import { Checklist } from './Checklist';
+import type { Outcome } from './outcome';
 
-/** What the confirmation dialog is about to remove. */
-type Removal =
-  | { kind: 'stage'; id: string; name: string; activities: number }
-  | { kind: 'activity'; id: string; name: string };
+export type PlanTab = 'breakdown' | 'by-room' | 'checklist';
 
 /**
- * The plan: the stages in order, each with its activities, and the people who can answer for
- * them.
- *
- * What a person writes here is intent — a name, a duration in working days, a responsible. There
- * is deliberately nothing here that records how far along anything is: that is the diary's to
- * say (SPEC §2.6), and a plan that let it be typed would be a plan that could be rewritten in
- * silence. Every change is kept the moment it is made; the host answers with the whole plan, and
- * the screen shows that answer.
+ * The arrangement each lens opens on (ADR-014): the engineer's work breakdown, the architect's
+ * works by room, the owner's checklist. Only the first one — the person moves between them freely,
+ * and switching the lens while the page is open changes its words, not where the person is.
  */
-export function PlanPage({ snapshot }: { snapshot: WorkSnapshot }) {
-  const { t, tp, describeError } = useI18n();
-  const removeStage = useRemoveStage();
-  const removeActivity = useRemoveActivity();
-  const [removal, setRemoval] = useState<Removal | null>(null);
+const TAB_FOR_LENS: Record<LensChoice, PlanTab> = {
+  engineer: 'breakdown',
+  architect: 'by-room',
+  owner: 'checklist',
+};
+
+/**
+ * The plan: three arrangements of the same rows (SPEC §2.13, DESIGN_SYSTEM §8).
+ *
+ * What a person writes here is intent — names, durations in working days, responsibles, rooms,
+ * quantities, the order of things, the calendar. There is deliberately nothing here that records
+ * how far along anything is: that is the diary's to say (SPEC §2.6). Editing lives in the
+ * breakdown; the other two arrangements show the same rows and lead back to it. Every change is
+ * kept the moment it is made, the host answers with the whole plan, and every arrangement shows
+ * that answer — so they can never disagree.
+ */
+export function PlanPage({
+  snapshot,
+  calendarOpen,
+  onCalendarOpen,
+}: {
+  snapshot: WorkSnapshot;
+  calendarOpen: boolean;
+  onCalendarOpen: (open: boolean) => void;
+}) {
+  const { t, describeError } = useI18n();
+  const term = useTerms();
+  const settings = useSettings();
+  const lens = settings.data?.lens ?? DEFAULT_LENS;
+  const [tab, setTab] = useState<PlanTab>(() => TAB_FOR_LENS[lens]);
+  const [focusRow, setFocusRow] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const panel = useId();
 
-  const refused = (error: unknown) => setRefusal(describeError(error));
-  const kept = () => setRefusal(null);
-
-  const stages = stagesInOrder(snapshot);
-  const activitiesOf = (stage: Stage): Activity[] =>
-    snapshot.activities
-      .filter((activity) => activity.stageId === stage.id)
-      .sort((a, b) => a.position - b.position);
-
-  const confirmRemoval = () => {
-    if (removal === null) return;
-    const options = {
-      onSuccess: () => {
-        kept();
-        setRemoval(null);
-      },
-      onError: (error: unknown) => {
-        refused(error);
-        setRemoval(null);
-      },
-    };
-    if (removal.kind === 'stage') removeStage.mutate(removal.id, options);
-    else removeActivity.mutate(removal.id, options);
-  };
+  const outcome: Outcome = useMemo(
+    () => ({
+      refused: (error: unknown) => setRefusal(describeError(error)),
+      kept: () => setRefusal(null),
+    }),
+    [describeError],
+  );
+  const edit = useCallback((activityId: string) => {
+    setTab('breakdown');
+    setFocusRow(activityId);
+  }, []);
+  const focused = useCallback(() => setFocusRow(null), []);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
@@ -81,290 +81,39 @@ export function PlanPage({ snapshot }: { snapshot: WorkSnapshot }) {
         </InfoBar>
       )}
 
-      <PeopleCard snapshot={snapshot} onRefused={refused} onKept={kept} />
-
-      <section aria-labelledby="plan-stages" className="flex flex-col gap-3">
-        <h2 id="plan-stages" className="text-subtitle font-semibold text-fg">
-          {t('plan.stages.title')}
-        </h2>
-        <AddStage onRefused={refused} onKept={kept} />
-
-        {stages.length === 0 ? (
-          <Card>
-            <EmptyState
-              title={t('plan.stages.emptyTitle')}
-              description={t('plan.stages.emptyDescription')}
-            />
-          </Card>
-        ) : (
-          stages.map((stage) => {
-            const activities = activitiesOf(stage);
-            return (
-              <div key={stage.id} data-stage-id={stage.id}>
-                <Card
-                  title={stage.name}
-                  actions={
-                    <Button
-                      appearance="subtle"
-                      icon={<Delete20Regular />}
-                      onClick={() =>
-                        setRemoval({
-                          kind: 'stage',
-                          id: stage.id,
-                          name: stage.name,
-                          activities: activities.length,
-                        })
-                      }
-                    >
-                      {t('plan.stage.remove')}
-                    </Button>
-                  }
-                >
-                  {activities.length === 0 ? (
-                    <p className="text-body text-fg-tertiary">{t('plan.activities.empty')}</p>
-                  ) : (
-                    <table className="w-full border-collapse text-body">
-                      <thead>
-                        <tr className="text-left text-caption text-fg-tertiary">
-                          <th scope="col" className="pb-1 font-semibold">
-                            {t('plan.column.activity')}
-                          </th>
-                          <th scope="col" className="w-44 pb-1 pl-3 font-semibold">
-                            {t('plan.column.duration')}
-                          </th>
-                          <th scope="col" className="w-56 pb-1 pl-3 font-semibold">
-                            {t('plan.column.responsible')}
-                          </th>
-                          <th scope="col" className="pb-1 pl-3">
-                            <span className="sr-only">{t('plan.column.actions')}</span>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {activities.map((activity) => (
-                          <ActivityRow
-                            key={activity.id}
-                            activity={activity}
-                            people={snapshot.people}
-                            onRefused={refused}
-                            onKept={kept}
-                            onRemove={() =>
-                              setRemoval({
-                                kind: 'activity',
-                                id: activity.id,
-                                name: activity.name,
-                              })
-                            }
-                          />
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                  <AddActivity stage={stage} onRefused={refused} onKept={kept} />
-                </Card>
-              </div>
-            );
-          })
-        )}
-      </section>
-
-      <ConfirmDialog
-        open={removal !== null}
-        title={
-          removal === null
-            ? ''
-            : removal.kind === 'stage'
-              ? t('plan.confirm.stageTitle', { name: removal.name })
-              : t('plan.confirm.activityTitle', { name: removal.name })
-        }
-        confirmLabel={
-          removal?.kind === 'stage' ? t('plan.stage.remove') : t('plan.confirm.activityConfirm')
-        }
-        danger
-        pending={removeStage.isPending || removeActivity.isPending}
-        onConfirm={confirmRemoval}
-        onCancel={() => setRemoval(null)}
-      >
-        {removal === null
-          ? null
-          : removal.kind === 'activity'
-            ? t('plan.confirm.activityBody')
-            : removal.activities === 0
-              ? t('plan.confirm.stageEmpty')
-              : tp('plan.confirm.stageBody', removal.activities)}
-      </ConfirmDialog>
-    </div>
-  );
-}
-
-/** A name and a button, submitted by the button or by Enter. */
-function AddForm({
-  label,
-  inputTestId,
-  buttonTestId,
-  buttonLabel,
-  icon,
-  pending,
-  onAdd,
-}: {
-  label: string;
-  inputTestId: string;
-  buttonTestId: string;
-  buttonLabel: string;
-  icon: ReactNode;
-  pending: boolean;
-  onAdd: (name: string, done: () => void) => void;
-}) {
-  const { t } = useI18n();
-  const hint = useId();
-  const [name, setName] = useState('');
-  const [empty, setEmpty] = useState(false);
-
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (name.trim() === '') {
-      setEmpty(true);
-      return;
-    }
-    setEmpty(false);
-    onAdd(name.trim(), () => setName(''));
-  };
-
-  return (
-    <form onSubmit={submit} className="flex flex-col gap-1" noValidate>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-        <Input
-          data-testid={inputTestId}
-          aria-label={label}
-          placeholder={label}
-          aria-invalid={empty}
-          aria-describedby={empty ? hint : undefined}
-          value={name}
-          maxLength={LIMITS.name}
-          onChange={(event) => {
-            setName(event.target.value);
-            if (empty) setEmpty(false);
-          }}
+      <div data-testid="plan-tabs">
+        <TabStrip
+          label={t('plan.tabs')}
+          panelId={panel}
+          active={tab}
+          onSelect={(id) => setTab(id as PlanTab)}
+          tabs={[
+            { id: 'breakdown', label: t('plan.tab.breakdown') },
+            { id: 'by-room', label: t('plan.tab.byRoom', { room: term('room') }) },
+            { id: 'checklist', label: t('plan.tab.checklist') },
+          ]}
         />
-        <Button type="submit" icon={icon} data-testid={buttonTestId} disabled={pending}>
-          {buttonLabel}
-        </Button>
       </div>
-      {empty && (
-        <span id={hint} className="text-caption text-fg-secondary">
-          {t('plan.invalid.name')}
-        </span>
-      )}
-    </form>
-  );
-}
 
-function AddStage({ onRefused, onKept }: { onRefused: (e: unknown) => void; onKept: () => void }) {
-  const { t } = useI18n();
-  const add = useAddStage();
-  return (
-    <AddForm
-      label={t('plan.stage.name')}
-      inputTestId="stage-add-name"
-      buttonTestId="stage-add"
-      buttonLabel={t('plan.stage.add')}
-      icon={<Add20Regular />}
-      pending={add.isPending}
-      onAdd={(name, done) =>
-        add.mutate(name, {
-          onSuccess: () => {
-            onKept();
-            done();
-          },
-          onError: onRefused,
-        })
-      }
-    />
-  );
-}
-
-function AddActivity({
-  stage,
-  onRefused,
-  onKept,
-}: {
-  stage: Stage;
-  onRefused: (e: unknown) => void;
-  onKept: () => void;
-}) {
-  const { t } = useI18n();
-  const add = useAddActivity();
-  return (
-    <div className="mt-3">
-      <AddForm
-        label={t('plan.activity.newName', { stage: stage.name })}
-        inputTestId="activity-add-name"
-        buttonTestId="activity-add"
-        buttonLabel={t('plan.activity.add')}
-        icon={<Add20Regular />}
-        pending={add.isPending}
-        onAdd={(name, done) =>
-          add.mutate(
-            { stageId: stage.id, name },
-            {
-              onSuccess: () => {
-                onKept();
-                done();
-              },
-              onError: onRefused,
-            },
-          )
-        }
-      />
+      <div
+        role="tabpanel"
+        id={panel}
+        aria-labelledby={`${panel}-tab-${tab}`}
+        className="flex flex-col gap-4"
+      >
+        {tab === 'breakdown' && (
+          <Breakdown
+            snapshot={snapshot}
+            outcome={outcome}
+            calendarOpen={calendarOpen}
+            onCalendarOpen={onCalendarOpen}
+            focusRow={focusRow}
+            onFocused={focused}
+          />
+        )}
+        {tab === 'by-room' && <ByRoom snapshot={snapshot} onEdit={edit} />}
+        {tab === 'checklist' && <Checklist snapshot={snapshot} onEdit={edit} />}
+      </div>
     </div>
-  );
-}
-
-function PeopleCard({
-  snapshot,
-  onRefused,
-  onKept,
-}: {
-  snapshot: WorkSnapshot;
-  onRefused: (e: unknown) => void;
-  onKept: () => void;
-}) {
-  const { t } = useI18n();
-  const add = useAddPerson();
-
-  return (
-    <Card title={t('plan.people.title')} description={t('plan.people.description')}>
-      {snapshot.people.length === 0 ? (
-        <p className="mb-3 text-body text-fg-tertiary">{t('plan.people.empty')}</p>
-      ) : (
-        <ul className="mb-3 flex flex-wrap gap-1.5">
-          {snapshot.people.map((person) => (
-            <li
-              key={person.id}
-              className="rounded-md border border-stroke-subtle bg-layer px-2 py-0.5 text-body text-fg"
-            >
-              {person.name}
-            </li>
-          ))}
-        </ul>
-      )}
-      <AddForm
-        label={t('plan.person.name')}
-        inputTestId="person-add-name"
-        buttonTestId="person-add"
-        buttonLabel={t('plan.person.add')}
-        icon={<PersonAdd20Regular />}
-        pending={add.isPending}
-        onAdd={(name, done) =>
-          add.mutate(name, {
-            onSuccess: () => {
-              onKept();
-              done();
-            },
-            onError: onRefused,
-          })
-        }
-      />
-    </Card>
   );
 }

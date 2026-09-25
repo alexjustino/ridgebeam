@@ -14,6 +14,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 
+import type { Direction } from '@/domain/ordering';
 import type { Holiday, WorkSnapshot } from '@/domain/plan';
 import {
   readLanguage,
@@ -101,6 +102,10 @@ export interface ActivityPatch {
   name?: string;
   durationDays?: number | null;
   responsibleId?: string | null;
+  /** Zero or more, finite; `null` clears it — and clears the unit with it. */
+  quantity?: number | null;
+  /** Up to 16 characters; a unit needs a quantity, and empty is `null`. */
+  unit?: string | null;
 }
 
 /** The files and pragmas Diagnostics shows, read back from the connections. */
@@ -135,6 +140,7 @@ export interface AccentRamp {
 export const LIMITS = {
   name: 120,
   place: 200,
+  unit: 16,
   durationDays: 3650,
   hoursPerDay: 24,
 } as const;
@@ -217,9 +223,38 @@ export function calendarSet(
 }
 
 // ── The plan ─────────────────────────────────────────────────────────────────
+//
+// Every move is one place up or down among its siblings; at an edge the host does nothing and
+// answers with the plan as it was (never an error). Positions come back renumbered 1..n.
 
 export function personAdd(name: string): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('person_add', { name });
+}
+
+export function personRename(id: string, name: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('person_rename', { id, name });
+}
+
+/** The activities this person answered for are left with no responsible. */
+export function personRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('person_remove', { id });
+}
+
+export function roomAdd(name: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('room_add', { name });
+}
+
+export function roomRename(id: string, name: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('room_rename', { id, name });
+}
+
+/** The activities that touched it stay; they no longer touch it. */
+export function roomRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('room_remove', { id });
+}
+
+export function roomMove(id: string, direction: Direction): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('room_move', { id, direction });
 }
 
 export function stageAdd(name: string): Promise<WorkSnapshot> {
@@ -234,6 +269,10 @@ export function stageRemove(id: string): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('stage_remove', { id });
 }
 
+export function stageMove(id: string, direction: Direction): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('stage_move', { id, direction });
+}
+
 export function activityAdd(stageId: string, name: string): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('activity_add', { stage_id: stageId, name });
 }
@@ -244,4 +283,14 @@ export function activityUpdate(id: string, patch: ActivityPatch): Promise<WorkSn
 
 export function activityRemove(id: string): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('activity_remove', { id });
+}
+
+/** Within its stage. */
+export function activityMove(id: string, direction: Direction): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('activity_move', { id, direction });
+}
+
+/** Replace the rooms an activity touches with exactly these. */
+export function activitySetRooms(id: string, roomIds: readonly string[]): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('activity_set_rooms', { id, room_ids: roomIds });
 }

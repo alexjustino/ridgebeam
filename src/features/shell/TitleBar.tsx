@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useI18n } from '@/i18n/useI18n';
 
+import { LensSwitch } from './LensSwitch';
 import { Mark } from './Mark';
 
 /**
@@ -14,7 +15,8 @@ import { Mark } from './Mark';
  * neutral hover.
  *
  * It carries the mark, the product's name, and — when a work is open — the work's name, so the
- * window always says which work it is showing.
+ * window always says which work it is showing; and the lens, because the words on every screen
+ * follow it.
  *
  * Known gap, tracked rather than hidden: Snap Layouts (hovering the maximise button to choose a
  * layout) needs native `WM_NCHITTEST` handling that a custom title bar does not get for free.
@@ -39,7 +41,14 @@ function useAppWindow() {
   }, []);
 }
 
-export function TitleBar({ workName = null }: { workName?: string | null }) {
+export function TitleBar({
+  workName = null,
+  lens = false,
+}: {
+  workName?: string | null;
+  /** The lens switch, once the settings it writes have been read. */
+  lens?: boolean;
+}) {
   const { t } = useI18n();
   const appWindow = useAppWindow();
   const [maximized, setMaximized] = useState(false);
@@ -86,7 +95,12 @@ export function TitleBar({ workName = null }: { workName?: string | null }) {
         )}
       </span>
 
-      <div className="flex shrink-0">
+      <div className="flex shrink-0 items-center">
+        {lens && (
+          <div className="mr-2">
+            <LensSwitch />
+          </div>
+        )}
         <WindowButton
           label={t('shell.window.minimise')}
           onClick={() => void appWindow?.minimize()}

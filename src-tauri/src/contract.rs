@@ -8,6 +8,15 @@
 //!
 //! Nothing here holds progress, and nothing ever will: progress is derived from
 //! the diary (slice F4), and there is no command that writes it.
+//!
+//! # Changelog of this contract
+//!
+//! - F0: system, settings, recent works, the work, its calendar, people, stages
+//!   and activities, diagnostics.
+//! - F1: rooms (`Room`, `WorkSnapshot.rooms`); an activity's rooms, quantity and
+//!   unit (`Activity.roomIds`, `quantity`, `unit`, and the same two in
+//!   `ActivityPatch`). Positions are contiguous from 1 after every move and
+//!   every removal.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -147,21 +156,34 @@ pub struct Person {
 pub struct Stage {
     /// UUID v7.
     pub id: String,
-    /// Its order among stages, from 1. Unique; may have gaps after a removal.
+    /// Its order among stages: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// Its name.
+    pub name: String,
+}
+
+/// A room of the work — the architect's and the owner's map of it. Named by
+/// the person; an activity touches zero or more.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Room {
+    /// UUID v7.
+    pub id: String,
+    /// Its order among rooms: 1, 2, 3 … with no gaps.
     pub position: i64,
     /// Its name.
     pub name: String,
 }
 
 /// An activity inside a stage.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Activity {
     /// UUID v7.
     pub id: String,
     /// The stage it belongs to.
     pub stage_id: String,
-    /// Its order inside the stage, from 1. Unique per stage; may have gaps.
+    /// Its order inside the stage: 1, 2, 3 … with no gaps.
     pub position: i64,
     /// Its name.
     pub name: String,
@@ -169,6 +191,14 @@ pub struct Activity {
     pub duration_days: Option<i64>,
     /// The person responsible; `null` until somebody is.
     pub responsible_id: Option<String>,
+    /// The rooms it touches, in the rooms' order; empty when none.
+    pub room_ids: Vec<String>,
+    /// How much of it there is, at least 0; `null` when nobody said. Not a
+    /// readiness rule: a plan is not less ready for lacking one.
+    pub quantity: Option<f64>,
+    /// What the quantity is counted in — `m²`, `m`, `un`. Never set without a
+    /// quantity.
+    pub unit: Option<String>,
 }
 
 /// The whole plan, as the interface reads it. At F0 scale a work is small
@@ -187,6 +217,8 @@ pub struct WorkSnapshot {
     pub people: Vec<Person>,
     /// Stages, by position.
     pub stages: Vec<Stage>,
+    /// Rooms, by position.
+    pub rooms: Vec<Room>,
     /// Activities, by their stage's position and then their own.
     pub activities: Vec<Activity>,
 }
@@ -227,6 +259,14 @@ pub struct ActivityPatch {
     /// Absent: unchanged. `null`: nobody. A string: a person's id.
     #[serde(default, deserialize_with = "present")]
     pub responsible_id: Option<Option<String>>,
+    /// Absent: unchanged. `null`: none — and the unit goes with it. A number:
+    /// at least 0.
+    #[serde(default, deserialize_with = "present")]
+    pub quantity: Option<Option<f64>>,
+    /// Absent: unchanged. `null` or empty: none. A string: at most 16
+    /// characters, and only beside a quantity.
+    #[serde(default, deserialize_with = "present")]
+    pub unit: Option<Option<String>>,
 }
 
 /// What Diagnostics shows.
@@ -301,6 +341,21 @@ mod tests {
     }
 
     #[test]
+    fn a_quantity_and_a_unit_in_a_patch_tell_left_out_from_null() {
+        let left_out: ActivityPatch = serde_json::from_value(json!({})).unwrap();
+        assert_eq!((left_out.quantity, left_out.unit), (None, None));
+
+        let cleared: ActivityPatch =
+            serde_json::from_value(json!({ "quantity": null, "unit": null })).unwrap();
+        assert_eq!((cleared.quantity, cleared.unit), (Some(None), Some(None)));
+
+        let set: ActivityPatch =
+            serde_json::from_value(json!({ "quantity": 12, "unit": "m²" })).unwrap();
+        assert_eq!(set.quantity, Some(Some(12.0)));
+        assert_eq!(set.unit, Some(Some("m²".into())));
+    }
+
+    #[test]
     fn a_draft_is_read_in_camel_case() {
         let draft: WorkDraft = serde_json::from_value(json!({
             "name": "Bathroom", "place": "", "startDate": "2026-10-05", "currency": "BRL",
@@ -320,12 +375,16 @@ mod tests {
             name: "Tiling".into(),
             duration_days: None,
             responsible_id: None,
+            room_ids: vec![],
+            quantity: Some(12.0),
+            unit: Some("m²".into()),
         };
         assert_eq!(
             serde_json::to_value(activity).unwrap(),
             json!({
                 "id": "a", "stageId": "s", "position": 1, "name": "Tiling",
-                "durationDays": null, "responsibleId": null
+                "durationDays": null, "responsibleId": null,
+                "roomIds": [], "quantity": 12.0, "unit": "m²"
             })
         );
     }
