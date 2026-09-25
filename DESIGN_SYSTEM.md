@@ -331,10 +331,35 @@ breaks one is not merged.
   announced through `announce()` in the person's language — _"Tiling moved to position 2 of 3."_
   At the first or last place nothing moves and nothing fails. A drag handle, if one ever arrives,
   is a third way, never the first.
+- **The critical path is never colour alone.** A critical bar on the Gantt, a critical row in a
+  list, a critical activity anywhere is marked by colour **and** by a mark that survives without
+  it — a heavier stroke on the bar, an icon beside the row — **and** by words: the bar's
+  accessible name ends with _critical_, and the critical path is also given as a list, in order,
+  beside the chart. The colour is a `--state-*` token, never the accent, which is the person's
+  desktop and not a judgement (§2). A Gantt that has to be seen in colour to be read is not
+  finished.
+- **A baseline is drawn under the plan, never over it.** The current plan is what a person acts
+  on; the baseline is what it was agreed to be. So the baseline's bars are ghosts beneath the
+  current ones — lighter, outlined, behind — and never the other way round, never side by side as
+  equals, and never in the critical colour. A difference between the two is not left for the eye
+  to find: it is the slip, a figure that opens onto the activities whose finish moved, each with
+  its days (§2, _a number can be opened_). An activity can move inside its float without moving
+  the finish, so the figure is not the largest row: each row also says how far its finish now
+  lies past the baseline's finish, and a positive slip is the largest of those. Days are working days, and the figure says "early" in
+  words when the plan is ahead, not with a minus sign alone.
+- **A cycle is refused with its chain, by name.** A dependency that would close a loop is refused
+  before anything is saved, and the refusal names the loop the way a person would read it —
+  _"Plaster → Foundations → Walls → Plaster"_, or _"Walls → Walls"_ for a stage made to wait
+  on itself — the activities' and stages' own names in order, the same shape the host uses, in an `InfoBar` beside the
+  control that asked — never "invalid dependency", never an identifier, never a silent no-op. The
+  domain says it before the host is asked; if the host refuses anyway, its sentence is shown the
+  same way. A plan already holding a cycle is not drawn: the Schedule says so, and says which.
+  A dependency that joins nothing — onto a stage with no activities — is shown as such, not
+  hidden.
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
-  `data-destination="<id>"` with the same id the router uses — `dashboard`, `plan`, `settings`,
-  `diagnostics`, `about`. The end-to-end suite and the accessibility audit find destinations by
+  `data-destination="<id>"` with the same id the router uses — `dashboard`, `plan`, `schedule`,
+  `settings`, `diagnostics`, `about`. The end-to-end suite and the accessibility audit find destinations by
   these attributes and never by visible text, which changes with the language (§9).
 - **Degrade visibly: a missing work folder is a state with a way out.** A recent work whose
   folder is gone is not hidden and not an error dialog: its row says the folder was not found
@@ -368,14 +393,15 @@ Maximising works; the hover flyout does not appear yet.
 
 ### The rail
 
-The destinations are ordered **the work first, then the product**: Dashboard · Plan, then
-Settings · Diagnostics · About. Between the two groups sits a hairline with `role="separator"` —
+The destinations are ordered **the work first, then the product**: Dashboard · Plan ·
+Schedule, then Settings · Diagnostics · About. Between the two groups sits a hairline with `role="separator"` —
 a separator and **never** a disabled button, a heading nobody can reach or an empty `div` used as
 a gap: the grouping has to be a fact for somebody who is listening to the rail rather than
 looking at it, and nothing new may appear in the tab order to say it.
 
-With no work open, Dashboard and Plan have nothing to show: the Start screen — a new work, an
-open work, the recent works — takes the content region, and the two destinations are disabled
+With no work open, Dashboard, Plan and Schedule have nothing to show: the Start screen — a new
+work, an open work, the recent works — takes the content region, and the three destinations are
+disabled
 with the reason in their accessible description, not removed. A rail that changes shape under
 the keyboard is a rail nobody learns.
 
