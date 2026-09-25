@@ -21,6 +21,8 @@
 //! - F2: the approval (`approved_at`, set once, by the first baseline); the
 //!   snapshot carries dependencies and baselines; removing an activity or a
 //!   stage removes the dependencies that name it, in the same transaction.
+//! - F3: the snapshot carries decisions; a stage's removal takes its decisions
+//!   with it (the schema's `ON DELETE CASCADE`).
 
 use std::collections::HashMap;
 
@@ -28,7 +30,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, WorkSnapshot};
 use crate::db::order::{ACTIVITIES, STAGES};
-use crate::db::{baselines, dependencies};
+use crate::db::{baselines, decisions, dependencies};
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
 
@@ -224,6 +226,7 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         activities,
         dependencies: dependencies::list(conn)?,
         baselines: baselines::list(conn)?,
+        decisions: decisions::list(conn)?,
     })
 }
 
@@ -504,6 +507,8 @@ pub const ACTIVITY_NOT_FOUND: &str = "That activity is not in this work.";
 pub const PERSON_NOT_FOUND: &str = "That person is not in this work.";
 /// The sentence for a room id that is not in this work.
 pub const ROOM_NOT_FOUND: &str = "That room is not in this work.";
+/// The sentence for a decision id that is not in this work.
+pub const DECISION_NOT_FOUND: &str = "That decision is not in this work.";
 
 /// Whether `sql` (one `?1`) finds a row.
 pub(crate) fn exists(conn: &Connection, sql: &str, id: &str) -> Result<bool> {
@@ -567,6 +572,7 @@ pub(crate) mod tests {
             "dependency",
             "baseline",
             "baseline_activity",
+            "decision",
         ] {
             let found: i64 = conn
                 .query_row(
@@ -1037,11 +1043,11 @@ pub(crate) mod tests {
         }
     }
 
-    /// The upgrade a person makes from F1: a work at schema 2 — with a room, an
+    /// The upgrade from F1's schema: a work at schema 2 — with a room, an
     /// activity touching it, a quantity and a unit — opens in F2 and loses
     /// nothing, gains no dependency and no baseline, and is not approved.
     #[test]
-    fn a_work_at_schema_two_with_rows_migrates_to_three_without_losing_any() {
+    fn a_work_at_schema_two_with_rows_migrates_to_the_current_version_without_losing_any() {
         let conn = Connection::open_in_memory().unwrap();
         crate::db::configure(&conn).unwrap();
         let tiling = a_work_at_schema_one(&conn);
@@ -1058,9 +1064,12 @@ pub(crate) mod tests {
         .expect("an F1 work's rows");
         assert_eq!(migrations::WORK.current_version(&conn), 2);
 
-        migrations::WORK.apply(&conn).expect("migrate 2 → 3");
+        migrations::WORK.apply(&conn).expect("migrate 2 → head");
 
-        assert_eq!(migrations::WORK.current_version(&conn), 3);
+        assert_eq!(
+            migrations::WORK.current_version(&conn),
+            migrations::WORK.target_version()
+        );
         let plan = snapshot(&conn).unwrap();
         let activity = &plan.activities[0];
         assert_eq!(activity.id, tiling);
@@ -1079,6 +1088,96 @@ pub(crate) mod tests {
         migrations::WORK
             .apply(&conn)
             .expect("and again, idempotent");
+        assert_eq!(
+            migrations::WORK.current_version(&conn),
+            migrations::WORK.target_version()
+        );
+    }
+
+    /// The upgrade a person makes from F2: a work at schema 3 — a dependency,
+    /// an approval and baseline 1 — opens in F3, loses nothing (the baseline
+    /// least of all), and gains an empty list of decisions.
+    #[test]
+    fn a_work_at_schema_three_with_rows_migrates_to_four_without_losing_any() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::configure(&conn).unwrap();
+        let tiling = a_work_at_schema_one(&conn);
+        migrations::WORK
+            .apply_up_to(&conn, 3)
+            .expect("stand at schema 3");
+        conn.execute_batch(&format!(
+            "INSERT INTO stage (id, position, name, created_at)
+             VALUES ('00000000-0000-7000-8000-0000000000e2', 2, 'Painting', 't');
+             INSERT INTO dependency (id, blocker_kind, blocker_id, blocked_kind, blocked_id,
+                                     lag_days, created_at)
+             VALUES ('00000000-0000-7000-8000-0000000000e3', 'activity', '{tiling}',
+                     'stage', '00000000-0000-7000-8000-0000000000e2', 2, 't');
+             UPDATE work SET approved_at = '2026-09-25T12:00:00.000Z';
+             INSERT INTO baseline (id, number, taken_at, finish_date)
+             VALUES ('00000000-0000-7000-8000-0000000000e4', 1, 't', '2026-10-07');
+             INSERT INTO baseline_activity (baseline_id, activity_id, position, name, stage_name,
+                                            duration_days, start, finish)
+             VALUES ('00000000-0000-7000-8000-0000000000e4', '{tiling}', 1, 'Tiling', 'Bathroom',
+                     3, '2026-10-05', '2026-10-07');"
+        ))
+        .expect("an F2 work's rows");
         assert_eq!(migrations::WORK.current_version(&conn), 3);
+        let before = snapshot_without_decisions(&conn);
+
+        migrations::WORK.apply(&conn).expect("migrate 3 → 4");
+
+        assert_eq!(migrations::WORK.current_version(&conn), 4);
+        let plan = snapshot(&conn).unwrap();
+        assert!(plan.decisions.is_empty());
+        assert_eq!(plan.dependencies.len(), 1);
+        assert_eq!(plan.dependencies[0].lag_days, 2);
+        assert_eq!(
+            plan.work.approved_at.as_deref(),
+            Some("2026-09-25T12:00:00.000Z")
+        );
+        assert_eq!(plan.baselines.len(), 1);
+        assert_eq!(
+            plan.baselines[0].rows[0].finish.as_deref(),
+            Some("2026-10-07")
+        );
+        assert_eq!(
+            snapshot_without_decisions(&conn),
+            before,
+            "nothing else moved"
+        );
+
+        migrations::WORK
+            .apply(&conn)
+            .expect("and again, idempotent");
+        assert_eq!(migrations::WORK.current_version(&conn), 4);
+    }
+
+    /// What schema 3 can already say, read by hand so it can be compared across
+    /// the migration without the decisions the snapshot of schema 4 carries.
+    fn snapshot_without_decisions(conn: &Connection) -> String {
+        let mut out = String::new();
+        for sql in [
+            "SELECT id, name, duration_days, responsible_id, quantity, unit FROM activity",
+            "SELECT id, position, name FROM stage ORDER BY position",
+            "SELECT id, blocker_kind, blocker_id, blocked_kind, blocked_id, lag_days FROM dependency",
+            "SELECT id, number, finish_date FROM baseline",
+            "SELECT baseline_id, activity_id, start, finish FROM baseline_activity",
+            "SELECT approved_at FROM work",
+        ] {
+            let mut statement = conn.prepare(sql).unwrap();
+            let width = statement.column_count();
+            let rows = statement
+                .query_map([], |row| {
+                    (0..width)
+                        .map(|i| row.get::<_, rusqlite::types::Value>(i).map(|v| format!("{v:?}")))
+                        .collect::<std::result::Result<Vec<_>, _>>()
+                })
+                .unwrap()
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .unwrap();
+            out.push_str(&format!("{sql}: {rows:?}
+"));
+        }
+        out
     }
 }

@@ -143,3 +143,41 @@ and the finish date is a figure that carries its rows.
 Not yet, said plainly: editing an approved plan does not ask for a reason, and there is no
 second baseline or comparison between baselines — those are F8's. Dependencies are
 finish-to-start only; there are no milestones and no resource levelling.
+
+### Added in F3 — decisions and readiness
+
+A decision belongs to a stage with a lead time, and its deadline is computed and moves with the
+schedule; readiness is explained rule by rule; "what the plan does not know" is a list that
+opens onto each row.
+
+- **Decisions.** A decision — "Which tile" — belongs to a stage and has a lead time of 0 to 3650
+  working days. It is added, renamed, reordered (buttons and Alt+Arrow, announced), removed with
+  a confirmation, marked as made with an optional answer, and reopened, which clears the answer.
+  Removing a stage removes its decisions.
+- **The deadline is computed, never stored** (ADR-017): the earliest scheduled start of the
+  decision's stage minus its lead time, counted backwards in working days on the calendar. It
+  moves when the schedule moves. A stage with nothing scheduled gives no deadline, and the
+  decision says why. There is no deadline column and no overdue column.
+- **Today is an input.** The domain never reads the clock; the interface passes the local day.
+  A decision is _due in N working days_, _due today_, _overdue by N working days_, _made_, or has
+  _no deadline yet_. A made decision is never overdue.
+- **Overdue on creation is said, not refused.** A lead time longer than the time left keeps the
+  decision and puts a caution on its row at once: "Already overdue: 10 working days of lead time,
+  but Tiling starts in 4 working days."
+- **The Decisions destination**, between Schedule and Settings: every decision of the work,
+  overdue first, then due, then without a deadline, made last — with its stage, lead time,
+  deadline and days left, and the way to mark it made or reopen it. Names and lead times are
+  edited in the breakdown, which it links back to.
+- **Two readiness rules** — every decision has a deadline; every decision with a deadline is
+  made or not yet overdue — "1 decision has no deadline yet.", "2 decisions are overdue."
+- **Readiness rule by rule** (ADR-018). Under the figure, one line per rule — "Durations · 4 of
+  4", "Decisions in time · 0 of 1" — each opening onto its own rows with a sentence on why the
+  plan must know it. The rules add up exactly to the figure, and a test holds it. "What the plan
+  does not know" is grouped by the rule each row fails.
+- **Decisions due** is a dashboard figure: the decisions overdue or due within the next five
+  working days, opening onto each with its deadline and days left.
+- **Work migration 004** (`004_decisions.sql`) adds `decision`. A work from F2 is migrated when
+  it is opened, without loss.
+
+Not yet, said plainly: a decision is needed by its whole stage, so its deadline counts from the
+stage's earliest start rather than from the one activity that needs it.

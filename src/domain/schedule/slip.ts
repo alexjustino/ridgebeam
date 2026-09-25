@@ -22,7 +22,7 @@
  * reasons between them, is slice F8. What this module is not: storage, and not text.
  */
 
-import { workingDaysDiff } from '../calendar';
+import { workingDaysUntil } from '../calendar';
 import { daysFigure, type DaysRow, type Figure } from '../figure';
 import type { Baseline } from '../plan';
 import type { Schedule } from './index';
@@ -48,7 +48,7 @@ export function slip(scheduled: Schedule, baseline: Baseline): Figure<SlipRow> {
   const calendar = scheduled.calendar;
   const reference = baseline.finishDate;
   const diff = (from: string | null, to: string | null): number | null =>
-    calendar === null || from === null || to === null ? null : workingDaysDiff(calendar, from, to);
+    calendar === null || from === null || to === null ? null : workingDaysUntil(calendar, from, to);
 
   const recorded = new Map(baseline.rows.map((row) => [row.activityId, row]));
   const rows: SlipRow[] = [];

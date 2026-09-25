@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  currencyLabel,
-  formatDay,
-  formatNumber,
-  today,
-  weekdayNames,
-  workingDaysList,
-} from './format';
+import { currencyLabel, formatDay, formatNumber, weekdayNames, workingDaysList } from './format';
 
 /**
  * The platform's words, in the person's language: dates, numbers, weekdays and currencies come
@@ -44,9 +37,5 @@ describe('formatting through Intl', () => {
   it('names a currency in the language, beside its code', () => {
     expect(currencyLabel('en', 'BRL')).toBe('BRL — Brazilian Real');
     expect(currencyLabel('pt-BR', 'BRL')).toBe('BRL — Real brasileiro');
-  });
-
-  it('is today on this machine’s calendar, as YYYY-MM-DD', () => {
-    expect(today(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05');
   });
 });

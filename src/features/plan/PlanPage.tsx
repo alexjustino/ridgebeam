@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 
 import { useSettings } from '@/data/queries';
 import type { WorkSnapshot } from '@/domain/plan';
@@ -40,19 +40,32 @@ export function PlanPage({
   snapshot,
   calendarOpen,
   onCalendarOpen,
+  initialFocus = null,
+  onFocusTaken,
 }: {
   snapshot: WorkSnapshot;
   calendarOpen: boolean;
   onCalendarOpen: (open: boolean) => void;
+  /** A row to open the breakdown on, focused — asked for from another page. */
+  initialFocus?: string | null;
+  onFocusTaken?: () => void;
 }) {
   const { t, describeError } = useI18n();
   const term = useTerms();
   const settings = useSettings();
   const lens = settings.data?.lens ?? DEFAULT_LENS;
-  const [tab, setTab] = useState<PlanTab>(() => TAB_FOR_LENS[lens]);
-  const [focusRow, setFocusRow] = useState<string | null>(null);
+  const [tab, setTab] = useState<PlanTab>(() =>
+    initialFocus === null ? TAB_FOR_LENS[lens] : 'breakdown',
+  );
+  const [focusRow, setFocusRow] = useState<string | null>(initialFocus);
   const [refusal, setRefusal] = useState<string | null>(null);
   const panel = useId();
+
+  // The row another page asked for is taken once, on arrival; the request is then let go, so the
+  // next visit to the plan opens on the lens's own arrangement.
+  useEffect(() => {
+    if (initialFocus !== null) onFocusTaken?.();
+  }, [initialFocus, onFocusTaken]);
 
   const outcome: Outcome = useMemo(
     () => ({

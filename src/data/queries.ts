@@ -27,6 +27,12 @@ import {
   activityMove,
   activitySetRooms,
   baselineTake,
+  decisionAdd,
+  decisionMake,
+  decisionMove,
+  decisionRemove,
+  decisionReopen,
+  decisionUpdate,
   dependencyAdd,
   dependencyRemove,
   dependencyUpdate,
@@ -58,6 +64,7 @@ import {
   type ActivityPatch,
   type BaselineRowDraft,
   type CalendarDraft,
+  type DecisionPatch,
   type SettingKey,
   type Settings,
   type WorkDraft,
@@ -267,12 +274,13 @@ export function useRemoveRoom() {
 }
 
 /** A move names what moves: a stage, an activity inside its stage, or a room. */
-export type MoveKind = 'stage' | 'activity' | 'room';
+export type MoveKind = 'stage' | 'activity' | 'room' | 'decision';
 
 const MOVES: Record<MoveKind, (id: string, direction: Direction) => Promise<WorkSnapshot>> = {
   stage: stageMove,
   activity: activityMove,
   room: roomMove,
+  decision: decisionMove,
 };
 
 export function useMove() {
@@ -310,4 +318,31 @@ export function useTakeBaseline() {
     ({ rows, finishDate }: { rows: readonly BaselineRowDraft[]; finishDate: string | null }) =>
       baselineTake(rows, finishDate),
   );
+}
+
+export function useAddDecision() {
+  return useWorkCommand(
+    ({ stageId, name, leadTimeDays }: { stageId: string; name: string; leadTimeDays: number }) =>
+      decisionAdd(stageId, name, leadTimeDays),
+  );
+}
+
+export function useUpdateDecision() {
+  return useWorkCommand(({ id, patch }: { id: string; patch: DecisionPatch }) =>
+    decisionUpdate(id, patch),
+  );
+}
+
+export function useRemoveDecision() {
+  return useWorkCommand((id: string) => decisionRemove(id));
+}
+
+export function useMakeDecision() {
+  return useWorkCommand(({ id, answer }: { id: string; answer: string | null }) =>
+    decisionMake(id, answer),
+  );
+}
+
+export function useReopenDecision() {
+  return useWorkCommand((id: string) => decisionReopen(id));
 }

@@ -1,14 +1,28 @@
-import { Dismiss20Regular } from '@fluentui/react-icons';
+import {
+  ChevronDown16Regular,
+  ChevronRight16Regular,
+  Dismiss20Regular,
+} from '@fluentui/react-icons';
+import { useId, useMemo, useState } from 'react';
+
+import { useToday } from '@/app/today';
+import { decisionRows, decisionsDue, type DecisionDueRow } from '@/domain/decisions';
 
 import { latestBaseline, workingCalendarOf, type WorkSnapshot } from '@/domain/plan';
 import {
   readiness,
+  readinessByRule,
   readinessFigure,
+  RULE_EXPLANATION_KEYS,
+  RULE_LABEL_KEYS,
+  RULES,
   sentenceParts,
   type MissingId,
   type ReadinessRow,
+  type RuleSummary,
 } from '@/domain/readiness';
-import { schedule } from '@/domain/schedule';
+import { schedule, type Schedule } from '@/domain/schedule';
+import { useStatusText } from '@/features/decisions/statusText';
 import { slip } from '@/domain/schedule/slip';
 import { SlipFigure } from '@/features/schedule/SlipFigure';
 import type { MessageKey } from '@/i18n/en';
@@ -24,8 +38,22 @@ const ROW_KEYS: Record<MissingId, MessageKey> = {
   'activity.duration': 'readiness.row.activity.duration',
   'activity.responsible': 'readiness.row.activity.responsible',
   'activity.linked': 'readiness.row.activity.linked',
+  'decision.deadline': 'readiness.row.decision.deadline',
+  'decision.timely': 'readiness.row.decision.timely',
   'plan.activity': 'readiness.row.plan.activity',
 };
+
+/** The heading each missing row is listed under: its rule, in rule order; the plan's own row last. */
+function ruleGroup(ruleId: MissingId, t: (key: MessageKey) => string) {
+  if (ruleId === 'plan.activity') {
+    return { id: ruleId, label: t('readiness.rule.plan.activity'), order: RULES.length };
+  }
+  return {
+    id: ruleId,
+    label: t(RULE_LABEL_KEYS[ruleId]),
+    order: RULES.findIndex((rule) => rule.id === ruleId),
+  };
+}
 
 /**
  * The dashboard: the product's front door, and in F0 exactly three things on it.
@@ -53,7 +81,9 @@ export function DashboardPage({
 }) {
   const { t, tp, number } = useI18n();
   const term = useTerms();
-  const measure = readiness(snapshot);
+  const today = useToday();
+  const scheduled = useMemo(() => schedule(snapshot), [snapshot]);
+  const measure = readiness(snapshot, { schedule: scheduled, today });
   const figure = readinessFigure(measure);
   const parts = sentenceParts(measure.missing);
   const sentence =
@@ -93,6 +123,7 @@ export function DashboardPage({
           label={term('readiness', { capital: true })}
           value={t('figure.percent', { value: number(figure.value) })}
           rowsLabel={t('figure.rows')}
+          groupBy={(row) => ruleGroup(row.ruleId, t)}
           renderRow={(row) => (
             <>
               <span className="font-semibold text-fg">{row.title}</span>
@@ -111,10 +142,12 @@ export function DashboardPage({
           {sentence}
         </p>
         <p className="mt-1 text-caption text-fg-tertiary">{t('readiness.description')}</p>
+        <RuleList summaries={readinessByRule(measure)} />
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <FinishCard snapshot={snapshot} />
+        <FinishCard snapshot={snapshot} scheduled={scheduled} />
+        <DecisionsDueCard snapshot={snapshot} scheduled={scheduled} today={today} />
         <CalendarCard snapshot={snapshot} />
       </div>
     </div>
@@ -126,10 +159,9 @@ export function DashboardPage({
  * the plan is approved, read against the baseline: the baseline's finish, the slip with the same
  * rows the Schedule page shows, and how many activities are on the critical path.
  */
-function FinishCard({ snapshot }: { snapshot: WorkSnapshot }) {
+function FinishCard({ snapshot, scheduled }: { snapshot: WorkSnapshot; scheduled: Schedule }) {
   const { t, tp, day } = useI18n();
   const term = useTerms();
-  const scheduled = schedule(snapshot);
   const finish = scheduled.finishDate;
   const reasons = new Set(scheduled.unplaced.map((row) => row.reason));
   const leftOut = scheduled.unplaced.filter((row) => row.reason === 'no-duration').length;
@@ -210,6 +242,134 @@ function CalendarCard({ snapshot }: { snapshot: WorkSnapshot }) {
           <dd className="text-fg">{currency(snapshot.work.currency)}</dd>
         </dl>
       )}
+    </Card>
+  );
+}
+
+/**
+ * Readiness rule by rule (slice F3, ADR-018): each rule a line — "Durations · 4 of 4" — that opens
+ * onto the rows it finds missing and the one sentence that says why the plan must know it. The
+ * rules add up to the figure above them; a test in the domain holds that.
+ */
+function RuleList({ summaries }: { summaries: readonly RuleSummary[] }) {
+  const { t } = useI18n();
+  return (
+    <section aria-labelledby="readiness-rules" className="mt-4 border-t border-stroke-subtle pt-3">
+      <h2 id="readiness-rules" className="mb-2 text-body font-semibold text-fg">
+        {t('readiness.rules')}
+      </h2>
+      <ul data-testid="readiness-rules" className="flex flex-col gap-1">
+        {summaries.map((summary) => (
+          <RuleLine key={summary.ruleId} summary={summary} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function RuleLine({ summary }: { summary: RuleSummary }) {
+  const { t, number } = useI18n();
+  const [open, setOpen] = useState(false);
+  const rows = useId();
+  const complete = summary.known === summary.mustKnow;
+
+  return (
+    <li data-rule-id={summary.ruleId} className="flex flex-col">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={rows}
+        onClick={() => setOpen((now) => !now)}
+        className="flex items-center gap-2 rounded-md px-1 py-1 text-left text-body text-fg transition-colors duration-100 ease-easy hover:bg-card-hover"
+      >
+        <span aria-hidden="true" className="inline-grid text-fg-tertiary">
+          {open ? <ChevronDown16Regular /> : <ChevronRight16Regular />}
+        </span>
+        <span className={complete ? 'text-fg' : 'font-semibold text-fg'}>
+          {t('readiness.rule.line', {
+            label: t(RULE_LABEL_KEYS[summary.ruleId]),
+            known: number(summary.known),
+            mustKnow: number(summary.mustKnow),
+          })}
+        </span>
+      </button>
+      <div id={rows} hidden={!open} className="ml-7 border-l border-stroke-subtle pl-3">
+        <p className="text-caption text-fg-secondary">{t(RULE_EXPLANATION_KEYS[summary.ruleId])}</p>
+        {summary.missing.length === 0 ? (
+          <p className="text-caption text-fg-tertiary">{t('readiness.rule.nothing')}</p>
+        ) : (
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {summary.missing.map((row) => (
+              <li
+                key={`${row.ruleId}:${row.id}`}
+                data-rule-row={row.id}
+                className="text-body text-fg-secondary"
+              >
+                <span className="font-semibold text-fg">{row.name}</span>
+                {row.stageName !== null && (
+                  <>
+                    <span aria-hidden="true"> — </span>
+                    <span>{row.stageName}</span>
+                  </>
+                )}
+                <span aria-hidden="true"> — </span>
+                <span>{t(ROW_KEYS[row.ruleId])}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/**
+ * Decisions due (slice F3): every open decision that is overdue or due within the next five working
+ * days, counted, opening onto those decisions with their deadline and where today stands against
+ * it. The deadlines are computed from the schedule; the count is the domain's.
+ */
+function DecisionsDueCard({
+  snapshot,
+  scheduled,
+  today,
+}: {
+  snapshot: WorkSnapshot;
+  scheduled: Schedule;
+  today: string;
+}) {
+  const { t, tp, day } = useI18n();
+  const statusText = useStatusText();
+  if (scheduled.calendar === null || snapshot.decisions.length === 0) return null;
+  const rows = decisionRows(snapshot, scheduled, today);
+  const figure = decisionsDue(rows, scheduled.calendar, today);
+  const stageNames = new Map(rows.map((row) => [row.decisionId, row.stageName ?? '']));
+
+  return (
+    <Card>
+      <FigureRow<DecisionDueRow>
+        testId="decisions-due"
+        size="title"
+        figure={figure}
+        label={t('decisions.due.label')}
+        value={
+          figure.value === 0 ? t('decisions.due.none') : tp('decisions.due.value', figure.value)
+        }
+        rowsLabel={t('decisions.due.rows')}
+        renderRow={(row) => (
+          <>
+            <span className="font-semibold text-fg">{row.title}</span>
+            <span aria-hidden="true"> — </span>
+            <span>{stageNames.get(row.decisionId) ?? ''}</span>
+            <span aria-hidden="true"> — </span>
+            <span>{day(row.deadline)}</span>
+            <span aria-hidden="true"> — </span>
+            <span>{statusText({ status: row.status, daysLeft: row.daysLeft, madeAt: null })}</span>
+          </>
+        )}
+      />
+      <p className="mt-2 text-caption text-fg-tertiary">
+        {t('decisions.due.hint', { days: tp('plan.checklist.days', 5) })}
+      </p>
     </Card>
   );
 }

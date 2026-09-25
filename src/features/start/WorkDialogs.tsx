@@ -1,9 +1,9 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 
+import { today } from '@/app/today';
 import { LIMITS, type WorkDraft } from '@/data/commands';
 import { useCreateWork, useOpenWork } from '@/data/queries';
 import { formatWorkingDays, isIsoDay, validateCalendar } from '@/domain/calendar';
-import { today } from '@/i18n/format';
 import type { MessageKey } from '@/i18n/en';
 import type { Language } from '@/i18n/index';
 import { useI18n } from '@/i18n/useI18n';

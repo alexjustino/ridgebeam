@@ -5,7 +5,7 @@
  * Test support only: no production module imports this file.
  */
 
-import type { Activity, Dependency, Endpoint, Stage, WorkSnapshot } from '../plan';
+import type { Activity, Decision, Dependency, Endpoint, Stage, WorkSnapshot } from '../plan';
 
 /** A work starting on Tuesday 1 September 2026, Monday to Friday, with nothing in it. */
 export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
@@ -27,6 +27,7 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     activities: [],
     dependencies: [],
     baselines: [],
+    decisions: [],
     ...parts,
   };
 }
@@ -70,5 +71,24 @@ export function link(
     blocker: typeof blocker === 'string' ? onActivity(blocker) : blocker,
     blocked: typeof blocked === 'string' ? onActivity(blocked) : blocked,
     lagDays,
+  };
+}
+
+/** An open decision of a stage, `lead` working days between deciding and having. */
+export function decision(
+  id: string,
+  stageId: string,
+  position: number,
+  leadTimeDays: number,
+  madeAt: string | null = null,
+): Decision {
+  return {
+    id,
+    stageId,
+    position,
+    name: `Decision ${id}`,
+    leadTimeDays,
+    madeAt,
+    answer: null,
   };
 }

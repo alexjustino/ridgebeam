@@ -5,24 +5,32 @@ import {
   Delete20Regular,
   Rename20Regular,
 } from '@fluentui/react-icons';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+import { useToday } from '@/app/today';
 
 import {
   useAddActivity,
   useAddStage,
   useRemoveActivity,
+  useRemoveDecision,
   useRemoveStage,
   useRenameStage,
 } from '@/data/queries';
 import { breakdown } from '@/domain/arrangements';
+import { decisionRows } from '@/domain/decisions';
 import {
   activitiesInOrder,
+  decisionsOf,
   roomsInOrder,
   stagesInOrder,
   type Activity,
+  type Decision,
   type Stage,
   type WorkSnapshot,
 } from '@/domain/plan';
+import { schedule } from '@/domain/schedule';
+import { MakeDecisionDialog } from '@/features/decisions/MakeDecisionDialog';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Card } from '@/ui/Card';
@@ -33,6 +41,7 @@ import { IconButton } from '@/ui/IconButton';
 import { ACTIVITY_COLUMNS, ActivityRow } from './ActivityRow';
 import { AddForm } from './AddForm';
 import { CalendarCard } from './CalendarCard';
+import { DecisionsBlock } from './DecisionsBlock';
 import { useEndpointName } from './endpoints';
 import { LinkChip, LinksLine } from './LinksLine';
 import { chordDirection, useMover } from './moves';
@@ -43,7 +52,8 @@ import { RoomsCard } from './RoomsCard';
 
 type Removal =
   | { kind: 'stage'; id: string; name: string; activities: number }
-  | { kind: 'activity'; id: string; name: string };
+  | { kind: 'activity'; id: string; name: string }
+  | { kind: 'decision'; id: string; name: string };
 
 /**
  * The work breakdown: where the plan is edited.
@@ -72,6 +82,9 @@ export function Breakdown({
   const term = useTerms();
   const removeStage = useRemoveStage();
   const removeActivity = useRemoveActivity();
+  const removeDecision = useRemoveDecision();
+  const today = useToday();
+  const [making, setMaking] = useState<Decision | null>(null);
   const mover = useMover(outcome);
   const [removal, setRemoval] = useState<Removal | null>(null);
 
@@ -81,6 +94,11 @@ export function Breakdown({
   const stageIds = stages.map((stage) => stage.id);
   const ordered = activitiesInOrder(snapshot);
   const rooms = roomsInOrder(snapshot);
+  const scheduled = useMemo(() => schedule(snapshot), [snapshot]);
+  const decisionRowsById = useMemo(
+    () => new Map(decisionRows(snapshot, scheduled, today).map((row) => [row.decisionId, row])),
+    [snapshot, scheduled, today],
+  );
   const activitiesOf = (stage: Stage): Activity[] =>
     ordered.filter((activity) => activity.stageId === stage.id);
 
@@ -97,7 +115,8 @@ export function Breakdown({
       },
     };
     if (removal.kind === 'stage') removeStage.mutate(removal.id, options);
-    else removeActivity.mutate(removal.id, options);
+    else if (removal.kind === 'activity') removeActivity.mutate(removal.id, options);
+    else removeDecision.mutate(removal.id, options);
   };
 
   return (
@@ -186,6 +205,30 @@ export function Breakdown({
                         </ul>
                       </div>
                     )}
+                    <DecisionsBlock
+                      stage={stage}
+                      decisions={decisionsOf(snapshot, stage.id)}
+                      rows={decisionRowsById}
+                      snapshot={snapshot}
+                      scheduled={scheduled}
+                      today={today}
+                      outcome={outcome}
+                      focusRow={focusRow}
+                      onFocused={onFocused}
+                      onMove={(decision, direction) =>
+                        mover.go(
+                          'decision',
+                          decision.id,
+                          direction,
+                          decisionsOf(snapshot, stage.id).map((each) => each.id),
+                          decision.name,
+                        )
+                      }
+                      onMake={setMaking}
+                      onRemove={(decision) =>
+                        setRemoval({ kind: 'decision', id: decision.id, name: decision.name })
+                      }
+                    />
                     {activities.length === 0 ? (
                       <p className="text-body text-fg-tertiary">{t('plan.activities.empty')}</p>
                     ) : (
@@ -259,18 +302,28 @@ export function Breakdown({
         title={removal === null ? '' : t('plan.confirm.removeTitle', { name: removal.name })}
         confirmLabel={t('plan.remove')}
         danger
-        pending={removeStage.isPending || removeActivity.isPending}
+        pending={removeStage.isPending || removeActivity.isPending || removeDecision.isPending}
         onConfirm={confirmRemoval}
         onCancel={() => setRemoval(null)}
       >
         {removal === null
           ? null
-          : removal.kind === 'activity'
-            ? t('plan.confirm.activityBody')
-            : removal.activities === 0
-              ? t('plan.confirm.stageEmpty')
-              : tp('plan.confirm.stageBody', removal.activities)}
+          : removal.kind === 'decision'
+            ? t('decisions.confirm.body')
+            : removal.kind === 'activity'
+              ? t('plan.confirm.activityBody')
+              : removal.activities === 0
+                ? t('plan.confirm.stageEmpty')
+                : tp('plan.confirm.stageBody', removal.activities)}
       </ConfirmDialog>
+      <MakeDecisionDialog
+        decision={making}
+        onClose={() => setMaking(null)}
+        onMade={() => {
+          outcome.kept();
+          setMaking(null);
+        }}
+      />
     </>
   );
 }

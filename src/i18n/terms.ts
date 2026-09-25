@@ -37,6 +37,9 @@ export const TERM_KEYS = [
   'criticalPath',
   'baseline',
   'slip',
+  'decision',
+  'leadTime',
+  'deadline',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];

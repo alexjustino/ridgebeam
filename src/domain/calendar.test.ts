@@ -7,12 +7,14 @@ import {
   isIsoDay,
   isWorkingDay,
   nextWorkingDay,
+  previousWorkingDay,
   parseWorkingDays,
   readCalendar,
+  subtractWorkingDays,
   validateCalendar,
   weekdayIndex,
   workingDaysBetween,
-  workingDaysDiff,
+  workingDaysUntil,
   workingDaysFrom,
   type WorkingCalendar,
 } from './calendar';
@@ -366,16 +368,53 @@ describe('a run of working days', () => {
   });
 });
 
-describe('the distance between two working days', () => {
+describe('working days until a day', () => {
   it('counts the working days after the first up to the second, signed', () => {
-    expect(workingDaysDiff(WEEKDAYS, '2026-09-04', '2026-09-07')).toBe(1);
-    expect(workingDaysDiff(WITH_HOLIDAY, '2026-09-04', '2026-09-08')).toBe(1);
-    expect(workingDaysDiff(WEEKDAYS, '2026-09-07', '2026-09-04')).toBe(-1);
-    expect(workingDaysDiff(WEEKDAYS, '2026-09-01', '2026-09-15')).toBe(10);
-    expect(workingDaysDiff(WEEKDAYS, '2026-09-15', '2026-09-01')).toBe(-10);
+    expect(workingDaysUntil(WEEKDAYS, '2026-09-04', '2026-09-07')).toBe(1);
+    expect(workingDaysUntil(WITH_HOLIDAY, '2026-09-04', '2026-09-08')).toBe(1);
+    expect(workingDaysUntil(WEEKDAYS, '2026-09-07', '2026-09-04')).toBe(-1);
+    expect(workingDaysUntil(WEEKDAYS, '2026-09-01', '2026-09-15')).toBe(10);
+    expect(workingDaysUntil(WEEKDAYS, '2026-09-15', '2026-09-01')).toBe(-10);
   });
 
   it('is 0 for the same day', () => {
-    expect(workingDaysDiff(WEEKDAYS, '2026-09-04', '2026-09-04')).toBe(0);
+    expect(workingDaysUntil(WEEKDAYS, '2026-09-04', '2026-09-04')).toBe(0);
+  });
+});
+
+describe('counting working days back', () => {
+  it('gives the day itself for n = 0 when it is a working day', () => {
+    expect(subtractWorkingDays(WEEKDAYS, '2026-09-08', 0)).toBe('2026-09-08');
+  });
+
+  it('moves n = 0 on a weekend or a holiday back to the working day before', () => {
+    expect(subtractWorkingDays(WEEKDAYS, '2026-09-06', 0)).toBe('2026-09-04');
+    expect(subtractWorkingDays(WITH_HOLIDAY, '2026-09-07', 0)).toBe('2026-09-04');
+  });
+
+  it('crosses a weekend and a holiday', () => {
+    // Back one from Tuesday 8: Monday 7 is a holiday, the weekend is not work: Friday 4.
+    expect(subtractWorkingDays(WITH_HOLIDAY, '2026-09-08', 1)).toBe('2026-09-04');
+    expect(subtractWorkingDays(WITH_HOLIDAY, '2026-09-08', 3)).toBe('2026-09-02');
+  });
+
+  it('is undone by counting forward the same number of working days', () => {
+    for (const day of ['2026-09-01', '2026-09-04', '2026-09-08', '2026-09-15']) {
+      for (let n = 0; n <= 12; n += 1) {
+        expect(addWorkingDays(WITH_HOLIDAY, subtractWorkingDays(WITH_HOLIDAY, day, n), n)).toBe(
+          day,
+        );
+      }
+    }
+  });
+
+  it('works on a calendar that is only Sunday', () => {
+    expect(subtractWorkingDays(calendar('0000001'), '2026-09-12', 1)).toBe('2026-08-30');
+  });
+
+  it('refuses a negative or fractional count, and a calendar with no working day', () => {
+    expect(() => subtractWorkingDays(WEEKDAYS, '2026-09-08', -1)).toThrow(RangeError);
+    expect(() => subtractWorkingDays(WEEKDAYS, '2026-09-08', 0.5)).toThrow(RangeError);
+    expect(() => previousWorkingDay(calendar('0000000'), '2026-09-08')).toThrow(RangeError);
   });
 });

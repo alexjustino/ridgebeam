@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import { link, onStage } from '../__fixtures__/plan';
 import { traceable } from '../figure';
+import { schedule } from '../schedule';
 import type { Activity, Person, Stage, WorkSnapshot } from '../plan';
 import {
   READINESS_LABEL_KEY,
   READINESS_MESSAGE_KEYS,
   readiness,
   readinessFigure,
+  RULE_EXPLANATION_KEYS,
+  RULE_LABEL_KEYS,
   RULES,
   sentenceParts,
 } from './index';
@@ -32,9 +35,14 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     activities: [],
     dependencies: [],
     baselines: [],
+    decisions: [],
     ...parts,
   };
 }
+
+/** Readiness as the dashboard asks it: with the plan's own schedule, on a fixed day. */
+const TODAY = '2026-08-31';
+const ready = (plan: WorkSnapshot) => readiness(plan, { schedule: schedule(plan), today: TODAY });
 
 const BATHROOM: Stage = { id: 'bathroom', position: 1, name: 'Bathroom' };
 const TILER: Person = { id: 'tiler', name: 'Sample tiler' };
@@ -59,20 +67,28 @@ const activity = (
 });
 
 describe('the rule table', () => {
-  it('holds the F0 rules and F2’s linking rule, as data, each with its own message key', () => {
-    expect(RULES.map((rule) => rule.id)).toEqual([
-      'activity.duration',
-      'activity.responsible',
-      'activity.linked',
+  it('holds the F0 rules, F2’s linking rule and F3’s two decision rules, as data', () => {
+    expect(RULES.map((rule) => [rule.id, rule.appliesTo])).toEqual([
+      ['activity.duration', 'activity'],
+      ['activity.responsible', 'activity'],
+      ['activity.linked', 'activity'],
+      ['decision.deadline', 'decision'],
+      ['decision.timely', 'decision'],
     ]);
     for (const rule of RULES) {
-      expect(rule.appliesTo).toBe('activity');
       expect(rule.messageKey).toBe(READINESS_MESSAGE_KEYS[rule.id]);
+      expect(RULE_LABEL_KEYS[rule.id]).toBe(`readiness.rule.${rule.id}`);
+      expect(RULE_EXPLANATION_KEYS[rule.id]).toBe(`readiness.explanation.${rule.id}`);
     }
   });
 
   it('names every message key under readiness., so the i18n tables can be checked for them', () => {
-    const keys = [...Object.values(READINESS_MESSAGE_KEYS), READINESS_LABEL_KEY];
+    const keys = [
+      ...Object.values(READINESS_MESSAGE_KEYS),
+      ...Object.values(RULE_LABEL_KEYS),
+      ...Object.values(RULE_EXPLANATION_KEYS),
+      READINESS_LABEL_KEY,
+    ];
     expect(new Set(keys).size).toBe(keys.length);
     for (const key of keys) expect(key).toMatch(/^readiness\./);
   });
@@ -89,7 +105,7 @@ describe('quantity', () => {
       activities: [activity('tiling', 'Tiling', 3, TILER.id)],
     });
     expect(plan.activities[0]).toMatchObject({ quantity: null, unit: null, roomIds: [] });
-    expect(readiness(plan)).toEqual({ known: 2, mustKnow: 2, ratio: 1, missing: [] });
+    expect(ready(plan)).toMatchObject({ known: 2, mustKnow: 2, ratio: 1, missing: [] });
   });
 
   it('does not change readiness when it is given', () => {
@@ -101,7 +117,7 @@ describe('quantity', () => {
       ...without,
       activities: [{ ...activity('tiling', 'Tiling', 3, null), quantity: 12, unit: 'm²' }],
     });
-    expect(readiness(withQuantity)).toEqual(readiness(without));
+    expect(ready(withQuantity)).toEqual(ready(without));
   });
 });
 
@@ -111,8 +127,8 @@ describe('readiness', () => {
       stages: [BATHROOM],
       activities: [activity('tiling', 'Tiling', 3, null)],
     });
-    const measure = readiness(plan);
-    expect(measure).toEqual({
+    const measure = ready(plan);
+    expect(measure).toMatchObject({
       known: 1,
       mustKnow: 2,
       ratio: 0.5,
@@ -138,7 +154,7 @@ describe('readiness', () => {
       people: [TILER],
       activities: [activity('tiling', 'Tiling', null, TILER.id)],
     });
-    const measure = readiness(plan);
+    const measure = ready(plan);
     expect(measure.known).toBe(1);
     expect(measure.mustKnow).toBe(2);
     expect(measure.missing.map((row) => row.ruleId)).toEqual(['activity.duration']);
@@ -153,7 +169,7 @@ describe('readiness', () => {
       people: [TILER],
       activities: [activity('tiling', 'Tiling', days, TILER.id)],
     });
-    expect(readiness(plan).missing.map((row) => row.ruleId)).toEqual(['activity.duration']);
+    expect(ready(plan).missing.map((row) => row.ruleId)).toEqual(['activity.duration']);
   });
 
   it('says both things when both are missing, in the rule order', () => {
@@ -161,7 +177,7 @@ describe('readiness', () => {
       stages: [BATHROOM],
       activities: [activity('tiling', 'Tiling', null, null)],
     });
-    const measure = readiness(plan);
+    const measure = ready(plan);
     expect(measure.known).toBe(0);
     expect(measure.ratio).toBe(0);
     expect(readinessFigure(measure).value).toBe(0);
@@ -177,16 +193,16 @@ describe('readiness', () => {
       people: [TILER],
       activities: [activity('tiling', 'Tiling', 3, TILER.id)],
     });
-    const measure = readiness(plan);
-    expect(measure).toEqual({ known: 2, mustKnow: 2, ratio: 1, missing: [] });
+    const measure = ready(plan);
+    expect(measure).toMatchObject({ known: 2, mustKnow: 2, ratio: 1, missing: [] });
     expect(readinessFigure(measure).value).toBe(100);
     expect(readinessFigure(measure).rows).toEqual([]);
     expect(sentenceParts(measure.missing)).toEqual([]);
   });
 
   it('is not ready with no activity, and explains that the plan has none', () => {
-    const measure = readiness(snapshot({ stages: [BATHROOM] }));
-    expect(measure).toEqual({
+    const measure = ready(snapshot({ stages: [BATHROOM] }));
+    expect(measure).toMatchObject({
       known: 0,
       mustKnow: 0,
       ratio: 0,
@@ -212,7 +228,7 @@ describe('readiness', () => {
       people: [TILER],
       activities: [activity('tiling', 'Tiling', 3, 'somebody-removed')],
     });
-    expect(readiness(plan).missing.map((row) => row.ruleId)).toEqual(['activity.responsible']);
+    expect(ready(plan).missing.map((row) => row.ruleId)).toEqual(['activity.responsible']);
   });
 
   it('counts every rule for every activity, and groups the sentence by rule', () => {
@@ -226,7 +242,7 @@ describe('readiness', () => {
       ],
       dependencies: [link('l1', 'tiling', 'grout')],
     });
-    const measure = readiness(plan);
+    const measure = ready(plan);
     // Three activities, three rules each; tiling and grout are linked, the sink is not.
     expect(measure.mustKnow).toBe(9);
     expect(measure.known).toBe(4);
@@ -248,7 +264,7 @@ describe('readiness', () => {
 
   it('names no stage for an activity whose stage is not in the plan', () => {
     const plan = snapshot({ activities: [activity('ghost', 'Ghost', 1, null, 'gone')] });
-    expect(readiness(plan).missing).toEqual([
+    expect(ready(plan).missing).toEqual([
       {
         ruleId: 'activity.responsible',
         entity: 'activity',
@@ -274,7 +290,7 @@ describe('linking', () => {
   });
 
   it('says an activity linked to no other is not ready: "1 activity is not linked to any other"', () => {
-    const measure = readiness(three);
+    const measure = ready(three);
     expect(measure.missing.map((row) => `${row.id}/${row.ruleId}`)).toEqual(['c/activity.linked']);
     expect(sentenceParts(measure.missing)).toEqual([
       { key: 'readiness.missing.activity.linked', count: 1, params: { count: 1 } },
@@ -284,9 +300,9 @@ describe('linking', () => {
 
   it('is satisfied once the activity is linked, in either direction', () => {
     const linked = { ...three, dependencies: [...three.dependencies, link('bc', 'b', 'c')] };
-    expect(readiness(linked)).toEqual({ known: 9, mustKnow: 9, ratio: 1, missing: [] });
+    expect(ready(linked)).toMatchObject({ known: 9, mustKnow: 9, ratio: 1, missing: [] });
     const before = { ...three, dependencies: [...three.dependencies, link('ca', 'c', 'a')] };
-    expect(readiness(before).missing).toEqual([]);
+    expect(ready(before).missing).toEqual([]);
   });
 
   it('asks nothing of a plan with one activity: there is nothing to link it to', () => {
@@ -295,7 +311,7 @@ describe('linking', () => {
       people,
       activities: [activity('a', 'A', 3, TILER.id)],
     });
-    expect(readiness(one)).toEqual({ known: 2, mustKnow: 2, ratio: 1, missing: [] });
+    expect(ready(one)).toMatchObject({ known: 2, mustKnow: 2, ratio: 1, missing: [] });
   });
 
   it('counts a link through a stage as linking every activity of the stage', () => {
@@ -306,7 +322,7 @@ describe('linking', () => {
       activities: [...three.activities, activity('k', 'K', 1, TILER.id, 'kitchen', 1)],
       dependencies: [link('s', onStage('bathroom'), onStage('kitchen'))],
     };
-    expect(readiness(staged).missing).toEqual([]);
+    expect(ready(staged).missing).toEqual([]);
   });
 
   it('does not count a link that does nothing: onto an empty stage, or naming something gone', () => {
@@ -320,7 +336,7 @@ describe('linking', () => {
         link('ab', 'a', 'b'),
       ],
     };
-    expect(readiness(inert).missing.map((row) => row.id)).toEqual(['c']);
+    expect(ready(inert).missing.map((row) => row.id)).toEqual(['c']);
   });
 
   it('does not count an activity linked only to itself through its own stage', () => {
@@ -335,7 +351,7 @@ describe('linking', () => {
         link('self', 'k', onStage('kitchen')),
       ],
     };
-    expect(readiness(selfOnly).missing.map((row) => `${row.id}/${row.ruleId}`)).toEqual([
+    expect(ready(selfOnly).missing.map((row) => `${row.id}/${row.ruleId}`)).toEqual([
       'k/activity.linked',
     ]);
   });
@@ -363,14 +379,12 @@ describe('the readiness figure', () => {
   ];
 
   it.each(plans)('is traceable for %s', (_name, plan) => {
-    expect(traceable(readinessFigure(readiness(plan)))).toBe(true);
+    expect(traceable(readinessFigure(ready(plan)))).toBe(true);
   });
 
   it('opens onto the missing rows, each keyed by rule and activity', () => {
     const figure = readinessFigure(
-      readiness(
-        snapshot({ stages: [BATHROOM], activities: [activity('tiling', 'Tiling', 3, null)] }),
-      ),
+      ready(snapshot({ stages: [BATHROOM], activities: [activity('tiling', 'Tiling', 3, null)] })),
     );
     expect(figure).toMatchObject({
       id: 'readiness',
@@ -396,7 +410,7 @@ describe('the readiness figure', () => {
 
   it('is caught when it is broken', () => {
     const honest = readinessFigure(
-      readiness(
+      ready(
         snapshot({ stages: [BATHROOM], activities: [activity('tiling', 'Tiling', null, null)] }),
       ),
     );
@@ -406,7 +420,7 @@ describe('the readiness figure', () => {
     // A missing row dropped: the list hides something the number still counts.
     expect(traceable({ ...honest, rows: honest.rows.slice(1) })).toBe(false);
     // An empty plan claiming 0 % with nothing said about why.
-    const empty = readinessFigure(readiness(snapshot()));
+    const empty = readinessFigure(ready(snapshot()));
     expect(traceable({ ...empty, rows: [] })).toBe(false);
   });
 });

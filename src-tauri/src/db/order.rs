@@ -1,5 +1,5 @@
-//! Order: stages among themselves, rooms among themselves, activities within
-//! their stage.
+//! Order: stages among themselves, rooms among themselves, activities and
+//! decisions within their stage.
 //!
 //! Order is explicit and the person edits it one step at a time — move up, move
 //! down. A move at the edge is not an error: the first stage moved up is still
@@ -17,7 +17,7 @@
 
 use rusqlite::{params, Connection, OptionalExtension};
 
-use crate::db::work::{ACTIVITY_NOT_FOUND, ROOM_NOT_FOUND, STAGE_NOT_FOUND};
+use crate::db::work::{ACTIVITY_NOT_FOUND, DECISION_NOT_FOUND, ROOM_NOT_FOUND, STAGE_NOT_FOUND};
 use crate::error::{Error, Result};
 
 /// Which way a row moves.
@@ -61,6 +61,13 @@ pub const ACTIVITIES: Sequence = Sequence {
     table: "activity",
     scope: Some("stage_id"),
     missing: ACTIVITY_NOT_FOUND,
+};
+
+/// Decisions, one sequence per stage (F3).
+pub const DECISIONS: Sequence = Sequence {
+    table: "decision",
+    scope: Some("stage_id"),
+    missing: DECISION_NOT_FOUND,
 };
 
 impl Sequence {

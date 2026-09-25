@@ -105,6 +105,46 @@ pub fn endpoint(value: &Endpoint) -> Result<End> {
     })
 }
 
+/// The longest answer a made decision keeps.
+pub const MAX_ANSWER_CHARS: usize = 500;
+
+/// A lead time: a whole number of working days, from 0 to [`MAX_LAG_DAYS`] —
+/// the time between deciding and having. 0 means "decided on the day is soon
+/// enough".
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a negative number, a fraction, or one past the
+/// bound.
+pub fn lead_time_days(value: f64) -> Result<i64> {
+    if value.is_finite() && value.fract() == 0.0 && (0.0..=MAX_LAG_DAYS as f64).contains(&value) {
+        Ok(value as i64)
+    } else {
+        Err(invalid(format!(
+            "A lead time is a whole number of working days, from 0 to {MAX_LAG_DAYS}."
+        )))
+    }
+}
+
+/// The answer a decision was made with: trimmed, at most
+/// [`MAX_ANSWER_CHARS`] characters. Nothing, or only spaces, is no answer — a
+/// decision may be made without writing one down.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is too long.
+pub fn answer(value: Option<&str>) -> Result<Option<String>> {
+    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    if value.chars().count() > MAX_ANSWER_CHARS {
+        return Err(invalid(format!(
+            "An answer is at most {MAX_ANSWER_CHARS} characters."
+        )));
+    }
+    Ok(Some(value.to_string()))
+}
+
 /// An optional date: `null`, or a date written `YYYY-MM-DD` that exists.
 ///
 /// # Errors
@@ -363,6 +403,35 @@ mod tests {
         assert_eq!(
             unit(Some(&"u".repeat(17))).unwrap_err().kind(),
             "invalid_input"
+        );
+    }
+
+    #[test]
+    fn a_lead_time_is_whole_working_days_from_zero_and_zero_is_allowed() {
+        assert_eq!(lead_time_days(0.0).unwrap(), 0);
+        assert_eq!(lead_time_days(10.0).unwrap(), 10);
+        assert_eq!(lead_time_days(3650.0).unwrap(), 3650);
+        for refused in [-1.0, 2.5, 3651.0, f64::NAN, f64::INFINITY] {
+            assert_eq!(
+                lead_time_days(refused).unwrap_err().kind(),
+                "invalid_input",
+                "`{refused}`"
+            );
+        }
+    }
+
+    #[test]
+    fn an_answer_is_trimmed_an_empty_one_is_none_and_a_long_one_is_refused() {
+        assert_eq!(
+            answer(Some("  Porcelain, grey ")).unwrap().as_deref(),
+            Some("Porcelain, grey")
+        );
+        assert_eq!(answer(Some("   ")).unwrap(), None);
+        assert_eq!(answer(None).unwrap(), None);
+        answer(Some(&"é".repeat(500))).expect("500 characters, whatever their bytes");
+        assert_eq!(
+            answer(Some(&"a".repeat(501))).unwrap_err().to_string(),
+            "An answer is at most 500 characters."
         );
     }
 
