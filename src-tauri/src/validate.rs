@@ -11,6 +11,8 @@
 
 use chrono::NaiveDate;
 
+use crate::contract::Endpoint;
+use crate::db::dependencies::{End, Kind};
 use crate::db::order::Direction;
 use crate::error::{Error, Result};
 
@@ -63,6 +65,53 @@ pub fn direction(value: &str) -> Result<Direction> {
         "down" => Ok(Direction::Down),
         _ => Err(invalid("A move is up or down.")),
     }
+}
+
+/// The longest lag a dependency may carry, in working days — the same bound as
+/// a duration.
+pub const MAX_LAG_DAYS: i64 = 3650;
+
+/// A lag: a whole number of working days, from 0 to [`MAX_LAG_DAYS`]. A lag is
+/// waiting, not work, so 0 is the ordinary case.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a negative number, a fraction, or one past the
+/// bound.
+pub fn lag_days(value: f64) -> Result<i64> {
+    if value.is_finite() && value.fract() == 0.0 && (0.0..=MAX_LAG_DAYS as f64).contains(&value) {
+        Ok(value as i64)
+    } else {
+        Err(invalid(format!(
+            "A lag is a whole number of working days, from 0 to {MAX_LAG_DAYS}."
+        )))
+    }
+}
+
+/// One end of a dependency: `activity` or `stage`, exactly as written, and an id.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for any other kind.
+pub fn endpoint(value: &Endpoint) -> Result<End> {
+    let kind = match value.kind.as_str() {
+        "activity" => Kind::Activity,
+        "stage" => Kind::Stage,
+        _ => return Err(invalid("A dependency joins an activity or a stage.")),
+    };
+    Ok(End {
+        kind,
+        id: value.id.clone(),
+    })
+}
+
+/// An optional date: `null`, or a date written `YYYY-MM-DD` that exists.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] naming the field.
+pub fn optional_date(what: &str, value: Option<&str>) -> Result<Option<String>> {
+    value.map(|value| date(what, value)).transpose()
 }
 
 /// The longest name any row of a work keeps — a work, a stage, an activity, a

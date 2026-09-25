@@ -19,6 +19,12 @@
 //! | `no_work_open`          | a work command arrived with no work open                        |
 //! | `invalid_input`         | a value the host refuses; the message says which and why        |
 //! | `settings_key`          | a setting that is not on the closed list                        |
+//! | `dependency_cycle`      | a dependency that would close a loop; the message is the loop   |
+//!
+//! `dependency_cycle` is the one kind whose message is not a sentence: it is
+//! the loop itself, the activities' names joined by ` → ` and ending where it
+//! began (`Tiling → Grout → Tiling`), so the interface can put it inside its
+//! own sentence in the person's language.
 
 use serde::Serialize;
 
@@ -77,6 +83,11 @@ pub enum Error {
     /// A setting that is not on the host's closed list.
     #[error("That is not a setting Ridgebeam keeps.")]
     SettingsKey,
+
+    /// A dependency that would make the plan wait on itself. The message is the
+    /// loop, by the activities' names, joined by ` → `.
+    #[error("{0}")]
+    DependencyCycle(String),
 }
 
 /// The sentence for a folder with no `work.sqlite3` in it.
@@ -98,6 +109,7 @@ impl Error {
             Error::NoWorkOpen => "no_work_open",
             Error::InvalidInput(_) => "invalid_input",
             Error::SettingsKey => "settings_key",
+            Error::DependencyCycle(_) => "dependency_cycle",
         }
     }
 }
@@ -154,6 +166,10 @@ mod tests {
                 "invalid_input",
             ),
             (Error::SettingsKey, "settings_key"),
+            (
+                Error::DependencyCycle("Tiling → Grout → Tiling".into()),
+                "dependency_cycle",
+            ),
         ]
     }
 
@@ -166,14 +182,18 @@ mod tests {
             assert_eq!(object["kind"], kind);
             let message = object["message"].as_str().expect("a string message");
             assert!(!message.is_empty(), "{kind}: an empty message");
-            assert!(
-                message.ends_with('.'),
-                "{kind}: a message is a sentence: {message}"
-            );
+            if kind == "dependency_cycle" {
+                assert!(message.contains(" → "), "the loop, by name: {message}");
+            } else {
+                assert!(
+                    message.ends_with('.'),
+                    "{kind}: a message is a sentence: {message}"
+                );
+            }
         }
     }
 
-    /// The contract lists nine kinds. A variant that maps outside the list is a
+    /// The contract lists ten kinds (F2 added `dependency_cycle`). A variant that maps outside the list is a
     /// kind the interface cannot translate.
     #[test]
     fn the_kinds_are_exactly_the_closed_list_the_interface_translates() {
@@ -185,6 +205,7 @@ mod tests {
             vec![
                 "data_dir",
                 "database",
+                "dependency_cycle",
                 "invalid_input",
                 "io",
                 "no_work_open",

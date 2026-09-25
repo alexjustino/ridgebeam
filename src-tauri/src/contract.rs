@@ -17,6 +17,10 @@
 //!   unit (`Activity.roomIds`, `quantity`, `unit`, and the same two in
 //!   `ActivityPatch`). Positions are contiguous from 1 after every move and
 //!   every removal.
+//! - F2: dependencies between activities or stages (`Endpoint`, `Dependency`,
+//!   `WorkSnapshot.dependencies`); baselines, insert-only (`Baseline`,
+//!   `BaselineRow`, `BaselineRowDraft`, `WorkSnapshot.baselines`); the moment
+//!   the plan was first approved (`Work.approvedAt`).
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -114,6 +118,9 @@ pub struct Work {
     pub currency: String,
     /// UTC.
     pub created_at: String,
+    /// When the plan was first approved — baseline 1 taken — UTC; `null` until
+    /// it is. Never changes once set.
+    pub approved_at: Option<String>,
 }
 
 /// The working calendar durations are counted on.
@@ -221,6 +228,91 @@ pub struct WorkSnapshot {
     pub rooms: Vec<Room>,
     /// Activities, by their stage's position and then their own.
     pub activities: Vec<Activity>,
+    /// Dependencies, in the order they were declared.
+    pub dependencies: Vec<Dependency>,
+    /// Baselines, by number: 1 is the approval.
+    pub baselines: Vec<Baseline>,
+}
+
+/// One end of a dependency: an activity, or a whole stage.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Endpoint {
+    /// `activity` or `stage`. Read as text and checked by the host, so that
+    /// anything else is `invalid_input` with a sentence.
+    pub kind: String,
+    /// The activity's or the stage's id.
+    pub id: String,
+}
+
+/// "`blocked` starts after `blocker` finishes, and `lagDays` working days
+/// later." Finish-to-start; a stage endpoint stands for every activity in it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Dependency {
+    /// UUID v7.
+    pub id: String,
+    /// What has to finish first.
+    pub blocker: Endpoint,
+    /// What waits for it.
+    pub blocked: Endpoint,
+    /// Working days of waiting between the two, 0 to 3650.
+    pub lag_days: i64,
+}
+
+/// The plan as it was approved, never rewritten.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Baseline {
+    /// UUID v7.
+    pub id: String,
+    /// 1, 2, 3 … — 1 is the approval.
+    pub number: i64,
+    /// When it was taken, UTC.
+    pub taken_at: String,
+    /// Why the plan changed; `null` for baseline 1 and until slice F8 asks.
+    pub reason: Option<String>,
+    /// The work's finish date at that moment; `null` when nothing was placed.
+    pub finish_date: Option<String>,
+    /// One row per activity the plan held, in breakdown order.
+    pub rows: Vec<BaselineRow>,
+}
+
+/// One activity, as a baseline recorded it. The name and stage name are copies:
+/// an activity renamed or removed later is still what it was here.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BaselineRow {
+    /// The activity's id — which may since have been removed.
+    pub activity_id: String,
+    /// Its name then.
+    pub name: String,
+    /// Its stage's name then.
+    pub stage_name: String,
+    /// Its duration then; `null` when it had none.
+    pub duration_days: Option<i64>,
+    /// Its start then, `YYYY-MM-DD`; `null` when it was not placed.
+    pub start: Option<String>,
+    /// Its finish then, `YYYY-MM-DD`; `null` when it was not placed.
+    pub finish: Option<String>,
+}
+
+/// What `baseline_take` receives for one activity: where the schedule placed
+/// it. The schedule is the domain's; everything else about the row — name,
+/// stage name, duration — the host reads from the file, so a baseline records
+/// what the work held rather than what the interface said it held. Any other
+/// field sent is ignored.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BaselineRowDraft {
+    /// The activity.
+    pub activity_id: String,
+    /// Its start, `YYYY-MM-DD`, or `null` when it is not placed.
+    #[serde(default)]
+    pub start: Option<String>,
+    /// Its finish, `YYYY-MM-DD`, or `null` when it is not placed.
+    #[serde(default)]
+    pub finish: Option<String>,
 }
 
 /// A change to the work row. A field left out is left alone.

@@ -17,6 +17,7 @@
 
 pub mod plan;
 pub mod rooms;
+pub mod schedule;
 pub mod settings;
 pub mod system;
 pub mod work;

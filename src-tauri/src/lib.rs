@@ -27,6 +27,13 @@
 //!   person is renamed or removed, and their activities are left with nobody
 //!   responsible. The lens is a setting and a vocabulary — nothing about it is
 //!   stored in a work, so nothing about it is here.
+//! - F2: the schedule. Work migration 003 adds dependencies between activities
+//!   or whole stages, with a lag in working days; baselines, insert-only by
+//!   trigger and by rule (`db::baselines` holds no statement that edits or
+//!   removes a row); and the moment the plan was approved. A dependency that
+//!   would close a loop over the expanded graph is refused as
+//!   `dependency_cycle`, naming the loop; removing an activity or a stage takes
+//!   its dependencies with it. The schedule itself is the domain's.
 
 pub mod commands;
 pub mod contract;
@@ -106,6 +113,10 @@ pub fn run() {
             commands::rooms::room_remove,
             commands::rooms::room_move,
             commands::rooms::activity_set_rooms,
+            commands::schedule::dependency_add,
+            commands::schedule::dependency_update,
+            commands::schedule::dependency_remove,
+            commands::schedule::baseline_take,
         ])
         .build(tauri::generate_context!())
         .expect("Ridgebeam failed to start");
