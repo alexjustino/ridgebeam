@@ -30,7 +30,7 @@ interface AxeViolation {
   nodes: { target: string[]; failureSummary: string }[];
 }
 
-const SCREENS = ['dashboard', 'plan', 'settings', 'diagnostics', 'about'] as const;
+const SCREENS = ['dashboard', 'plan', 'schedule', 'settings', 'diagnostics', 'about'] as const;
 const THEMES = ['Light', 'Dark'] as const;
 const LANGUAGES: LanguageName[] = ['English', 'Português (Brasil)'];
 const THEME_LABELS: Record<LanguageName, Record<(typeof THEMES)[number], string>> = {
