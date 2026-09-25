@@ -7,6 +7,7 @@ import { useAccentRamp, useCloseWork, useWork } from '@/data/queries';
 import { AboutPage } from '@/features/about/AboutPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { DiagnosticsPage } from '@/features/diagnostics/DiagnosticsPage';
+import { DecisionsPage } from '@/features/decisions/DecisionsPage';
 import { PlanPage } from '@/features/plan/PlanPage';
 import { SchedulePage } from '@/features/schedule/SchedulePage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
@@ -38,6 +39,14 @@ export function App({ settings }: { settings: Settings }) {
   // Whether the plan's calendar card is open survives a trip to the dashboard and back: somebody
   // who opened it to enter holidays and went to look at the finish date comes back to it open.
   const [calendarOpen, setCalendarOpen] = useState(false);
+  // A row another page asked the breakdown to open on ("Edit in the breakdown" on Decisions):
+  // held until the plan has taken it, then let go, so the next visit opens as usual.
+  const [planFocus, setPlanFocus] = useState<string | null>(null);
+  const releasePlanFocus = useCallback(() => setPlanFocus(null), []);
+  const editInPlan = useCallback((id: string) => {
+    setPlanFocus(id);
+    setDestination('plan');
+  }, []);
 
   // The theme comes from the settings table and is applied here rather than in each screen, so
   // every screen changes at once. The browser store keeps a copy — the guess the next window
@@ -123,10 +132,15 @@ export function App({ settings }: { settings: Settings }) {
                   snapshot={snapshot}
                   calendarOpen={calendarOpen}
                   onCalendarOpen={setCalendarOpen}
+                  initialFocus={planFocus}
+                  onFocusTaken={releasePlanFocus}
                 />
               )}
               {!showsStart && destination === 'schedule' && snapshot !== null && (
                 <SchedulePage snapshot={snapshot} />
+              )}
+              {!showsStart && destination === 'decisions' && snapshot !== null && (
+                <DecisionsPage snapshot={snapshot} onEdit={editInPlan} />
               )}
               {destination === 'settings' && <SettingsPage settings={settings} />}
               {destination === 'diagnostics' && <DiagnosticsPage />}
