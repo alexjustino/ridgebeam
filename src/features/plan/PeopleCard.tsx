@@ -1,13 +1,15 @@
 import { Delete20Regular, PersonAdd20Regular } from '@fluentui/react-icons';
 import { useState } from 'react';
 
-import { useAddPerson, useRemovePerson, useRenamePerson } from '@/data/queries';
+import { LIMITS } from '@/data/commands';
+import { useAddPerson, useRemovePerson, useRenamePerson, useUpdatePerson } from '@/data/queries';
 import type { Person, WorkSnapshot } from '@/domain/plan';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
+import { Input } from '@/ui/Input';
 
 import { AddForm } from './AddForm';
 import { NameField } from './NameField';
@@ -51,6 +53,7 @@ export function PeopleCard({ snapshot, outcome }: { snapshot: WorkSnapshot; outc
                   )
                 }
               />
+              <TradeField person={person} outcome={outcome} />
               <Button
                 appearance="subtle"
                 icon={<Delete20Regular />}
@@ -109,5 +112,34 @@ export function PeopleCard({ snapshot, outcome }: { snapshot: WorkSnapshot; outc
             : tp('plan.confirm.personBody', answersFor(removal))}
       </ConfirmDialog>
     </Card>
+  );
+}
+
+/**
+ * A person's trade — tiler, electrician — which money is grouped by (slice F6). Kept as it is
+ * typed: a trade is a word, not a decision, and an empty one clears it.
+ */
+function TradeField({ person, outcome }: { person: Person; outcome: Outcome }) {
+  const { t } = useI18n();
+  const update = useUpdatePerson();
+  const [trade, setTrade] = useState(person.trade ?? '');
+
+  return (
+    <Input
+      data-testid="person-trade"
+      className="w-48"
+      aria-label={t('plan.person.trade', { name: person.name })}
+      placeholder={t('plan.person.tradeHint')}
+      maxLength={LIMITS.trade}
+      value={trade}
+      onChange={(event) => {
+        const next = event.target.value;
+        setTrade(next);
+        update.mutate(
+          { id: person.id, patch: { trade: next.trim() === '' ? null : next.trim() } },
+          { onSuccess: outcome.kept, onError: outcome.refused },
+        );
+      }}
+    />
   );
 }

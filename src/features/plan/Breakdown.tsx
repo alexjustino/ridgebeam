@@ -43,6 +43,7 @@ import { ACTIVITY_COLUMNS, ActivityRow } from './ActivityRow';
 import { AddForm } from './AddForm';
 import { CalendarCard } from './CalendarCard';
 import { ChecksBlock } from './ChecksBlock';
+import { CostLines } from './CostLines';
 import { DecisionsBlock } from './DecisionsBlock';
 import { useEndpointName } from './endpoints';
 import { LinkChip, LinksLine } from './LinksLine';
@@ -252,6 +253,15 @@ export function Breakdown({
                           mover.go('check', check.id, direction, checkSiblings, check.name)
                         }
                       />
+                      <div className="mb-3 rounded-lg border border-stroke-subtle bg-layer p-3">
+                        <CostLines
+                          snapshot={snapshot}
+                          stageId={stage.id}
+                          activityId={null}
+                          outcome={outcome}
+                          readOnly={closed}
+                        />
+                      </div>
                       {activities.length === 0 ? (
                         <p className="text-body text-fg-tertiary">{t('plan.activities.empty')}</p>
                       ) : (
@@ -307,6 +317,16 @@ export function Breakdown({
                                   outcome={outcome}
                                   readOnly={closed}
                                 />
+                                <div className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-2">
+                                  <span aria-hidden="true" />
+                                  <CostLines
+                                    snapshot={snapshot}
+                                    stageId={stage.id}
+                                    activityId={activity.id}
+                                    outcome={outcome}
+                                    readOnly={closed}
+                                  />
+                                </div>
                               </ActivityRow>
                             ))}
                           </ul>
