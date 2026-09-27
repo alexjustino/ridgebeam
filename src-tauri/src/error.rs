@@ -25,6 +25,7 @@
 //! | `photo_refused`         | a photo refused under the caps; the message names the file      |
 //! | `stage_gate_open`       | a start or close while the gate is held; the message names the items |
 //! | `stage_closed`          | a change to a closed stage; the message names the stage         |
+//! | `money_reversal`        | a reversal of a payment that cannot be reversed; the message says why |
 //!
 //! A broken diary chain is not an error: `diary_verify` answers with a report
 //! that says where the chain breaks and why.
@@ -123,6 +124,11 @@ pub enum Error {
     /// it is reopened. The name is the stage's.
     #[error("“{0}” is closed. Reopen it to change it.")]
     StageClosed(String),
+
+    /// A reversal refused: the payment is not there, is itself a reversal, or
+    /// has already been reversed. The sentence says which.
+    #[error("{0}")]
+    MoneyReversal(String),
 }
 
 /// The sentence for a folder with no `work.sqlite3` in it.
@@ -150,6 +156,7 @@ impl Error {
             Error::PhotoRefused(_) => "photo_refused",
             Error::StageGateOpen(_) => "stage_gate_open",
             Error::StageClosed(_) => "stage_closed",
+            Error::MoneyReversal(_) => "money_reversal",
         }
     }
 }
@@ -226,6 +233,10 @@ mod tests {
                 "stage_gate_open",
             ),
             (Error::StageClosed("Tiling".into()), "stage_closed"),
+            (
+                Error::MoneyReversal("Payment #2 has already been reversed by #3.".into()),
+                "money_reversal",
+            ),
         ]
     }
 
@@ -249,9 +260,9 @@ mod tests {
         }
     }
 
-    /// The contract lists fifteen kinds (F2 added `dependency_cycle`; F4 the
+    /// The contract lists sixteen kinds (F2 added `dependency_cycle`; F4 the
     /// diary's two and `photo_refused`; F5 `stage_gate_open` and
-    /// `stage_closed`). A variant that maps outside the list is a
+    /// `stage_closed`; F6 `money_reversal`). A variant that maps outside the list is a
     /// kind the interface cannot translate.
     #[test]
     fn the_kinds_are_exactly_the_closed_list_the_interface_translates() {
@@ -268,6 +279,7 @@ mod tests {
                 "diary_future_day",
                 "invalid_input",
                 "io",
+                "money_reversal",
                 "no_work_open",
                 "photo_refused",
                 "settings_key",

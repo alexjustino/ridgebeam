@@ -31,6 +31,12 @@
 //! - F5: checks and gates (`Check`, `CheckAnswer`, `WorkSnapshot.checks`,
 //!   `WorkSnapshot.checkAnswers`); a stage's lifecycle (`Stage.startedAt`,
 //!   `Stage.closedAt`). Answers are append-only facts; the latest counts.
+//! - F6: money (`CostLine`, `Commitment`, `Payment` and their drafts and
+//!   patches; `WorkSnapshot.costLines`, `.commitments`, `.payments`); a
+//!   person's trade (`Person.trade`, `PersonPatch`, which replaces the name
+//!   alone of `person_rename`). Amounts are whole minor units (`amountCents`).
+//!   The ledger is in the snapshot: payments are few enough in 1.0; a work with
+//!   thousands would read them on their own, as the diary does.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -157,7 +163,7 @@ pub struct Holiday {
     pub name: String,
 }
 
-/// Somebody who can be responsible for an activity.
+/// Somebody who can be responsible for an activity, and be paid.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Person {
@@ -165,6 +171,22 @@ pub struct Person {
     pub id: String,
     /// Their name.
     pub name: String,
+    /// Their trade — `tiler`, `plumber` — as the person writes it; `null` when
+    /// not said. Money per trade groups by it.
+    pub trade: Option<String>,
+}
+
+/// A change to a person. A field left out is left alone; `trade: null` (or
+/// empty) clears the trade.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PersonPatch {
+    /// A new name.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Absent: unchanged. `null` or empty: no trade. A string: the trade.
+    #[serde(default, deserialize_with = "present")]
+    pub trade: Option<Option<String>>,
 }
 
 /// A stage of the work.
@@ -254,6 +276,150 @@ pub struct WorkSnapshot {
     /// Every answer ever given, in the checks' order and then by `seq`. The
     /// latest answer of a check is the one that counts.
     pub check_answers: Vec<CheckAnswer>,
+    /// Planned money: cost lines, by stage position, then as written.
+    pub cost_lines: Vec<CostLine>,
+    /// Committed money: commitments, by stage position, then as agreed.
+    pub commitments: Vec<Commitment>,
+    /// Paid money: the ledger, by `seq` — reversals included, as they were
+    /// written.
+    pub payments: Vec<Payment>,
+}
+
+/// Planned money: a line on a stage, or on one of its activities.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CostLine {
+    /// UUID v7.
+    pub id: String,
+    /// The stage it belongs to — the activity's stage, when it names one.
+    pub stage_id: String,
+    /// The activity, or `null` for a line on the stage itself.
+    pub activity_id: Option<String>,
+    /// What it is for.
+    pub label: String,
+    /// How much, in the currency's minor unit; 0 or more.
+    pub amount_cents: i64,
+}
+
+/// A change to a cost line. A field left out is left alone.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CostLinePatch {
+    /// A new label.
+    #[serde(default)]
+    pub label: Option<String>,
+    /// A new amount, whole minor units, 0 or more.
+    #[serde(default)]
+    pub amount_cents: Option<f64>,
+}
+
+/// Committed money: a quote or contract accepted.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Commitment {
+    /// UUID v7.
+    pub id: String,
+    /// The stage it is for.
+    pub stage_id: String,
+    /// Who it was agreed with; `null` when nobody was named.
+    pub person_id: Option<String>,
+    /// What it is.
+    pub label: String,
+    /// How much, in the currency's minor unit; 0 or more.
+    pub amount_cents: i64,
+    /// The day it was agreed.
+    pub agreed_on: String,
+    /// The quote or contract, as an image in the work, by hash; `null` when
+    /// none.
+    pub document_hash: Option<String>,
+    /// Whether a payment names it — from then on it cannot be changed or
+    /// removed.
+    pub locked: bool,
+}
+
+/// A change to a commitment, while nothing is paid against it. A field left
+/// out is left alone.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitmentPatch {
+    /// Absent: unchanged. `null`: nobody. A string: a person's id.
+    #[serde(default, deserialize_with = "present")]
+    pub person_id: Option<Option<String>>,
+    /// A new label.
+    #[serde(default)]
+    pub label: Option<String>,
+    /// A new amount, whole minor units, 0 or more.
+    #[serde(default)]
+    pub amount_cents: Option<f64>,
+    /// A new day it was agreed.
+    #[serde(default)]
+    pub agreed_on: Option<String>,
+    /// A new document, copied in from this path.
+    #[serde(default)]
+    pub document_path: Option<String>,
+    /// Absent: unchanged. `null`: no document. A hash: a document the work
+    /// holds.
+    #[serde(default, deserialize_with = "present")]
+    pub document_hash: Option<Option<String>>,
+}
+
+/// Paid money: one line of the ledger — never edited. A reversal is a
+/// payment with a negative amount that names the one it reverses.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Payment {
+    /// UUID v7.
+    pub id: String,
+    /// 1, 2, 3 … for the whole work, in the order written.
+    pub seq: i64,
+    /// The day it was paid.
+    pub day: String,
+    /// Who was paid; `null` when not said.
+    pub person_id: Option<String>,
+    /// The stage it was for.
+    pub stage_id: String,
+    /// The commitment it pays against; `null` when none.
+    pub commitment_id: Option<String>,
+    /// How much, in the currency's minor unit: positive for a payment,
+    /// negative for a reversal.
+    pub amount_cents: i64,
+    /// What it was for — for a reversal, why; `null` when not said.
+    pub what_for: Option<String>,
+    /// The payment this one reverses; `null` for a payment.
+    pub reverses_seq: Option<i64>,
+    /// The receipt, as an image in the work, by hash; `null` when none.
+    pub receipt_hash: Option<String>,
+    /// The Windows account that recorded it.
+    pub author_name: String,
+    /// When it was recorded, UTC.
+    pub created_at: String,
+}
+
+/// A payment as the interface sends it.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentDraft {
+    /// `YYYY-MM-DD`, not after today.
+    pub day: String,
+    /// The stage it is for — required.
+    pub stage_id: String,
+    /// Who was paid.
+    #[serde(default)]
+    pub person_id: Option<String>,
+    /// The commitment it pays against — of the same stage.
+    #[serde(default)]
+    pub commitment_id: Option<String>,
+    /// How much, whole minor units, more than 0.
+    pub amount_cents: f64,
+    /// What it was for, at most 200 characters.
+    #[serde(default)]
+    pub what_for: Option<String>,
+    /// A receipt image to copy in, by full path.
+    #[serde(default)]
+    pub receipt_path: Option<String>,
+    /// A receipt image the work already holds, by hash.
+    #[serde(default)]
+    pub receipt_hash: Option<String>,
 }
 
 /// A question a stage must answer at one of its gates.

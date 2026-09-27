@@ -145,6 +145,52 @@ pub fn answer(value: Option<&str>) -> Result<Option<String>> {
     Ok(Some(value.to_string()))
 }
 
+/// The largest amount the product keeps, in minor units: ten trillion of the
+/// currency — far past any work, and inside the whole numbers a JavaScript
+/// number holds exactly.
+pub const MAX_AMOUNT_CENTS: i64 = 1_000_000_000_000_000;
+
+/// An amount of money: a whole number of minor units (cents), 0 or more — or,
+/// when `positive`, more than 0. It arrives as a JSON number and is checked
+/// here to be whole, so money never passes through a fraction.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a fraction, a negative number, 0 when it must be
+/// positive, or one past [`MAX_AMOUNT_CENTS`].
+pub fn amount_cents(value: f64, positive: bool) -> Result<i64> {
+    let low = if positive { 1.0 } else { 0.0 };
+    if value.is_finite() && value.fract() == 0.0 && value >= low && value <= MAX_AMOUNT_CENTS as f64
+    {
+        Ok(value as i64)
+    } else if positive {
+        Err(invalid("An amount paid is more than zero, in whole cents."))
+    } else {
+        Err(invalid("An amount is zero or more, in whole cents."))
+    }
+}
+
+/// The longest trade a person keeps.
+pub const MAX_TRADE_CHARS: usize = 60;
+
+/// A trade: trimmed, at most [`MAX_TRADE_CHARS`] characters; nothing is no
+/// trade.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is too long.
+pub fn trade(value: Option<&str>) -> Result<Option<String>> {
+    let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
+        return Ok(None);
+    };
+    if value.chars().count() > MAX_TRADE_CHARS {
+        return Err(invalid(format!(
+            "A trade is at most {MAX_TRADE_CHARS} characters."
+        )));
+    }
+    Ok(Some(value.to_string()))
+}
+
 /// An optional date: `null`, or a date written `YYYY-MM-DD` that exists.
 ///
 /// # Errors

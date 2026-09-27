@@ -27,6 +27,9 @@
 //!   answers in the snapshot; a closed stage refuses changes to its name and
 //!   its activities (`stage_closed`); a stage whose checks were answered cannot
 //!   be removed.
+//! - F6: a person's trade (`update_person` replaces the rename alone); the
+//!   snapshot carries cost lines, commitments and the ledger; a stage with
+//!   payments, or a person the money names, cannot be removed.
 
 use std::collections::HashMap;
 
@@ -34,7 +37,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, WorkSnapshot};
 use crate::db::order::{ACTIVITIES, STAGES};
-use crate::db::{baselines, check_answers, checks, decisions, dependencies};
+use crate::db::{baselines, check_answers, checks, decisions, dependencies, money, payments};
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
 
@@ -145,11 +148,12 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         .collect::<std::result::Result<Vec<_>, _>>()?;
 
     let people = conn
-        .prepare("SELECT id, name FROM person ORDER BY name COLLATE NOCASE, id")?
+        .prepare("SELECT id, name, trade FROM person ORDER BY name COLLATE NOCASE, id")?
         .query_map([], |row| {
             Ok(Person {
                 id: row.get(0)?,
                 name: row.get(1)?,
+                trade: row.get(2)?,
             })
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -235,6 +239,9 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         decisions: decisions::list(conn)?,
         checks: checks::list(conn)?,
         check_answers: check_answers::list(conn)?,
+        cost_lines: money::cost_lines(conn)?,
+        commitments: money::commitments(conn)?,
+        payments: payments::list(conn)?,
     })
 }
 
@@ -312,17 +319,36 @@ pub fn add_person(conn: &Connection, name: &str) -> Result<String> {
     Ok(id)
 }
 
-/// Rename a person.
+/// Change a person's name, trade, or both. `None` leaves a field alone;
+/// `Some(None)` clears the trade.
 ///
 /// # Errors
 ///
 /// [`Error::InvalidInput`] when the person is not in this work.
-pub fn rename_person(conn: &Connection, id: &str, name: &str) -> Result<()> {
-    let changed = conn.execute(
-        "UPDATE person SET name = ?2 WHERE id = ?1",
-        params![id, name],
-    )?;
-    found(changed, PERSON_NOT_FOUND)
+pub fn update_person(
+    conn: &Connection,
+    id: &str,
+    name: Option<&str>,
+    trade: Option<Option<&str>>,
+) -> Result<()> {
+    let tx = conn.unchecked_transaction()?;
+    if !exists(&tx, "SELECT 1 FROM person WHERE id = ?1", id)? {
+        return Err(Error::InvalidInput(PERSON_NOT_FOUND.into()));
+    }
+    if let Some(name) = name {
+        tx.execute(
+            "UPDATE person SET name = ?2 WHERE id = ?1",
+            params![id, name],
+        )?;
+    }
+    if let Some(trade) = trade {
+        tx.execute(
+            "UPDATE person SET trade = ?2 WHERE id = ?1",
+            params![id, trade],
+        )?;
+    }
+    tx.commit()?;
+    Ok(())
 }
 
 /// Remove a person. Every activity they were responsible for is left with
@@ -331,8 +357,10 @@ pub fn rename_person(conn: &Connection, id: &str, name: &str) -> Result<()> {
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] when the person is not in this work.
+/// [`Error::InvalidInput`] when the person is not in this work, or a
+/// commitment or a payment names them.
 pub fn remove_person(conn: &Connection, id: &str) -> Result<()> {
+    money::refuse_if_person_in_the_money(conn, id)?;
     let changed = conn.execute("DELETE FROM person WHERE id = ?1", [id])?;
     found(changed, PERSON_NOT_FOUND)
 }
@@ -377,6 +405,7 @@ pub fn remove_stage(conn: &Connection, id: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     refuse_if_stage_closed(&tx, id)?;
     checks::refuse_if_stage_answered(&tx, id)?;
+    money::refuse_if_stage_paid(&tx, id)?;
     dependencies::remove_naming_stage(&tx, id)?;
     let changed = tx.execute("DELETE FROM stage WHERE id = ?1", [id])?;
     found(changed, STAGE_NOT_FOUND)?;
@@ -635,6 +664,9 @@ pub(crate) mod tests {
             "diary_photo",
             "stage_check",
             "check_answer",
+            "cost_line",
+            "commitment",
+            "payment",
         ] {
             let found: i64 = conn
                 .query_row(
@@ -1093,12 +1125,12 @@ pub(crate) mod tests {
         let conn = a_work();
         let id = add_person(&conn, "A. Tiler").unwrap();
 
-        rename_person(&conn, &id, "Ana Tiler").unwrap();
+        update_person(&conn, &id, Some("Ana Tiler"), None).unwrap();
         assert_eq!(snapshot(&conn).unwrap().people[0].name, "Ana Tiler");
 
         let nobody = new_id();
         for refused in [
-            rename_person(&conn, &nobody, "X"),
+            update_person(&conn, &nobody, Some("X"), None),
             remove_person(&conn, &nobody),
         ] {
             assert_eq!(refused.unwrap_err().to_string(), PERSON_NOT_FOUND);
@@ -1315,12 +1347,13 @@ pub(crate) mod tests {
         );
     }
 
-    /// The upgrade a person makes from F4: a work at schema 5 — with diary
+    /// The upgrade from F4's schema: a work at schema 5 — with diary
     /// entries — opens in F5, loses nothing, and its diary chain still
     /// verifies: a migration must never touch the record. Every stage comes
     /// out planned, with no checks.
     #[test]
-    fn a_work_at_schema_five_with_a_diary_migrates_to_six_and_the_chain_still_verifies() {
+    fn a_work_at_schema_five_with_a_diary_migrates_to_the_current_version_and_the_chain_still_verifies(
+    ) {
         let conn = Connection::open_in_memory().unwrap();
         crate::db::configure(&conn).unwrap();
         let tiling = a_work_at_schema_one(&conn);
@@ -1358,9 +1391,12 @@ pub(crate) mod tests {
         let rows_before = snapshot_without_decisions(&conn);
         assert_eq!(migrations::WORK.current_version(&conn), 5);
 
-        migrations::WORK.apply(&conn).expect("migrate 5 → 6");
+        migrations::WORK.apply(&conn).expect("migrate 5 → head");
 
-        assert_eq!(migrations::WORK.current_version(&conn), 6);
+        assert_eq!(
+            migrations::WORK.current_version(&conn),
+            migrations::WORK.target_version()
+        );
         assert_eq!(
             crate::db::diary::list(&conn, None, None).unwrap(),
             diary_before
@@ -1386,6 +1422,96 @@ pub(crate) mod tests {
         migrations::WORK
             .apply(&conn)
             .expect("and again, idempotent");
+        assert_eq!(
+            migrations::WORK.current_version(&conn),
+            migrations::WORK.target_version()
+        );
+    }
+
+    /// The upgrade a person makes from F5: a work at schema 6 — a diary entry,
+    /// a stage started with an answered check — opens in F6, loses nothing,
+    /// its diary chain still verifies, its people have no trade yet, and its
+    /// money is empty.
+    #[test]
+    fn a_work_at_schema_six_with_a_diary_and_answers_migrates_to_seven_and_the_chain_still_verifies(
+    ) {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::configure(&conn).unwrap();
+        let tiling = a_work_at_schema_one(&conn);
+        migrations::WORK
+            .apply_up_to(&conn, 6)
+            .expect("stand at schema 6");
+        crate::db::diary::append(
+            &conn,
+            &crate::db::diary::NewEntry {
+                day: "2026-10-05".into(),
+                kind: "entry".into(),
+                corrects_seq: None,
+                note: Some("Tiles laid.".into()),
+                weather: None,
+                lost_day: false,
+                hours: None,
+                deliveries: None,
+                incidents: None,
+                visitors: None,
+                author_name: "Synthetic author".into(),
+                done: vec![crate::contract::DoneLine {
+                    activity_id: tiling,
+                    state: "finished".into(),
+                    quantity: None,
+                    note: None,
+                }],
+                present: Vec::new(),
+                photos: Vec::new(),
+            },
+        )
+        .expect("a diary entry at schema 6");
+        let stage = "00000000-0000-7000-8000-00000000000b";
+        let check = checks::add(&conn, stage, checks::Gate::Start, "On site").unwrap();
+        check_answers::append(
+            &conn,
+            &check_answers::NewAnswer {
+                check_id: check,
+                answer: "yes".into(),
+                reason: None,
+                photo_hash: None,
+                author_name: "Synthetic author".into(),
+            },
+        )
+        .unwrap();
+        checks::start(&conn, stage).unwrap();
+        let diary_before = crate::db::diary::list(&conn, None, None).unwrap();
+        let rows_before = snapshot_without_decisions(&conn);
+        let answers_before: i64 = conn
+            .query_row("SELECT count(*) FROM check_answer", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(migrations::WORK.current_version(&conn), 6);
+
+        migrations::WORK.apply(&conn).expect("migrate 6 → 7");
+
+        assert_eq!(migrations::WORK.current_version(&conn), 7);
+        assert_eq!(
+            crate::db::diary::list(&conn, None, None).unwrap(),
+            diary_before
+        );
+        let report = crate::db::diary::verify(&conn).unwrap();
+        assert_eq!(
+            (report.entries, report.intact),
+            (1, true),
+            "the chain still holds"
+        );
+        assert_eq!(snapshot_without_decisions(&conn), rows_before);
+        let plan = snapshot(&conn).unwrap();
+        assert_eq!(plan.check_answers.len() as i64, answers_before);
+        assert!(plan.stages[0].started_at.is_some(), "the start stays");
+        assert_eq!(plan.people[0].trade, None);
+        assert!(
+            plan.cost_lines.is_empty() && plan.commitments.is_empty() && plan.payments.is_empty()
+        );
+
+        migrations::WORK
+            .apply(&conn)
+            .expect("and again, idempotent");
+        assert_eq!(migrations::WORK.current_version(&conn), 7);
     }
 }
