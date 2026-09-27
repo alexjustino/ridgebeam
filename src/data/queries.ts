@@ -51,7 +51,15 @@ import {
   checkRename,
   checksAddDefaults,
   personRemove,
-  personRename,
+  personUpdate,
+  commitmentAdd,
+  commitmentRemove,
+  commitmentUpdate,
+  costLineAdd,
+  costLineRemove,
+  costLineUpdate,
+  paymentAdd,
+  paymentReverse,
   roomAdd,
   roomMove,
   roomRemove,
@@ -79,11 +87,16 @@ import {
   workUpdate,
   type ActivityPatch,
   type Answer,
+  type CommitmentDraft,
+  type CommitmentPatch,
+  type CostLinePatch,
   type BaselineRowDraft,
   type CalendarDraft,
   type DecisionPatch,
   type EntryDraft,
   type Gate,
+  type PaymentDraftWire,
+  type PersonPatch,
   type SettingKey,
   type Settings,
   type WorkDraft,
@@ -277,7 +290,7 @@ export function useSetCalendar() {
 }
 
 export function useRenamePerson() {
-  return useWorkCommand(({ id, name }: { id: string; name: string }) => personRename(id, name));
+  return useWorkCommand(({ id, name }: { id: string; name: string }) => personUpdate(id, { name }));
 }
 
 export function useRemovePerson() {
@@ -455,4 +468,62 @@ export function useCloseStage() {
 
 export function useReopenStage() {
   return useWorkCommand((id: string) => stageReopen(id));
+}
+
+// ── People and money (F6) ────────────────────────────────────────────────────
+
+export function useUpdatePerson() {
+  return useWorkCommand(({ id, patch }: { id: string; patch: PersonPatch }) =>
+    personUpdate(id, patch),
+  );
+}
+
+export function useAddCostLine() {
+  return useWorkCommand(
+    ({
+      stageId,
+      activityId,
+      label,
+      amountCents,
+    }: {
+      stageId: string;
+      activityId: string | null;
+      label: string;
+      amountCents: number;
+    }) => costLineAdd(stageId, activityId, label, amountCents),
+  );
+}
+
+export function useUpdateCostLine() {
+  return useWorkCommand(({ id, patch }: { id: string; patch: CostLinePatch }) =>
+    costLineUpdate(id, patch),
+  );
+}
+
+export function useRemoveCostLine() {
+  return useWorkCommand((id: string) => costLineRemove(id));
+}
+
+export function useAddCommitment() {
+  return useWorkCommand((draft: CommitmentDraft) => commitmentAdd(draft));
+}
+
+export function useUpdateCommitment() {
+  return useWorkCommand(({ id, patch }: { id: string; patch: CommitmentPatch }) =>
+    commitmentUpdate(id, patch),
+  );
+}
+
+export function useRemoveCommitment() {
+  return useWorkCommand((id: string) => commitmentRemove(id));
+}
+
+export function useAddPayment() {
+  return useWorkCommand((draft: PaymentDraftWire) => paymentAdd(draft));
+}
+
+export function useReversePayment() {
+  return useWorkCommand(({ seq, note }: { seq: number; note: string }) =>
+    paymentReverse(seq, note),
+  );
 }

@@ -160,6 +160,9 @@ export const LIMITS = {
   doneNote: 500,
   checkName: 200,
   answerReason: 500,
+  trade: 60,
+  costLabel: 120,
+  whatFor: 200,
   durationDays: 3650,
   hoursPerDay: 24,
 } as const;
@@ -250,8 +253,15 @@ export function personAdd(name: string): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('person_add', { name });
 }
 
-export function personRename(id: string, name: string): Promise<WorkSnapshot> {
-  return invoke<WorkSnapshot>('person_rename', { id, name });
+/** What may change on a person: the name, and (F6) the trade money is grouped by. */
+export interface PersonPatch {
+  name?: string;
+  /** `null` or empty clears it. */
+  trade?: string | null;
+}
+
+export function personUpdate(id: string, patch: PersonPatch): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('person_update', { id, patch });
 }
 
 /** The activities this person answered for are left with no responsible. */
@@ -502,4 +512,96 @@ export function stageClose(id: string): Promise<WorkSnapshot> {
 /** Reopen a closed stage, so it can be changed again. */
 export function stageReopen(id: string): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('stage_reopen', { id });
+}
+
+// ── Money (F6) ───────────────────────────────────────────────────────────────
+//
+// Every amount crosses this line in whole cents of the work's currency — never a float. The ledger
+// is append-only: there is no command that edits or removes a payment; a mistake is a reversal,
+// which is a new payment that says so.
+
+export function costLineAdd(
+  stageId: string,
+  activityId: string | null,
+  label: string,
+  amountCents: number,
+): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('cost_line_add', {
+    stage_id: stageId,
+    activity_id: activityId,
+    label,
+    amount_cents: amountCents,
+  });
+}
+
+export interface CostLinePatch {
+  label?: string;
+  amountCents?: number;
+}
+
+export function costLineUpdate(id: string, patch: CostLinePatch): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('cost_line_update', { id, patch });
+}
+
+export function costLineRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('cost_line_remove', { id });
+}
+
+export interface CommitmentDraft {
+  stageId: string;
+  personId: string | null;
+  label: string;
+  amountCents: number;
+  /** `YYYY-MM-DD`: the day the quote or contract was accepted. */
+  agreedOn: string;
+}
+
+export function commitmentAdd(draft: CommitmentDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('commitment_add', {
+    stage_id: draft.stageId,
+    person_id: draft.personId,
+    label: draft.label,
+    amount_cents: draft.amountCents,
+    agreed_on: draft.agreedOn,
+    document_path: null,
+    document_hash: null,
+  });
+}
+
+export interface CommitmentPatch {
+  label?: string;
+  amountCents?: number;
+  personId?: string | null;
+  agreedOn?: string;
+}
+
+/** Refused once a payment names the commitment: what was paid against it stays true. */
+export function commitmentUpdate(id: string, patch: CommitmentPatch): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('commitment_update', { id, patch });
+}
+
+export function commitmentRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('commitment_remove', { id });
+}
+
+/** A payment as the ledger will record it. */
+export interface PaymentDraftWire {
+  day: string;
+  stageId: string;
+  personId: string | null;
+  commitmentId: string | null;
+  amountCents: number;
+  whatFor: string;
+  /** A receipt image the person chose, copied in by the host under the diary's caps. */
+  receiptPath: string | null;
+  receiptHash: string | null;
+}
+
+export function paymentAdd(draft: PaymentDraftWire): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('payment_add', { draft });
+}
+
+/** Reverse a payment: a new, negative payment naming it, with the reason. Once per payment. */
+export function paymentReverse(seq: number, note: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('payment_reverse', { seq, note });
 }
