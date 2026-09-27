@@ -41,6 +41,7 @@ sixth, templates are plans, waits for F9.
 | [019](#adr-019) | The diary is append-only with a hash chain, and a correction is a new entry                                   | Accepted — 2026-09-25          |
 | [020](#adr-020) | Progress is derived from the diary, in states, never as an invented number                                    | Accepted — 2026-09-25          |
 | [021](#adr-021) | Photos are copied by the host under caps and shown as data URLs                                               | Accepted — 2026-09-25          |
+| [022](#adr-022) | A stage's gates are answered facts, and a closed stage is closed                                              | Accepted — 2026-09-27          |
 
 ---
 
@@ -909,3 +910,71 @@ boundary; it is sized for thumbnails, and the original is never shown inside the
 opened by the system's viewer. HEIC, the default on many phones, is refused in 1.0 with a
 sentence that says so. Documents other than photos — quotes, drawings, permits — are F7's, under
 the same rules.
+
+## ADR-022 — A stage's gates are answered facts, and a closed stage is closed {#adr-022}
+
+**Status.** Accepted — 2026-09-27.
+
+**Context.** The electrician who came before the wall was closed and had to come back is the
+specification's second example of a build going wrong (SPEC §1). Every stage has things that
+must be true before it starts — the previous stage closed, the material on site, the area
+protected — and things that must be true before it closes — the work inspected, the photos taken,
+the owner walked it (SPEC §2.7). Slice F5's proof is that a stage cannot close with an
+unanswered item, that _not applicable_ needs a reason, and that the inspection is a check with a
+photo. Three questions had to be answered: what a stage's state is, what an answer is, and what
+"closed" forbids.
+
+**Decision.**
+
+- **A stage has a lifecycle the person decides** — _planned_, _started_, _closed_ — stored as
+  `stage.started_at` and `stage.closed_at`, both empty while it is planned. It is **intent**, not
+  progress: progress still comes only from the diary ([ADR-020](#adr-020)). Starting a stage
+  needs its **start gate** passed; closing it needs its **close gate** passed, and a stage that
+  has not started cannot close.
+- **Starting cannot be undone; closing can.** A stage started by mistake is a fact of the record,
+  and the confirmation says so before it happens; a trigger keeps `started_at` from changing once
+  set. A closed stage may be **reopened** — people
+  close things too early, and the diary keeps what actually happened — which clears
+  `closed_at` and nothing else.
+- **A check is a question at one gate**: a name, a gate (_start_ or _close_) and an order, edited
+  per work in the breakdown. A check that has been answered cannot be removed — its answers are
+  facts — though it can be renamed; and so a stage whose checks were answered cannot be removed.
+  The table is `stage_check`, because CHECK is a word SQL keeps for itself.
+- **An answer is a fact — append-only, not chained.** _Yes_, _no_ or _not applicable_, with a
+  reason (required for _not applicable_), an optional photo, the account's name and the moment.
+  Answers are insert-only with the same battery of triggers as the diary
+  ([ADR-019](#adr-019)); answering again appends, and the latest answer counts. There is **no
+  hash chain**: the chain is the diary's, where the record is the day; a gate's history is short,
+  local to one check, and already protected against edits by the schema and the host.
+- **A gate is passed when every check at it has a latest answer of yes or not applicable.** An
+  unanswered item or a _no_ holds it. The domain computes which items hold a gate, and the
+  interface says so, naming them, instead of asking the host and being refused; the host refuses
+  too (`stage_gate_open`), naming the items, as the second guard.
+- **The inspection is a check with a photo.** An answer may carry a photo, copied by the host
+  exactly as a diary photo is — the same caps, the same folder, the same thumbnail, the same
+  corpus ([ADR-021](#adr-021)). Nothing new enters the photo pipeline.
+- **A closed stage is closed.** Its activities cannot be added, changed, moved or removed, its
+  rows cannot be renamed, and no dependency may make one of its activities wait for something
+  else — each refused by the domain and by the host (`stage_closed`) with a sentence that says to
+  reopen it first. What a closed stage's activities _blocked_ may still depend on them. The diary
+  may still write about them: an entry is a fact about a day, not an edit of the plan.
+- **The usual checks, until templates.** "Checks come from the template" (SPEC §7) — and
+  templates are F9's. Until then, a stage offers **the usual checks**, a small list in the domain
+  (four at each gate), inserted by a button as ordinary checks in the person's language. F9
+  replaces the list with the template's checks; the shape does not change.
+- **Readiness asks for them.** A sixth rule, `stage.checks`: every stage has at least one check
+  on each gate — the specification's "every stage has … its checks defined" (§2.5).
+
+**Why.** A gate that is a list of answered questions, each with who answered and when, is one a
+person can check and argue from; a gate that is a switch is one somebody flipped. Keeping the
+lifecycle as intent keeps the plan and the diary from contradicting each other: the stage says
+what the person decided, the diary says what happened. And a closed stage that can still be
+edited is not closed.
+
+**Cost accepted.** A wrong answer stays in the history, superseded by the next one; a check that
+was answered cannot be removed, only renamed, and a stage with answered checks cannot be removed. A started stage cannot be un-started, so a
+mis-click is permanent — which is why the confirmation says so. Reopening is allowed, so
+"closed" is a decision that can be revisited, not a seal; the answers that closed it stay. The
+usual checks are generic until templates arrive, and a person who needs other questions writes
+them. And answers carry no chain: tampering with a gate's history through the file, with the
+triggers dropped, is not detected the way the diary's is.
