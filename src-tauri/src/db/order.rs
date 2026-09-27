@@ -1,5 +1,5 @@
 //! Order: stages among themselves, rooms among themselves, activities and
-//! decisions within their stage.
+//! decisions within their stage, checks within their stage's gate.
 //!
 //! Order is explicit and the person edits it one step at a time — move up, move
 //! down. A move at the edge is not an error: the first stage moved up is still
@@ -17,6 +17,7 @@
 
 use rusqlite::{params, Connection, OptionalExtension};
 
+use crate::db::check_answers::CHECK_NOT_FOUND;
 use crate::db::work::{ACTIVITY_NOT_FOUND, DECISION_NOT_FOUND, ROOM_NOT_FOUND, STAGE_NOT_FOUND};
 use crate::error::{Error, Result};
 
@@ -61,6 +62,14 @@ pub const ACTIVITIES: Sequence = Sequence {
     table: "activity",
     scope: Some("stage_id"),
     missing: ACTIVITY_NOT_FOUND,
+};
+
+/// Checks, one sequence per stage and gate (F5). The scope is an expression
+/// over two columns — still a constant of this module, never input.
+pub const CHECKS: Sequence = Sequence {
+    table: "stage_check",
+    scope: Some("stage_id || '/' || gate"),
+    missing: CHECK_NOT_FOUND,
 };
 
 /// Decisions, one sequence per stage (F3).

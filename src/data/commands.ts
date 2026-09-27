@@ -16,7 +16,7 @@ import { invoke } from '@tauri-apps/api/core';
 
 import type { DiaryEntry, EntryDraft } from '@/domain/diary';
 import type { Direction } from '@/domain/ordering';
-import type { Endpoint, Holiday, WorkSnapshot } from '@/domain/plan';
+import type { Answer, Endpoint, Gate, Holiday, WorkSnapshot } from '@/domain/plan';
 import {
   readLanguage,
   readLens,
@@ -158,6 +158,8 @@ export const LIMITS = {
   entryNote: 4000,
   entryText: 2000,
   doneNote: 500,
+  checkName: 200,
+  answerReason: 500,
   durationDays: 3650,
   hoursPerDay: 24,
 } as const;
@@ -430,4 +432,74 @@ export function photoThumbnail(hash: string): Promise<string> {
 /** Open the original with the operating system's own handler — from the host, on a press. */
 export async function photoOpen(hash: string): Promise<void> {
   await invoke<null>('photo_open', { hash });
+}
+
+// ── Checks and the stage's gates (F5) ────────────────────────────────────────
+
+export type { Answer, Gate };
+
+export function checkAdd(stageId: string, gate: Gate, name: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('check_add', { stage_id: stageId, gate, name });
+}
+
+export function checkRename(id: string, name: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('check_rename', { id, name });
+}
+
+/** Within its stage and gate. */
+export function checkMove(id: string, direction: Direction): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('check_move', { id, direction });
+}
+
+/** Refused while the check has an answer: its answers are facts. */
+export function checkRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('check_remove', { id });
+}
+
+/**
+ * The usual checks, already in the person's language (the domain names them by key; the interface
+ * resolves the keys). A name the gate already has is skipped by the host.
+ */
+export function checksAddDefaults(
+  stageId: string,
+  start: readonly string[],
+  close: readonly string[],
+): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('checks_add_defaults', { stage_id: stageId, start, close });
+}
+
+/**
+ * Answer a check — appended, never replacing: the latest answer counts and every earlier one stays.
+ * Not applicable always carries its reason. A photo is either a file the person chose (copied in by
+ * the host under the diary's caps) or one the work already holds, by hash.
+ */
+export function checkAnswer(
+  checkId: string,
+  answer: Answer,
+  reason: string | null,
+  photoPath: string | null,
+  photoHash: string | null,
+): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('check_answer', {
+    check_id: checkId,
+    answer,
+    reason,
+    photo_path: photoPath,
+    photo_hash: photoHash,
+  });
+}
+
+/** Start the stage: refused with `stage_gate_open` while the start gate holds. Cannot be undone. */
+export function stageStart(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('stage_start', { id });
+}
+
+/** Close the stage: refused while the close gate holds, and before it has started. */
+export function stageClose(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('stage_close', { id });
+}
+
+/** Reopen a closed stage, so it can be changed again. */
+export function stageReopen(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('stage_reopen', { id });
 }

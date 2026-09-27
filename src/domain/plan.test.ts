@@ -36,11 +36,19 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     dependencies: [],
     baselines: [],
     decisions: [],
+    checks: [],
+    checkAnswers: [],
     ...parts,
   };
 }
 
-const stage = (id: string, position: number): Stage => ({ id, position, name: `Stage ${id}` });
+const stage = (id: string, position: number): Stage => ({
+  id,
+  position,
+  name: `Stage ${id}`,
+  startedAt: null,
+  closedAt: null,
+});
 
 const activity = (
   id: string,

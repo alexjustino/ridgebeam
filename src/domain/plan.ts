@@ -61,6 +61,44 @@ export interface Stage {
   /** Order among stages. */
   readonly position: number;
   readonly name: string;
+  /**
+   * When the person started it, its start gate passed; `null` while planned. Intent, not progress:
+   * progress comes from the diary. Never cleared once set.
+   */
+  readonly startedAt: string | null;
+  /** When the person closed it, its close gate passed; `null` while open (or reopened). */
+  readonly closedAt: string | null;
+}
+
+/** The two moments a stage must answer for: before it starts, and before it closes. */
+export type Gate = 'start' | 'close';
+
+/** A yes-or-no question a stage must answer at one gate. */
+export interface Check {
+  readonly id: string;
+  readonly stageId: string;
+  readonly gate: Gate;
+  /** Order inside its stage and gate. */
+  readonly position: number;
+  readonly name: string;
+}
+
+/** `na` is "not applicable", and always carries its reason. */
+export type Answer = 'yes' | 'no' | 'na';
+
+/** One answer to a check: a fact, appended, never changed. The latest answer counts. */
+export interface CheckAnswer {
+  readonly id: string;
+  readonly checkId: string;
+  /** 1, 2, 3 … per check: the order it was answered in. */
+  readonly seq: number;
+  readonly answer: Answer;
+  /** Required for `na`; optional otherwise. */
+  readonly reason: string | null;
+  /** The photo that goes with it (the inspection), by the hash of the copy the work owns. */
+  readonly photoHash: string | null;
+  readonly authorName: string;
+  readonly answeredAt: string;
 }
 
 export interface Activity {
@@ -154,6 +192,8 @@ export interface WorkSnapshot {
   readonly dependencies: readonly Dependency[];
   readonly baselines: readonly Baseline[];
   readonly decisions: readonly Decision[];
+  readonly checks: readonly Check[];
+  readonly checkAnswers: readonly CheckAnswer[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────

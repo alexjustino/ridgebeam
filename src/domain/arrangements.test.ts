@@ -33,6 +33,8 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     dependencies: [],
     baselines: [],
     decisions: [],
+    checks: [],
+    checkAnswers: [],
     ...parts,
   };
 }
@@ -72,9 +74,9 @@ const PLAN = snapshot({
     { id: 'attic', position: 4, name: 'Attic' },
   ],
   stages: [
-    { id: 'painting', position: 3, name: 'Painting' },
-    { id: 'tiling', position: 2, name: 'Tiling' },
-    { id: 'demolition', position: 1, name: 'Demolition' },
+    { id: 'painting', position: 3, name: 'Painting', startedAt: null, closedAt: null },
+    { id: 'tiling', position: 2, name: 'Tiling', startedAt: null, closedAt: null },
+    { id: 'demolition', position: 1, name: 'Demolition', startedAt: null, closedAt: null },
   ],
   activities: [
     activity('skirting', 'tiling', 3, 1, 'tiler'),
@@ -153,8 +155,8 @@ describe('the breakdown', () => {
     const swapped = snapshot({
       ...PLAN,
       stages: [
-        { id: 'demolition', position: 2, name: 'Demolition' },
-        { id: 'tiling', position: 1, name: 'Tiling' },
+        { id: 'demolition', position: 2, name: 'Demolition', startedAt: null, closedAt: null },
+        { id: 'tiling', position: 1, name: 'Tiling', startedAt: null, closedAt: null },
       ],
     });
     expect(
@@ -329,7 +331,7 @@ describe('the checklist', () => {
 
   it('is built from the plan: a schedule of another plan neither drops nor invents a line', () => {
     const other = snapshot({
-      stages: [{ id: 'tiling', position: 1, name: 'Tiling' }],
+      stages: [{ id: 'tiling', position: 1, name: 'Tiling', startedAt: null, closedAt: null }],
       activities: [
         activity('floor', 'tiling', 1, 1, null),
         activity('gone-activity', 'tiling', 2, 1, null),
@@ -396,6 +398,8 @@ function randomPlan(seed: number): WorkSnapshot {
     id: `s${i}`,
     position: int(4),
     name: `Stage ${i}`,
+    startedAt: null,
+    closedAt: null,
   }));
   const rooms = Array.from({ length: int(4) }, (_, i) => ({
     id: `r${i}`,

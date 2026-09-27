@@ -15,7 +15,9 @@ use std::collections::BTreeSet;
 use rusqlite::{params, Connection};
 
 use crate::db::order::ROOMS;
-use crate::db::work::{exists, found, ACTIVITY_NOT_FOUND, ROOM_NOT_FOUND};
+use crate::db::work::{
+    exists, found, refuse_if_activity_closed, ACTIVITY_NOT_FOUND, ROOM_NOT_FOUND,
+};
 use crate::db::{new_id, now};
 use crate::error::{Error, Result};
 
@@ -71,6 +73,7 @@ pub fn set_activity_rooms(conn: &Connection, activity_id: &str, room_ids: &[Stri
     if !exists(&tx, "SELECT 1 FROM activity WHERE id = ?1", activity_id)? {
         return Err(Error::InvalidInput(ACTIVITY_NOT_FOUND.into()));
     }
+    refuse_if_activity_closed(&tx, activity_id)?;
     let rooms: BTreeSet<&str> = room_ids.iter().map(String::as_str).collect();
     for room in &rooms {
         if !exists(&tx, "SELECT 1 FROM room WHERE id = ?1", room)? {

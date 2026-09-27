@@ -2,6 +2,7 @@ import { useCallback, type KeyboardEvent } from 'react';
 
 import { useMove, type MoveKind } from '@/data/queries';
 import { breakdown } from '@/domain/arrangements';
+import { checksAt } from '@/domain/checks';
 import { moved, type Direction } from '@/domain/ordering';
 import { decisionsOf, roomsInOrder, type WorkSnapshot } from '@/domain/plan';
 import { useI18n } from '@/i18n/useI18n';
@@ -26,6 +27,13 @@ export function chordDirection(event: KeyboardEvent): Direction | null {
 function positionOf(snapshot: WorkSnapshot, kind: MoveKind, id: string): string {
   if (kind === 'room') {
     return String(roomsInOrder(snapshot).findIndex((room) => room.id === id) + 1);
+  }
+  if (kind === 'check') {
+    const check = snapshot.checks.find((each) => each.id === id);
+    if (check === undefined) return '';
+    return String(
+      checksAt(snapshot.checks, check.stageId, check.gate).findIndex((each) => each.id === id) + 1,
+    );
   }
   if (kind === 'decision') {
     const stageId = snapshot.decisions.find((decision) => decision.id === id)?.stageId ?? '';

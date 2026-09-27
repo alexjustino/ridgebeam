@@ -80,12 +80,15 @@ export function LinksLine({
   snapshot,
   numbers,
   outcome,
+  readOnly = false,
 }: {
   activityId: string;
   activityName: string;
   snapshot: WorkSnapshot;
   numbers: ReadonlyMap<string, string | null>;
   outcome: Outcome;
+  /** A closed stage's row: shown, not changed, until the stage is reopened. */
+  readOnly?: boolean;
 }) {
   const { t, number, describeError } = useI18n();
   const term = useTerms();
@@ -165,6 +168,7 @@ export function LinksLine({
         >
           <Select
             data-testid="link-blocker"
+            disabled={readOnly}
             aria-label={t('plan.link.blockerOf', { name: activityName })}
             aria-describedby={problem !== null ? hint : undefined}
             value={choice}
@@ -192,6 +196,7 @@ export function LinksLine({
             max={LIMITS.durationDays}
             step={1}
             data-testid="link-lag"
+            disabled={readOnly}
             aria-label={t('plan.link.lagOf', {
               lag: term('lag', { capital: true }),
               name: activityName,
@@ -203,7 +208,7 @@ export function LinksLine({
             type="submit"
             icon={<Link20Regular />}
             data-testid="link-add"
-            disabled={add.isPending}
+            disabled={readOnly || add.isPending}
           >
             {t('plan.link.add')}
           </Button>

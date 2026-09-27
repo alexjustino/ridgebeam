@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_CHECK_KEYS, GATES_HELD_LABEL_KEY, STAGES_LABEL_KEYS } from '@/domain/checks';
 import { DECISIONS_DUE_LABEL_KEY } from '@/domain/decisions';
 import { DONE_LABEL_KEYS } from '@/domain/diary';
 import {
@@ -159,6 +160,10 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         ...Object.values(DONE_LABEL_KEYS),
         'diary.figure.daysWithoutEntry',
         'diary.figure.lostDays',
+        ...Object.values(STAGES_LABEL_KEYS),
+        GATES_HELD_LABEL_KEY,
+        ...DEFAULT_CHECK_KEYS.start,
+        ...DEFAULT_CHECK_KEYS.close,
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }

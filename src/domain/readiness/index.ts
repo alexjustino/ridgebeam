@@ -1,7 +1,7 @@
 /**
  * Readiness: how much of what the plan must know, it does know, as a measure from the rows.
  *
- * Every activity and every decision is tested against every rule in `rules.ts` that applies to it
+ * Every activity, decision and stage is tested against every rule in `rules.ts` that applies to it
  * (the linking rule asks nothing of a plan with one activity; the timing rule asks nothing of a
  * decision with no deadline). Each test is one thing the plan must know (`mustKnow`); each that
  * passes is one it knows (`known`); each that fails is a missing row that names the activity or
@@ -23,11 +23,12 @@
 
 import { decisionRows } from '../decisions';
 import { percent, type Figure, type ReportRow } from '../figure';
-import { activitiesInOrder, type WorkSnapshot } from '../plan';
+import { activitiesInOrder, stagesInOrder, type WorkSnapshot } from '../plan';
 import type { Schedule } from '../schedule';
 import {
   ACTIVITY_RULES,
   DECISION_RULES,
+  STAGE_RULES,
   READINESS_LABEL_KEY,
   READINESS_MESSAGE_KEYS,
   RULE_EXPLANATION_KEYS,
@@ -50,10 +51,10 @@ export interface ReadinessContext {
 /** One thing the plan does not know. */
 export interface MissingRow {
   readonly ruleId: MissingId;
-  readonly entity: 'activity' | 'decision' | 'plan';
-  /** The activity's or decision's id, or the work's for a row about the whole plan. */
+  readonly entity: 'activity' | 'decision' | 'stage' | 'plan';
+  /** The activity's, decision's or stage's id, or the work's for a row about the whole plan. */
   readonly id: string;
-  /** The activity's or decision's name, or the work's. */
+  /** The activity's, decision's or stage's name, or the work's. */
   readonly name: string;
   /** The stage it belongs to, or `null` for the plan or a row whose stage is not in the plan. */
   readonly stageName: string | null;
@@ -69,13 +70,13 @@ export interface RuleCount {
 export interface Readiness {
   /** Things the plan knows. */
   readonly known: number;
-  /** Things the plan must know: every rule that applies, for every activity and decision. */
+  /** Things the plan must know: every rule that applies, for every activity, decision and stage. */
   readonly mustKnow: number;
   /** `known / mustKnow`, from 0 to 1; 0 when there is nothing to know. */
   readonly ratio: number;
   /**
    * What the plan does not know: activity by activity in plan order, rule by rule, then decision
-   * by decision; or, for a plan with no activity, the one row that says so.
+   * by decision, then stage by stage; or, for a plan with no activity, the one row that says so.
    */
   readonly missing: readonly MissingRow[];
   /** The same count, rule by rule, in rule order. Every rule is listed, asked or not. */
@@ -111,43 +112,45 @@ export function readiness(snapshot: WorkSnapshot, context: ReadinessContext): Re
   const stageNames = new Map(snapshot.stages.map((stage) => [stage.id, stage.name]));
   const missing: MissingRow[] = [];
 
-  for (const activity of activities) {
-    for (const rule of ACTIVITY_RULES) {
-      if (!rule.applies(activity, snapshot)) continue;
-      const count = counts.get(rule.id)!;
-      count.mustKnow += 1;
-      if (rule.holds(activity, snapshot)) {
-        count.known += 1;
-        continue;
+  /** Test every row of one kind against that kind's rules, counting and listing as it goes. */
+  function tally<Row>(
+    rows: readonly Row[],
+    rules: ReadonlyArray<{
+      readonly id: RuleId;
+      readonly applies: (row: Row, plan: WorkSnapshot) => boolean;
+      readonly holds: (row: Row, plan: WorkSnapshot) => boolean;
+    }>,
+    describe: (row: Row) => Omit<MissingRow, 'ruleId'>,
+  ): void {
+    for (const row of rows) {
+      for (const rule of rules) {
+        if (!rule.applies(row, snapshot)) continue;
+        const count = counts.get(rule.id)!;
+        count.mustKnow += 1;
+        if (rule.holds(row, snapshot)) count.known += 1;
+        else missing.push({ ruleId: rule.id, ...describe(row) });
       }
-      missing.push({
-        ruleId: rule.id,
-        entity: 'activity',
-        id: activity.id,
-        name: activity.name,
-        stageName: stageNames.get(activity.stageId) ?? null,
-      });
     }
   }
 
-  for (const decision of decisionRows(snapshot, context.schedule, context.today)) {
-    for (const rule of DECISION_RULES) {
-      if (!rule.applies(decision, snapshot)) continue;
-      const count = counts.get(rule.id)!;
-      count.mustKnow += 1;
-      if (rule.holds(decision, snapshot)) {
-        count.known += 1;
-        continue;
-      }
-      missing.push({
-        ruleId: rule.id,
-        entity: 'decision',
-        id: decision.decisionId,
-        name: decision.name,
-        stageName: decision.stageName,
-      });
-    }
-  }
+  tally(activities, ACTIVITY_RULES, (activity) => ({
+    entity: 'activity',
+    id: activity.id,
+    name: activity.name,
+    stageName: stageNames.get(activity.stageId) ?? null,
+  }));
+  tally(decisionRows(snapshot, context.schedule, context.today), DECISION_RULES, (decision) => ({
+    entity: 'decision',
+    id: decision.decisionId,
+    name: decision.name,
+    stageName: decision.stageName,
+  }));
+  tally(stagesInOrder(snapshot), STAGE_RULES, (stage) => ({
+    entity: 'stage',
+    id: stage.id,
+    name: stage.name,
+    stageName: stage.name,
+  }));
 
   let known = 0;
   let mustKnow = 0;
@@ -161,7 +164,7 @@ export function readiness(snapshot: WorkSnapshot, context: ReadinessContext): Re
 /** A row of a readiness figure: the missing row, in the shape every figure's rows share. */
 export interface ReadinessRow extends ReportRow {
   readonly ruleId: MissingId;
-  readonly entity: 'activity' | 'decision' | 'plan';
+  readonly entity: 'activity' | 'decision' | 'stage' | 'plan';
   readonly stageName: string | null;
 }
 

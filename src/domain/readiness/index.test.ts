@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { link, onStage } from '../__fixtures__/plan';
+import { link, onStage, withChecks } from '../__fixtures__/plan';
 import { traceable } from '../figure';
 import { schedule } from '../schedule';
 import type { Activity, Person, Stage, WorkSnapshot } from '../plan';
@@ -36,15 +36,30 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     dependencies: [],
     baselines: [],
     decisions: [],
+    checks: [],
+    checkAnswers: [],
     ...parts,
   };
 }
 
-/** Readiness as the dashboard asks it: with the plan's own schedule, on a fixed day. */
+/**
+ * Readiness as the dashboard asks it, with the plan's own schedule, on a fixed day, and with every
+ * stage given one check at each gate: these tests are about the activity rules, so the stage rule
+ * (tested in `checks.test.ts`) is known, and adds one known and one must-know per stage.
+ */
 const TODAY = '2026-08-31';
-const ready = (plan: WorkSnapshot) => readiness(plan, { schedule: schedule(plan), today: TODAY });
+function ready(plan: WorkSnapshot) {
+  const checked = withChecks(plan);
+  return readiness(checked, { schedule: schedule(checked), today: TODAY });
+}
 
-const BATHROOM: Stage = { id: 'bathroom', position: 1, name: 'Bathroom' };
+const BATHROOM: Stage = {
+  id: 'bathroom',
+  position: 1,
+  name: 'Bathroom',
+  startedAt: null,
+  closedAt: null,
+};
 const TILER: Person = { id: 'tiler', name: 'Sample tiler' };
 
 const activity = (
@@ -67,13 +82,14 @@ const activity = (
 });
 
 describe('the rule table', () => {
-  it('holds the F0 rules, F2’s linking rule and F3’s two decision rules, as data', () => {
+  it('holds the F0 rules, F2’s linking rule, F3’s two decision rules and F5’s stage rule, as data', () => {
     expect(RULES.map((rule) => [rule.id, rule.appliesTo])).toEqual([
       ['activity.duration', 'activity'],
       ['activity.responsible', 'activity'],
       ['activity.linked', 'activity'],
       ['decision.deadline', 'decision'],
       ['decision.timely', 'decision'],
+      ['stage.checks', 'stage'],
     ]);
     for (const rule of RULES) {
       expect(rule.messageKey).toBe(READINESS_MESSAGE_KEYS[rule.id]);
@@ -105,7 +121,7 @@ describe('quantity', () => {
       activities: [activity('tiling', 'Tiling', 3, TILER.id)],
     });
     expect(plan.activities[0]).toMatchObject({ quantity: null, unit: null, roomIds: [] });
-    expect(ready(plan)).toMatchObject({ known: 2, mustKnow: 2, ratio: 1, missing: [] });
+    expect(ready(plan)).toMatchObject({ known: 3, mustKnow: 3, ratio: 1, missing: [] });
   });
 
   it('does not change readiness when it is given', () => {
@@ -122,16 +138,16 @@ describe('quantity', () => {
 });
 
 describe('readiness', () => {
-  it('counts an activity with a duration and no responsible as 1 of 2, 50 %', () => {
+  it('counts an activity with a duration and no responsible as 1 of 2 for the activity, 2 of 3 with its stage', () => {
     const plan = snapshot({
       stages: [BATHROOM],
       activities: [activity('tiling', 'Tiling', 3, null)],
     });
     const measure = ready(plan);
     expect(measure).toMatchObject({
-      known: 1,
-      mustKnow: 2,
-      ratio: 0.5,
+      known: 2,
+      mustKnow: 3,
+      ratio: 2 / 3,
       missing: [
         {
           ruleId: 'activity.responsible',
@@ -142,7 +158,7 @@ describe('readiness', () => {
         },
       ],
     });
-    expect(readinessFigure(measure).value).toBe(50);
+    expect(readinessFigure(measure).value).toBe(67);
     expect(sentenceParts(measure.missing)).toEqual([
       { key: 'readiness.missing.activity.responsible', count: 1, params: { count: 1 } },
     ]);
@@ -155,8 +171,8 @@ describe('readiness', () => {
       activities: [activity('tiling', 'Tiling', null, TILER.id)],
     });
     const measure = ready(plan);
-    expect(measure.known).toBe(1);
-    expect(measure.mustKnow).toBe(2);
+    expect(measure.known).toBe(2);
+    expect(measure.mustKnow).toBe(3);
     expect(measure.missing.map((row) => row.ruleId)).toEqual(['activity.duration']);
     expect(sentenceParts(measure.missing)).toEqual([
       { key: 'readiness.missing.activity.duration', count: 1, params: { count: 1 } },
@@ -178,9 +194,9 @@ describe('readiness', () => {
       activities: [activity('tiling', 'Tiling', null, null)],
     });
     const measure = ready(plan);
-    expect(measure.known).toBe(0);
-    expect(measure.ratio).toBe(0);
-    expect(readinessFigure(measure).value).toBe(0);
+    expect(measure.known).toBe(1);
+    expect(measure.ratio).toBe(1 / 3);
+    expect(readinessFigure(measure).value).toBe(33);
     expect(sentenceParts(measure.missing)).toEqual([
       { key: 'readiness.missing.activity.duration', count: 1, params: { count: 1 } },
       { key: 'readiness.missing.activity.responsible', count: 1, params: { count: 1 } },
@@ -194,7 +210,7 @@ describe('readiness', () => {
       activities: [activity('tiling', 'Tiling', 3, TILER.id)],
     });
     const measure = ready(plan);
-    expect(measure).toMatchObject({ known: 2, mustKnow: 2, ratio: 1, missing: [] });
+    expect(measure).toMatchObject({ known: 3, mustKnow: 3, ratio: 1, missing: [] });
     expect(readinessFigure(measure).value).toBe(100);
     expect(readinessFigure(measure).rows).toEqual([]);
     expect(sentenceParts(measure.missing)).toEqual([]);
@@ -233,7 +249,10 @@ describe('readiness', () => {
 
   it('counts every rule for every activity, and groups the sentence by rule', () => {
     const plan = snapshot({
-      stages: [BATHROOM, { id: 'kitchen', position: 2, name: 'Kitchen' }],
+      stages: [
+        BATHROOM,
+        { id: 'kitchen', position: 2, name: 'Kitchen', startedAt: null, closedAt: null },
+      ],
       people: [TILER],
       activities: [
         activity('grout', 'Grout', null, null, 'bathroom', 2),
@@ -244,9 +263,9 @@ describe('readiness', () => {
     });
     const measure = ready(plan);
     // Three activities, three rules each; tiling and grout are linked, the sink is not.
-    expect(measure.mustKnow).toBe(9);
-    expect(measure.known).toBe(4);
-    expect(readinessFigure(measure).value).toBe(44);
+    expect(measure.mustKnow).toBe(11);
+    expect(measure.known).toBe(6);
+    expect(readinessFigure(measure).value).toBe(55);
     // Plan order: stage by stage, activity by position, then rule by rule.
     expect(measure.missing.map((row) => `${row.id}/${row.ruleId}/${row.stageName}`)).toEqual([
       'tiling/activity.responsible/Bathroom',
@@ -295,12 +314,12 @@ describe('linking', () => {
     expect(sentenceParts(measure.missing)).toEqual([
       { key: 'readiness.missing.activity.linked', count: 1, params: { count: 1 } },
     ]);
-    expect(measure).toMatchObject({ known: 8, mustKnow: 9 });
+    expect(measure).toMatchObject({ known: 9, mustKnow: 10 });
   });
 
   it('is satisfied once the activity is linked, in either direction', () => {
     const linked = { ...three, dependencies: [...three.dependencies, link('bc', 'b', 'c')] };
-    expect(ready(linked)).toMatchObject({ known: 9, mustKnow: 9, ratio: 1, missing: [] });
+    expect(ready(linked)).toMatchObject({ known: 10, mustKnow: 10, ratio: 1, missing: [] });
     const before = { ...three, dependencies: [...three.dependencies, link('ca', 'c', 'a')] };
     expect(ready(before).missing).toEqual([]);
   });
@@ -311,11 +330,17 @@ describe('linking', () => {
       people,
       activities: [activity('a', 'A', 3, TILER.id)],
     });
-    expect(ready(one)).toMatchObject({ known: 2, mustKnow: 2, ratio: 1, missing: [] });
+    expect(ready(one)).toMatchObject({ known: 3, mustKnow: 3, ratio: 1, missing: [] });
   });
 
   it('counts a link through a stage as linking every activity of the stage', () => {
-    const kitchen = { id: 'kitchen', position: 2, name: 'Kitchen' };
+    const kitchen = {
+      id: 'kitchen',
+      position: 2,
+      name: 'Kitchen',
+      startedAt: null,
+      closedAt: null,
+    };
     const staged = {
       ...three,
       stages: [BATHROOM, kitchen],
@@ -326,7 +351,7 @@ describe('linking', () => {
   });
 
   it('does not count a link that does nothing: onto an empty stage, or naming something gone', () => {
-    const empty = { id: 'empty', position: 2, name: 'Empty' };
+    const empty = { id: 'empty', position: 2, name: 'Empty', startedAt: null, closedAt: null };
     const inert = {
       ...three,
       stages: [BATHROOM, empty],
@@ -340,7 +365,13 @@ describe('linking', () => {
   });
 
   it('does not count an activity linked only to itself through its own stage', () => {
-    const kitchen = { id: 'kitchen', position: 2, name: 'Kitchen' };
+    const kitchen = {
+      id: 'kitchen',
+      position: 2,
+      name: 'Kitchen',
+      startedAt: null,
+      closedAt: null,
+    };
     const selfOnly = {
       ...three,
       stages: [BATHROOM, kitchen],
@@ -390,9 +421,9 @@ describe('the readiness figure', () => {
       id: 'readiness',
       label: READINESS_LABEL_KEY,
       unit: 'percent',
-      known: 1,
-      mustKnow: 2,
-      value: 50,
+      known: 2,
+      mustKnow: 3,
+      value: 67,
     });
     expect(figure.rows).toEqual([
       {

@@ -27,7 +27,10 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use rusqlite::{params, Connection};
 
 use crate::contract::{Dependency, Endpoint};
-use crate::db::work::{exists, found, ACTIVITY_NOT_FOUND, STAGE_NOT_FOUND};
+use crate::db::work::{
+    exists, found, refuse_if_activity_closed, refuse_if_stage_closed, ACTIVITY_NOT_FOUND,
+    STAGE_NOT_FOUND,
+};
 use crate::db::{new_id, now};
 use crate::error::{Error, Result};
 
@@ -105,11 +108,18 @@ pub fn list(conn: &Connection) -> Result<Vec<Dependency>> {
 ///
 /// [`Error::InvalidInput`] for an endpoint not in this work, a dependency from
 /// something to itself, or one already there; [`Error::DependencyCycle`] for
-/// one that would close a loop over the expanded graph.
+/// one that would close a loop over the expanded graph; [`Error::StageClosed`]
+/// when what would wait is in a closed stage (F5).
 pub fn add(conn: &Connection, blocker: &End, blocked: &End, lag_days: i64) -> Result<String> {
     let tx = conn.unchecked_transaction()?;
     must_exist(&tx, blocker)?;
     must_exist(&tx, blocked)?;
+    // What waits must be open: a closed stage is not made to wait for anything.
+    // A closed stage may still be what something else waits for.
+    match blocked.kind {
+        Kind::Activity => refuse_if_activity_closed(&tx, &blocked.id)?,
+        Kind::Stage => refuse_if_stage_closed(&tx, &blocked.id)?,
+    }
     if blocker == blocked {
         return Err(Error::InvalidInput(SELF_DEPENDENCY.into()));
     }

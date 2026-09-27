@@ -23,6 +23,8 @@
 //! | `diary_future_day`      | a diary entry dated after today, by the host's clock            |
 //! | `diary_corrects_unknown`| a correction naming an entry that is not in the diary           |
 //! | `photo_refused`         | a photo refused under the caps; the message names the file      |
+//! | `stage_gate_open`       | a start or close while the gate is held; the message names the items |
+//! | `stage_closed`          | a change to a closed stage; the message names the stage         |
 //!
 //! A broken diary chain is not an error: `diary_verify` answers with a report
 //! that says where the chain breaks and why.
@@ -110,6 +112,17 @@ pub enum Error {
     /// it, and nothing was written.
     #[error("{0}")]
     PhotoRefused(String),
+
+    /// A stage started or closed while its gate is held: an item unanswered,
+    /// or answered no. The sentence names every item that holds it.
+    #[error("{0}")]
+    StageGateOpen(String),
+
+    /// A change to a closed stage — its name, its activities, its checks, or a
+    /// dependency that would make it wait. A closed stage is read-only until
+    /// it is reopened. The name is the stage's.
+    #[error("“{0}” is closed. Reopen it to change it.")]
+    StageClosed(String),
 }
 
 /// The sentence for a folder with no `work.sqlite3` in it.
@@ -135,6 +148,8 @@ impl Error {
             Error::DiaryFutureDay(_) => "diary_future_day",
             Error::DiaryCorrectsUnknown(_) => "diary_corrects_unknown",
             Error::PhotoRefused(_) => "photo_refused",
+            Error::StageGateOpen(_) => "stage_gate_open",
+            Error::StageClosed(_) => "stage_closed",
         }
     }
 }
@@ -204,6 +219,13 @@ mod tests {
                 Error::PhotoRefused("“notes.jpg” was not added: it is not a photo.".into()),
                 "photo_refused",
             ),
+            (
+                Error::StageGateOpen(
+                    "1 item holds the close gate: The work was inspected (not answered).".into(),
+                ),
+                "stage_gate_open",
+            ),
+            (Error::StageClosed("Tiling".into()), "stage_closed"),
         ]
     }
 
@@ -227,8 +249,9 @@ mod tests {
         }
     }
 
-    /// The contract lists thirteen kinds (F2 added `dependency_cycle`; F4 the
-    /// diary's two and `photo_refused`). A variant that maps outside the list is a
+    /// The contract lists fifteen kinds (F2 added `dependency_cycle`; F4 the
+    /// diary's two and `photo_refused`; F5 `stage_gate_open` and
+    /// `stage_closed`). A variant that maps outside the list is a
     /// kind the interface cannot translate.
     #[test]
     fn the_kinds_are_exactly_the_closed_list_the_interface_translates() {
@@ -248,6 +271,8 @@ mod tests {
                 "no_work_open",
                 "photo_refused",
                 "settings_key",
+                "stage_closed",
+                "stage_gate_open",
                 "work_folder_not_empty",
                 "work_moved",
                 "work_not_found",

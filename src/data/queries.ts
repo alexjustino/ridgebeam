@@ -44,13 +44,22 @@ import {
   dependencyRemove,
   dependencyUpdate,
   calendarSet,
+  checkAdd,
+  checkAnswer,
+  checkMove,
+  checkRemove,
+  checkRename,
+  checksAddDefaults,
   personRemove,
   personRename,
   roomAdd,
   roomMove,
   roomRemove,
   roomRename,
+  stageClose,
   stageMove,
+  stageReopen,
+  stageStart,
   activityRemove,
   activityUpdate,
   diagnostics,
@@ -69,10 +78,12 @@ import {
   workOpen,
   workUpdate,
   type ActivityPatch,
+  type Answer,
   type BaselineRowDraft,
   type CalendarDraft,
   type DecisionPatch,
   type EntryDraft,
+  type Gate,
   type SettingKey,
   type Settings,
   type WorkDraft,
@@ -286,13 +297,14 @@ export function useRemoveRoom() {
 }
 
 /** A move names what moves: a stage, an activity inside its stage, or a room. */
-export type MoveKind = 'stage' | 'activity' | 'room' | 'decision';
+export type MoveKind = 'stage' | 'activity' | 'room' | 'decision' | 'check';
 
 const MOVES: Record<MoveKind, (id: string, direction: Direction) => Promise<WorkSnapshot>> = {
   stage: stageMove,
   activity: activityMove,
   room: roomMove,
   decision: decisionMove,
+  check: checkMove,
 };
 
 export function useMove() {
@@ -390,4 +402,57 @@ export function usePhotoThumbnail(hash: string, available: boolean) {
 
 export function useOpenPhoto() {
   return useMutation({ mutationFn: photoOpen });
+}
+
+// ── Checks and gates (F5) ────────────────────────────────────────────────────
+
+export function useAddCheck() {
+  return useWorkCommand(({ stageId, gate, name }: { stageId: string; gate: Gate; name: string }) =>
+    checkAdd(stageId, gate, name),
+  );
+}
+
+export function useRenameCheck() {
+  return useWorkCommand(({ id, name }: { id: string; name: string }) => checkRename(id, name));
+}
+
+export function useRemoveCheck() {
+  return useWorkCommand((id: string) => checkRemove(id));
+}
+
+export function useAddDefaultChecks() {
+  return useWorkCommand(
+    ({ stageId, start, close }: { stageId: string; start: string[]; close: string[] }) =>
+      checksAddDefaults(stageId, start, close),
+  );
+}
+
+export function useAnswerCheck() {
+  return useWorkCommand(
+    ({
+      checkId,
+      answer,
+      reason,
+      photoPath,
+      photoHash,
+    }: {
+      checkId: string;
+      answer: Answer;
+      reason: string | null;
+      photoPath: string | null;
+      photoHash: string | null;
+    }) => checkAnswer(checkId, answer, reason, photoPath, photoHash),
+  );
+}
+
+export function useStartStage() {
+  return useWorkCommand((id: string) => stageStart(id));
+}
+
+export function useCloseStage() {
+  return useWorkCommand((id: string) => stageClose(id));
+}
+
+export function useReopenStage() {
+  return useWorkCommand((id: string) => stageReopen(id));
 }

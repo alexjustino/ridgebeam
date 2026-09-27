@@ -231,3 +231,47 @@ day view; and after a restart, the chain still holds.
 
 Not yet, said plainly: the diary's export with the chain verified in its header is F10's; HEIC
 photos are refused; documents other than photos are F7's.
+
+### Added in F5 — checks
+
+Start and close checklists per stage; a stage cannot close with an unanswered item; _not
+applicable_ needs a reason; checks are edited per work; the inspection is a check with a photo.
+
+- **A stage's lifecycle** (ADR-022): _planned_, _started_, _closed_, decided by the person and
+  stored as two moments on the stage. It is intent, not progress — progress still comes from the
+  diary. Starting cannot be undone, and the confirmation says so; a closed stage can be
+  reopened.
+- **Checks.** A stage has questions at its start gate and at its close gate, added, renamed,
+  reordered (buttons and Alt+Arrow, announced) and removed in the breakdown. A check that has been
+  answered cannot be removed — its answers are facts — and so neither can its stage. Until
+  templates arrive (F9), **Add the usual checks** inserts four at each gate in the person's
+  language: the previous stage is closed, the materials are on site, the area is clear and
+  protected, the people are confirmed; the work was inspected, photos were taken, the owner
+  walked it, leftovers and waste were removed.
+- **Answers are facts, append-only and not chained.** _Yes_, _no_ or _not applicable_ — which
+  is refused without a reason — with the account's name and the moment. Answering again adds to
+  the history; the latest answer counts. The same triggers and guard as the diary refuse any
+  edit or removal. An answer may carry a photo, copied and thumbnailed exactly as a diary photo
+  is: the inspection is a check with a photo.
+- **The gate.** A stage starts only when every start check's latest answer is _yes_ or _not
+  applicable_, and closes only when every close check's is — and only once it has started. An
+  unanswered item or a _no_ holds the gate, and the **Gates** tab says which items, by name,
+  beside the disabled button; the host refuses too (`stage_gate_open`), naming them.
+- **A closed stage is closed.** Its activities cannot be added, changed, moved or removed, its
+  rows cannot be renamed, and no dependency may make one of its activities wait — refused by the
+  domain and by the host (`stage_closed`), saying to reopen it first. This is the negative case
+  deferred since F2, now a real test. The diary may still write about a closed stage's
+  activities.
+- **The Gates tab** on the Plan: one card per stage with its state, both checklists with each
+  item's latest answer and _Yes_ / _No_ / _N/A_, the photo beside an item answered with one, and
+  _Start stage_, _Close stage_ and _Reopen_.
+- **A sixth readiness rule**, `stage.checks`: every stage has at least one check at each gate —
+  "2 stages have no checks." — the specification's "every stage has … its checks defined".
+- **The dashboard grows**: stages planned, started and closed, and the gates held — each a
+  figure opening onto its stages and, for a held gate, the items holding it.
+- **Work migration 006** (`006_checks.sql`) adds `stage.started_at`, `stage.closed_at`,
+  `stage_check` and `check_answer`. A work from F4 is migrated when it is opened, without loss,
+  and its diary's chain still verifies.
+
+Not yet, said plainly: checks come from the usual list, not from a template, until F9; answers
+carry no hash chain.

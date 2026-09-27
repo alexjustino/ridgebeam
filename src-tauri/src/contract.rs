@@ -28,6 +28,9 @@
 //!   `Photo`, `DiaryRange`, `ChainReport`). Not in `WorkSnapshot`: at 3 000
 //!   entries and 10 000 photos it is read on its own. There is no shape that
 //!   edits an entry; a correction is a new `EntryDraft` of kind `correction`.
+//! - F5: checks and gates (`Check`, `CheckAnswer`, `WorkSnapshot.checks`,
+//!   `WorkSnapshot.checkAnswers`); a stage's lifecycle (`Stage.startedAt`,
+//!   `Stage.closedAt`). Answers are append-only facts; the latest counts.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -174,6 +177,10 @@ pub struct Stage {
     pub position: i64,
     /// Its name.
     pub name: String,
+    /// When it was started, UTC; `null` while it is planned. Never undone.
+    pub started_at: Option<String>,
+    /// When it was closed, UTC; `null` while it is open. Cleared by a reopen.
+    pub closed_at: Option<String>,
 }
 
 /// A room of the work — the architect's and the owner's map of it. Named by
@@ -241,6 +248,50 @@ pub struct WorkSnapshot {
     pub baselines: Vec<Baseline>,
     /// Decisions, by their stage's position and then their own.
     pub decisions: Vec<Decision>,
+    /// Checks, by their stage's position, then gate (start before close), then
+    /// their own position.
+    pub checks: Vec<Check>,
+    /// Every answer ever given, in the checks' order and then by `seq`. The
+    /// latest answer of a check is the one that counts.
+    pub check_answers: Vec<CheckAnswer>,
+}
+
+/// A question a stage must answer at one of its gates.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Check {
+    /// UUID v7.
+    pub id: String,
+    /// The stage it belongs to.
+    pub stage_id: String,
+    /// `start` or `close`.
+    pub gate: String,
+    /// Its order in its gate: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// The question, at most 200 characters.
+    pub name: String,
+}
+
+/// One answer to a check — a fact, never rewritten.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckAnswer {
+    /// UUID v7.
+    pub id: String,
+    /// The check.
+    pub check_id: String,
+    /// 1, 2, 3 … for this check; the highest is the latest.
+    pub seq: i64,
+    /// `yes`, `no` or `na`.
+    pub answer: String,
+    /// Why — always present for `na`, optional otherwise.
+    pub reason: Option<String>,
+    /// A photo that shows it (an inspection), by hash; `null` when none.
+    pub photo_hash: Option<String>,
+    /// The Windows account that answered, by its display name.
+    pub author_name: String,
+    /// When, UTC.
+    pub answered_at: String,
 }
 
 /// Something the person must decide before a stage can start — "Which tile" —

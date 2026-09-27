@@ -216,12 +216,23 @@ describe('F3 — decisions with a computed deadline, and readiness rule by rule'
     expect(await rows[1]!.text()).toContain('Porcelain, grey');
     await session.screenshot('f3-decisions-en');
 
+    // The figure counts what is overdue or due within five working days. Whether "Which colour"
+    // falls inside that window depends on the day the suite runs (its deadline is Tiling's end),
+    // so the expectation is read from the status the page itself shows.
+    const status = await rows[0]!.text();
+    const daysLeft = /Due in (\d+) working day/.exec(status);
+    const within = daysLeft ? Number(daysLeft[1]) <= 5 : /Due today/.test(status);
     await go(session, 'dashboard');
-    expect(await text(session, t('decisions-due-value'))).toMatch(/^1\b/);
-    await click(session, t('decisions-due-value'));
-    const due = await driver.findAll(t('decisions-due-row'));
-    expect(due).toHaveLength(1);
-    expect(await due[0]!.text()).toContain('Which colour');
+    const dueValue = await text(session, t('decisions-due-value'));
+    if (within) {
+      expect(dueValue).toMatch(/^1\b/);
+      await click(session, t('decisions-due-value'));
+      const due = await driver.findAll(t('decisions-due-row'));
+      expect(due).toHaveLength(1);
+      expect(await due[0]!.text()).toContain('Which colour');
+    } else {
+      expect(dueValue).toMatch(/none/i);
+    }
   });
 
   it('says it in Portuguese', async () => {

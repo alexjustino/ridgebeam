@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { addWorkingDays, parseWorkingDays, type WorkingCalendar } from '../calendar';
-import { activity, link, onStage, snapshot, stage } from '../__fixtures__/plan';
+import { activity, link, onActivity, onStage, snapshot, stage } from '../__fixtures__/plan';
+import { closedStageIfAdded } from '../checks';
 import { plan } from './criticalPath';
-import { baselineDraft, schedule, toDates } from './index';
+import { baselineDraft, cycleIfAdded, schedule, toDates } from './index';
 
 /**
  * The end-to-end plan, by hand. Work starts Tuesday 1 September 2026, Monday to Friday.
@@ -255,8 +256,25 @@ describe('what the schedule cannot place, it says', () => {
     expect(result.plan.unplanned).toBe(true);
   });
 
-  it.skip('refuses a dependency onto an activity in a closed stage — slice F5: stages have no closed state until the check gates arrive', () => {
-    // SPEC §6 lists this negative case; it cannot be written before a stage can be closed.
+  it('refuses a dependency onto an activity in a closed stage, naming the stage (SPEC §6)', () => {
+    // Tiling is closed; Painting is open. Painting may wait on Tiling, never the other way round.
+    const plan = snapshot({
+      stages: [
+        {
+          ...stage('tiling', 1, 'Tiling'),
+          startedAt: '2026-09-01T08:00:00.000Z',
+          closedAt: '2026-09-04T17:00:00.000Z',
+        },
+        stage('painting', 2, 'Painting'),
+      ],
+      activities: [activity('tile', 'tiling', 1, 3), activity('paint', 'painting', 1, 2)],
+    });
+    expect(closedStageIfAdded(plan, onActivity('tile'))).toBe('tiling');
+    expect(closedStageIfAdded(plan, onStage('tiling'))).toBe('tiling');
+    expect(closedStageIfAdded(plan, onActivity('paint'))).toBeNull();
+    // The link the other way round is not a cycle and not refused by anything else: only the closed
+    // stage stops it.
+    expect(cycleIfAdded(plan, onActivity('paint'), onActivity('tile'))).toBeNull();
   });
 });
 

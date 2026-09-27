@@ -394,6 +394,21 @@ breaks one is not merged.
   still not a control. A percentage appears only where the diary recorded quantities against a
   planned quantity, and it never reads 100 % before the diary says finished. No screen shows a
   number the site did not produce.
+- **A gate says which items hold it, never just no.** Where a stage cannot start or close, the
+  button is disabled **and** the items holding it are listed beside it, by name — _"2 items are
+  not answered: The work was inspected; Photos were taken"_ — each unanswered or answered _no_,
+  and each reachable from the list. The interface computes this from the domain and never asks
+  the host only to be refused; when the host refuses anyway, its sentence names the same items.
+  A disabled button with no reason is a defect report somebody else has to write (§10). A closed
+  stage says it is closed wherever its rows appear — _"Closed on 30 Sep — reopen it on the Gates
+  tab to change it"_ — and its rows are read-only, not hidden (ADR-022).
+- **N/A always carries its reason.** _Not applicable_ is an answer, not a way to skip a
+  question: choosing it opens a small form that asks why, and the answer is not recorded without
+  one. Wherever the answer is shown, the reason is shown with it — _"N/A — no tiling in this
+  room"_ — never the letters alone. An answer is shown with who gave it and when, and giving
+  another answer adds to the history rather than replacing it; the screen shows the latest.
+  Starting a stage cannot be undone, and its confirmation says so in words before the button is
+  pressed.
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
   `data-destination="<id>"` with the same id the router uses — `dashboard`, `plan`, `schedule`,
@@ -442,6 +457,14 @@ first, then due, then those with no deadline yet, and the made ones last, each w
 lead time, deadline and days left, and the way to mark it made or reopen it. Names and lead times
 are edited where the rest of the plan is, in the breakdown, and the list links back there — one
 place to edit, as for the arrangements (§8).
+
+**Plan** holds four tabs over the same work: **Breakdown**, **By room** and **Checklist** — the
+three arrangements of the same rows (§8) — and **Gates**, one card per stage in order: its state
+(_Planned_, _Started on …_, _Closed on …_), its start and close checklists with each item's
+latest answer and the **Yes**, **No** and **N/A** buttons, a photo beside an item answered with
+one, and **Start stage**, **Close stage** and **Reopen**. Checks are written in the breakdown —
+where the rest of the plan is edited, with **Add the usual checks** until templates (F9) — and
+answered on Gates.
 
 **Diary** is the site's: _today_ at the top, one tap already on the day — the activities running,
 each with _worked on_ and _finished_, the people present, the weather, and **Save today** — with

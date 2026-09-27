@@ -25,10 +25,15 @@
 //!   migration 004.
 //! - F4: `diary` (append-only, chained, and holding no statement that edits
 //!   or removes a row); work migration 005.
+//! - F5: `checks` (gates and a stage's lifecycle) and `check_answers`
+//!   (append-only, holding no statement that edits or removes a row); work
+//!   migration 006.
 
 #[cfg(test)]
 mod append_only_tests;
 pub mod baselines;
+pub mod check_answers;
+pub mod checks;
 pub mod decisions;
 pub mod dependencies;
 pub mod diary;

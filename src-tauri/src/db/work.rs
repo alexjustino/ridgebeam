@@ -23,6 +23,10 @@
 //!   stage removes the dependencies that name it, in the same transaction.
 //! - F3: the snapshot carries decisions; a stage's removal takes its decisions
 //!   with it (the schema's `ON DELETE CASCADE`).
+//! - F5: a stage's lifecycle (`started_at`, `closed_at`) and its checks and
+//!   answers in the snapshot; a closed stage refuses changes to its name and
+//!   its activities (`stage_closed`); a stage whose checks were answered cannot
+//!   be removed.
 
 use std::collections::HashMap;
 
@@ -30,7 +34,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, WorkSnapshot};
 use crate::db::order::{ACTIVITIES, STAGES};
-use crate::db::{baselines, decisions, dependencies};
+use crate::db::{baselines, check_answers, checks, decisions, dependencies};
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
 
@@ -151,12 +155,14 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         .collect::<std::result::Result<Vec<_>, _>>()?;
 
     let stages = conn
-        .prepare("SELECT id, position, name FROM stage ORDER BY position")?
+        .prepare("SELECT id, position, name, started_at, closed_at FROM stage ORDER BY position")?
         .query_map([], |row| {
             Ok(Stage {
                 id: row.get(0)?,
                 position: row.get(1)?,
                 name: row.get(2)?,
+                started_at: row.get(3)?,
+                closed_at: row.get(4)?,
             })
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -227,6 +233,8 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         dependencies: dependencies::list(conn)?,
         baselines: baselines::list(conn)?,
         decisions: decisions::list(conn)?,
+        checks: checks::list(conn)?,
+        check_answers: check_answers::list(conn)?,
     })
 }
 
@@ -350,6 +358,7 @@ pub fn add_stage(conn: &Connection, name: &str) -> Result<String> {
 ///
 /// [`Error::InvalidInput`] when the stage is not in this work.
 pub fn rename_stage(conn: &Connection, id: &str, name: &str) -> Result<()> {
+    refuse_if_stage_closed(conn, id)?;
     let changed = conn.execute(
         "UPDATE stage SET name = ?2 WHERE id = ?1",
         params![id, name],
@@ -361,9 +370,13 @@ pub fn rename_stage(conn: &Connection, id: &str, name: &str) -> Result<()> {
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] when the stage is not in this work.
+/// [`Error::InvalidInput`] when the stage is not in this work, or its checks
+/// have been answered (answers are facts); [`Error::StageClosed`] when it is
+/// closed.
 pub fn remove_stage(conn: &Connection, id: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
+    refuse_if_stage_closed(&tx, id)?;
+    checks::refuse_if_stage_answered(&tx, id)?;
     dependencies::remove_naming_stage(&tx, id)?;
     let changed = tx.execute("DELETE FROM stage WHERE id = ?1", [id])?;
     found(changed, STAGE_NOT_FOUND)?;
@@ -381,6 +394,7 @@ pub fn add_activity(conn: &Connection, stage_id: &str, name: &str) -> Result<Str
     if !exists(conn, "SELECT 1 FROM stage WHERE id = ?1", stage_id)? {
         return Err(Error::InvalidInput(STAGE_NOT_FOUND.into()));
     }
+    refuse_if_stage_closed(conn, stage_id)?;
     let id = new_id();
     conn.execute(
         "INSERT INTO activity (id, stage_id, position, name, created_at)
@@ -423,6 +437,7 @@ pub fn update_activity(conn: &Connection, id: &str, change: &ActivityChange) -> 
     if !exists(&tx, "SELECT 1 FROM activity WHERE id = ?1", id)? {
         return Err(Error::InvalidInput(ACTIVITY_NOT_FOUND.into()));
     }
+    refuse_if_activity_closed(&tx, id)?;
     if let Some(name) = &change.name {
         tx.execute(
             "UPDATE activity SET name = ?2 WHERE id = ?1",
@@ -492,6 +507,7 @@ fn quantity_and_unit(
 pub fn remove_activity(conn: &Connection, id: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     let stage = ACTIVITIES.scope_of(&tx, id)?;
+    refuse_if_activity_closed(&tx, id)?;
     dependencies::remove_naming_activity(&tx, id)?;
     tx.execute("DELETE FROM activity WHERE id = ?1", [id])?;
     ACTIVITIES.close_gaps(&tx, stage.as_deref())?;
@@ -509,6 +525,46 @@ pub const PERSON_NOT_FOUND: &str = "That person is not in this work.";
 pub const ROOM_NOT_FOUND: &str = "That room is not in this work.";
 /// The sentence for a decision id that is not in this work.
 pub const DECISION_NOT_FOUND: &str = "That decision is not in this work.";
+
+/// Refuse when a stage is closed: a closed stage is read-only until it is
+/// reopened. A stage that is not there is not refused here — the caller says
+/// so with its own sentence.
+///
+/// # Errors
+///
+/// [`Error::StageClosed`] naming the stage.
+pub fn refuse_if_stage_closed(conn: &Connection, stage_id: &str) -> Result<()> {
+    let row: Option<(String, Option<String>)> = conn
+        .query_row(
+            "SELECT name, closed_at FROM stage WHERE id = ?1",
+            [stage_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    match row {
+        Some((name, Some(_))) => Err(Error::StageClosed(name)),
+        _ => Ok(()),
+    }
+}
+
+/// Refuse when an activity's stage is closed.
+///
+/// # Errors
+///
+/// [`Error::StageClosed`] naming the stage.
+pub fn refuse_if_activity_closed(conn: &Connection, activity_id: &str) -> Result<()> {
+    let stage: Option<String> = conn
+        .query_row(
+            "SELECT stage_id FROM activity WHERE id = ?1",
+            [activity_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    match stage {
+        Some(stage) => refuse_if_stage_closed(conn, &stage),
+        None => Ok(()),
+    }
+}
 
 /// Whether `sql` (one `?1`) finds a row.
 pub(crate) fn exists(conn: &Connection, sql: &str, id: &str) -> Result<bool> {
@@ -577,6 +633,8 @@ pub(crate) mod tests {
             "diary_done",
             "diary_present",
             "diary_photo",
+            "stage_check",
+            "check_answer",
         ] {
             let found: i64 = conn
                 .query_row(
@@ -1191,11 +1249,11 @@ pub(crate) mod tests {
         out
     }
 
-    /// The upgrade a person makes from F3: a work at schema 4 — a decision
+    /// The upgrade from F3's schema: a work at schema 4 — a decision
     /// made with its answer, a baseline — opens in F4, loses nothing, and
     /// gains an empty diary whose chain verifies.
     #[test]
-    fn a_work_at_schema_four_with_rows_migrates_to_five_without_losing_any() {
+    fn a_work_at_schema_four_with_rows_migrates_to_the_current_version_without_losing_any() {
         let conn = Connection::open_in_memory().unwrap();
         crate::db::configure(&conn).unwrap();
         let tiling = a_work_at_schema_one(&conn);
@@ -1217,20 +1275,24 @@ pub(crate) mod tests {
         ))
         .expect("an F3 work's rows");
         assert_eq!(migrations::WORK.current_version(&conn), 4);
-        let before = snapshot(&conn).unwrap();
+        // Raw rows, not a snapshot: a snapshot is the current schema's, and
+        // this file is at an older one.
+        let before = snapshot_without_decisions(&conn);
 
-        migrations::WORK.apply(&conn).expect("migrate 4 → 5");
+        migrations::WORK.apply(&conn).expect("migrate 4 → head");
 
-        assert_eq!(migrations::WORK.current_version(&conn), 5);
         assert_eq!(
-            snapshot(&conn).unwrap(),
+            migrations::WORK.current_version(&conn),
+            migrations::WORK.target_version()
+        );
+        assert_eq!(
+            snapshot_without_decisions(&conn),
             before,
-            "the plan, its decisions and baseline: unchanged"
+            "the plan and its baseline: unchanged"
         );
-        assert_eq!(
-            before.decisions[0].answer.as_deref(),
-            Some("Porcelain, grey")
-        );
+        let decision = snapshot(&conn).unwrap().decisions.remove(0);
+        assert_eq!(decision.answer.as_deref(), Some("Porcelain, grey"));
+        assert!(decision.made_at.is_some());
         let report = crate::db::diary::verify(&conn).unwrap();
         assert_eq!(
             (report.entries, report.intact),
@@ -1247,6 +1309,83 @@ pub(crate) mod tests {
         migrations::WORK
             .apply(&conn)
             .expect("and again, idempotent");
+        assert_eq!(
+            migrations::WORK.current_version(&conn),
+            migrations::WORK.target_version()
+        );
+    }
+
+    /// The upgrade a person makes from F4: a work at schema 5 — with diary
+    /// entries — opens in F5, loses nothing, and its diary chain still
+    /// verifies: a migration must never touch the record. Every stage comes
+    /// out planned, with no checks.
+    #[test]
+    fn a_work_at_schema_five_with_a_diary_migrates_to_six_and_the_chain_still_verifies() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::configure(&conn).unwrap();
+        let tiling = a_work_at_schema_one(&conn);
+        migrations::WORK
+            .apply_up_to(&conn, 5)
+            .expect("stand at schema 5");
+        for day in ["2026-10-05", "2026-10-06"] {
+            crate::db::diary::append(
+                &conn,
+                &crate::db::diary::NewEntry {
+                    day: day.into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Tiles laid.".into()),
+                    weather: Some("sun".into()),
+                    lost_day: false,
+                    hours: Some(8.0),
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: vec![crate::contract::DoneLine {
+                        activity_id: tiling.clone(),
+                        state: "worked".into(),
+                        quantity: Some(4.0),
+                        note: None,
+                    }],
+                    present: Vec::new(),
+                    photos: Vec::new(),
+                },
+            )
+            .expect("a diary entry at schema 5");
+        }
+        let diary_before = crate::db::diary::list(&conn, None, None).unwrap();
+        let rows_before = snapshot_without_decisions(&conn);
         assert_eq!(migrations::WORK.current_version(&conn), 5);
+
+        migrations::WORK.apply(&conn).expect("migrate 5 → 6");
+
+        assert_eq!(migrations::WORK.current_version(&conn), 6);
+        assert_eq!(
+            crate::db::diary::list(&conn, None, None).unwrap(),
+            diary_before
+        );
+        let report = crate::db::diary::verify(&conn).unwrap();
+        assert_eq!(
+            (report.entries, report.intact),
+            (2, true),
+            "the chain still holds"
+        );
+        assert_eq!(snapshot_without_decisions(&conn), rows_before);
+        let plan = snapshot(&conn).unwrap();
+        assert!(plan.checks.is_empty() && plan.check_answers.is_empty());
+        assert_eq!(
+            (
+                plan.stages[0].started_at.clone(),
+                plan.stages[0].closed_at.clone()
+            ),
+            (None, None),
+            "planned"
+        );
+
+        migrations::WORK
+            .apply(&conn)
+            .expect("and again, idempotent");
+        assert_eq!(migrations::WORK.current_version(&conn), 6);
     }
 }
