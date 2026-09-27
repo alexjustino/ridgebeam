@@ -47,6 +47,7 @@ export function ConfirmDialog({
           </Button>
           <Button
             appearance="accent"
+            data-testid="confirm"
             onClick={onConfirm}
             disabled={pending}
             className={danger ? 'bg-danger hover:bg-danger active:bg-danger' : ''}
