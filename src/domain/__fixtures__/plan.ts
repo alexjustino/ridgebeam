@@ -29,12 +29,14 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     dependencies: [],
     baselines: [],
     decisions: [],
+    checks: [],
+    checkAnswers: [],
     ...parts,
   };
 }
 
 export function stage(id: string, position: number, name = `Stage ${id}`): Stage {
-  return { id, position, name };
+  return { id, position, name, startedAt: null, closedAt: null };
 }
 
 export function activity(
@@ -145,3 +147,14 @@ export const finished = (activityId: string, quantity: number | null = null): Do
   quantity,
   note: null,
 });
+
+/** The plan with one check at each gate of every stage, so the stage rule is known. */
+export function withChecks(plan: WorkSnapshot): WorkSnapshot {
+  return {
+    ...plan,
+    checks: plan.stages.flatMap((each) => [
+      { id: `${each.id}-start`, stageId: each.id, gate: 'start' as const, position: 1, name: 'S' },
+      { id: `${each.id}-close`, stageId: each.id, gate: 'close' as const, position: 1, name: 'C' },
+    ]),
+  };
+}

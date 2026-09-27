@@ -12,8 +12,9 @@
  * adds the third: in a plan with two or more activities, an activity must be linked to another (the
  * spec's "every dependency that matters is declared", made measurable). Slice F3 adds two over
  * decisions: a decision must have a deadline (its stage has something scheduled), and, once it has
- * one, must not be overdue. A made decision is always ready. Later slices add rules (a stage's
- * checks and money) as new rows here, without changing the shape.
+ * one, must not be overdue. A made decision is always ready. Slice F5 adds one over stages: every
+ * stage has its checks defined, at least one at each gate (the spec's "every stage has … its checks
+ * defined"). Later slices add rules (a stage's money) as new rows here, without changing the shape.
  *
  * What this module is not: text. It holds message keys, never English or Portuguese; the i18n
  * tables turn a key and a count into "1 activity has no responsible." or "1 atividade não tem
@@ -21,7 +22,7 @@
  */
 
 import type { DecisionRow } from '../decisions';
-import { hasDuration, type Activity, type WorkSnapshot } from '../plan';
+import { hasDuration, type Activity, type Stage, type WorkSnapshot } from '../plan';
 import { expandDependencies } from '../schedule/expand';
 
 /** The rules over activities. */
@@ -30,8 +31,11 @@ export type ActivityRuleId = 'activity.duration' | 'activity.responsible' | 'act
 /** The rules over decisions. */
 export type DecisionRuleId = 'decision.deadline' | 'decision.timely';
 
+/** The rules over stages. */
+export type StageRuleId = 'stage.checks';
+
 /** The rules that exist today. */
-export type RuleId = ActivityRuleId | DecisionRuleId;
+export type RuleId = ActivityRuleId | DecisionRuleId | StageRuleId;
 
 /** What a missing row can be missing: a rule that failed, or the plan having nothing to test. */
 export type MissingId = RuleId | 'plan.activity';
@@ -46,6 +50,7 @@ export const READINESS_MESSAGE_KEYS = {
   'activity.linked': 'readiness.missing.activity.linked',
   'decision.deadline': 'readiness.missing.decision.deadline',
   'decision.timely': 'readiness.missing.decision.timely',
+  'stage.checks': 'readiness.missing.stage.checks',
   'plan.activity': 'readiness.missing.plan.activity',
 } as const satisfies Record<MissingId, string>;
 
@@ -58,6 +63,7 @@ export const RULE_LABEL_KEYS = {
   'activity.linked': 'readiness.rule.activity.linked',
   'decision.deadline': 'readiness.rule.decision.deadline',
   'decision.timely': 'readiness.rule.decision.timely',
+  'stage.checks': 'readiness.rule.stage.checks',
 } as const satisfies Record<RuleId, string>;
 
 /**
@@ -70,6 +76,7 @@ export const RULE_EXPLANATION_KEYS = {
   'activity.linked': 'readiness.explanation.activity.linked',
   'decision.deadline': 'readiness.explanation.decision.deadline',
   'decision.timely': 'readiness.explanation.decision.timely',
+  'stage.checks': 'readiness.explanation.stage.checks',
 } as const satisfies Record<RuleId, string>;
 
 /** The readiness figure's own name, as a message key. */
@@ -98,7 +105,10 @@ export type ActivityRule = RuleShape<ActivityRuleId, 'activity', Activity>;
  */
 export type DecisionRule = RuleShape<DecisionRuleId, 'decision', DecisionRow>;
 
-export type Rule = ActivityRule | DecisionRule;
+/** One thing the plan must know about every stage. */
+export type StageRule = RuleShape<StageRuleId, 'stage', Stage>;
+
+export type Rule = ActivityRule | DecisionRule | StageRule;
 
 const linkedCache = new WeakMap<WorkSnapshot, ReadonlySet<string>>();
 
@@ -172,5 +182,19 @@ export const DECISION_RULES: readonly DecisionRule[] = [
   },
 ];
 
+/** The rules over stages, in the order their sentences are said. */
+export const STAGE_RULES: readonly StageRule[] = [
+  {
+    id: 'stage.checks',
+    appliesTo: 'stage',
+    applies: () => true,
+    // A question for each moment the stage must answer for: before it starts, and before it closes.
+    holds: (stage, plan) =>
+      plan.checks.some((check) => check.stageId === stage.id && check.gate === 'start') &&
+      plan.checks.some((check) => check.stageId === stage.id && check.gate === 'close'),
+    messageKey: READINESS_MESSAGE_KEYS['stage.checks'],
+  },
+];
+
 /** Every rule, in the order their sentences are said and their lines are listed. */
-export const RULES: readonly Rule[] = [...ACTIVITY_RULES, ...DECISION_RULES];
+export const RULES: readonly Rule[] = [...ACTIVITY_RULES, ...DECISION_RULES, ...STAGE_RULES];

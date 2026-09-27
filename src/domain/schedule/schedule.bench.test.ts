@@ -42,6 +42,8 @@ function bigPlan(): WorkSnapshot {
     id: `s${i}`,
     position: i + 1,
     name: `Stage ${i + 1}`,
+    startedAt: null,
+    closedAt: null,
   }));
   const activities: Activity[] = Array.from({ length: ACTIVITIES }, (_, i) => ({
     id: `a${i}`,
