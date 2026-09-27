@@ -301,7 +301,13 @@ pub fn stage_move_with(open: &OpenWork, id: &str, direction: &str) -> Result<Wor
 /// What [`activity_move`] does once the state is in hand.
 pub fn activity_move_with(open: &OpenWork, id: &str, direction: &str) -> Result<WorkSnapshot> {
     let direction = validate::direction(direction)?;
-    change_work(open, |conn| ACTIVITIES.move_one(conn, id, direction))
+    change_work(open, |conn| {
+        // An activity of a closed stage does not move (F5).
+        if crate::db::work::exists(conn, "SELECT 1 FROM activity WHERE id = ?1", id)? {
+            repo::refuse_if_activity_closed(conn, id)?;
+        }
+        ACTIVITIES.move_one(conn, id, direction)
+    })
 }
 
 #[cfg(test)]

@@ -46,6 +46,12 @@
 //!   opened with the system's own handler from Rust — the opener plugin is a
 //!   library here, not a registered plugin, so the webview gains no command
 //!   and no capability. An entry is signed with the Windows account's name.
+//! - F5: checks. Work migration 006 adds a stage's lifecycle (started, closed —
+//!   a start is not undone, a close is reopened), the checks at its two gates,
+//!   and their answers, append-only and unchained. A stage starts or closes
+//!   only when its gate is passed (`stage_gate_open` names what holds it), and
+//!   a closed stage is read-only until reopened (`stage_closed`). An answer's
+//!   photo takes the diary's pipeline, caps and folder.
 
 pub mod commands;
 pub mod contract;
@@ -142,6 +148,15 @@ pub fn run() {
             commands::diary::diary_verify,
             commands::diary::photo_thumbnail,
             commands::diary::photo_open,
+            commands::checks::check_add,
+            commands::checks::check_rename,
+            commands::checks::check_move,
+            commands::checks::check_remove,
+            commands::checks::checks_add_defaults,
+            commands::checks::check_answer,
+            commands::checks::stage_start,
+            commands::checks::stage_close,
+            commands::checks::stage_reopen,
         ])
         .build(tauri::generate_context!())
         .expect("Ridgebeam failed to start");
