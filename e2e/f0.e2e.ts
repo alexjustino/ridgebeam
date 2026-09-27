@@ -122,14 +122,15 @@ describe('F0 — a work, one stage, one activity, and what the plan does not kno
   it('readiness reads below 100 % and opens onto "1 activity has no responsible"', async () => {
     const { driver } = session;
     await go(session, 'dashboard');
-    expect(await readinessValue(session)).toBe('50 %');
+    // Three things to know: the duration (known), the responsible, and the stage's checks (F5).
+    expect(await readinessValue(session)).toBe('33 %');
     const sentence = await driver.waitForElement('[data-testid="readiness-sentence"]');
-    expect((await sentence.text()).trim()).toBe('1 activity has no responsible.');
+    expect((await sentence.text()).trim()).toContain('1 activity has no responsible.');
 
     await click(session, 'figure-value');
     const rows = await driver.findAll('[data-testid="figure-row"]');
-    expect(rows).toHaveLength(1);
-    expect(await rows[0]!.text()).toContain('Lay the floor tile');
+    const texts = await Promise.all(rows.map((r) => r.text()));
+    expect(texts.some((r) => r.includes('Lay the floor tile'))).toBe(true);
     await session.screenshot('f0-dashboard-en');
   });
 
@@ -138,18 +139,23 @@ describe('F0 — a work, one stage, one activity, and what the plan does not kno
     await chooseLanguage(session, 'Português (Brasil)');
     await go(session, 'dashboard');
     const sentence = await driver.waitForElement('[data-testid="readiness-sentence"]');
-    expect((await sentence.text()).trim()).toBe('1 atividade não tem responsável.');
-    expect(await readinessValue(session)).toBe('50 %');
+    expect((await sentence.text()).trim()).toContain('1 atividade não tem responsável.');
+    expect(await readinessValue(session)).toBe('33 %');
     await session.screenshot('f0-dashboard-pt-BR');
     await chooseLanguage(session, 'English');
   });
 
-  it('reaches 100 % once a responsible is named — and nothing on the plan sets progress', async () => {
+  it('reaches 100 % once a responsible is named and the checks are defined — and nothing on the plan sets progress', async () => {
     const { driver } = session;
     await go(session, 'plan');
     await (
       await session.driver.waitForElement('[data-testid="plan-tabs"] [data-tab="breakdown"]')
     ).click();
+    // The stage's checks (F5): the usual ones.
+    await click(session, 'checks-add-defaults');
+    await driver.waitFor('the usual checks', async () =>
+      (await driver.findAll('[data-check-id]')).length === 8 ? true : null,
+    );
     await setValue(session, 'person-add-name', 'A. Tiler');
     await click(session, 'person-add');
     await driver.waitFor('the person in the select', async () => {
