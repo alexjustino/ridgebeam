@@ -375,7 +375,7 @@ describe('readiness: every stage has its checks', () => {
       checks: CHECKS.filter((c) => !(c.stageId === 'painting' && c.gate === 'close')),
     };
     const result = measure(plan);
-    expect(result.missing.filter((row) => row.entity === 'stage')).toEqual([
+    expect(result.missing.filter((row) => row.ruleId === 'stage.checks')).toEqual([
       {
         ruleId: 'stage.checks',
         entity: 'stage',
@@ -391,7 +391,9 @@ describe('readiness: every stage has its checks', () => {
         stageName: 'Garden',
       },
     ]);
-    expect(sentenceParts(result.missing).at(-1)).toEqual({
+    expect(
+      sentenceParts(result.missing).find((part) => part.key === 'readiness.missing.stage.checks'),
+    ).toEqual({
       key: 'readiness.missing.stage.checks',
       count: 2,
       params: { count: 2 },
@@ -421,7 +423,12 @@ describe('readiness: every stage has its checks', () => {
           i,
         ),
       );
-      const plan = snapshot({ people: [{ id: 'p', name: 'P' }], stages, activities, checks });
+      const plan = snapshot({
+        people: [{ id: 'p', name: 'P', trade: null }],
+        stages,
+        activities,
+        checks,
+      });
       const result = measure(plan);
       const byRule = readinessByRule(result);
       expect(byRule.reduce((sum, rule) => sum + rule.known, 0)).toBe(result.known);

@@ -34,7 +34,7 @@ import { traceable } from './figure';
  * The work starts Tuesday 1 September 2026, Monday to Friday.
  */
 const PLAN = snapshot({
-  people: [{ id: 'tiler', name: 'Sample tiler' }],
+  people: [{ id: 'tiler', name: 'Sample tiler', trade: null }],
   stages: [stage('bath', 1, 'Bathroom'), stage('paint', 2, 'Painting')],
   activities: [
     { ...activity('tile', 'bath', 1, 3), quantity: 12, unit: 'm²' },

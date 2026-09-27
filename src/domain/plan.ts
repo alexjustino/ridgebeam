@@ -54,6 +54,57 @@ export interface Room {
 export interface Person {
   readonly id: string;
   readonly name: string;
+  /** What they do (tiler, electrician …), as the person wrote it; `null` until said. */
+  readonly trade: string | null;
+}
+
+/**
+ * Money planned: a cost line on a stage, or on one of its activities. Amounts are whole numbers
+ * of the currency's minor unit (cents): money is never a float.
+ */
+export interface CostLine {
+  readonly id: string;
+  readonly stageId: string;
+  /** The activity it belongs to, or `null` for a line on the stage itself. */
+  readonly activityId: string | null;
+  readonly label: string;
+  readonly amountCents: number;
+}
+
+/** Money committed: a quote or contract accepted, for a stage, usually with one trade. */
+export interface Commitment {
+  readonly id: string;
+  readonly stageId: string;
+  /** The contractor or trade it is with; `null` when not said. */
+  readonly personId: string | null;
+  readonly label: string;
+  readonly amountCents: number;
+  /** `YYYY-MM-DD`. */
+  readonly agreedOn: string;
+  readonly documentHash: string | null;
+}
+
+/**
+ * Money paid: one row of the payments ledger. A fact: never edited. A mistake is a new payment
+ * that reverses it (`reversesSeq`), the only kind of payment whose amount is negative.
+ */
+export interface Payment {
+  readonly id: string;
+  /** 1, 2, 3 …: the order payments were recorded in. */
+  readonly seq: number;
+  /** `YYYY-MM-DD`, never in the future. */
+  readonly day: string;
+  readonly personId: string | null;
+  readonly stageId: string;
+  readonly commitmentId: string | null;
+  /** Above zero; below zero only for a reversal. */
+  readonly amountCents: number;
+  readonly whatFor: string;
+  readonly receiptHash: string | null;
+  /** The seq of the payment this one reverses; `null` for an ordinary payment. */
+  readonly reversesSeq: number | null;
+  readonly authorName: string;
+  readonly createdAt: string;
 }
 
 export interface Stage {
@@ -194,6 +245,9 @@ export interface WorkSnapshot {
   readonly decisions: readonly Decision[];
   readonly checks: readonly Check[];
   readonly checkAnswers: readonly CheckAnswer[];
+  readonly costLines: readonly CostLine[];
+  readonly commitments: readonly Commitment[];
+  readonly payments: readonly Payment[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────

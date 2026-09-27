@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   counted,
   daysFigure,
+  moneyFigure,
   percent,
   percentOf,
   summed,
   traceable,
+  type AmountRow,
   type DaysRow,
   type Figure,
   type ReportRow,
@@ -202,5 +204,40 @@ describe('a days figure', () => {
 
   it('is broken when a row is listed twice', () => {
     expect(traceable(daysFigure('slip', 'l', 1, [moved('a', 1, 1), moved('a', 1, 1)]))).toBe(false);
+  });
+});
+
+describe('a money figure', () => {
+  const amount = (key: string, amountCents: number): AmountRow => ({
+    key,
+    itemId: key,
+    title: key,
+    day: null,
+    minutes: 0,
+    amountCents,
+  });
+
+  it('is the sum of its rows, signed, in whole cents', () => {
+    const figure = moneyFigure('remaining', 'money.figure.remaining', [
+      amount('a', 120_000),
+      amount('b', -45_050),
+    ]);
+    expect(figure).toMatchObject({ unit: 'money', value: 74_950 });
+    expect(traceable(figure)).toBe(true);
+    expect(traceable(moneyFigure('x', 'x', []))).toBe(true);
+  });
+
+  it('is caught when its value is not the sum of its rows', () => {
+    const honest = moneyFigure('x', 'x', [amount('a', 100), amount('b', 200)]);
+    expect(traceable({ ...honest, value: 301 })).toBe(false);
+    expect(traceable({ ...honest, value: 300.5 })).toBe(false);
+  });
+
+  it('is caught with a fraction of a cent, a row with no amount, or a row listed twice', () => {
+    expect(traceable(moneyFigure('x', 'x', [amount('a', 10.5)]))).toBe(false);
+    expect(traceable({ id: 'x', label: 'x', unit: 'money', value: 0, rows: [row('a')] })).toBe(
+      false,
+    );
+    expect(traceable(moneyFigure('x', 'x', [amount('a', 1), amount('a', 1)]))).toBe(false);
   });
 });

@@ -59,9 +59,11 @@ interface FigureBase<Row extends ReportRow> {
  *   its rows are what is not known: exactly `mustKnow − known` of them. A share of nothing
  *   (`mustKnow = 0`) is 0, and carries at least one row saying why there is nothing to measure.
  * - `days` is a signed number of working days a date moved; its rows are `DaysRow`s.
+ * - `money` is a sum of money in the currency's minor unit (cents), whole numbers only: the sum of
+ *   its rows' signed `amountCents` (`AmountRow`).
  */
 export type Figure<Row extends ReportRow = ReportRow> =
-  | (FigureBase<Row> & { unit: 'minutes' | 'count' | 'days' })
+  | (FigureBase<Row> & { unit: 'minutes' | 'count' | 'days' | 'money' })
   | (FigureBase<Row> & { unit: 'percent'; known: number; mustKnow: number });
 
 /** A row of a `days` figure: something whose date moved. */
@@ -129,6 +131,27 @@ export function percent<Row extends ReportRow>(
   return { id, label, unit: 'percent', value: percentOf(known, mustKnow), known, mustKnow, rows };
 }
 
+/** A row of a `money` figure: an amount, signed as the figure counts it, in minor units. */
+export interface AmountRow extends ReportRow {
+  /** Whole cents. Positive adds to the figure, negative takes away (a payment in "remaining"). */
+  amountCents: number;
+}
+
+/** A money figure: the sum of its rows' amounts, in minor units. */
+export function moneyFigure<Row extends AmountRow>(
+  id: string,
+  label: string,
+  rows: readonly Row[],
+): Figure<Row> {
+  return {
+    id,
+    label,
+    unit: 'money',
+    value: rows.reduce((sum, row) => sum + row.amountCents, 0),
+    rows,
+  };
+}
+
 /** A figure of how many working days a date moved, with the rows that moved. */
 export function daysFigure<Row extends DaysRow>(
   id: string,
@@ -155,7 +178,8 @@ function againstFinishOf(row: ReportRow): number | null {
  * or, when there is nothing to know, the value 0 and at least one row that says so. A percent
  * that reads 100 with rows behind it, or below 100 with none, is broken whatever its counts.
  * `days` is a whole number; 0 with no rows; when positive, exactly the furthest `againstFinish`
- * among the rows; otherwise at least as far as every row's.
+ * among the rows; otherwise at least as far as every row's. `money` is a whole number of cents, the
+ * sum of its rows' whole `amountCents`; a row without one breaks it.
  */
 export function traceable<Row extends ReportRow>(figure: Figure<Row>): boolean {
   const keys = new Set(figure.rows.map((row) => row.key));
@@ -170,6 +194,16 @@ export function traceable<Row extends ReportRow>(figure: Figure<Row>): boolean {
     if (known < 0 || known > mustKnow) return false;
     if (mustKnow === 0) return figure.value === 0 && figure.rows.length > 0;
     return figure.rows.length === mustKnow - known && figure.value === percentOf(known, mustKnow);
+  }
+
+  if (figure.unit === 'money') {
+    let sum = 0;
+    for (const row of figure.rows) {
+      const amount = (row as Partial<AmountRow>).amountCents;
+      if (typeof amount !== 'number' || !Number.isInteger(amount)) return false;
+      sum += amount;
+    }
+    return Number.isInteger(figure.value) && figure.value === sum;
   }
 
   if (figure.unit === 'days') {
