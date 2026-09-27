@@ -15,7 +15,9 @@ import { useI18n } from '@/i18n/useI18n';
  * One primitive for every figure (moved here in F2, when the schedule became its second screen):
  * `testId` names the figure for the end-to-end suite (`<testId>`, `<testId>-value`,
  * `<testId>-row`), and `size` is `display` for the one number a screen is about and `title` for
- * a figure that sits beside others.
+ * a figure that sits beside others, and `cell` for a figure in a table-like row — its name read by
+ * a screen reader but not shown, because the column already says it. `rowTestId` names the rows
+ * when a suite reads them across figures (`money-row`).
  *
  * It stays pressable when there is nothing to list: opening it then says so, which is a fact the
  * reader checked, rather than a disabled control that says nothing.
@@ -28,6 +30,7 @@ export function FigureRow<Row extends ReportRow>({
   rowsLabel,
   testId = 'figure',
   size = 'display',
+  rowTestId,
   groupBy,
 }: {
   figure: Figure<Row>;
@@ -40,7 +43,8 @@ export function FigureRow<Row extends ReportRow>({
   /** The accessible name of the list the figure opens onto. */
   rowsLabel: string;
   testId?: string;
-  size?: 'display' | 'title';
+  size?: 'display' | 'title' | 'cell';
+  rowTestId?: string;
   /**
    * When given, the rows are shown under headings — the group each belongs to, groups in their
    * `order` — and each row keeps its own place inside its group.
@@ -55,7 +59,10 @@ export function FigureRow<Row extends ReportRow>({
   return (
     <div data-testid={testId} data-figure={figure.id} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <span id={`${id}-label`} className="text-body-lg font-semibold text-fg">
+        <span
+          id={`${id}-label`}
+          className={size === 'cell' ? 'sr-only' : 'text-body-lg font-semibold text-fg'}
+        >
           {label}
         </span>
         <button
@@ -67,13 +74,20 @@ export function FigureRow<Row extends ReportRow>({
           onClick={() => setOpen((value) => !value)}
           className={[
             'rounded-md px-2 font-semibold text-fg tabular-nums',
-            size === 'display' ? 'font-display text-display' : 'text-title',
+            size === 'display'
+              ? 'font-display text-display'
+              : size === 'title'
+                ? 'text-title'
+                : 'text-body',
             'transition-colors duration-100 ease-easy hover:bg-card-hover active:bg-card-active',
           ].join(' ')}
         >
           {broken ? '—' : value}
         </button>
-        <span id={`${id}-hint`} className="text-caption text-fg-tertiary">
+        <span
+          id={`${id}-hint`}
+          className={size === 'cell' ? 'sr-only' : 'text-caption text-fg-tertiary'}
+        >
           {open ? t('figure.closes') : t('figure.opens')}
         </span>
       </div>
@@ -94,7 +108,7 @@ export function FigureRow<Row extends ReportRow>({
               ? figure.rows.map((row) => (
                   <li
                     key={row.key}
-                    data-testid={`${testId}-row`}
+                    data-testid={rowTestId ?? `${testId}-row`}
                     className="text-body text-fg-secondary"
                   >
                     {renderRow(row)}
@@ -109,7 +123,7 @@ export function FigureRow<Row extends ReportRow>({
                       {group.rows.map((row) => (
                         <li
                           key={row.key}
-                          data-testid={`${testId}-row`}
+                          data-testid={rowTestId ?? `${testId}-row`}
                           className="text-body text-fg-secondary"
                         >
                           {renderRow(row)}
