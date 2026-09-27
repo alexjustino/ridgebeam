@@ -1,6 +1,7 @@
 import {
   Board20Regular,
   ClipboardTask20Regular,
+  Money20Regular,
   Notebook20Regular,
   GanttChartRegular,
   Info20Regular,
@@ -25,7 +26,7 @@ import { useI18n } from '@/i18n/useI18n';
  * Every destination here is built. A destination that is planned and not built is not listed —
  * nothing on the rail pretends to work when it does not.
  *
- * Eight destinations are two groups: the five that show a work, and the three that are about the
+ * Nine destinations are two groups: the six that show a work, and the three that are about the
  * product itself. The gap between them is a `separator`, and never a button, so the rail a
  * keyboard walks through is exactly the destinations it names.
  *
@@ -43,6 +44,7 @@ const ICONS: Record<Destination, ReactNode> = {
   schedule: <GanttChartRegular fontSize={20} />,
   decisions: <ClipboardTask20Regular />,
   diary: <Notebook20Regular />,
+  money: <Money20Regular />,
   settings: <Settings20Regular />,
   diagnostics: <Wrench20Regular />,
   about: <Info20Regular />,
