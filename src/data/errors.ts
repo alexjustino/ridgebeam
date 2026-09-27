@@ -47,6 +47,8 @@ const KINDS: Readonly<Record<string, MessageKey>> = {
   diary_future_day: 'errors.diaryFutureDay',
   diary_corrects_unknown: 'errors.diaryCorrectsUnknown',
   photo_refused: 'errors.photoRefused',
+  stage_gate_open: 'errors.stageGateOpen',
+  stage_closed: 'errors.stageClosed',
   invalid_input: 'errors.invalidInput',
   settings_key: 'errors.settingsKey',
 };

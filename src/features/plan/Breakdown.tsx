@@ -18,6 +18,7 @@ import {
   useRenameStage,
 } from '@/data/queries';
 import { breakdown } from '@/domain/arrangements';
+import { stageState } from '@/domain/checks';
 import { decisionRows } from '@/domain/decisions';
 import {
   activitiesInOrder,
@@ -41,6 +42,7 @@ import { IconButton } from '@/ui/IconButton';
 import { ACTIVITY_COLUMNS, ActivityRow } from './ActivityRow';
 import { AddForm } from './AddForm';
 import { CalendarCard } from './CalendarCard';
+import { ChecksBlock } from './ChecksBlock';
 import { DecisionsBlock } from './DecisionsBlock';
 import { useEndpointName } from './endpoints';
 import { LinkChip, LinksLine } from './LinksLine';
@@ -78,7 +80,7 @@ export function Breakdown({
   focusRow: string | null;
   onFocused: () => void;
 }) {
-  const { t, tp } = useI18n();
+  const { t, tp, day } = useI18n();
   const term = useTerms();
   const removeStage = useRemoveStage();
   const removeActivity = useRemoveActivity();
@@ -151,144 +153,167 @@ export function Breakdown({
             {stages.map((stage) => {
               const activities = activitiesOf(stage);
               const siblings = activities.map((activity) => activity.id);
+              // A closed stage is read-only until it is reopened (ADR-022): every control in it is
+              // disabled by one fieldset, and one sentence says where to reopen it.
+              const closed = stageState(stage) === 'closed';
               return (
                 <li
                   key={stage.id}
                   data-stage-id={stage.id}
                   onKeyDown={(event) => {
                     const direction = chordDirection(event);
-                    if (direction === null) return;
+                    if (direction === null || closed) return;
                     event.preventDefault();
                     mover.go('stage', stage.id, direction, stageIds, stage.name);
                   }}
                 >
                   <Card>
-                    <StageHeader
-                      stage={stage}
-                      number={numbers.get(stage.id) ?? ''}
-                      outcome={outcome}
-                      onMove={(direction) =>
-                        mover.go('stage', stage.id, direction, stageIds, stage.name)
-                      }
-                      onRemove={() =>
-                        setRemoval({
-                          kind: 'stage',
-                          id: stage.id,
-                          name: stage.name,
-                          activities: activities.length,
-                        })
-                      }
-                    />
-                    {snapshot.dependencies.some(
-                      (dependency) =>
-                        dependency.blocked.kind === 'stage' && dependency.blocked.id === stage.id,
-                    ) && (
-                      <div className="mb-3 flex flex-col gap-1">
-                        <span className="text-caption font-semibold text-fg-tertiary">
-                          {t('plan.stageLinks')}
-                        </span>
-                        <ul className="flex flex-wrap gap-1.5">
-                          {snapshot.dependencies
-                            .filter(
-                              (dependency) =>
-                                dependency.blocked.kind === 'stage' &&
-                                dependency.blocked.id === stage.id,
-                            )
-                            .map((dependency) => (
-                              <LinkChip
-                                key={dependency.id}
-                                dependency={dependency}
-                                name={endpointName}
-                                outcome={outcome}
-                              />
-                            ))}
-                        </ul>
-                      </div>
+                    {closed && stage.closedAt !== null && (
+                      <p
+                        data-testid="stage-closed-note"
+                        className="mb-2 rounded-md bg-card-hover px-2 py-1 text-caption text-fg-secondary"
+                      >
+                        {t('stage.closedNote', { day: day(stage.closedAt.slice(0, 10)) })}
+                      </p>
                     )}
-                    <DecisionsBlock
-                      stage={stage}
-                      decisions={decisionsOf(snapshot, stage.id)}
-                      rows={decisionRowsById}
-                      snapshot={snapshot}
-                      scheduled={scheduled}
-                      today={today}
-                      outcome={outcome}
-                      focusRow={focusRow}
-                      onFocused={onFocused}
-                      onMove={(decision, direction) =>
-                        mover.go(
-                          'decision',
-                          decision.id,
-                          direction,
-                          decisionsOf(snapshot, stage.id).map((each) => each.id),
-                          decision.name,
-                        )
-                      }
-                      onMake={setMaking}
-                      onRemove={(decision) =>
-                        setRemoval({ kind: 'decision', id: decision.id, name: decision.name })
-                      }
-                    />
-                    {activities.length === 0 ? (
-                      <p className="text-body text-fg-tertiary">{t('plan.activities.empty')}</p>
-                    ) : (
-                      <>
-                        {/* The column heads are for the eye; every field names itself. */}
-                        <div
-                          aria-hidden="true"
-                          className={`${ACTIVITY_COLUMNS} pb-1 text-caption font-semibold text-fg-tertiary`}
-                        >
-                          <span>#</span>
-                          <span>{term('activity', { capital: true })}</span>
-                          <span>
-                            {t('plan.column.duration', {
-                              duration: term('duration', { capital: true }),
-                            })}
+                    <fieldset disabled={closed} className="m-0 min-w-0 border-0 p-0">
+                      <StageHeader
+                        stage={stage}
+                        number={numbers.get(stage.id) ?? ''}
+                        outcome={outcome}
+                        onMove={(direction) =>
+                          mover.go('stage', stage.id, direction, stageIds, stage.name)
+                        }
+                        onRemove={() =>
+                          setRemoval({
+                            kind: 'stage',
+                            id: stage.id,
+                            name: stage.name,
+                            activities: activities.length,
+                          })
+                        }
+                      />
+                      {snapshot.dependencies.some(
+                        (dependency) =>
+                          dependency.blocked.kind === 'stage' && dependency.blocked.id === stage.id,
+                      ) && (
+                        <div className="mb-3 flex flex-col gap-1">
+                          <span className="text-caption font-semibold text-fg-tertiary">
+                            {t('plan.stageLinks')}
                           </span>
-                          <span>{term('responsible', { capital: true })}</span>
-                          <span />
+                          <ul className="flex flex-wrap gap-1.5">
+                            {snapshot.dependencies
+                              .filter(
+                                (dependency) =>
+                                  dependency.blocked.kind === 'stage' &&
+                                  dependency.blocked.id === stage.id,
+                              )
+                              .map((dependency) => (
+                                <LinkChip
+                                  key={dependency.id}
+                                  dependency={dependency}
+                                  name={endpointName}
+                                  outcome={outcome}
+                                />
+                              ))}
+                          </ul>
                         </div>
-                        <ul className="flex flex-col">
-                          {activities.map((activity) => (
-                            <ActivityRow
-                              key={activity.id}
-                              activity={activity}
-                              number={numbers.get(activity.id) ?? null}
-                              people={snapshot.people}
-                              rooms={rooms}
-                              outcome={outcome}
-                              focus={focusRow === activity.id}
-                              onFocused={onFocused}
-                              onMove={(direction) =>
-                                mover.go(
-                                  'activity',
-                                  activity.id,
-                                  direction,
-                                  siblings,
-                                  activity.name,
-                                )
-                              }
-                              onRemove={() =>
-                                setRemoval({
-                                  kind: 'activity',
-                                  id: activity.id,
-                                  name: activity.name,
-                                })
-                              }
-                            >
-                              <LinksLine
-                                activityId={activity.id}
-                                activityName={activity.name}
-                                snapshot={snapshot}
-                                numbers={numbers}
+                      )}
+                      <DecisionsBlock
+                        stage={stage}
+                        decisions={decisionsOf(snapshot, stage.id)}
+                        rows={decisionRowsById}
+                        snapshot={snapshot}
+                        scheduled={scheduled}
+                        today={today}
+                        outcome={outcome}
+                        focusRow={focusRow}
+                        onFocused={onFocused}
+                        onMove={(decision, direction) =>
+                          mover.go(
+                            'decision',
+                            decision.id,
+                            direction,
+                            decisionsOf(snapshot, stage.id).map((each) => each.id),
+                            decision.name,
+                          )
+                        }
+                        onMake={setMaking}
+                        onRemove={(decision) =>
+                          setRemoval({ kind: 'decision', id: decision.id, name: decision.name })
+                        }
+                      />
+                      <ChecksBlock
+                        stage={stage}
+                        snapshot={snapshot}
+                        outcome={outcome}
+                        readOnly={closed}
+                        onMove={(check, direction, checkSiblings) =>
+                          mover.go('check', check.id, direction, checkSiblings, check.name)
+                        }
+                      />
+                      {activities.length === 0 ? (
+                        <p className="text-body text-fg-tertiary">{t('plan.activities.empty')}</p>
+                      ) : (
+                        <>
+                          {/* The column heads are for the eye; every field names itself. */}
+                          <div
+                            aria-hidden="true"
+                            className={`${ACTIVITY_COLUMNS} pb-1 text-caption font-semibold text-fg-tertiary`}
+                          >
+                            <span>#</span>
+                            <span>{term('activity', { capital: true })}</span>
+                            <span>
+                              {t('plan.column.duration', {
+                                duration: term('duration', { capital: true }),
+                              })}
+                            </span>
+                            <span>{term('responsible', { capital: true })}</span>
+                            <span />
+                          </div>
+                          <ul className="flex flex-col">
+                            {activities.map((activity) => (
+                              <ActivityRow
+                                key={activity.id}
+                                activity={activity}
+                                number={numbers.get(activity.id) ?? null}
+                                people={snapshot.people}
+                                rooms={rooms}
                                 outcome={outcome}
-                              />
-                            </ActivityRow>
-                          ))}
-                        </ul>
-                      </>
-                    )}
-                    <AddActivity stage={stage} outcome={outcome} />
+                                focus={focusRow === activity.id}
+                                onFocused={onFocused}
+                                onMove={(direction) =>
+                                  mover.go(
+                                    'activity',
+                                    activity.id,
+                                    direction,
+                                    siblings,
+                                    activity.name,
+                                  )
+                                }
+                                onRemove={() =>
+                                  setRemoval({
+                                    kind: 'activity',
+                                    id: activity.id,
+                                    name: activity.name,
+                                  })
+                                }
+                              >
+                                <LinksLine
+                                  activityId={activity.id}
+                                  activityName={activity.name}
+                                  snapshot={snapshot}
+                                  numbers={numbers}
+                                  outcome={outcome}
+                                  readOnly={closed}
+                                />
+                              </ActivityRow>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                      {!closed && <AddActivity stage={stage} outcome={outcome} />}
+                    </fieldset>
                   </Card>
                 </li>
               );

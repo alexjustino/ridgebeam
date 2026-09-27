@@ -11,9 +11,10 @@ import { TabStrip } from '@/ui/TabStrip';
 import { Breakdown } from './Breakdown';
 import { ByRoom } from './ByRoom';
 import { Checklist } from './Checklist';
+import { GatesTab } from './GatesTab';
 import type { Outcome } from './outcome';
 
-export type PlanTab = 'breakdown' | 'by-room' | 'checklist';
+export type PlanTab = 'breakdown' | 'by-room' | 'checklist' | 'gates';
 
 /**
  * The arrangement each lens opens on (ADR-014): the engineer's work breakdown, the architect's
@@ -104,6 +105,7 @@ export function PlanPage({
             { id: 'breakdown', label: t('plan.tab.breakdown') },
             { id: 'by-room', label: t('plan.tab.byRoom', { room: term('room') }) },
             { id: 'checklist', label: t('plan.tab.checklist') },
+            { id: 'gates', label: t('plan.tab.gates') },
           ]}
         />
       </div>
@@ -126,6 +128,7 @@ export function PlanPage({
         )}
         {tab === 'by-room' && <ByRoom snapshot={snapshot} onEdit={edit} />}
         {tab === 'checklist' && <Checklist snapshot={snapshot} onEdit={edit} />}
+        {tab === 'gates' && <GatesTab snapshot={snapshot} />}
       </div>
     </div>
   );
