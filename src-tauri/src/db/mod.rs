@@ -23,12 +23,17 @@
 //!   `baselines` (insert-only, by rule and by trigger); work migration 003.
 //! - F3: `decisions` (name, lead time, made or not — never a deadline); work
 //!   migration 004.
+//! - F4: `diary` (append-only, chained, and holding no statement that edits
+//!   or removes a row); work migration 005.
 
 #[cfg(test)]
 mod append_only_tests;
 pub mod baselines;
 pub mod decisions;
 pub mod dependencies;
+pub mod diary;
+#[cfg(test)]
+mod diary_tests;
 pub mod migrations;
 pub mod order;
 pub mod recent;

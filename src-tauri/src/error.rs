@@ -20,6 +20,12 @@
 //! | `invalid_input`         | a value the host refuses; the message says which and why        |
 //! | `settings_key`          | a setting that is not on the closed list                        |
 //! | `dependency_cycle`      | a dependency that would close a loop; the message is the loop   |
+//! | `diary_future_day`      | a diary entry dated after today, by the host's clock            |
+//! | `diary_corrects_unknown`| a correction naming an entry that is not in the diary           |
+//! | `photo_refused`         | a photo refused under the caps; the message names the file      |
+//!
+//! A broken diary chain is not an error: `diary_verify` answers with a report
+//! that says where the chain breaks and why.
 //!
 //! `dependency_cycle` is the one kind whose message is not a sentence: it is
 //! the loop itself, the activities' names joined by ` → ` and ending where it
@@ -88,6 +94,22 @@ pub enum Error {
     /// loop, by the activities' names, joined by ` → `.
     #[error("{0}")]
     DependencyCycle(String),
+
+    /// A diary entry for a day that has not happened yet. The day is the one
+    /// the entry named; "today" is the host's clock, in local time.
+    #[error("{0} has not happened yet: a diary entry is for a day that has.")]
+    DiaryFutureDay(String),
+
+    /// A correction of an entry the diary does not hold (or not yet: a
+    /// correction corrects an earlier entry).
+    #[error("There is no entry #{0} in the diary to correct.")]
+    DiaryCorrectsUnknown(i64),
+
+    /// A photo refused under the caps (SECURITY.md, "Files are hostile"). The
+    /// sentence names the file and the reason; the whole entry was refused with
+    /// it, and nothing was written.
+    #[error("{0}")]
+    PhotoRefused(String),
 }
 
 /// The sentence for a folder with no `work.sqlite3` in it.
@@ -110,6 +132,9 @@ impl Error {
             Error::InvalidInput(_) => "invalid_input",
             Error::SettingsKey => "settings_key",
             Error::DependencyCycle(_) => "dependency_cycle",
+            Error::DiaryFutureDay(_) => "diary_future_day",
+            Error::DiaryCorrectsUnknown(_) => "diary_corrects_unknown",
+            Error::PhotoRefused(_) => "photo_refused",
         }
     }
 }
@@ -170,6 +195,15 @@ mod tests {
                 Error::DependencyCycle("Tiling → Grout → Tiling".into()),
                 "dependency_cycle",
             ),
+            (
+                Error::DiaryFutureDay("2099-01-01".into()),
+                "diary_future_day",
+            ),
+            (Error::DiaryCorrectsUnknown(7), "diary_corrects_unknown"),
+            (
+                Error::PhotoRefused("“notes.jpg” was not added: it is not a photo.".into()),
+                "photo_refused",
+            ),
         ]
     }
 
@@ -193,7 +227,8 @@ mod tests {
         }
     }
 
-    /// The contract lists ten kinds (F2 added `dependency_cycle`). A variant that maps outside the list is a
+    /// The contract lists thirteen kinds (F2 added `dependency_cycle`; F4 the
+    /// diary's two and `photo_refused`). A variant that maps outside the list is a
     /// kind the interface cannot translate.
     #[test]
     fn the_kinds_are_exactly_the_closed_list_the_interface_translates() {
@@ -206,9 +241,12 @@ mod tests {
                 "data_dir",
                 "database",
                 "dependency_cycle",
+                "diary_corrects_unknown",
+                "diary_future_day",
                 "invalid_input",
                 "io",
                 "no_work_open",
+                "photo_refused",
                 "settings_key",
                 "work_folder_not_empty",
                 "work_moved",

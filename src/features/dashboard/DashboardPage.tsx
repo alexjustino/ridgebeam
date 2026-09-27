@@ -33,6 +33,8 @@ import { Card } from '@/ui/Card';
 import { FigureRow } from '@/ui/FigureRow';
 import { InfoBar } from '@/ui/InfoBar';
 
+import { SiteCard } from './SiteCard';
+
 /** What each kind of missing row lacks, said on the row itself. */
 const ROW_KEYS: Record<MissingId, MessageKey> = {
   'activity.duration': 'readiness.row.activity.duration',
@@ -150,6 +152,8 @@ export function DashboardPage({
         <DecisionsDueCard snapshot={snapshot} scheduled={scheduled} today={today} />
         <CalendarCard snapshot={snapshot} />
       </div>
+
+      <SiteCard snapshot={snapshot} today={today} />
     </div>
   );
 }

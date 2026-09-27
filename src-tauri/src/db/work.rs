@@ -573,6 +573,10 @@ pub(crate) mod tests {
             "baseline",
             "baseline_activity",
             "decision",
+            "diary_entry",
+            "diary_done",
+            "diary_present",
+            "diary_photo",
         ] {
             let found: i64 = conn
                 .query_row(
@@ -1094,11 +1098,11 @@ pub(crate) mod tests {
         );
     }
 
-    /// The upgrade a person makes from F2: a work at schema 3 — a dependency,
+    /// The upgrade from F2's schema: a work at schema 3 — a dependency,
     /// an approval and baseline 1 — opens in F3, loses nothing (the baseline
     /// least of all), and gains an empty list of decisions.
     #[test]
-    fn a_work_at_schema_three_with_rows_migrates_to_four_without_losing_any() {
+    fn a_work_at_schema_three_with_rows_migrates_to_the_current_version_without_losing_any() {
         let conn = Connection::open_in_memory().unwrap();
         crate::db::configure(&conn).unwrap();
         let tiling = a_work_at_schema_one(&conn);
@@ -1124,9 +1128,12 @@ pub(crate) mod tests {
         assert_eq!(migrations::WORK.current_version(&conn), 3);
         let before = snapshot_without_decisions(&conn);
 
-        migrations::WORK.apply(&conn).expect("migrate 3 → 4");
+        migrations::WORK.apply(&conn).expect("migrate 3 → head");
 
-        assert_eq!(migrations::WORK.current_version(&conn), 4);
+        assert_eq!(
+            migrations::WORK.current_version(&conn),
+            migrations::WORK.target_version()
+        );
         let plan = snapshot(&conn).unwrap();
         assert!(plan.decisions.is_empty());
         assert_eq!(plan.dependencies.len(), 1);
@@ -1149,7 +1156,10 @@ pub(crate) mod tests {
         migrations::WORK
             .apply(&conn)
             .expect("and again, idempotent");
-        assert_eq!(migrations::WORK.current_version(&conn), 4);
+        assert_eq!(
+            migrations::WORK.current_version(&conn),
+            migrations::WORK.target_version()
+        );
     }
 
     /// What schema 3 can already say, read by hand so it can be compared across
@@ -1179,5 +1189,64 @@ pub(crate) mod tests {
 "));
         }
         out
+    }
+
+    /// The upgrade a person makes from F3: a work at schema 4 — a decision
+    /// made with its answer, a baseline — opens in F4, loses nothing, and
+    /// gains an empty diary whose chain verifies.
+    #[test]
+    fn a_work_at_schema_four_with_rows_migrates_to_five_without_losing_any() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::db::configure(&conn).unwrap();
+        let tiling = a_work_at_schema_one(&conn);
+        migrations::WORK
+            .apply_up_to(&conn, 4)
+            .expect("stand at schema 4");
+        conn.execute_batch(&format!(
+            "INSERT INTO decision (id, stage_id, position, name, lead_time_days, made_at, answer,
+                                   created_at)
+             VALUES ('00000000-0000-7000-8000-0000000000f1', '00000000-0000-7000-8000-00000000000b',
+                     1, 'Which tile', 10, '2026-09-30T10:00:00.000Z', 'Porcelain, grey', 't');
+             UPDATE work SET approved_at = '2026-09-25T12:00:00.000Z';
+             INSERT INTO baseline (id, number, taken_at, finish_date)
+             VALUES ('00000000-0000-7000-8000-0000000000f2', 1, 't', '2026-10-07');
+             INSERT INTO baseline_activity (baseline_id, activity_id, position, name, stage_name,
+                                            duration_days, start, finish)
+             VALUES ('00000000-0000-7000-8000-0000000000f2', '{tiling}', 1, 'Tiling', 'Bathroom',
+                     3, '2026-10-05', '2026-10-07');"
+        ))
+        .expect("an F3 work's rows");
+        assert_eq!(migrations::WORK.current_version(&conn), 4);
+        let before = snapshot(&conn).unwrap();
+
+        migrations::WORK.apply(&conn).expect("migrate 4 → 5");
+
+        assert_eq!(migrations::WORK.current_version(&conn), 5);
+        assert_eq!(
+            snapshot(&conn).unwrap(),
+            before,
+            "the plan, its decisions and baseline: unchanged"
+        );
+        assert_eq!(
+            before.decisions[0].answer.as_deref(),
+            Some("Porcelain, grey")
+        );
+        let report = crate::db::diary::verify(&conn).unwrap();
+        assert_eq!(
+            (report.entries, report.intact),
+            (0, true),
+            "an empty diary, intact"
+        );
+        for table in ["diary_entry", "diary_done", "diary_present", "diary_photo"] {
+            let rows: i64 = conn
+                .query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))
+                .unwrap_or_else(|error| panic!("`{table}` is missing: {error}"));
+            assert_eq!(rows, 0);
+        }
+
+        migrations::WORK
+            .apply(&conn)
+            .expect("and again, idempotent");
+        assert_eq!(migrations::WORK.current_version(&conn), 5);
     }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { activity, link, snapshot, stage } from '../__fixtures__/plan';
+import { activity, entry, finished, link, snapshot, stage, worked } from '../__fixtures__/plan';
 import type { Baseline, WorkSnapshot } from '../plan';
 import { type GanttBar, ganttLayout } from './gantt';
 import { baselineDraft, schedule } from './index';
@@ -162,5 +162,80 @@ describe('the baseline under the plan', () => {
     };
     const d = bars(layout(PLAN, unplacedThen).rows).find((bar) => bar.activityId === 'd')!;
     expect(d.ghost).toBeNull();
+  });
+});
+
+describe('the diary over the bars', () => {
+  const withQuantity = {
+    ...PLAN,
+    activities: PLAN.activities.map((a) => (a.id === 'b' ? { ...a, quantity: 10, unit: 'm²' } : a)),
+  };
+  const barOf = (plan: WorkSnapshot, entries: Parameters<typeof ganttLayout>[4], id: string) => {
+    const scheduled = schedule(plan);
+    return bars(ganttLayout(scheduled, plan, scheduled.calendar!, null, entries).rows).find(
+      (bar) => bar.activityId === id,
+    )!;
+  };
+
+  it('leaves every bar unfilled and with no actual span when the diary is empty', () => {
+    for (const bar of bars(layout(PLAN).rows)) {
+      expect(bar.progress).toEqual({
+        state: 'not-started',
+        fill: 0,
+        actualStart: null,
+        actualFinish: null,
+        actual: null,
+      });
+    }
+  });
+
+  it('fills a finished bar and draws where it actually ran, the planned bar unchanged', () => {
+    const entries = [
+      entry(1, '2026-09-01', { done: [worked('a')] }),
+      entry(2, '2026-09-04', { done: [finished('a')] }),
+    ];
+    const a = barOf(PLAN, entries, 'a');
+    expect(a).toMatchObject({ x: 0, width: 3, start: '2026-09-01', finish: '2026-09-03' });
+    expect(a.progress).toEqual({
+      state: 'finished',
+      fill: 1,
+      actualStart: '2026-09-01',
+      actualFinish: '2026-09-04',
+      actual: { x: 0, width: 4 },
+    });
+  });
+
+  it('fills a started bar by the share of quantities done, and marks it with no fill when there are none', () => {
+    const measured = [entry(1, '2026-09-07', { done: [worked('b', 4)] })];
+    expect(barOf(withQuantity, measured, 'b').progress).toMatchObject({
+      state: 'started',
+      fill: 0.4,
+      actualStart: '2026-09-07',
+      actualFinish: null,
+    });
+    const unmeasured = [entry(1, '2026-09-07', { done: [worked('b')] })];
+    expect(barOf(withQuantity, unmeasured, 'b').progress).toMatchObject({
+      state: 'started',
+      fill: null,
+    });
+  });
+
+  it('widens the columns to a day the diary says work began before the plan did', () => {
+    const early = [entry(1, '2026-08-31', { done: [worked('a')] })];
+    const scheduled = schedule(PLAN);
+    const result = ganttLayout(scheduled, PLAN, scheduled.calendar!, null, early);
+    expect(result.columns[0]!.date).toBe('2026-08-31');
+    const a = bars(result.rows).find((bar) => bar.activityId === 'a')!;
+    expect(a.x).toBe(1);
+    expect(a.progress.actual).toEqual({ x: 0, width: 1 });
+  });
+
+  it('draws nothing for a diary line about an activity with no bar', () => {
+    const result = layout(PLAN);
+    const scheduled = schedule(PLAN);
+    const withE = ganttLayout(scheduled, PLAN, scheduled.calendar!, null, [
+      entry(1, '2026-10-30', { done: [worked('e')] }),
+    ]);
+    expect(withE.columns).toEqual(result.columns);
   });
 });

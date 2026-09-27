@@ -1,7 +1,8 @@
 import { CheckmarkCircle20Regular } from '@fluentui/react-icons';
 import { useMemo, useState } from 'react';
 
-import { useTakeBaseline } from '@/data/queries';
+import { useDiary, useTakeBaseline } from '@/data/queries';
+import { progress } from '@/domain/diary';
 import { breakdown } from '@/domain/arrangements';
 import { latestBaseline, type WorkSnapshot } from '@/domain/plan';
 import { baselineDraft, schedule, type UnplacedReason } from '@/domain/schedule';
@@ -54,19 +55,34 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
         : ganttLayout(scheduled, snapshot, scheduled.calendar, baseline),
     [scheduled, snapshot, baseline],
   );
+  const diary = useDiary(true);
+  const progressById = useMemo(() => progress(snapshot, diary.data ?? []), [snapshot, diary.data]);
   const view =
     layout === null
       ? null
-      : toGanttView(layout, {
-          spoken: (bar) =>
-            t(bar.critical ? 'schedule.bar.critical' : 'schedule.bar', {
-              number: bar.number,
-              name: bar.name,
-              days: tp('plan.checklist.days', bar.durationDays),
-              start: day(bar.start),
-              finish: day(bar.finish),
-            }),
-        });
+      : toGanttView(
+          layout,
+          {
+            spoken: (bar) => {
+              const sentence = t(bar.critical ? 'schedule.bar.critical' : 'schedule.bar', {
+                number: bar.number,
+                name: bar.name,
+                days: tp('plan.checklist.days', bar.durationDays),
+                start: day(bar.start),
+                finish: day(bar.finish),
+              });
+              const known = bar.progress;
+              if (known?.state === 'finished' && known.finishedOn !== null) {
+                return t('schedule.bar.finished', { sentence, day: day(known.finishedOn) });
+              }
+              if (known?.state === 'started' && known.startedOn !== null) {
+                return t('schedule.bar.started', { sentence, day: day(known.startedOn) });
+              }
+              return sentence;
+            },
+          },
+          progressById,
+        );
   const slipped = baseline === null ? null : slip(scheduled, baseline);
   const hasBars = view !== null && view.rows.some((row) => row.kind === 'bar');
 
@@ -234,6 +250,12 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
                 />
               </svg>
               {t('schedule.legend.shaded')}
+            </li>
+            <li className="flex items-center gap-2">
+              <svg width="28" height="12" aria-hidden="true" className="shrink-0">
+                <rect x="1" y="3" width="26" height="6" rx="3" className="fill-success" />
+              </svg>
+              {t('schedule.legend.done')}
             </li>
           </ul>
         </section>

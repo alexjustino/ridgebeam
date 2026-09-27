@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DECISIONS_DUE_LABEL_KEY } from '@/domain/decisions';
+import { DONE_LABEL_KEYS } from '@/domain/diary';
 import {
   READINESS_LABEL_KEY,
   READINESS_MESSAGE_KEYS,
@@ -155,6 +156,9 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         ...Object.values(RULE_EXPLANATION_KEYS),
         DECISIONS_DUE_LABEL_KEY,
         SLIP_LABEL_KEY,
+        ...Object.values(DONE_LABEL_KEYS),
+        'diary.figure.daysWithoutEntry',
+        'diary.figure.lostDays',
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }

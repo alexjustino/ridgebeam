@@ -1,6 +1,8 @@
-import { Edit20Regular } from '@fluentui/react-icons';
+import { Checkmark12Filled, Edit20Regular } from '@fluentui/react-icons';
 
+import { useDiary } from '@/data/queries';
 import { checklist, type ChecklistMissing } from '@/domain/arrangements';
+import { progress, type ProgressState } from '@/domain/diary';
 import type { WorkSnapshot } from '@/domain/plan';
 import { schedule } from '@/domain/schedule';
 import type { MessageKey } from '@/i18n/en';
@@ -35,6 +37,8 @@ export function Checklist({
   const { t, tp, day, number } = useI18n();
   const term = useTerms();
   const lines = checklist(snapshot, schedule(snapshot));
+  const diary = useDiary(true);
+  const states = progress(snapshot, diary.data ?? []);
   const activities = new Map(snapshot.activities.map((activity) => [activity.id, activity]));
   const stageNames = new Map(snapshot.stages.map((stage) => [stage.id, stage.name]));
   const people = new Map(snapshot.people.map((person) => [person.id, person.name]));
@@ -68,6 +72,14 @@ export function Checklist({
           if (activity === undefined) return null;
           const responsible =
             activity.responsibleId === null ? null : (people.get(activity.responsibleId) ?? null);
+          const known = states.get(line.activityId);
+          const state: ProgressState = known?.state ?? 'not-started';
+          const stateText =
+            state === 'finished'
+              ? t('state.finished', { day: day(known?.finishedOn ?? '') })
+              : state === 'started'
+                ? t('state.started', { day: day(known?.startedOn ?? '') })
+                : t('state.notStarted');
           const parts = [
             stageNames.get(line.stageId) ?? '',
             responsible ?? '',
@@ -81,16 +93,15 @@ export function Checklist({
             <li
               key={line.activityId}
               data-checklist-line={line.activityId}
+              data-done={state}
               className="flex items-start gap-3 border-t border-stroke-subtle py-2 first:border-t-0"
             >
-              {/* A drawn box: the diary ticks it, from F4. Not a control, so not in the tab order
-                  and not announced as one. */}
-              <span
-                aria-hidden="true"
-                className="mt-0.5 size-4 shrink-0 rounded-sm border border-stroke-strong"
-              />
+              {/* A drawn box, ticked by the diary (ADR-020). Not a control, so not in the tab
+                  order and not announced as one; the state is said in words beside it. */}
+              <DrawnBox state={state} />
               <span className="min-w-0 flex-1">
                 <span className="block text-body font-semibold text-fg">{activity.name}</span>
+                <span className="block text-caption text-fg-secondary">{stateText}</span>
                 <span className="block text-caption text-fg-secondary">{parts.join(' — ')}</span>
                 {line.missing.length > 0 && (
                   <span className="block text-caption text-fg-secondary">
@@ -110,5 +121,27 @@ export function Checklist({
         })}
       </ol>
     </Card>
+  );
+}
+
+/** The line's box: empty, marked from one side once started, filled and ticked once finished. */
+function DrawnBox({ state }: { state: ProgressState }) {
+  if (state === 'finished') {
+    return (
+      <span
+        aria-hidden="true"
+        className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-sm border border-accent bg-accent text-fg-on-accent"
+      >
+        <Checkmark12Filled />
+      </span>
+    );
+  }
+  return (
+    <span
+      aria-hidden="true"
+      className="relative mt-0.5 size-4 shrink-0 overflow-hidden rounded-sm border border-stroke-strong"
+    >
+      {state === 'started' && <span className="absolute inset-y-0 left-0 w-1/2 bg-accent" />}
+    </span>
   );
 }

@@ -5,6 +5,7 @@
  * Test support only: no production module imports this file.
  */
 
+import type { DiaryEntry, DoneLine } from '../diary';
 import type { Activity, Decision, Dependency, Endpoint, Stage, WorkSnapshot } from '../plan';
 
 /** A work starting on Tuesday 1 September 2026, Monday to Friday, with nothing in it. */
@@ -92,3 +93,55 @@ export function decision(
     answer: null,
   };
 }
+
+/**
+ * A diary entry about `day`, with nothing in it but what is passed. The hashes are placeholders:
+ * the domain carries them and never checks them.
+ */
+export function entry(seq: number, day: string, parts: Partial<DiaryEntry> = {}): DiaryEntry {
+  return {
+    seq,
+    day,
+    kind: 'entry',
+    correctsSeq: null,
+    note: null,
+    weather: null,
+    lostDay: false,
+    hours: null,
+    deliveries: null,
+    incidents: null,
+    visitors: null,
+    authorName: 'Sample author',
+    createdAt: `${day}T18:00:00.000Z`,
+    prevHash: seq === 1 ? '' : 'h'.repeat(64),
+    hash: String(seq).padStart(64, '0'),
+    done: [],
+    present: [],
+    photos: [],
+    ...parts,
+  };
+}
+
+/** A correction of `correctsSeq`, restating `day`. */
+export function correction(
+  seq: number,
+  correctsSeq: number,
+  day: string,
+  parts: Partial<DiaryEntry> = {},
+): DiaryEntry {
+  return entry(seq, day, { kind: 'correction', correctsSeq, note: 'What was wrong', ...parts });
+}
+
+export const worked = (activityId: string, quantity: number | null = null): DoneLine => ({
+  activityId,
+  state: 'worked',
+  quantity,
+  note: null,
+});
+
+export const finished = (activityId: string, quantity: number | null = null): DoneLine => ({
+  activityId,
+  state: 'finished',
+  quantity,
+  note: null,
+});

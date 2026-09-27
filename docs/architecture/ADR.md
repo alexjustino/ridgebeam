@@ -14,7 +14,9 @@ before there is a diary. Slice F1 makes a third true: three lenses over one mode
 ([ADR-014](#adr-014)). Slice F2 makes part of a fourth true: the first baseline is taken when
 the plan is approved and no baseline is ever overwritten ([ADR-016](#adr-016)); the reason asked
 on every later change is F8's. Slice F3 makes a fifth true: a decision's deadline is computed
-([ADR-017](#adr-017)). The sixth, templates are plans, waits for F9.
+([ADR-017](#adr-017)). Slice F4 completes the first: progress is derived from the diary
+([ADR-020](#adr-020)), which is append-only with a hash chain ([ADR-019](#adr-019)). The
+sixth, templates are plans, waits for F9.
 
 | #               | Decision                                                                                                      | Status                         |
 | --------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -36,6 +38,9 @@ on every later change is F8's. Slice F3 makes a fifth true: a decision's deadlin
 | [016](#adr-016) | Baselines are insert-only from the first one                                                                  | Accepted — 2026-09-25          |
 | [017](#adr-017) | A decision's deadline is computed, never stored                                                               | Accepted — 2026-09-25          |
 | [018](#adr-018) | Readiness is explained rule by rule, and the rules sum to the figure                                          | Accepted — 2026-09-25          |
+| [019](#adr-019) | The diary is append-only with a hash chain, and a correction is a new entry                                   | Accepted — 2026-09-25          |
+| [020](#adr-020) | Progress is derived from the diary, in states, never as an invented number                                    | Accepted — 2026-09-25          |
+| [021](#adr-021) | Photos are copied by the host under caps and shown as data URLs                                               | Accepted — 2026-09-25          |
 
 ---
 
@@ -754,3 +759,153 @@ stage with nothing scheduled is counted once, as missing its deadline, and is no
 it is in time until the stage is scheduled — so a decision that will be late the day its stage
 is scheduled does not say so before. The rule-by-rule list is where that is visible: the
 decision is under "no deadline yet", with the reason, not absent. That is why the explanation exists.
+
+## ADR-019 — The diary is append-only with a hash chain, and a correction is a new entry {#adr-019}
+
+**Status.** Accepted — 2026-09-25.
+
+**Context.** Requirement one of the specification is that no diary entry is lost (SPEC §4), and
+the diary is the half of the thesis that is fact: the plan is intent, the diary is what happened
+(SPEC §1). A diary that can be edited after the fact is a notes app; a diary that cannot be
+corrected is one people stop writing, because a wrong entry would stand forever. And a person in
+a dispute with a contractor will want to know whether the record has been touched since it was
+written — which the product can show, and must not overstate.
+
+**Decision.**
+
+- **An entry is a fact about one day.** It carries the day (never in the future — refused by the
+  domain against today and by the host against its own clock), what was done, who was there, the
+  weather, hours, deliveries, incidents, visitors, a note, and its photos, written with its
+  children in one transaction. A second entry on a day that already has one is allowed and
+  ordered; a replacement is not, because there is no way to replace.
+- **Append-only, twice** ([`SECURITY.md`](../../SECURITY.md)). In the schema, triggers refuse
+  `UPDATE`, `DELETE` and `REPLACE` on the four diary tables; a guard before insert refuses a
+  sequence number that exists, so `INSERT OR REPLACE` cannot reach a row whatever
+  `recursive_triggers` is set to; and the chain trigger refuses an entry that is not the next in
+  sequence or does not carry the previous entry's hash. In the host, the Rust module that writes
+  the diary holds no `UPDATE`, `DELETE` or `REPLACE`, and a test reads its source to prove it.
+  There is no edit command.
+- **A correction is a new entry.** It names the entry it corrects, restates the whole day — what
+  was done, who was there, the photos, which it may re-attach by hash without copying anything
+  twice — and says what was wrong in a required note. For everything derived from the diary, an
+  entry that has been corrected contributes nothing and its latest correction contributes
+  instead; a correction may itself be corrected. The day view shows the original struck through,
+  "corrected by #N", beside the correction. The interface offers _Correct…_ where an edit would
+  be expected, and says why.
+- **Each entry carries the hash of the one before.** The hash is SHA-256 over a canonical,
+  deterministic serialisation of the entry and its children (in
+  [`DATA_MODEL.md`](../DATA_MODEL.md)), computed by the host before the insert. `diary_verify`
+  recomputes every hash and every link and answers "N entries, chain intact" or "broken at #k"
+  with the reason; Diagnostics runs it on demand. `cargo test` tampers with a work file through a
+  second, plain connection — triggers dropped, a note rewritten, a photo hash moved, a row
+  deleted — and shows the verification fails at that entry.
+- **The author is the Windows account's name.** The product has no accounts and no login
+  ([ADR-006](#adr-006)); the host reads the display name of the account that is running it and
+  writes it on each entry. It is what the machine says, not an identity the product vouches for.
+
+**What the chain is, said plainly.** It is **tamper-evidence**: it shows whether the record has
+been altered since it was written. It is not a signature, it does not prove who wrote an entry,
+and it is not legal proof — somebody with the file can rewrite every entry and recompute every
+hash. Nor can it see entries removed from the _end_ of the diary: the last entry has no
+successor to point at it, and the export (F10) records the count and the last hash so that a
+copy kept elsewhere can. What a diary is worth in a dispute is the jurisdiction's to decide.
+The product says this in Diagnostics, in the export header (F10) and here, and never claims
+more (SPEC R6).
+
+**Why.** A record that can only grow is one a person can trust with a disagreement; a correction
+that stands beside what it corrects is more honest than an edit that erases it. Enforcing it in
+the schema as well as the host means no code path — the product's, a script's, a future bug's —
+can quietly change the past.
+
+**Cost accepted.** A wrong entry is there for good, struck through. A day with three corrections
+shows four entries. Every entry costs a hash computed over its children, and every verification
+reads the whole diary — cheap at SPEC §4's 3 000 entries, and measured there. The author name is
+whatever Windows says, so two people sharing one account are one author. And the chain proves
+less than a person may hope, which is exactly why the product says what it proves.
+
+## ADR-020 — Progress is derived from the diary, in states, never as an invented number {#adr-020}
+
+**Status.** Accepted — 2026-09-25.
+
+**Context.** "The plan is intent and the diary is fact" is the first of the specification's
+ADR-PROPOSED decisions. [ADR-009](#adr-009) made half of it true in F0: there is no command,
+column or control that sets progress. F4 makes the other half true: progress, actual dates and
+the people on site are derived from diary entries. The temptation is a percentage on every bar —
+"60 % done" — and a percentage the site never measured is precisely the number ADR-009 exists to
+refuse.
+
+**Decision.** Progress is computed by the domain from the effective entries (corrections
+applied, [ADR-019](#adr-019)) every time, and never stored.
+
+- **An activity is in one of three states**: _not started_, _started_ (the diary says somebody
+  worked on it) or _finished_ (the diary says it was finished), with the day it started and the
+  day it finished taken from the first entries that say so.
+- **A share only when the site measured one.** When an activity has a planned quantity and the
+  diary records done quantities, the share is their ratio — held at most 99 % until the diary says
+  _finished_, and 100 % only then. Otherwise there is **no number**: the state is the whole
+  answer, and no screen shows a percentage the diary did not produce.
+- **A stage's progress is counts**: how many of its activities are finished, started and not
+  started. The work's _Done_ figure on the dashboard is the same counts, opening onto the
+  activities.
+- **Where it shows.** The owner's checklist ticks a line when the diary says finished; the Gantt
+  fills a bar by state — solid when finished, marked when started — with the planned bar kept and
+  the actual start and finish drawn as a thin line; the dashboard adds days without an entry and
+  weather days lost. The slip still compares the plan with its baseline ([ADR-016](#adr-016));
+  comparing actuals with the baseline is F8's and F10's.
+
+**Why.** A state is a fact the diary can support; a percentage without a measurement is a guess
+shown as a fact, and every figure derived from it would inherit the guess. Keeping progress
+derived is what makes the Gantt, the checklist and the dashboard agree with each other and with
+the site: they read the same entries.
+
+**Cost accepted.** An engineer used to "percent complete" gets three states and, only where a
+quantity was measured, a share. An activity half done but not measured reads _started_ for as
+long as it takes. Nothing is progress until somebody writes an entry — a site that keeps no
+diary shows no progress at all, and the dashboard counts the days without an entry so that the
+silence is visible (SPEC R2).
+
+## ADR-021 — Photos are copied by the host under caps and shown as data URLs {#adr-021}
+
+**Status.** Accepted — 2026-09-25.
+
+**Context.** Photos are the first files from somebody else that the product keeps: from a phone,
+a messaging app, a download. [`SECURITY.md`](../../SECURITY.md) says every one is hostile until
+measured. They have to be kept with the work — a folder that is moved takes them with it
+([ADR-004](#adr-004)) — and shown on screen, which for a Tauri application usually means
+granting the webview a file-system permission or the asset protocol, so that it can read files
+off the disk by path.
+
+**Decision.**
+
+- **The host copies; the webview never touches a file.** An entry names the files the person
+  chose in the dialog or typed; the host reads each one, and refuses it with a sentence naming
+  the file and the reason if it is over **25 MiB**, if its **magic bytes** are not JPEG, PNG,
+  WebP, GIF or BMP (HEIC is refused by name — 1.0 does not decode it), or if its **dimensions**,
+  read from the header without decoding, exceed **12 000 × 12 000**. It then hashes the bytes
+  (SHA-256) and copies them to `documents/<hash>.<ext>` inside the work folder, the extension
+  from the detected type and never from the name. A photo already there is referenced by its
+  hash, never copied twice.
+- **Thumbnails under limits.** A 320 px JPEG thumbnail is rendered to `thumbnails/<hash>.jpg` by
+  the `image` crate with its decoding limits set — width, height and at most 256 MiB of
+  allocation. A photo whose thumbnail cannot be made is kept, marked, and says so on screen.
+- **One entry, one transaction.** A refused photo refuses the whole entry, and any file already
+  copied for it is removed: nothing is half-written.
+- **Shown as data URLs.** `photo_thumbnail(hash)` returns the thumbnail as a `data:image/jpeg`
+  URL, which the content security policy already allows. There is **no asset protocol and no
+  file-system permission** in the capabilities: the webview cannot read any path at all.
+- **Opened by the operating system, from Rust.** `photo_open(hash)` opens the original with the
+  system's own handler, on the person's click, through the opener plugin used as a Rust
+  dependency only — no JavaScript permission is granted for it.
+- **The corpus is in `cargo test`.** A text file named `.jpg`, a PNG header that claims 100 000
+  pixels, a truncated JPEG, an empty file and a 26 MiB file are each refused with a sentence, and
+  nothing is written.
+
+**Why.** The copy is what keeps a work self-contained. Measuring before decoding is what keeps a
+crafted file from costing more than its size. And a webview that can read no path cannot be
+talked into reading the wrong one: every byte it shows passed through a command that checked it.
+
+**Cost accepted.** A data URL is larger than the file it carries and passes through the command
+boundary; it is sized for thumbnails, and the original is never shown inside the product — it is
+opened by the system's viewer. HEIC, the default on many phones, is refused in 1.0 with a
+sentence that says so. Documents other than photos — quotes, drawings, permits — are F7's, under
+the same rules.

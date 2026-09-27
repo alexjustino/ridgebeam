@@ -8,6 +8,7 @@ import { AboutPage } from '@/features/about/AboutPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { DiagnosticsPage } from '@/features/diagnostics/DiagnosticsPage';
 import { DecisionsPage } from '@/features/decisions/DecisionsPage';
+import { DiaryPage } from '@/features/diary/DiaryPage';
 import { PlanPage } from '@/features/plan/PlanPage';
 import { SchedulePage } from '@/features/schedule/SchedulePage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
@@ -141,6 +142,9 @@ export function App({ settings }: { settings: Settings }) {
               )}
               {!showsStart && destination === 'decisions' && snapshot !== null && (
                 <DecisionsPage snapshot={snapshot} onEdit={editInPlan} />
+              )}
+              {!showsStart && destination === 'diary' && snapshot !== null && (
+                <DiaryPage snapshot={snapshot} />
               )}
               {destination === 'settings' && <SettingsPage settings={settings} />}
               {destination === 'diagnostics' && <DiagnosticsPage />}
