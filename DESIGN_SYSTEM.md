@@ -402,6 +402,21 @@ breaks one is not merged.
   A disabled button with no reason is a defect report somebody else has to write (§10). A closed
   stage says it is closed wherever its rows appear — _"Closed on 30 Sep — reopen it on the Gates
   tab to change it"_ — and its rows are read-only, not hidden (ADR-022).
+- **Money is never a float.** An amount is a whole number of cents from the database to the
+  domain to the moment it is drawn, and only then is it formatted — by the platform's own number
+  formatting, in the work's currency and the person's language: _US$ 1.000,00_ in Portuguese,
+  _$1,000.00_ in English. A person types major units with decimals; the interface turns them into
+  cents once, and refuses what is not an amount with a sentence. No component divides, rounds or
+  sums money on its own: every money figure comes from the domain with its rows (ADR-024), and
+  a negative amount — a reversal, a variance — reads with its sign **and** in words ("reversed",
+  "under"), never by colour alone. _Over committed_ is a mark in words with the excess beside it.
+- **A chart says what it left out.** A chart is a picture of rows the product also shows as a
+  table. The S-curve of planned against paid draws two lines told apart by colour **and** by dash,
+  with a legend in words; it is `role="img"` with a sentence naming both totals and the last day,
+  and the table beneath it, one row per week, is the reading a screen reader and a careful person
+  use. What the chart could not place, it says: a cost line with nothing scheduled is placed at
+  the work's start, and the chart names how much and why, instead of hiding it in the first
+  week's slope.
 - **N/A always carries its reason.** _Not applicable_ is an answer, not a way to skip a
   question: choosing it opens a small form that asks why, and the answer is not recorded without
   one. Wherever the answer is shown, the reason is shown with it — _"N/A — no tiling in this
@@ -412,7 +427,7 @@ breaks one is not merged.
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
   `data-destination="<id>"` with the same id the router uses — `dashboard`, `plan`, `schedule`,
-  `decisions`, `diary`, `settings`, `diagnostics`, `about`. The end-to-end suite and the accessibility audit find destinations by
+  `decisions`, `diary`, `money`, `settings`, `diagnostics`, `about`. The end-to-end suite and the accessibility audit find destinations by
   these attributes and never by visible text, which changes with the language (§9).
 - **Degrade visibly: a missing work folder is a state with a way out.** A recent work whose
   folder is gone is not hidden and not an error dialog: its row says the folder was not found
@@ -447,7 +462,7 @@ Maximising works; the hover flyout does not appear yet.
 ### The rail
 
 The destinations are ordered **the work first, then the product**: Dashboard · Plan ·
-Schedule · Decisions · Diary, then Settings · Diagnostics · About. Between the two groups sits a hairline with `role="separator"` —
+Schedule · Decisions · Diary · Money, then Settings · Diagnostics · About. Between the two groups sits a hairline with `role="separator"` —
 a separator and **never** a disabled button, a heading nobody can reach or an empty `div` used as
 a gap: the grouping has to be a fact for somebody who is listening to the rail rather than
 looking at it, and nothing new may appear in the tab order to say it.
@@ -473,9 +488,15 @@ the days, newest first, each a card of its entries: who wrote it, when, what was
 there, the weather and the photos, and **Correct…** on each. A day in the future is refused with
 a sentence before anything is asked of the host.
 
-With no work open, Dashboard, Plan, Schedule, Decisions and Diary have nothing to show: the
-Start screen — a new work, an open work, the recent works — takes the content region, and the
-five destinations are disabled
+**Money** holds three tabs: **By stage** and **By trade** — planned, committed, paid, remaining
+and variance, each a button that opens onto its rows, with _over committed_ marked in words —
+and the **Ledger**, payments newest first with their receipts, a form to record one, and
+**Reverse…** on each. Cost lines are written in the breakdown, where the rest of the plan is;
+commitments on By stage. The S-curve and its table sit above the tabs.
+
+With no work open, Dashboard, Plan, Schedule, Decisions, Diary and Money have nothing to show:
+the Start screen — a new work, an open work, the recent works — takes the content region, and
+the six destinations are disabled
 with the reason in their accessible description, not removed. A rail that changes shape under
 the keyboard is a rail nobody learns.
 
