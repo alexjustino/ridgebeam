@@ -40,6 +40,10 @@ export const TERM_KEYS = [
   'decision',
   'leadTime',
   'deadline',
+  'check',
+  'startGate',
+  'closeGate',
+  'notApplicable',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];
