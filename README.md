@@ -71,7 +71,7 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F5**, and nothing after them:
+Slices **F0** to **F6**, and nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and offers a
@@ -120,21 +120,28 @@ Slices **F0** to **F5**, and nothing after them:
   append-only; starting is permanent; a closed stage is read-only until it is reopened, and
   nothing may be made to wait inside it. The dashboard counts stages planned, started and closed,
   and the gates that are held.
-- **Readiness.** A figure that says how much of what the plan must know it does know, from six
+- **Money (F6).** Three amounts from three sources: **planned** from cost lines on stages and
+  activities, **committed** from the quotes and contracts accepted, **paid** from a payments
+  ledger that is **append-only** — a mistake is reversed, never edited. Per stage, per trade and
+  for the work, with remaining and variance; every figure opens onto the lines it adds up, and
+  money is whole cents from the file to the screen. A payment over what was committed is
+  recorded and **flagged**, not refused. Receipts are images (PDF receipts arrive with documents
+  in F7). An S-curve of planned against paid, with its table.
+- **Readiness.** A figure that says how much of what the plan must know it does know, from seven
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
-  gates — that opens onto the rows it
+  gates and its money planned — that opens onto the rows it
   counts and says in a sentence what is missing, in English and in Portuguese. Rule by rule on
   the dashboard, each with why it matters; the rules add up to the figure.
-- **The shell.** Dashboard, Plan, Schedule, Decisions, Diary, Settings (language, theme, lens),
-  Diagnostics and About, in light and dark, in English and Portuguese. There is no command, field or
+- **The shell.** Dashboard, Plan, Schedule, Decisions, Diary, Money, Settings (language, theme,
+  lens), Diagnostics and About, in light and dark, in English and Portuguese. There is no command, field or
   control that sets progress.
 - **The documents written before the first work:** [`docs/SPEC.md`](docs/SPEC.md), the
   specification; [`SECURITY.md`](SECURITY.md), the threat model;
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), twenty-two binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), twenty-four binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
@@ -142,8 +149,8 @@ Slices **F0** to **F5**, and nothing after them:
 
 Not yet, and not pretended: a reason asked when an approved plan is edited, later baselines
 and the comparison of any two (F8); a decision tied to one activity rather than its whole
-stage; HEIC photos; checks taken from a template (the usual checks stand in until F9); money,
-people beyond a name, documents other than photos, templates, reports and the diary's export,
+stage; HEIC photos; checks taken from a template (the usual checks stand in until F9); PDF receipts; more than
+one currency in a work; people beyond a name and a trade, documents other than photos, templates, reports and the diary's export,
 backup.
 Each arrives with its slice, in the order the [specification](docs/SPEC.md) §7 lists.
 

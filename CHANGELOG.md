@@ -275,3 +275,48 @@ applicable_ needs a reason; checks are edited per work; the inspection is a chec
 
 Not yet, said plainly: checks come from the usual list, not from a template, until F9; answers
 carry no hash chain.
+
+### Added in F6 — money
+
+Planned, committed and paid per stage and per trade; the payments ledger with receipts; every
+figure opens onto its rows; paid over committed is flagged; the S-curve of planned against paid.
+
+- **Three amounts, three sources** (ADR-023). **Planned** comes from cost lines — a label and an
+  amount — on a stage or on an activity, edited in the breakdown; a stage's planned amount is its
+  own lines and its activities'. **Committed** comes from commitments — a quote or contract
+  accepted, with the person, the amount and the day agreed — which can be changed or removed
+  only while nothing has been paid against them. **Paid** comes from the payments ledger.
+- **Money is whole cents.** Every amount is an integer number of minor units in the work's
+  currency, from the file to the screen; the interface reads major units with decimals and
+  formats with the platform's own formatting — "$1,000.00" in English, "US$ 1.000,00" in
+  Portuguese.
+- **The ledger is append-only, with reversals.** A payment — day, stage, person, commitment,
+  amount, what for, receipt, the account's name — is never edited or removed; triggers refuse
+  `UPDATE`, `DELETE` and `REPLACE`. A mistake is **reversed**: a new, negative payment naming
+  the one it reverses, with a note — never larger than the original, and only once. No chain:
+  the diary's is the record's spine.
+- **Every money figure carries its rows** (ADR-024): per stage, per trade and for the work —
+  planned, committed, paid, remaining (planned minus paid) and variance (committed minus
+  planned) — each a button opening onto the lines it adds up. The stages add up to the work.
+- **Paid over committed is flagged, not refused**: the payment is recorded, and the stage and
+  the commitment are marked _over committed_ with the excess, in words. The dashboard counts the
+  stages paid over what was committed.
+- **Trades.** A person gains a trade; the By trade tab groups commitments and payments by it,
+  and people with no trade yet are grouped as such.
+- **The S-curve**: planned money spread over the schedule — each cost line over its activity's
+  working days — against paid money by payment day, two lines told apart by colour and dash,
+  with a weekly table beneath that is its accessible reading. Lines with nothing scheduled are
+  placed at the start, and the chart says so.
+- **Receipts are images**, through the same caps, copy and thumbnail as diary photos. PDF
+  receipts arrive with F7's documents.
+- **The Money destination**, between Diary and Settings: By stage, By trade and the Ledger, with
+  Record a payment and Reverse…. The dashboard grows planned, committed and paid for the work,
+  each opening onto its rows, and the over-committed count.
+- **A seventh readiness rule**, `stage.money`: every stage has at least one cost line — "every
+  stage has its money planned". Readiness moves again for every work with stages.
+- **Work migration 007** adds `person.trade`, `cost_line`, `commitment` and `payment` with its
+  insert-only and reversal triggers. A work from F5 is migrated when it is opened, without loss,
+  and its diary's chain still verifies.
+
+Not yet, said plainly: a receipt is an image or nothing until F7; one currency per work;
+payments are not chained.

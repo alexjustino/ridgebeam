@@ -67,13 +67,14 @@ negative case) before it reaches the host.
 ### `person`
 
 A person is a row, not a user. Slice F0 creates the table with what a responsible needs; slice
-F7 adds trade, phone, stages and availability.
+F6 adds the trade (money per trade); slice F7 adds phone, stages and availability.
 
-| Column       | Type | Meaning   |
-| ------------ | ---- | --------- |
-| `id`         | TEXT | UUID v7   |
-| `name`       | TEXT | not empty |
-| `created_at` | TEXT | UTC       |
+| Column       | Type | Meaning                                                                                           |
+| ------------ | ---- | ------------------------------------------------------------------------------------------------- |
+| `id`         | TEXT | UUID v7                                                                                           |
+| `name`       | TEXT | not empty                                                                                         |
+| `created_at` | TEXT | UTC                                                                                               |
+| `trade`      | TEXT | the person's trade — _tiler_, _plumber_ — 1–60 characters, or `NULL`; groups money per trade (F6) |
 
 ### `stage` and `activity`
 
@@ -371,6 +372,77 @@ There is **no hash chain**: the chain is the diary's, where the record is the da
 fact of one gate. Because an answer's check cannot be removed, neither can a stage whose checks
 were answered — the host refuses first with a sentence, and the foreign key refuses second.
 
+### Money — `cost_line`, `commitment`, `payment` (F6)
+
+Three amounts from three sources (ADR-023). **Every amount is `amount_cents`, an `INTEGER`** of
+the minor unit of the work's currency (`work.currency`) — never a floating-point number. The
+domain adds cents; the interface formats them.
+
+| `cost_line`    | Type    | Meaning                                                                           |
+| -------------- | ------- | --------------------------------------------------------------------------------- |
+| `id`           | TEXT    | UUID v7                                                                           |
+| `stage_id`     | TEXT    | `REFERENCES stage ON DELETE CASCADE`                                              |
+| `activity_id`  | TEXT    | `REFERENCES activity ON DELETE CASCADE`, or `NULL` for a line on the stage itself |
+| `label`        | TEXT    | 1–120 characters, not blank                                                       |
+| `amount_cents` | INTEGER | the planned amount, `>= 0`                                                        |
+| `created_at`   | TEXT    | UTC                                                                               |
+
+**Planned** is cost lines: a stage's planned amount is its own lines plus its activities'. Cost
+lines are plan, edited per work, and refused on a closed stage (ADR-022).
+
+| `commitment`    | Type    | Meaning                                                   |
+| --------------- | ------- | --------------------------------------------------------- |
+| `id`            | TEXT    | UUID v7                                                   |
+| `stage_id`      | TEXT    | `REFERENCES stage ON DELETE CASCADE`                      |
+| `person_id`     | TEXT    | `REFERENCES person` — the contractor or trade — or `NULL` |
+| `label`         | TEXT    | 1–120 characters, not blank — _Tiler's quote_             |
+| `amount_cents`  | INTEGER | the amount agreed, `>= 0`                                 |
+| `agreed_on`     | TEXT    | the ISO day it was agreed                                 |
+| `document_hash` | TEXT    | the SHA-256 of the quote in `documents/`, or `NULL`       |
+| `created_at`    | TEXT    | UTC                                                       |
+
+**Committed** is commitments: a quote or a contract accepted. A commitment can be changed or
+removed while nothing has been paid against it; from the first payment that names it, the host
+refuses both, and the foreign key from `payment` keeps it — and its stage — from being removed.
+
+| `payment`       | Type    | Meaning                                                                                     |
+| --------------- | ------- | ------------------------------------------------------------------------------------------- |
+| `id`            | TEXT    | UUID v7                                                                                     |
+| `seq`           | INTEGER | 1, 2, 3 … — one sequence for the whole work, always the last plus one; unique               |
+| `day`           | TEXT    | the ISO day it was paid                                                                     |
+| `person_id`     | TEXT    | `REFERENCES person`, or `NULL`                                                              |
+| `stage_id`      | TEXT    | `REFERENCES stage` — required: a payment always belongs to a stage                          |
+| `commitment_id` | TEXT    | `REFERENCES commitment`, or `NULL` — a payment against no commitment is allowed and flagged |
+| `amount_cents`  | INTEGER | never 0; positive for a payment, negative for a reversal                                    |
+| `what_for`      | TEXT    | 1–200 characters, or `NULL`; **required on a reversal** — the note that says why            |
+| `reverses_seq`  | INTEGER | for a reversal, the earlier payment it reverses (`REFERENCES payment (seq)`)                |
+| `receipt_hash`  | TEXT    | the SHA-256 of the receipt image in `documents/`, or `NULL`                                 |
+| `author_name`   | TEXT    | the display name of the Windows account that recorded it                                    |
+| `created_at`    | TEXT    | UTC                                                                                         |
+
+**Paid** is the ledger, and the ledger is **append-only**: the diary's battery of triggers —
+`BEFORE UPDATE` and `BEFORE DELETE` refused, a guard before insert against `REPLACE` with
+`recursive_triggers` off, and `seq` accepted only as the next — each raising `money:
+append-only`. There is **no hash chain**: the chain is the diary's.
+
+**Reversals.** A `CHECK` makes a payment positive with no `reverses_seq`, or a reversal negative
+with an earlier `reverses_seq` and a note. The trigger `payment_reversal_rules` refuses, with
+`money: reversal`, a reversal of a payment that is not there or of another reversal, a reversal
+larger than the payment it reverses, a second reversal of the same payment, and a reversal for
+another stage, person or commitment than the payment it reverses. The domain applies reversals
+everywhere a paid amount is shown.
+
+**Nothing that was paid disappears.** `payment`'s foreign keys to `stage`, `person` and
+`commitment` have no action, so a stage, a person or a commitment that a payment names cannot be
+removed; the host refuses first, with a sentence. A closed stage still accepts payments — money
+paid is a fact — but not new cost lines. Payments travel in the work's snapshot, which suits the
+thousands a house has; a much larger ledger would need a query of its own.
+
+**Every money figure is computed**, never stored (ADR-024): planned, committed, paid, remaining
+(planned − paid) and variance (committed − planned), per stage, per trade and for the work, each
+the sum of its rows; _over committed_ where paid exceeds committed for a stage or a commitment,
+or a payment names no commitment.
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -398,12 +470,13 @@ count of missing rows per rule, in the person's language.
 | `decision.deadline`    | F3    | every decision                           | its stage has a scheduled activity, so it has a deadline              | "1 decision has no deadline yet."        |
 | `decision.timely`      | F3    | every decision whose deadline is known   | it is made, or its deadline is today or later                         | "2 decisions are overdue."               |
 | `stage.checks`         | F5    | every stage                              | it has at least one check at its start gate and one at its close gate | "2 stages have no checks."               |
+| `stage.money`          | F6    | every stage                              | it has at least one cost line, its own or one of its activities'      | "2 stages have no money planned."        |
 
 A plan with no activity at all is not ready: it has one missing row, "The plan has no activity
 yet.", and a figure of 0 %. The nouns in the sentences follow the lens — the owner reads "job"
 where the engineer reads "activity" (ADR-014). Every rule also has a one-sentence explanation of
 why the plan must know it, in both languages, shown when its line on the dashboard is opened.
-Later slices add rules (a stage's money) as rows of this table, without changing its shape.
+A later rule is a row of this table, and never a change of its shape.
 
 ## The application database
 
@@ -446,15 +519,16 @@ covered by a round-trip test that opens a work at version N-1 and migrates it wi
 | `004_decisions.sql`                  | F3    | `decision`                                                                                             |
 | `005_diary.sql`                      | F4    | `diary_entry`, `diary_done`, `diary_present`, `diary_photo`, with their insert-only and chain triggers |
 | `006_checks.sql`                     | F5    | `stage.started_at` and `stage.closed_at`; `stage_check`; `check_answer` with its insert-only triggers  |
+| `007_money.sql`                      | F6    | `person.trade`; `cost_line`; `commitment`; `payment` with its insert-only and reversal triggers        |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its
 stages and activities migrates to schema 2 without loss, a work at schema 2 with rooms and
 quantities migrates to schema 3 the same way, a work at schema 3 with dependencies and a
-baseline migrates to schema 4, a work at schema 4 with decisions migrates to schema 5, and a work at schema 5 with diary entries
-migrates to schema 6 with its chain still verifying. The migrations live in `src-tauri/work_migrations/`.
+baseline migrates to schema 4, a work at schema 4 with decisions migrates to schema 5, a work at schema 5 with diary entries
+migrates to schema 6 with its chain still verifying, and a work at schema 6 with checks and
+answers migrates to schema 7 the same way. The migrations live in `src-tauri/work_migrations/`.
 
 ## Not yet in the schema
 
-Planned, committed
-and paid money and the payments ledger (F6) · documents other than photos (F7) · templates
+Documents other than photos, and PDF receipts (F7) · templates
 are files in the repository, not rows (F9).
