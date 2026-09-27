@@ -436,6 +436,17 @@
       }
     },
     {
+      "key": "commitment",
+      "en": {
+        "term": "commitment",
+        "sentence": "A quote or a contract accepted: the money agreed for a stage, with whom, and on which day."
+      },
+      "pt-BR": {
+        "term": "compromisso",
+        "sentence": "Um orçamento ou contrato aceito: o dinheiro combinado para uma etapa, com quem e em que dia."
+      }
+    },
+    {
       "key": "paid",
       "en": {
         "term": "paid",

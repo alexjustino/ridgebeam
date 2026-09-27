@@ -44,6 +44,15 @@ export const TERM_KEYS = [
   'startGate',
   'closeGate',
   'notApplicable',
+  'planned',
+  'committed',
+  'paid',
+  'remaining',
+  'variance',
+  'payment',
+  'ledger',
+  'commitment',
+  'trade',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];

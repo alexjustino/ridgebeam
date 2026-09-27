@@ -55,3 +55,35 @@ export function currencyLabel(language: Language, code: string): string {
     return code;
   }
 }
+
+/**
+ * An amount of money kept in minor units (cents), as the language writes it in the work's currency:
+ * `US$ 1.000,00` in Portuguese, `$1,000.00` in English. Money is never a float anywhere but here,
+ * at the last step, where it becomes words.
+ */
+export function formatMoney(language: Language, cents: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat(language, { style: 'currency', currency }).format(cents / 100);
+  } catch {
+    return `${currency} ${(cents / 100).toFixed(2)}`;
+  }
+}
+
+/**
+ * What a person typed as an amount in major units — `1200`, `1200.5`, `1200.50` — as whole cents,
+ * or `null` when it is not an amount (empty, not a number, negative, or more than two decimals).
+ * The number field gives a dot for the decimal mark whatever the language, so only the dot is read.
+ */
+export function toCents(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) return null;
+  const [whole = '0', fraction = ''] = trimmed.split('.');
+  return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+}
+
+/** Whole cents as the plain major-unit text a number field holds: 120000 → `1200.00`. */
+export function fromCents(cents: number): string {
+  const sign = cents < 0 ? '-' : '';
+  const value = Math.abs(cents);
+  return `${sign}${Math.floor(value / 100)}.${String(value % 100).padStart(2, '0')}`;
+}
