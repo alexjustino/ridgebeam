@@ -77,12 +77,14 @@ F7 adds trade, phone, stages and availability.
 
 ### `stage` and `activity`
 
-| `stage`      | Type    | Meaning                    |
-| ------------ | ------- | -------------------------- |
-| `id`         | TEXT    | UUID v7                    |
-| `position`   | INTEGER | order among stages, unique |
-| `name`       | TEXT    | not empty                  |
-| `created_at` | TEXT    | UTC                        |
+| `stage`      | Type    | Meaning                                                                                                    |
+| ------------ | ------- | ---------------------------------------------------------------------------------------------------------- |
+| `id`         | TEXT    | UUID v7                                                                                                    |
+| `position`   | INTEGER | order among stages, unique                                                                                 |
+| `name`       | TEXT    | not empty                                                                                                  |
+| `created_at` | TEXT    | UTC                                                                                                        |
+| `started_at` | TEXT    | UTC, when the person started it — the start gate passed; `NULL` while planned; never changed once set (F5) |
+| `closed_at`  | TEXT    | UTC, when the person closed it — the close gate passed; only on a started stage; cleared by a reopen (F5)  |
 
 | `activity`       | Type    | Meaning                                                                                                         |
 | ---------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
@@ -330,6 +332,45 @@ form can be introduced without making earlier entries unverifiable.
 successor pointing at it, so the chain of what remains still verifies. The export of slice F10
 records the count and the last hash, so that a copy kept elsewhere can show it.
 
+### `stage_check` and `check_answer` — a stage's gates (F5)
+
+A stage is _planned_, _started_ or _closed_ — `started_at` and `closed_at` above — and the
+person decides it (ADR-022). It is intent, not progress. Starting needs the stage's **start
+gate** passed and closing its **close gate**: every check at that gate has a latest answer of
+`yes` or `na`. A trigger keeps `started_at` from changing once set, and a `CHECK` keeps a
+stage from being closed before it was started. A closed stage refuses every change to its rows
+in the host (`stage_closed`) until it is reopened.
+
+| `stage_check` | Type    | Meaning                                             |
+| ------------- | ------- | --------------------------------------------------- |
+| `id`          | TEXT    | UUID v7                                             |
+| `stage_id`    | TEXT    | `REFERENCES stage ON DELETE CASCADE`                |
+| `gate`        | TEXT    | `start` or `close`                                  |
+| `position`    | INTEGER | order at its gate, unique per stage and gate, 1 … n |
+| `name`        | TEXT    | the question, 1–200 characters, not blank           |
+| `created_at`  | TEXT    | UTC                                                 |
+
+The table is `stage_check` and not `check`: CHECK is a reserved word in SQL.
+
+| `check_answer` | Type    | Meaning                                                                      |
+| -------------- | ------- | ---------------------------------------------------------------------------- |
+| `id`           | TEXT    | UUID v7                                                                      |
+| `check_id`     | TEXT    | `REFERENCES stage_check` — no cascade: a check that was answered cannot go   |
+| `seq`          | INTEGER | 1, 2, 3 … per check, always the last plus one; the latest counts             |
+| `answer`       | TEXT    | `yes`, `no` or `na`                                                          |
+| `reason`       | TEXT    | 1–500 characters; **required for `na`** (`CHECK`), optional otherwise        |
+| `photo_hash`   | TEXT    | the SHA-256 of a photo in `documents/`, copied like a diary photo, or `NULL` |
+| `author_name`  | TEXT    | the display name of the Windows account that answered                        |
+| `answered_at`  | TEXT    | UTC                                                                          |
+
+**Answers are facts: append-only, not chained.** `check_answer` carries the diary's battery —
+`BEFORE UPDATE` and `BEFORE DELETE` triggers, a `BEFORE INSERT` guard against `REPLACE` with
+`recursive_triggers` off, and a trigger that accepts an answer only as the next `seq` of its
+check — each raising `checks: append-only`. Answering again appends; nothing is rewritten.
+There is **no hash chain**: the chain is the diary's, where the record is the day; an answer is a
+fact of one gate. Because an answer's check cannot be removed, neither can a stage whose checks
+were answered — the host refuses first with a sentence, and the foreign key refuses second.
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -349,20 +390,20 @@ each that does not is a _missing_ row, named, and opens from the figure. The fig
 must-know`; the rules, summed, give exactly that figure; and the sentence is built from the
 count of missing rows per rule, in the person's language.
 
-| Rule                   | Slice | Applies to                               | Holds when                                               | The sentence, in English                 |
-| ---------------------- | ----- | ---------------------------------------- | -------------------------------------------------------- | ---------------------------------------- |
-| `activity.duration`    | F0    | every activity                           | it has a duration of one working day or more             | "1 activity has no duration."            |
-| `activity.responsible` | F0    | every activity                           | its responsible is a person of the work                  | "1 activity has no responsible."         |
-| `activity.linked`      | F2    | every activity, in a plan of two or more | a dependency joins it to another, stages expanded        | "1 activity is not linked to any other." |
-| `decision.deadline`    | F3    | every decision                           | its stage has a scheduled activity, so it has a deadline | "1 decision has no deadline yet."        |
-| `decision.timely`      | F3    | every decision whose deadline is known   | it is made, or its deadline is today or later            | "2 decisions are overdue."               |
+| Rule                   | Slice | Applies to                               | Holds when                                                            | The sentence, in English                 |
+| ---------------------- | ----- | ---------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------- |
+| `activity.duration`    | F0    | every activity                           | it has a duration of one working day or more                          | "1 activity has no duration."            |
+| `activity.responsible` | F0    | every activity                           | its responsible is a person of the work                               | "1 activity has no responsible."         |
+| `activity.linked`      | F2    | every activity, in a plan of two or more | a dependency joins it to another, stages expanded                     | "1 activity is not linked to any other." |
+| `decision.deadline`    | F3    | every decision                           | its stage has a scheduled activity, so it has a deadline              | "1 decision has no deadline yet."        |
+| `decision.timely`      | F3    | every decision whose deadline is known   | it is made, or its deadline is today or later                         | "2 decisions are overdue."               |
+| `stage.checks`         | F5    | every stage                              | it has at least one check at its start gate and one at its close gate | "2 stages have no checks."               |
 
 A plan with no activity at all is not ready: it has one missing row, "The plan has no activity
 yet.", and a figure of 0 %. The nouns in the sentences follow the lens — the owner reads "job"
 where the engineer reads "activity" (ADR-014). Every rule also has a one-sentence explanation of
 why the plan must know it, in both languages, shown when its line on the dashboard is opened.
-Later slices add rules (a stage's checks and money) as rows of this table, without changing its
-shape.
+Later slices add rules (a stage's money) as rows of this table, without changing its shape.
 
 ## The application database
 
@@ -404,14 +445,16 @@ covered by a round-trip test that opens a work at version N-1 and migrates it wi
 | `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers   |
 | `004_decisions.sql`                  | F3    | `decision`                                                                                             |
 | `005_diary.sql`                      | F4    | `diary_entry`, `diary_done`, `diary_present`, `diary_photo`, with their insert-only and chain triggers |
+| `006_checks.sql`                     | F5    | `stage.started_at` and `stage.closed_at`; `stage_check`; `check_answer` with its insert-only triggers  |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its
 stages and activities migrates to schema 2 without loss, a work at schema 2 with rooms and
 quantities migrates to schema 3 the same way, a work at schema 3 with dependencies and a
-baseline migrates to schema 4, and a work at schema 4 with decisions migrates to schema 5. The migrations live in `src-tauri/work_migrations/`.
+baseline migrates to schema 4, a work at schema 4 with decisions migrates to schema 5, and a work at schema 5 with diary entries
+migrates to schema 6 with its chain still verifying. The migrations live in `src-tauri/work_migrations/`.
 
 ## Not yet in the schema
 
-Checks (F5) · planned, committed
+Planned, committed
 and paid money and the payments ledger (F6) · documents other than photos (F7) · templates
 are files in the repository, not rows (F9).
