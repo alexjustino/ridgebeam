@@ -1,6 +1,6 @@
 [package]
 name = "ridgebeam"
-version = "0.1.0"
+version = "1.0.0"
 description = "A works planner: the plan is intent, the diary is fact, and the plan says what it does not yet know"
 authors = ["Alex Justino"]
 license = "Apache-2.0"
