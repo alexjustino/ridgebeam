@@ -61,6 +61,10 @@
 //!   `DiaryEntry` are also the JSON export's, and a test reads an export back
 //!   into them (they derive `Deserialize` under `cfg(test)` only: no command
 //!   accepts one).
+//! - F11: backup and restore (`BackupWritten`, `BackupSummary`, `Restored`,
+//!   `BackupLast`); the migrations a database has been through
+//!   (`MigrationApplied`, `AppDiagnostics.migrations`,
+//!   `WorkDiagnostics.migrations`). `diagnostics_summary` answers plain text.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -1258,6 +1262,19 @@ pub struct AppDiagnostics {
     pub database_path: String,
     /// The last migration applied.
     pub schema_version: i64,
+    /// Every migration applied, in order (F11).
+    pub migrations: Vec<MigrationApplied>,
+}
+
+/// One migration a database has been through: its number and its name
+/// (`3`, `003_backups`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationApplied {
+    /// Its number — the schema version it produced.
+    pub number: i64,
+    /// Its name, as its file is named.
+    pub name: String,
 }
 
 /// The open work's database, as Diagnostics shows it. The pragmas are read back
@@ -1271,6 +1288,8 @@ pub struct WorkDiagnostics {
     pub database_path: String,
     /// The last migration applied.
     pub schema_version: i64,
+    /// Every migration applied, in order (F11).
+    pub migrations: Vec<MigrationApplied>,
     /// `wal`.
     pub journal_mode: String,
     /// `off`, `normal`, `full` or `extra`.
@@ -1291,6 +1310,81 @@ pub struct WrittenFile {
     /// How many pages, for a PDF; absent for a CSV or a JSON file.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pages: Option<usize>,
+}
+
+/// What `backup_write` wrote (F11).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupWritten {
+    /// The backup, as the command was given it.
+    pub path: String,
+    /// Its size.
+    pub bytes: u64,
+    /// The work's files it holds: the database, every document, every
+    /// thumbnail.
+    pub files: usize,
+    /// Files in `documents/` or `thumbnails/` it does not hold, because a
+    /// backup never holds their names — `documents/<name>`; usually none.
+    pub left_out: Vec<String>,
+}
+
+/// What `backup_inspect` read from a backup's manifest, before anything is
+/// restored — every name, the manifest's own hash and every declared size
+/// checked; no file inflated (F11).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupSummary {
+    /// The work's name when it was backed up.
+    pub work_name: String,
+    /// Its UUID.
+    pub work_id: String,
+    /// When the backup was written, UTC.
+    pub created_at: String,
+    /// The build that wrote it: "Ridgebeam 0.1.0".
+    pub app: String,
+    /// The work's schema version then.
+    pub schema_version: i64,
+    /// The work's files it holds.
+    pub files: usize,
+    /// Their bytes, as restored.
+    pub bytes: u64,
+    /// The backup file's own size.
+    pub archive_bytes: u64,
+    /// The folder the recent list knows this work at, or `null`: restoring
+    /// moves that row to the new folder, and leaves the old folder as it is.
+    pub recent_folder: Option<String>,
+}
+
+/// What `backup_restore` restored (F11). The work is open afterwards.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Restored {
+    /// The work's UUID.
+    pub work_id: String,
+    /// The new folder it is in.
+    pub folder: String,
+    /// Its diary's entries.
+    pub entries: i64,
+    /// Whether the diary's chain verified.
+    pub chain_ok: bool,
+    /// How many documents were re-read.
+    pub documents: i64,
+    /// Documents whose bytes are not the ones recorded.
+    pub mismatched: Vec<MismatchedDocument>,
+    /// Documents whose file the backup did not hold.
+    pub missing: Vec<MissingDocument>,
+    /// The folder the recent list knew this work at before, when another —
+    /// left as it was — or `null`.
+    pub moved_recent_from: Option<String>,
+}
+
+/// The last backup of the open work (F11); `backup_last` answers `null` for
+/// never.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupLast {
+    /// The day it was written, on this computer's calendar.
+    pub day: String,
 }
 
 /// A field that was sent, whatever it holds — `null` included — as opposed to

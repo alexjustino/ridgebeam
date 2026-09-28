@@ -40,9 +40,13 @@
 //!   transaction; ranges taken); work migration 010 — an activity's and a
 //!   decision's range, where the plan came from, and `cost_line` rebuilt so a
 //!   line may be not priced yet.
+//! - F11: `backups` — the day each work was last backed up, in the
+//!   application database (application migration 003). A work gains no
+//!   migration: a backup holds the work as it is.
 
 #[cfg(test)]
 mod append_only_tests;
+pub mod backups;
 pub mod baselines;
 pub mod check_answers;
 pub mod checks;

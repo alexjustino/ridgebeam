@@ -40,6 +40,10 @@ pub const APP: Schema = Schema {
             "002_settings",
             include_str!("../../migrations/002_settings.sql"),
         ),
+        (
+            "003_backups",
+            include_str!("../../migrations/003_backups.sql"),
+        ),
     ],
     read_version: "SELECT schema_version FROM workspace WHERE id = 1",
     write_version: "UPDATE workspace SET schema_version = ?1 WHERE id = 1",
@@ -221,8 +225,8 @@ mod tests {
         assert_eq!(APP.current_version(&conn), APP.target_version());
         assert_eq!(
             APP.target_version(),
-            2,
-            "F0 ships two application migrations"
+            3,
+            "F0 ships two application migrations; F11 adds the last backup"
         );
     }
 
@@ -231,7 +235,7 @@ mod tests {
         let conn = memory();
         APP.apply(&conn).expect("migrate");
 
-        for table in ["workspace", "recent_work", "settings"] {
+        for table in ["workspace", "recent_work", "settings", "backup"] {
             assert!(table_exists(&conn, table), "`{table}` is missing");
         }
     }
@@ -326,7 +330,7 @@ mod tests {
             refused,
             Error::NewerVersion {
                 found: 99,
-                known: 2
+                known: 3
             }
         ));
         assert_eq!(APP.current_version(&conn), 99);

@@ -15,10 +15,15 @@
 //! state as plain references, which is what the tests call: the behaviour is
 //! tested without a window.
 
+pub mod backup;
+#[cfg(test)]
+pub mod backup_tests;
 pub mod checks;
 pub mod decisions;
 pub mod diary;
 pub mod documents;
+#[cfg(test)]
+mod large_work_tests;
 pub mod money;
 pub mod plan;
 #[cfg(test)]

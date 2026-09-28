@@ -124,6 +124,12 @@ strip = true
 #   flate2                        MIT OR Apache-2.0       (already in the tree)
 # and one for tests only, never in the binary:
 #   lopdf (dev)                   MIT
+# F11 (backup and restore) adds no crate. A backup is a ZIP written and read
+# by hand (`files::archive`: store and deflate, through `flate2`, already here).
+# The `zip` crate was measured — 8.6.0 (MIT, rust-version 1.88) with only
+# `deflate-flate2` would add `zip` and `typed-path` (MIT OR Apache-2.0) — and
+# not taken: see the module's own reasons.
+#
 # The widths of Helvetica and Helvetica-Bold (`report::winansi`) are numbers
 # from Adobe's Core14 AFM files, whose notice is carried in that module and in
 # NOTICE. No font file is embedded or shipped.

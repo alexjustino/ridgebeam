@@ -99,6 +99,18 @@
 //!   Every file goes through `files::save` (F9's atomic write, now shared);
 //!   `report_open` opens only a file this session wrote. No new error kind,
 //!   no new capability, no migration.
+//! - F11: backup and restore. A work is backed up as one `.ridgebeam` file — a
+//!   ZIP written by hand (`files::archive`, store and deflate, no new crate)
+//!   holding a manifest, a `VACUUM INTO` snapshot of the database and every
+//!   document and thumbnail (`backup_write`). A backup is read as hostile
+//!   (`backup_inspect`, `backup_restore`): an allow-list of names, every size
+//!   capped while it inflates, every SHA-256 and the manifest's own checked,
+//!   the database opened read-only and found to be the work it names — all in
+//!   a temporary folder beside a new one, renamed into place only then, and
+//!   opened as any work is. Application migration 003 keeps the day of each
+//!   work's last backup (`backup_last`); `diagnostics` lists the migrations
+//!   applied and `diagnostics_summary` is Diagnostics as plain text. No new
+//!   error kind, no new capability.
 
 pub mod commands;
 pub mod contract;
@@ -235,6 +247,11 @@ pub fn run() {
             commands::reports::diary_export_csv,
             commands::reports::work_export_json,
             commands::reports::report_open,
+            commands::backup::backup_write,
+            commands::backup::backup_inspect,
+            commands::backup::backup_restore,
+            commands::backup::backup_last,
+            commands::system::diagnostics_summary,
         ])
         .build(tauri::generate_context!())
         .expect("Ridgebeam failed to start");
