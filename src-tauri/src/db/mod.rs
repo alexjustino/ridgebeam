@@ -31,6 +31,8 @@
 //! - F6: `money` (cost lines and commitments) and `payments` (the ledger,
 //!   append-only, holding no statement that edits or removes a row); work
 //!   migration 007.
+//! - F7: `documents` (the files the work owns, and their links); work
+//!   migration 008, with its backfill.
 
 #[cfg(test)]
 mod append_only_tests;
@@ -42,6 +44,7 @@ pub mod dependencies;
 pub mod diary;
 #[cfg(test)]
 mod diary_tests;
+pub mod documents;
 pub mod migrations;
 pub mod money;
 pub mod order;

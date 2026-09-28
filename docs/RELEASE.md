@@ -69,6 +69,9 @@ release that skipped a step is a release nobody can reason about afterwards.
      as before the upgrade, every photo's thumbnail must still show, and `documents/` must hold
      the same files. A release whose migration touches a diary table ships only after this has
      passed on a real work, not only in `cargo test`;
+   - attach a real PDF and a real photo to a stage from the dialog, open each with the system
+     viewer, try a Word file and see it refused by name, then run **Re-hash the documents** in
+     Diagnostics and read "all as recorded";
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and

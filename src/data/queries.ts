@@ -52,6 +52,17 @@ import {
   checksAddDefaults,
   personRemove,
   personUpdate,
+  personSetStages,
+  documentAdd,
+  documentLink,
+  documentOpen,
+  documentRemove,
+  documentThumbnail,
+  documentUnlink,
+  documentUpdate,
+  documentsVerify,
+  folderHealth,
+  recentRelocate,
   commitmentAdd,
   commitmentRemove,
   commitmentUpdate,
@@ -97,6 +108,9 @@ import {
   type Gate,
   type PaymentDraftWire,
   type PersonPatch,
+  type DocumentKind,
+  type DocumentPatch,
+  type DocumentTarget,
   type SettingKey,
   type Settings,
   type WorkDraft,
@@ -113,6 +127,8 @@ export const keys = {
   diagnostics: ['diagnostics'] as const,
   diary: ['diary'] as const,
   photo: (hash: string) => ['photo', hash] as const,
+  documentThumb: (id: string) => ['document-thumb', id] as const,
+  folderHealth: ['folder-health'] as const,
 };
 
 // ── The application ──────────────────────────────────────────────────────────
@@ -526,4 +542,98 @@ export function useReversePayment() {
   return useWorkCommand(({ seq, note }: { seq: number; note: string }) =>
     paymentReverse(seq, note),
   );
+}
+
+// ── People, documents and the folder (F7) ────────────────────────────────────
+
+export function useSetPersonStages() {
+  return useWorkCommand(({ id, stageIds }: { id: string; stageIds: string[] }) =>
+    personSetStages(id, stageIds),
+  );
+}
+
+/**
+ * Add files to the work. The snapshot that comes back is the new cache; the files the host would
+ * not keep come back beside it, each with its reason, for the screen to name.
+ */
+export function useAddDocuments() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      paths,
+      kind,
+      target,
+    }: {
+      paths: string[];
+      kind: DocumentKind;
+      target: DocumentTarget | null;
+    }) => documentAdd(paths, kind, target),
+    onSuccess: async (result) => {
+      client.setQueryData(keys.work, result.snapshot);
+      await client.invalidateQueries({ queryKey: keys.folderHealth });
+    },
+  });
+}
+
+export function useUpdateDocument() {
+  return useWorkCommand(({ id, patch }: { id: string; patch: DocumentPatch }) =>
+    documentUpdate(id, patch),
+  );
+}
+
+export function useLinkDocument() {
+  return useWorkCommand(({ id, target }: { id: string; target: DocumentTarget }) =>
+    documentLink(id, target),
+  );
+}
+
+export function useUnlinkDocument() {
+  return useWorkCommand(({ id, target }: { id: string; target: DocumentTarget }) =>
+    documentUnlink(id, target),
+  );
+}
+
+export function useRemoveDocument() {
+  return useWorkCommand((id: string) => documentRemove(id));
+}
+
+export function useOpenDocument() {
+  return useMutation({ mutationFn: documentOpen });
+}
+
+/** A document's thumbnail, read once: a document stored by its hash never changes. */
+export function useDocumentThumbnail(id: string, image: boolean) {
+  return useQuery({
+    queryKey: keys.documentThumb(id),
+    queryFn: () => documentThumbnail(id),
+    enabled: image,
+  });
+}
+
+/** Re-read every document's bytes, now: a question asked at a moment, so not cached. */
+export function useVerifyDocuments() {
+  return useMutation({ mutationFn: documentsVerify });
+}
+
+/** The folder, measured again every time the screen that shows it opens. */
+export function useFolderHealth(enabled: boolean) {
+  return useQuery({
+    queryKey: keys.folderHealth,
+    queryFn: folderHealth,
+    enabled,
+    refetchOnMount: 'always',
+  });
+}
+
+/** Find a moved work again: relocate the recent row, then open the work from where it now is. */
+export function useFindWork() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ workId, folder }: { workId: string; folder: string }) => {
+      await recentRelocate(workId, folder);
+      return workOpen(folder);
+    },
+    onSettled: () => client.invalidateQueries({ queryKey: keys.recent }),
+    onSuccess: () => reread(client),
+  });
 }

@@ -10,6 +10,8 @@
 //!
 //! - F0: `calendar_set`, `person_add`, `stage_add`, `stage_rename`,
 //!   `stage_remove`, `activity_add`, `activity_update`, `activity_remove`.
+//! - F7: `person_update` takes the contact fields (phone, e-mail, note,
+//!   availability); `person_set_stages`.
 //! - F6: `person_update` (name and trade) replaces `person_rename`; a person
 //!   the money names is not removed.
 //! - F1: `person_rename`, `person_remove` (their activities are left with
@@ -299,14 +301,49 @@ pub fn person_update_with(open: &OpenWork, id: &str, patch: &PersonPatch) -> Res
         .as_ref()
         .map(|trade| validate::trade(trade.as_deref()))
         .transpose()?;
-    change_work(open, |conn| {
-        repo::update_person(
-            conn,
-            id,
-            name.as_deref(),
-            trade.as_ref().map(|t| t.as_deref()),
-        )
-    })
+    let contact = |what: &str, value: &Option<Option<String>>, max: usize| {
+        value
+            .as_ref()
+            .map(|v| validate::contact(what, v.as_deref(), max))
+            .transpose()
+    };
+    let change = repo::PersonChange {
+        name,
+        trade,
+        phone: contact("A phone number", &patch.phone, validate::MAX_PHONE_CHARS)?,
+        email: contact("An e-mail address", &patch.email, validate::MAX_EMAIL_CHARS)?,
+        note: contact("A note", &patch.note, validate::MAX_PERSON_NOTE_CHARS)?,
+        availability: contact(
+            "An availability",
+            &patch.availability,
+            validate::MAX_AVAILABILITY_CHARS,
+        )?,
+    };
+    change_work(open, |conn| repo::update_person(conn, id, &change))
+}
+
+/// Replace the stages a person is expected on.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a person or a stage not in this work, and the
+/// errors of every work command.
+#[tauri::command(rename_all = "snake_case")]
+pub fn person_set_stages(
+    open: State<'_, OpenWork>,
+    id: String,
+    stage_ids: Vec<String>,
+) -> Result<WorkSnapshot> {
+    person_set_stages_with(&open, &id, &stage_ids)
+}
+
+/// What [`person_set_stages`] does once the state is in hand.
+pub fn person_set_stages_with(
+    open: &OpenWork,
+    id: &str,
+    stage_ids: &[String],
+) -> Result<WorkSnapshot> {
+    change_work(open, |conn| repo::set_person_stages(conn, id, stage_ids))
 }
 
 /// What [`person_remove`] does once the state is in hand.
@@ -631,6 +668,78 @@ mod tests {
             (None, None),
             "clearing the quantity clears the unit"
         );
+        work_close_with(&open);
+    }
+
+    #[test]
+    fn a_person_is_a_contact_with_the_stages_they_are_expected_on() {
+        let (_db, open, _scratch) = host_with_a_work();
+        let tiling = stage_add_with(&open, "Tiling").unwrap().stages[0]
+            .id
+            .clone();
+        let painting = stage_add_with(&open, "Painting").unwrap().stages[1]
+            .id
+            .clone();
+        let ana = person_add_with(&open, "A. Tiler").unwrap().people[0]
+            .id
+            .clone();
+
+        let patch: PersonPatch = serde_json::from_value(serde_json::json!({
+            "phone": " +55 11 90000-0000 ", "email": "tiler@example.invalid",
+            "note": "Brings her own cutter.", "availability": "mornings only"
+        }))
+        .unwrap();
+        person_update_with(&open, &ana, &patch).unwrap();
+        let plan = person_set_stages_with(
+            &open,
+            &ana,
+            &[painting.clone(), tiling.clone(), tiling.clone()],
+        )
+        .unwrap();
+
+        let wire = serde_json::to_value(&plan.people[0]).unwrap();
+        assert_eq!(wire["phone"], "+55 11 90000-0000");
+        assert_eq!(wire["email"], "tiler@example.invalid");
+        assert_eq!(wire["note"], "Brings her own cutter.");
+        assert_eq!(wire["availability"], "mornings only");
+        assert_eq!(
+            wire["stageIds"],
+            serde_json::json!([tiling, painting]),
+            "in the stages' order"
+        );
+
+        let patch: PersonPatch =
+            serde_json::from_value(serde_json::json!({ "phone": null, "email": "" })).unwrap();
+        let plan = person_update_with(&open, &ana, &patch).unwrap();
+        assert_eq!(
+            (plan.people[0].phone.clone(), plan.people[0].email.clone()),
+            (None, None)
+        );
+        assert_eq!(
+            plan.people[0].note.as_deref(),
+            Some("Brings her own cutter."),
+            "left alone"
+        );
+
+        for patch in [
+            serde_json::json!({ "phone": "1".repeat(41) }),
+            serde_json::json!({ "email": "e".repeat(121) }),
+            serde_json::json!({ "availability": "a\u{1}b" }),
+        ] {
+            let patch: PersonPatch = serde_json::from_value(patch).unwrap();
+            assert_eq!(
+                person_update_with(&open, &ana, &patch).unwrap_err().kind(),
+                "invalid_input"
+            );
+        }
+        assert_eq!(
+            person_set_stages_with(&open, &ana, &[crate::db::new_id()])
+                .unwrap_err()
+                .kind(),
+            "invalid_input"
+        );
+        let plan = person_set_stages_with(&open, &ana, &[]).unwrap();
+        assert!(plan.people[0].stage_ids.is_empty());
         work_close_with(&open);
     }
 

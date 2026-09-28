@@ -424,7 +424,18 @@ describe('readiness: every stage has its checks', () => {
         ),
       );
       const plan = snapshot({
-        people: [{ id: 'p', name: 'P', trade: null }],
+        people: [
+          {
+            id: 'p',
+            name: 'P',
+            trade: null,
+            phone: null,
+            email: null,
+            note: null,
+            availability: null,
+            stageIds: [],
+          },
+        ],
         stages,
         activities,
         checks,

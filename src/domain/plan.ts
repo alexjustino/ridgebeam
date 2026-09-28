@@ -56,6 +56,54 @@ export interface Person {
   readonly name: string;
   /** What they do (tiler, electrician …), as the person wrote it; `null` until said. */
   readonly trade: string | null;
+  /** As typed. Never dialled or checked by the product. */
+  readonly phone: string | null;
+  /** As typed. Nothing is ever sent to it: the product has no network. */
+  readonly email: string | null;
+  readonly note: string | null;
+  /** When they can come, in their own words: "mornings only", "from October". */
+  readonly availability: string | null;
+  /** The stages they are expected on. Who was actually on site comes from the diary. */
+  readonly stageIds: readonly string[];
+}
+
+/** What a document is, as the person files it. */
+export type DocumentKind =
+  'photo' | 'quote' | 'drawing' | 'permit' | 'receipt' | 'contract' | 'other';
+
+/** What a document can be attached to. */
+export type TargetKind =
+  'work' | 'stage' | 'activity' | 'decision' | 'entry' | 'commitment' | 'payment';
+
+/**
+ * One attachment of a document. `targetId` is the row's id, or, for a diary entry and a payment,
+ * its seq written as text; for the work, the work's id.
+ */
+export interface DocumentLink {
+  readonly targetKind: TargetKind;
+  readonly targetId: string;
+}
+
+/**
+ * A file the work owns: copied into its folder by the host, typed by its bytes, named by its hash.
+ * The domain never sees the bytes; it files, counts and describes.
+ */
+export interface Document {
+  readonly id: string;
+  readonly fileHash: string;
+  readonly fileName: string;
+  readonly mediaType: string;
+  readonly bytes: number;
+  /** For an image; `null` for a PDF. */
+  readonly width: number | null;
+  readonly height: number | null;
+  readonly kind: DocumentKind;
+  readonly title: string;
+  /** `YYYY-MM-DD`. */
+  readonly addedOn: string;
+  readonly authorName: string;
+  readonly createdAt: string;
+  readonly links: readonly DocumentLink[];
 }
 
 /**
@@ -248,6 +296,7 @@ export interface WorkSnapshot {
   readonly costLines: readonly CostLine[];
   readonly commitments: readonly Commitment[];
   readonly payments: readonly Payment[];
+  readonly documents: readonly Document[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────

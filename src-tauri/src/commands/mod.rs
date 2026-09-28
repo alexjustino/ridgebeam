@@ -18,6 +18,7 @@
 pub mod checks;
 pub mod decisions;
 pub mod diary;
+pub mod documents;
 pub mod money;
 pub mod plan;
 pub mod rooms;

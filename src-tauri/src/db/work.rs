@@ -30,6 +30,8 @@
 //! - F6: a person's trade (`update_person` replaces the rename alone); the
 //!   snapshot carries cost lines, commitments and the ledger; a stage with
 //!   payments, or a person the money names, cannot be removed.
+//! - F7: a person as a contact (phone, e-mail, note, availability) with the
+//!   stages they are expected on; the snapshot carries documents.
 
 use std::collections::HashMap;
 
@@ -37,7 +39,9 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, WorkSnapshot};
 use crate::db::order::{ACTIVITIES, STAGES};
-use crate::db::{baselines, check_answers, checks, decisions, dependencies, money, payments};
+use crate::db::{
+    baselines, check_answers, checks, decisions, dependencies, documents, money, payments,
+};
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
 
@@ -148,15 +152,43 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         .collect::<std::result::Result<Vec<_>, _>>()?;
 
     let people = conn
-        .prepare("SELECT id, name, trade FROM person ORDER BY name COLLATE NOCASE, id")?
+        .prepare(
+            "SELECT id, name, trade, phone, email, note, availability FROM person
+             ORDER BY name COLLATE NOCASE, id",
+        )?
         .query_map([], |row| {
             Ok(Person {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 trade: row.get(2)?,
+                phone: row.get(3)?,
+                email: row.get(4)?,
+                note: row.get(5)?,
+                availability: row.get(6)?,
+                stage_ids: Vec::new(),
             })
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
+    let mut stages_of: HashMap<String, Vec<String>> = HashMap::new();
+    let expected = conn
+        .prepare(
+            "SELECT ps.person_id, ps.stage_id FROM person_stage ps
+             JOIN stage s ON s.id = ps.stage_id ORDER BY s.position",
+        )?
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    for (person, stage) in expected {
+        stages_of.entry(person).or_default().push(stage);
+    }
+    let people: Vec<Person> = people
+        .into_iter()
+        .map(|mut person| {
+            person.stage_ids = stages_of.remove(&person.id).unwrap_or_default();
+            person
+        })
+        .collect();
 
     let stages = conn
         .prepare("SELECT id, position, name, started_at, closed_at FROM stage ORDER BY position")?
@@ -242,6 +274,7 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         cost_lines: money::cost_lines(conn)?,
         commitments: money::commitments(conn)?,
         payments: payments::list(conn)?,
+        documents: documents::list(conn)?,
     })
 }
 
@@ -319,32 +352,81 @@ pub fn add_person(conn: &Connection, name: &str) -> Result<String> {
     Ok(id)
 }
 
-/// Change a person's name, trade, or both. `None` leaves a field alone;
-/// `Some(None)` clears the trade.
+/// What a person update changes. `None` leaves a field alone; `Some(None)`
+/// clears it. Every value is already checked.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PersonChange {
+    /// A new name.
+    pub name: Option<String>,
+    /// A trade, or none.
+    pub trade: Option<Option<String>>,
+    /// A phone, or none.
+    pub phone: Option<Option<String>>,
+    /// An e-mail, or none.
+    pub email: Option<Option<String>>,
+    /// A note, or none.
+    pub note: Option<Option<String>>,
+    /// An availability, or none.
+    pub availability: Option<Option<String>>,
+}
+
+/// Change a person: name, trade, contact fields — any of them.
 ///
 /// # Errors
 ///
 /// [`Error::InvalidInput`] when the person is not in this work.
-pub fn update_person(
-    conn: &Connection,
-    id: &str,
-    name: Option<&str>,
-    trade: Option<Option<&str>>,
-) -> Result<()> {
+pub fn update_person(conn: &Connection, id: &str, change: &PersonChange) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     if !exists(&tx, "SELECT 1 FROM person WHERE id = ?1", id)? {
         return Err(Error::InvalidInput(PERSON_NOT_FOUND.into()));
     }
-    if let Some(name) = name {
+    if let Some(name) = &change.name {
         tx.execute(
             "UPDATE person SET name = ?2 WHERE id = ?1",
             params![id, name],
         )?;
     }
-    if let Some(trade) = trade {
+    // The column names are constants of this function, never input.
+    for (column, value) in [
+        ("trade", &change.trade),
+        ("phone", &change.phone),
+        ("email", &change.email),
+        ("note", &change.note),
+        ("availability", &change.availability),
+    ] {
+        if let Some(value) = value {
+            tx.execute(
+                &format!("UPDATE person SET {column} = ?2 WHERE id = ?1"),
+                params![id, value],
+            )?;
+        }
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+/// Replace the stages a person is expected on. An empty list means none.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when the person, or any of the stages, is not in
+/// this work — and then nothing changes.
+pub fn set_person_stages(conn: &Connection, id: &str, stage_ids: &[String]) -> Result<()> {
+    let tx = conn.unchecked_transaction()?;
+    if !exists(&tx, "SELECT 1 FROM person WHERE id = ?1", id)? {
+        return Err(Error::InvalidInput(PERSON_NOT_FOUND.into()));
+    }
+    let stages: std::collections::BTreeSet<&str> = stage_ids.iter().map(String::as_str).collect();
+    for stage in &stages {
+        if !exists(&tx, "SELECT 1 FROM stage WHERE id = ?1", stage)? {
+            return Err(Error::InvalidInput(STAGE_NOT_FOUND.into()));
+        }
+    }
+    tx.execute("DELETE FROM person_stage WHERE person_id = ?1", [id])?;
+    for stage in stages {
         tx.execute(
-            "UPDATE person SET trade = ?2 WHERE id = ?1",
-            params![id, trade],
+            "INSERT INTO person_stage (person_id, stage_id) VALUES (?1, ?2)",
+            params![id, stage],
         )?;
     }
     tx.commit()?;
@@ -667,6 +749,9 @@ pub(crate) mod tests {
             "cost_line",
             "commitment",
             "payment",
+            "person_stage",
+            "document",
+            "document_link",
         ] {
             let found: i64 = conn
                 .query_row(
@@ -1125,12 +1210,27 @@ pub(crate) mod tests {
         let conn = a_work();
         let id = add_person(&conn, "A. Tiler").unwrap();
 
-        update_person(&conn, &id, Some("Ana Tiler"), None).unwrap();
+        update_person(
+            &conn,
+            &id,
+            &PersonChange {
+                name: Some("Ana Tiler".into()),
+                ..PersonChange::default()
+            },
+        )
+        .unwrap();
         assert_eq!(snapshot(&conn).unwrap().people[0].name, "Ana Tiler");
 
         let nobody = new_id();
         for refused in [
-            update_person(&conn, &nobody, Some("X"), None),
+            update_person(
+                &conn,
+                &nobody,
+                &PersonChange {
+                    name: Some("X".into()),
+                    ..PersonChange::default()
+                },
+            ),
             remove_person(&conn, &nobody),
         ] {
             assert_eq!(refused.unwrap_err().to_string(), PERSON_NOT_FOUND);
@@ -1428,12 +1528,12 @@ pub(crate) mod tests {
         );
     }
 
-    /// The upgrade a person makes from F5: a work at schema 6 — a diary entry,
+    /// The upgrade from F5's schema: a work at schema 6 — a diary entry,
     /// a stage started with an answered check — opens in F6, loses nothing,
     /// its diary chain still verifies, its people have no trade yet, and its
     /// money is empty.
     #[test]
-    fn a_work_at_schema_six_with_a_diary_and_answers_migrates_to_seven_and_the_chain_still_verifies(
+    fn a_work_at_schema_six_with_a_diary_and_answers_migrates_to_the_current_version_and_the_chain_still_verifies(
     ) {
         let conn = Connection::open_in_memory().unwrap();
         crate::db::configure(&conn).unwrap();
@@ -1487,9 +1587,12 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(migrations::WORK.current_version(&conn), 6);
 
-        migrations::WORK.apply(&conn).expect("migrate 6 → 7");
+        migrations::WORK.apply(&conn).expect("migrate 6 → head");
 
-        assert_eq!(migrations::WORK.current_version(&conn), 7);
+        assert_eq!(
+            migrations::WORK.current_version(&conn),
+            migrations::WORK.target_version()
+        );
         assert_eq!(
             crate::db::diary::list(&conn, None, None).unwrap(),
             diary_before
@@ -1512,6 +1615,9 @@ pub(crate) mod tests {
         migrations::WORK
             .apply(&conn)
             .expect("and again, idempotent");
-        assert_eq!(migrations::WORK.current_version(&conn), 7);
+        assert_eq!(
+            migrations::WORK.current_version(&conn),
+            migrations::WORK.target_version()
+        );
     }
 }

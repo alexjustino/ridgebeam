@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_CHECK_KEYS, GATES_HELD_LABEL_KEY, STAGES_LABEL_KEYS } from '@/domain/checks';
 import { DECISIONS_DUE_LABEL_KEY } from '@/domain/decisions';
 import { DONE_LABEL_KEYS } from '@/domain/diary';
+import { DOCUMENTS_LABEL_KEYS, TARGET_KINDS } from '@/domain/documents';
 import { MONEY_LABEL_KEYS, OVER_COMMITTED_LABEL_KEY } from '@/domain/money';
 import {
   READINESS_LABEL_KEY,
@@ -89,11 +90,12 @@ describe('the English dictionary', () => {
 });
 
 describe('plurals', () => {
-  it('have both forms, and each form says its count the same way', () => {
+  it('have both forms: every `.one` has its `.other`', () => {
+    // A `.other` alone is a word, not a plural form — a document kind called "other" — so only a
+    // `.one` makes a key a plural, and then its `.other` must be there too.
     for (const key of english) {
-      if (!key.endsWith('.one') && !key.endsWith('.other')) continue;
-      const base = key.replace(/\.(one|other)$/, '');
-      expect(english, `${base} has no .one`).toContain(`${base}.one`);
+      if (!key.endsWith('.one')) continue;
+      const base = key.replace(/\.one$/, '');
       expect(english, `${base} has no .other`).toContain(`${base}.other`);
     }
   });
@@ -165,6 +167,9 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         GATES_HELD_LABEL_KEY,
         ...Object.values(MONEY_LABEL_KEYS),
         OVER_COMMITTED_LABEL_KEY,
+        ...Object.values(DOCUMENTS_LABEL_KEYS),
+        ...TARGET_KINDS.map((kind) => `documents.target.${kind}`),
+        'documents.target.detached',
         ...DEFAULT_CHECK_KEYS.start,
         ...DEFAULT_CHECK_KEYS.close,
       ]) {

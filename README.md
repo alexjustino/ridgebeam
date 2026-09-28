@@ -71,11 +71,11 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F6**, and nothing after them:
+Slices **F0** to **F7**, and nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
-  existing one; the recent works are listed, and one whose folder has gone says so and offers a
-  way to find it. Everything about a work is one SQLite file inside its folder, checkpointed and
+  existing one; the recent works are listed, and one whose folder has gone says so and is found
+  again from a dialog — only if the folder holds the same work. Everything about a work is one SQLite file inside its folder, checkpointed and
   closed when the work closes.
 - **Stages and activities on a working calendar.** A start date, working days, hours per day
   and holidays, all edited on the Plan; a stage with activities, each with a duration in working
@@ -125,33 +125,43 @@ Slices **F0** to **F6**, and nothing after them:
   ledger that is **append-only** — a mistake is reversed, never edited. Per stage, per trade and
   for the work, with remaining and variance; every figure opens onto the lines it adds up, and
   money is whole cents from the file to the screen. A payment over what was committed is
-  recorded and **flagged**, not refused. Receipts are images (PDF receipts arrive with documents
-  in F7). An S-curve of planned against paid, with its table.
+  recorded and **flagged**, not refused. Receipts are images or PDFs. An S-curve of planned
+  against paid, with its table.
+- **People and documents (F7).** People are contacts — trade, phone, e-mail, availability, a note
+  and the stages they are expected on — with the days they were on site taken from the diary and
+  what they are owed taken from the ledger, on the Plan's **People** tab. **Documents** — quotes,
+  drawings, permits, receipts, contracts, photos — are copied into the work folder by hash,
+  typed by their bytes (images and PDFs only; a PDF is never opened inside the product), and
+  attached to the work, a stage, an activity, a decision, a diary entry, a commitment or a
+  payment, from one library. A hostile file corpus is refused in `cargo test`, and Diagnostics
+  re-hashes every file and lists any it cannot account for, without deleting them.
 - **Readiness.** A figure that says how much of what the plan must know it does know, from seven
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
   gates and its money planned — that opens onto the rows it
   counts and says in a sentence what is missing, in English and in Portuguese. Rule by rule on
   the dashboard, each with why it matters; the rules add up to the figure.
-- **The shell.** Dashboard, Plan, Schedule, Decisions, Diary, Money, Settings (language, theme,
-  lens), Diagnostics and About, in light and dark, in English and Portuguese. There is no command, field or
+- **The shell.** Dashboard, Plan, Schedule, Decisions, Diary, Money, Documents, Settings
+  (language, theme, lens), Diagnostics and About, in light and dark, in English and Portuguese. There is no command, field or
   control that sets progress.
 - **The documents written before the first work:** [`docs/SPEC.md`](docs/SPEC.md), the
   specification; [`SECURITY.md`](SECURITY.md), the threat model;
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), twenty-four binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), twenty-six binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: a reason asked when an approved plan is edited, later baselines
-and the comparison of any two (F8); a decision tied to one activity rather than its whole
-stage; HEIC photos; checks taken from a template (the usual checks stand in until F9); PDF receipts; more than
-one currency in a work; people beyond a name and a trade, documents other than photos, templates, reports and the diary's export,
-backup.
+Not yet, and not pretended: **replanning** — a reason asked when an approved plan is edited,
+later baselines and the comparison of any two (F8); **templates** and the library, from which
+checks will come (F9); **reports**, print and the diary's export (F10); **backup** (F11).
+
+Not in 1.0, by decision rather than by schedule: files other than images and PDFs (no Word,
+spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a
+work; a decision tied to one activity rather than its whole stage.
 Each arrives with its slice, in the order the [specification](docs/SPEC.md) §7 lists.
 
 ## Run it from source

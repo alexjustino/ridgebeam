@@ -42,7 +42,7 @@
 //! - F4: the diary — requirement one. Work migration 005 adds four
 //!   append-only tables with a hash chain; `db::diary` holds no statement that
 //!   edits or removes a row, and a test reads its source. Photos are copied in
-//!   by the host under caps (`files::photos`), shown as `data:` URLs, and
+//!   by the host under caps (`files::intake`), shown as `data:` URLs, and
 //!   opened with the system's own handler from Rust — the opener plugin is a
 //!   library here, not a registered plugin, so the webview gains no command
 //!   and no capability. An entry is signed with the Windows account's name.
@@ -58,6 +58,14 @@
 //!   minor units; and a person's trade. `person_update` replaces
 //!   `person_rename`. A receipt or a quote is an image through the photo
 //!   pipeline; a PDF is F7's.
+//! - F7: people as contacts, and documents. Work migration 008 adds a person's
+//!   phone, e-mail, note, availability and stages, and `document` with its
+//!   links — backfilled from every photo, receipt and quote already in the
+//!   work. The intake (`files::intake`, once `files::photos`) keeps images and
+//!   PDFs by their bytes — a PDF never parsed — and refuses everything else,
+//!   SVG by name; the hostile corpus is generated in `cargo test` against a
+//!   committed manifest. `documents_verify` re-reads the bytes; orphans are
+//!   listed, never deleted. A moved work is found again by `recent_relocate`.
 
 pub mod commands;
 pub mod contract;
@@ -132,6 +140,7 @@ pub fn run() {
             commands::plan::activity_move,
             commands::plan::stage_move,
             commands::plan::person_update,
+            commands::plan::person_set_stages,
             commands::plan::person_remove,
             commands::rooms::room_add,
             commands::rooms::room_rename,
@@ -171,6 +180,16 @@ pub fn run() {
             commands::money::commitment_remove,
             commands::money::payment_add,
             commands::money::payment_reverse,
+            commands::documents::document_add,
+            commands::documents::document_update,
+            commands::documents::document_link,
+            commands::documents::document_unlink,
+            commands::documents::document_remove,
+            commands::documents::document_open,
+            commands::documents::document_thumbnail,
+            commands::documents::documents_verify,
+            commands::documents::folder_health,
+            commands::work::recent_relocate,
         ])
         .build(tauri::generate_context!())
         .expect("Ridgebeam failed to start");

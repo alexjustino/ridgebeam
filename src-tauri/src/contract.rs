@@ -37,6 +37,11 @@
 //!   alone of `person_rename`). Amounts are whole minor units (`amountCents`).
 //!   The ledger is in the snapshot: payments are few enough in 1.0; a work with
 //!   thousands would read them on their own, as the diary does.
+//! - F7: people as contacts (`Person.phone`, `.email`, `.note`,
+//!   `.availability`, `.stageIds`, and the same in `PersonPatch`); documents
+//!   (`Document`, `DocumentLink`, `DocumentTarget`, `DocumentPatch`,
+//!   `DocumentsAdded`, `RefusedFile`, `DocumentsReport`, `FolderHealth`;
+//!   `WorkSnapshot.documents`).
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -174,6 +179,16 @@ pub struct Person {
     /// Their trade — `tiler`, `plumber` — as the person writes it; `null` when
     /// not said. Money per trade groups by it.
     pub trade: Option<String>,
+    /// As typed; never dialled or checked.
+    pub phone: Option<String>,
+    /// As typed; nothing is ever sent to it — the product has no network.
+    pub email: Option<String>,
+    /// A word about them.
+    pub note: Option<String>,
+    /// When they can come, in their own words.
+    pub availability: Option<String>,
+    /// The stages they are expected on, in the stages' order.
+    pub stage_ids: Vec<String>,
 }
 
 /// A change to a person. A field left out is left alone; `trade: null` (or
@@ -187,6 +202,18 @@ pub struct PersonPatch {
     /// Absent: unchanged. `null` or empty: no trade. A string: the trade.
     #[serde(default, deserialize_with = "present")]
     pub trade: Option<Option<String>>,
+    /// Absent: unchanged. `null` or empty: none.
+    #[serde(default, deserialize_with = "present")]
+    pub phone: Option<Option<String>>,
+    /// Absent: unchanged. `null` or empty: none.
+    #[serde(default, deserialize_with = "present")]
+    pub email: Option<Option<String>>,
+    /// Absent: unchanged. `null` or empty: none.
+    #[serde(default, deserialize_with = "present")]
+    pub note: Option<Option<String>>,
+    /// Absent: unchanged. `null` or empty: none.
+    #[serde(default, deserialize_with = "present")]
+    pub availability: Option<Option<String>>,
 }
 
 /// A stage of the work.
@@ -283,6 +310,146 @@ pub struct WorkSnapshot {
     /// Paid money: the ledger, by `seq` — reversals included, as they were
     /// written.
     pub payments: Vec<Payment>,
+    /// The files the work holds, by the day they were added, then as added.
+    pub documents: Vec<Document>,
+}
+
+/// What a document is attached to: the work, a stage, an activity, a
+/// decision, a commitment (by id), or a diary entry or a payment (by `seq`,
+/// written as text — `"3"`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentTarget {
+    /// `work`, `stage`, `activity`, `decision`, `entry`, `commitment` or
+    /// `payment`.
+    pub target_kind: String,
+    /// The target's id; for an entry or a payment, its `seq` as text; for the
+    /// work, its `workId`.
+    pub target_id: String,
+}
+
+/// One attachment of a document.
+pub type DocumentLink = DocumentTarget;
+
+/// A file the work owns: copied into its folder, typed by its bytes, named by
+/// its hash.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Document {
+    /// UUID.
+    pub id: String,
+    /// SHA-256 of the bytes.
+    pub file_hash: String,
+    /// The name it had when it was added.
+    pub file_name: String,
+    /// `image/jpeg`, `image/png`, `image/gif`, `image/webp`, `image/bmp` or
+    /// `application/pdf` — or `application/octet-stream` for a file recorded
+    /// before F7 whose bytes the folder no longer holds.
+    pub media_type: String,
+    /// Its size; 0 only in that same case.
+    pub bytes: i64,
+    /// Its width in pixels, for an image; `null` for a PDF.
+    pub width: Option<i64>,
+    /// Its height in pixels, for an image; `null` for a PDF.
+    pub height: Option<i64>,
+    /// `photo`, `quote`, `drawing`, `permit`, `receipt`, `contract` or `other`.
+    pub kind: String,
+    /// Its title — the file name until somebody changes it.
+    pub title: String,
+    /// The day it was added.
+    pub added_on: String,
+    /// The account that added it.
+    pub author_name: String,
+    /// When, UTC.
+    pub created_at: String,
+    /// What it is attached to; empty when attached to nothing.
+    pub links: Vec<DocumentLink>,
+}
+
+/// A change to a document's title or kind. A field left out is left alone.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentPatch {
+    /// A new title.
+    #[serde(default)]
+    pub title: Option<String>,
+    /// A new kind.
+    #[serde(default)]
+    pub kind: Option<String>,
+}
+
+/// A file the host would not keep, and why — the sentence names the file.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefusedFile {
+    /// The file's name, as chosen.
+    pub file_name: String,
+    /// Why, as a sentence.
+    pub reason: String,
+}
+
+/// What `document_add` did: the plan with every file it kept, and every file
+/// it did not.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentsAdded {
+    /// The whole plan, as it now is.
+    pub snapshot: WorkSnapshot,
+    /// Each file refused, in the order given.
+    pub refused: Vec<RefusedFile>,
+}
+
+/// A document whose bytes are not the ones recorded.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MismatchedDocument {
+    /// The document.
+    pub id: String,
+    /// Its file name.
+    pub file_name: String,
+    /// The hash the row recorded.
+    pub expected: String,
+    /// The hash of the bytes on disk.
+    pub found: String,
+}
+
+/// A document whose file is not in the folder.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MissingDocument {
+    /// The document.
+    pub id: String,
+    /// Its file name.
+    pub file_name: String,
+    /// The hash it should have.
+    pub file_hash: String,
+}
+
+/// What re-reading every document's bytes found.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentsReport {
+    /// How many documents were checked.
+    pub checked: i64,
+    /// Documents whose bytes changed.
+    pub mismatched: Vec<MismatchedDocument>,
+    /// Documents whose file is gone.
+    pub missing: Vec<MissingDocument>,
+    /// Files in `documents/` or `thumbnails/` that no row names, as
+    /// `documents/<name>` — listed, never removed by the product.
+    pub orphans: Vec<String>,
+}
+
+/// The work folder, measured.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderHealth {
+    /// Every byte in the folder — database, documents, thumbnails.
+    pub folder_bytes: i64,
+    /// Files in `documents/`.
+    pub document_files: i64,
+    /// Files in `thumbnails/`.
+    pub thumbnail_files: i64,
 }
 
 /// Planned money: a line on a stage, or on one of its activities.

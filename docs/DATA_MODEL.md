@@ -11,13 +11,17 @@ words, in [`GLOSSARY.md`](GLOSSARY.md).
 ```
 <work folder>/
   work.sqlite3        the work: plan, calendar, people, diary, baselines, money
-  documents/          photos copied in (F4; other documents F7), named <sha-256>.<ext>
-  thumbnails/         a 320 px JPEG of each photo, named <sha-256>.jpg (F4)
+  documents/          every file the work owns — photos, receipts, quotes, drawings, permits,
+                      contracts — named <sha-256>.<ext>
+  thumbnails/         a 320 px JPEG of each image, named <sha-256>.jpg; none for a PDF
 ```
 
-`documents/` and `thumbnails/` exist only once a photo does. A photo's name is the SHA-256 of
-its bytes and its extension comes from the type its magic bytes say it is, never from the name
-it arrived with; the same photo attached twice is one file (ADR-021).
+That is the whole folder, and it is final for 1.0. `documents/` and `thumbnails/` exist only
+once a file does. A file's name is the SHA-256 of its bytes and its extension comes from the type
+its first bytes say it is — `jpg`, `png`, `webp`, `gif`, `bmp` or `pdf` — never from the
+name it arrived with; the same file attached twice is one file (ADR-021, ADR-025). A file in
+`documents/` that no row names is an **orphan**: Diagnostics lists it and the product never
+deletes it.
 
 Nothing about a work lives anywhere else. Moving the folder moves the work; the product finds
 it again from a dialog. The database is opened with `journal_mode = WAL`, `synchronous = FULL`,
@@ -66,15 +70,25 @@ negative case) before it reaches the host.
 
 ### `person`
 
-A person is a row, not a user. Slice F0 creates the table with what a responsible needs; slice
-F6 adds the trade (money per trade); slice F7 adds phone, stages and availability.
+A person is a row, not a user — a contact (ADR-026). Slice F0 creates the table with what a
+responsible needs; F6 adds the trade; F7 adds the contact columns and the stages. Contact details
+are stored as typed and never used: the product has no network, and nothing is ever sent to an
+address or dialled. Who was on site is the diary's (`diary_present`), never a column here.
 
-| Column       | Type | Meaning                                                                                           |
-| ------------ | ---- | ------------------------------------------------------------------------------------------------- |
-| `id`         | TEXT | UUID v7                                                                                           |
-| `name`       | TEXT | not empty                                                                                         |
-| `created_at` | TEXT | UTC                                                                                               |
-| `trade`      | TEXT | the person's trade — _tiler_, _plumber_ — 1–60 characters, or `NULL`; groups money per trade (F6) |
+| Column         | Type | Meaning                                                                                           |
+| -------------- | ---- | ------------------------------------------------------------------------------------------------- |
+| `id`           | TEXT | UUID v7                                                                                           |
+| `name`         | TEXT | not empty                                                                                         |
+| `created_at`   | TEXT | UTC                                                                                               |
+| `trade`        | TEXT | the person's trade — _tiler_, _plumber_ — 1–60 characters, or `NULL`; groups money per trade (F6) |
+| `phone`        | TEXT | as typed, 1–40 characters, or `NULL` (F7)                                                         |
+| `email`        | TEXT | as typed, 1–120 characters, or `NULL` (F7)                                                        |
+| `note`         | TEXT | 1–500 characters, or `NULL` (F7)                                                                  |
+| `availability` | TEXT | as the person writes it — _mornings only_, _from October_ — 1–200 characters, or `NULL` (F7)      |
+
+`person_stage` — `person_id` (`REFERENCES person ON DELETE CASCADE`) and `stage_id`
+(`REFERENCES stage ON DELETE CASCADE`), the pair as primary key: the stages somebody is expected
+on (F7).
 
 ### `stage` and `activity`
 
@@ -443,6 +457,42 @@ thousands a house has; a much larger ledger would need a query of its own.
 the sum of its rows; _over committed_ where paid exceeds committed for a stage or a commitment,
 or a payment names no commitment.
 
+### `document` and `document_link` — the files the work owns (F7)
+
+A document is a file the work owns: copied into `documents/`, typed by its bytes, never parsed
+beyond an image's header (ADR-025). **One row per file** — `file_hash` is unique — so adding the
+same bytes again links the row again instead of copying the file twice.
+
+| `document`        | Type    | Meaning                                                                                                      |
+| ----------------- | ------- | ------------------------------------------------------------------------------------------------------------ |
+| `id`              | TEXT    | UUID v7; for a row the backfill created, derived from the hash (below)                                       |
+| `file_hash`       | TEXT    | SHA-256 of the bytes — the file's name in `documents/`; unique                                               |
+| `file_name`       | TEXT    | the name it arrived with, 1–255 characters — kept for the person, never used as a path                       |
+| `media_type`      | TEXT    | `image/jpeg`, `image/png`, `image/gif`, `image/webp`, `image/bmp` or `application/pdf`; `NULL` only as below |
+| `bytes`           | INTEGER | the size; `NULL` only as below                                                                               |
+| `width`, `height` | INTEGER | an image's dimensions, both or neither; always `NULL` for a PDF, which is never parsed                       |
+| `kind`            | TEXT    | `photo`, `quote`, `drawing`, `permit`, `receipt`, `contract` or `other` — editable                           |
+| `title`           | TEXT    | 1–200 characters — editable                                                                                  |
+| `added_on`        | TEXT    | the ISO day it was added                                                                                     |
+| `author_name`     | TEXT    | the display name of the Windows account that added it                                                        |
+| `created_at`      | TEXT    | UTC                                                                                                          |
+
+| `document_link` | Type | Meaning                                                                     |
+| --------------- | ---- | --------------------------------------------------------------------------- |
+| `document_id`   | TEXT | `REFERENCES document ON DELETE CASCADE`                                     |
+| `target_kind`   | TEXT | `work`, `stage`, `activity`, `decision`, `entry`, `commitment` or `payment` |
+| `target_id`     | TEXT | the target's id — for a diary entry, its `seq`                              |
+
+The primary key is the triple. **A target is not a foreign key**: when a stage goes, its links
+stay, and the interface lists them as a detached target rather than losing the document.
+Removing a document removes its row and its links; the file is removed only when nothing else
+names its hash — a diary photo, an answer's photo, a receipt, a commitment's quote, another
+document — and the diary's own rows are never touched.
+
+**Where the bytes are checked.** The diary's chain covers each photo's hash in its rows; it does
+not read the files. `documents_verify` does: it reads every file in `documents/`, compares it
+with its row's `file_hash`, and lists mismatches, rows whose file is missing, and orphans.
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -511,24 +561,39 @@ Numbered SQL files compiled into the binary, forward-only, applied in a transact
 moves `work.schema_version`. A release that adds a migration says so in the changelog and is
 covered by a round-trip test that opens a work at version N-1 and migrates it without loss.
 
-| Migration                            | Slice | Adds                                                                                                   |
-| ------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------ |
-| `001_init.sql`                       | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`                                           |
-| `002_rooms_and_quantities.sql`       | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit`                                       |
-| `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers   |
-| `004_decisions.sql`                  | F3    | `decision`                                                                                             |
-| `005_diary.sql`                      | F4    | `diary_entry`, `diary_done`, `diary_present`, `diary_photo`, with their insert-only and chain triggers |
-| `006_checks.sql`                     | F5    | `stage.started_at` and `stage.closed_at`; `stage_check`; `check_answer` with its insert-only triggers  |
-| `007_money.sql`                      | F6    | `person.trade`; `cost_line`; `commitment`; `payment` with its insert-only and reversal triggers        |
+| Migration                            | Slice | Adds                                                                                                                                              |
+| ------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `001_init.sql`                       | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`                                                                                      |
+| `002_rooms_and_quantities.sql`       | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit`                                                                                  |
+| `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers                                              |
+| `004_decisions.sql`                  | F3    | `decision`                                                                                                                                        |
+| `005_diary.sql`                      | F4    | `diary_entry`, `diary_done`, `diary_present`, `diary_photo`, with their insert-only and chain triggers                                            |
+| `006_checks.sql`                     | F5    | `stage.started_at` and `stage.closed_at`; `stage_check`; `check_answer` with its insert-only triggers                                             |
+| `007_money.sql`                      | F6    | `person.trade`; `cost_line`; `commitment`; `payment` with its insert-only and reversal triggers                                                   |
+| `008_documents.sql`                  | F7    | `person.phone`, `.email`, `.note`, `.availability`; `person_stage`; `document`; `document_link`; the backfill of every file already in the folder |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its
 stages and activities migrates to schema 2 without loss, a work at schema 2 with rooms and
 quantities migrates to schema 3 the same way, a work at schema 3 with dependencies and a
 baseline migrates to schema 4, a work at schema 4 with decisions migrates to schema 5, a work at schema 5 with diary entries
 migrates to schema 6 with its chain still verifying, and a work at schema 6 with checks and
-answers migrates to schema 7 the same way. The migrations live in `src-tauri/work_migrations/`.
+answers migrates to schema 7 the same way, and a work at schema 7 with photos, receipts and
+quotes migrates to schema 8 with a document for each and its chain still verifying.
+
+**Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
+where it came from, one row per hash in this order of precedence: a diary photo (kind `photo`,
+linked to its entry by `seq`, with its name, size and dimensions); an answer's photo (`photo`,
+linked to the check's stage); a receipt (`receipt`, linked to the payment); a commitment's
+document (`quote`, linked to the commitment). Every origin is linked, even when the row came
+from an earlier one. The id of a backfilled row is the first 32 hex digits of its hash in the
+8-4-4-4-12 form, so the backfill is deterministic. What SQL cannot know is left `NULL` — no
+earlier row recorded a media type, and only diary photos recorded a size — and the host
+completes `media_type` and `bytes` from the files when the work is opened; a row whose file is
+missing stays incomplete, and `documents_verify` lists it. That is the only case in which either
+is `NULL`. A backfilled quote's author, which no earlier row recorded, reads "Unknown account". The migrations live in `src-tauri/work_migrations/`.
 
 ## Not yet in the schema
 
-Documents other than photos, and PDF receipts (F7) · templates
-are files in the repository, not rows (F9).
+Replanning (F8) works on the baseline tables F2 created — their `reason` column is empty until
+then — and adds whatever the comparison of two baselines needs. Templates are files in the
+repository, not rows (F9). A backup is a file beside the work, not a table (F11).

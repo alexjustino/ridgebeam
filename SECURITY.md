@@ -24,21 +24,20 @@ is intent.
 
 ## The threat model
 
-| Asset                                                | Threat                                                                                                    | Control                                                                                                                                                                                                                                                                                                                                                                               | Slice                  |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| The diary                                            | an entry silently edited, deleted or replaced; an entry slipped in out of order                           | four insert-only tables; triggers refuse `UPDATE`, `DELETE` and `REPLACE`; a guard refuses a sequence number that exists; the chain trigger refuses an entry that is not next or does not carry the previous hash; no edit command, a correction instead; a hash chain verified in Diagnostics (and on export, F10)                                                                   | **F4**                 |
-| The baselines                                        | a baseline overwritten, withdrawn or given rows it did not have                                           | insert-only tables, triggers refuse `UPDATE`, `DELETE` and `REPLACE`; rows only on the latest baseline; `approved_at` never changes; the reason for each change                                                                                                                                                                                                                       | **F2**, F8             |
-| A stage's gate answers                               | an answer silently changed or removed; a stage started or closed with an item unanswered or answered no   | `check_answer` insert-only with the diary's battery — triggers refuse `UPDATE`, `DELETE` and `REPLACE`, a guard refuses a key that exists; answering again appends and the latest counts; _not applicable_ requires a reason; the gate is enforced by the domain and by the host (`stage_gate_open`); a closed stage refuses every change to its rows (`stage_closed`); no hash chain | **F5**                 |
-| The payments ledger                                  | a payment silently edited or removed; a mistake hidden by rewriting it; money summed with rounding errors | `payment` insert-only with the same battery — triggers refuse `UPDATE`, `DELETE` and `REPLACE`, a guard refuses a key that exists, payments numbered in order; a mistake is a reversal — a negative payment naming the one it reverses, never larger, once only; a commitment locked once something is paid against it; amounts are integers in minor units; no hash chain            | **F6**                 |
-| The plan's progress                                  | progress typed in that the site never did                                                                 | there is no command, column or control that writes progress; progress is derived from diary entries only, in states                                                                                                                                                                                                                                                                   | **F0**, **F4**         |
-| Photos — on diary entries, gate answers and receipts | a hostile file — a crafted image, a huge file, an executable in disguise                                  | measured before decoding: 25 MiB, magic bytes, 12 000 px from the header; copied by the host and named by hash; thumbnails decoded under limits; shown as data URLs; opened by the operating system's handler from Rust, only on the person's click; a hostile corpus in `cargo test`                                                                                                 | **F4**, **F5**, **F6** |
-| Other documents                                      | the same, for quotes, drawings, permits and receipts                                                      | the same rules, extended to their formats                                                                                                                                                                                                                                                                                                                                             | F7                     |
-| The person's privacy                                 | a network request that carries what the work holds                                                        | no network: no account, no telemetry, no crash reporting, no update check, no weather service                                                                                                                                                                                                                                                                                         | **F0**                 |
-| The person's machine                                 | a command injected through a name, a path or a file                                                       | Tauri capabilities declared one by one; no shell, file-system, HTTP or asset-protocol permission; the opener used only from Rust, for a file the person clicked; every path the host writes is inside the work folder                                                                                                                                                                 | **F0**, **F4**         |
-| Exports read by other tools                          | a spreadsheet formula injected through a diary text or a name                                             | every cell that begins with `=`, `+`, `-`, `@`, tab or carriage return is neutralised on export                                                                                                                                                                                                                                                                                       | F10                    |
-| Backups                                              | a restore that brings back less than was saved, or something else                                         | one file with a manifest and a hash; restore round-trips a full work byte for byte, proven in `cargo test`                                                                                                                                                                                                                                                                            | F11                    |
-| The public repository                                | a real address, person, contractor, price or e-mail committed; a secret                                   | fixtures are synthetic and say so; `.gitignore` refuses `.env`, keys and certificates; review refuses the rest                                                                                                                                                                                                                                                                        | **F0**                 |
-| The template library                                 | a wrong or hostile template accepted into the library                                                     | templates are data with no code; the schema test in CI validates every one; a maintainer reviews before merge                                                                                                                                                                                                                                                                         | F9                     |
+| Asset                                                              | Threat                                                                                                                                                           | Control                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Slice          |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| The diary                                                          | an entry silently edited, deleted or replaced; an entry slipped in out of order                                                                                  | four insert-only tables; triggers refuse `UPDATE`, `DELETE` and `REPLACE`; a guard refuses a sequence number that exists; the chain trigger refuses an entry that is not next or does not carry the previous hash; no edit command, a correction instead; a hash chain verified in Diagnostics (and on export, F10)                                                                                                                                                                                                                                                 | **F4**         |
+| The baselines                                                      | a baseline overwritten, withdrawn or given rows it did not have                                                                                                  | insert-only tables, triggers refuse `UPDATE`, `DELETE` and `REPLACE`; rows only on the latest baseline; `approved_at` never changes; the reason for each change                                                                                                                                                                                                                                                                                                                                                                                                     | **F2**, F8     |
+| A stage's gate answers                                             | an answer silently changed or removed; a stage started or closed with an item unanswered or answered no                                                          | `check_answer` insert-only with the diary's battery — triggers refuse `UPDATE`, `DELETE` and `REPLACE`, a guard refuses a key that exists; answering again appends and the latest counts; _not applicable_ requires a reason; the gate is enforced by the domain and by the host (`stage_gate_open`); a closed stage refuses every change to its rows (`stage_closed`); no hash chain                                                                                                                                                                               | **F5**         |
+| The payments ledger                                                | a payment silently edited or removed; a mistake hidden by rewriting it; money summed with rounding errors                                                        | `payment` insert-only with the same battery — triggers refuse `UPDATE`, `DELETE` and `REPLACE`, a guard refuses a key that exists, payments numbered in order; a mistake is a reversal — a negative payment naming the one it reverses, never larger, once only; a commitment locked once something is paid against it; amounts are integers in minor units; no hash chain                                                                                                                                                                                          | **F6**         |
+| The plan's progress                                                | progress typed in that the site never did                                                                                                                        | there is no command, column or control that writes progress; progress is derived from diary entries only, in states                                                                                                                                                                                                                                                                                                                                                                                                                                                 | **F0**, **F4** |
+| Documents — photos, receipts, quotes, drawings, permits, contracts | a hostile file — a crafted image, a huge file, an executable or an archive in disguise, a script inside an SVG; a file swapped on disk behind the product's back | typed by its magic bytes — JPEG, PNG, WebP, GIF, BMP and PDF only, everything else refused with a sentence; 25 MiB for every file; image dimensions capped from the header before decoding; thumbnails decoded under limits; a PDF never parsed or rendered; SVG refused; copied by the host and named by hash, deduplicated; shown as data URLs; opened by the operating system's handler from Rust, only on a click; the hostile corpus in `cargo test` with its committed manifest; every file re-hashed on demand in Diagnostics; orphans listed, never deleted | **F4**–**F7**  |
+| The person's privacy                                               | a network request that carries what the work holds                                                                                                               | no network: no account, no telemetry, no crash reporting, no update check, no weather service                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | **F0**         |
+| The person's machine                                               | a command injected through a name, a path or a file                                                                                                              | Tauri capabilities declared one by one; no shell, file-system, HTTP or asset-protocol permission; the opener used only from Rust, for a file the person clicked; every path the host writes is inside the work folder                                                                                                                                                                                                                                                                                                                                               | **F0**, **F4** |
+| Exports read by other tools                                        | a spreadsheet formula injected through a diary text or a name                                                                                                    | every cell that begins with `=`, `+`, `-`, `@`, tab or carriage return is neutralised on export                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | F10            |
+| Backups                                                            | a restore that brings back less than was saved, or something else                                                                                                | one file with a manifest and a hash; restore round-trips a full work byte for byte, proven in `cargo test`                                                                                                                                                                                                                                                                                                                                                                                                                                                          | F11            |
+| The public repository                                              | a real address, person, contractor, price or e-mail committed; a secret                                                                                          | fixtures are synthetic and say so; `.gitignore` refuses `.env`, keys and certificates; review refuses the rest                                                                                                                                                                                                                                                                                                                                                                                                                                                      | **F0**         |
+| The template library                                               | a wrong or hostile template accepted into the library                                                                                                            | templates are data with no code; the schema test in CI validates every one; a maintainer reviews before merge                                                                                                                                                                                                                                                                                                                                                                                                                                                       | F9             |
 
 A slice in **bold** has shipped the control; the others are promises, held to by the slice named.
 
@@ -52,34 +51,53 @@ source can confirm it in `src-tauri/capabilities/`.
 
 ## Files are hostile
 
-Every file the product opens arrived from somebody else — a photo from a phone, a quote from a
-contractor, a drawing from an architect, a backup from another machine. The host treats each
-one as hostile. **Shipped for photos in F4** (ADR-021); documents other than photos follow the
-same rules in F7.
+Every file the product keeps arrived from somebody else — a photo from a phone, a quote from a
+contractor, a drawing from an architect, a receipt from a shop. The host treats each one as
+hostile. **Shipped for every document in F7** (ADR-025), on the pipeline F4 built for photos
+(ADR-021).
 
-- **Measured before decoding.** The host reads the file itself — the webview never touches it —
-  and refuses it, with a sentence that names the file and the reason, if it is over **25 MiB**,
-  if its **magic bytes** are not JPEG, PNG, WebP, GIF or BMP, or if the **dimensions** read from
-  its header, without decoding, exceed **12 000 × 12 000** pixels. HEIC is recognised and refused
-  by name: 1.0 does not decode it. A file's extension is a hint, not a fact: a `.jpg` that is not
-  a JPEG is a sentence, not a crash.
-- **Copied, named by hash, never linked.** An accepted photo is hashed (SHA-256) and copied to
-  `documents/<hash>.<ext>` inside the work folder, the extension from the detected type and
-  never from the name. The original location is not kept; a work never depends on a path that
-  may move. A photo already in the folder is referenced by its hash and never copied twice.
-- **Decoded only under limits.** The one decode the product does is the thumbnail — 320 px,
-  JPEG, to `thumbnails/<hash>.jpg` — through the `image` crate with its limits set: maximum
-  width and height, and at most 256 MiB of allocation. A photo whose thumbnail fails is kept,
-  marked, and says so on screen.
-- **One entry, one transaction.** A refused photo refuses the whole diary entry it came with, and
-  any file already copied for that entry is removed. Nothing is half-written.
-- **Never executed, never read by the webview.** Thumbnails reach the screen as `data:image/jpeg`
-  URLs returned by a command; the capabilities hold no asset protocol and no file-system
-  permission. The original is opened only by the operating system's own handler, from Rust, when
-  the person clicks it.
-- **A corpus in `cargo test`.** A text file named `.jpg`, a PNG header that claims 100 000
-  pixels, a truncated JPEG, an empty file and a 26 MiB file are each refused with a sentence, and
-  nothing is written. F7 extends the corpus to the document formats it accepts.
+- **Typed by its bytes, from a short list.** The host reads the file itself — the webview never
+  touches it — and decides its type from its first bytes, never from its name. **JPEG, PNG, WebP,
+  GIF and BMP** are images; **PDF** (`%PDF-` at the start) is a document; **everything else is
+  refused** with a sentence that names the file and says what the product keeps — a Word file, a
+  spreadsheet, an archive, an executable, a HEIC photo. A `.pdf` whose bytes are a PNG is kept as
+  the PNG it is; a `.pdf` whose bytes are an executable, or a zip, is refused. Diary and answer
+  photos accept images only: a PDF is not a photo.
+- **SVG is refused, and why.** An SVG is a document that can carry scripts and references to other
+  files, and a product that shows it has to be sure none of them runs. 1.0 does not keep SVGs.
+- **Measured before decoding.** Every file is refused over **25 MiB**. An image is refused if the
+  dimensions read from its header, without decoding, exceed **12 000 × 12 000** pixels, or are
+  zero. The one decode the product does is the image thumbnail — 320 px, JPEG — through the
+  `image` crate with its limits set (width, height, at most 256 MiB of allocation). A photo whose
+  thumbnail fails is kept, marked, and says so.
+- **A PDF is never parsed and never rendered.** The product reads its first bytes, its size and
+  its hash, and nothing else. On screen it is a mark and a name; it opens in the operating
+  system's own viewer, from Rust, on the person's click. No PDF library is compiled into the
+  product.
+- **Copied, named by hash, never linked.** An accepted file is hashed (SHA-256) and copied to
+  `documents/<hash>.<ext>` inside the work folder, the extension from its type. The original
+  location is not kept. A file already there is linked again, never copied twice.
+- **Removed only when nothing names it.** Removing a document removes its row and its links; the
+  file is deleted only when no other document, diary photo, answer photo, receipt or commitment
+  names its hash. The diary's rows are never touched.
+- **One file, one transaction** for documents: a batch of ten with one refused keeps the nine and
+  names the one. A diary entry is still refused whole with any photo it carries (ADR-019).
+- **Never executed, never read by the webview.** Thumbnails reach the screen as
+  `data:image/jpeg` URLs returned by a command; the capabilities hold no asset protocol and no
+  file-system permission.
+- **The bytes are verified.** Diagnostics' _Folder health_ reads every file in `documents/` and
+  compares it with the hash its row records (`documents_verify`), lists rows whose file is
+  missing, and lists files that no row names — **orphans, listed and never deleted by the
+  product**, which says so. The diary's chain vouches for the rows, including each photo's hash;
+  this is what checks that the file on disk is still that photo.
+- **The corpus is committed as a manifest.** `cargo test` generates the hostile files — a text
+  file named `.jpg`, a PNG whose header claims 100 000 pixels, a truncated JPEG, an empty file, a
+  26 MiB image, a 26 MiB PDF, an executable named `.pdf`, a zero-width PNG, a WebP with a lying
+  size, a HEIC, an SVG, a zip bomb named `.pdf` — and asserts that each is refused with a
+  sentence and that nothing is written; a thirteenth, a PNG named `.pdf`, is kept as the PNG it is. The files themselves are never committed; their SHA-256
+  manifest is, in `fixtures/hostile/MANIFEST.json`, and a test fails when the generator drifts
+  from it. Rewriting the manifest is a deliberate act: an ignored _bless_ test does it, and the
+  change is reviewed like any other.
 
 ## The diary and the baselines are append-only
 
@@ -116,7 +134,8 @@ This is requirement one of the specification, and it is enforced in two places o
   "broken at #k" with the reason; Diagnostics runs it on demand, and the export (F10) will print
   the result in its header. `cargo test` tampers with a work file through a second, plain
   connection — the triggers dropped, a note rewritten, a photo's hash changed, a row deleted —
-  and shows the verification fails at that entry.
+  and shows the verification fails at that entry. The chain covers each photo's hash, not the
+  file on disk; _Folder health_ re-hashes the files themselves (F7, _Files are hostile_).
 - **The author is the account's name.** The host writes the display name of the Windows account
   that is running it on each entry. It is what the machine says, not an identity the product
   checks: the product has no accounts.
@@ -136,7 +155,7 @@ with a negative amount that names the payment it reverses, with a note — and t
 larger than its payment or for another stage, person or commitment than it, and a second
 reversal of the same one. A stage, a person or a commitment that a payment names cannot be
 removed: nothing that was paid disappears. Amounts are whole numbers of minor units, so no total drifts by rounding. A
-receipt is an image through the pipeline in _Files are hostile_; PDF receipts are F7's.
+receipt goes through the pipeline in _Files are hostile_ — an image or, from F7, a PDF.
 
 **What the chain cannot see.** An entry removed from the _end_ of the diary leaves no successor
 pointing at it, so what remains still verifies. The export (F10) records the count and the last
@@ -182,9 +201,9 @@ says whether it may.
 Tauri capabilities are declared one by one in `src-tauri/capabilities/`. The shell plugin is
 not used. There is no file-system permission, no HTTP permission and no asset protocol: the
 webview cannot read a path. The dialog plugin returns a path the person chose — a work folder,
-a photo to attach — and only the host's own commands read or write there. The opener is a Rust
-dependency with no JavaScript permission: the host opens a photo with the operating system's
-handler when the person clicks it, and nothing else. The window is a single window with no
+a document to attach, the new place of a moved work — and only the host's own commands read or write there. The opener is a Rust
+dependency with no JavaScript permission: the host opens a document with the operating
+system's handler when the person clicks it, and nothing else. The window is a single window with no
 remote content.
 
 ## Out of the threat model, stated plainly

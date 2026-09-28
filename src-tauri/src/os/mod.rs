@@ -12,7 +12,7 @@
 //!
 //! F4 adds two: the account's display name, which signs a diary entry
 //! (`account`), and opening a photo with the system's own handler (in
-//! `crate::files::photos`, on the person's click).
+//! `crate::files::intake`, on the person's click).
 
 pub mod accent;
 pub mod account;

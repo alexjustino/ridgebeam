@@ -24,13 +24,14 @@ use std::path::{Path, PathBuf};
 use chrono::NaiveDate;
 use tauri::State;
 
+use crate::commands::documents::file_it;
 use crate::commands::work::{change_work, with_work};
-use crate::contract::{CommitmentPatch, CostLinePatch, PaymentDraft, WorkSnapshot};
+use crate::contract::{CommitmentPatch, CostLinePatch, DocumentTarget, PaymentDraft, WorkSnapshot};
 use crate::db::money::{self, CommitmentFields};
 use crate::db::payments::{self, NewPayment};
 use crate::db::work as repo;
 use crate::error::{Error, Result};
-use crate::files::photos::{self, CopyIn, NOT_A_PHOTO};
+use crate::files::intake::{self, Accept, CopyIn, NOT_A_PHOTO};
 use crate::folder::OpenWork;
 use crate::os::account;
 use crate::validate;
@@ -241,24 +242,39 @@ fn image(path: Option<&str>, hash: Option<&str>) -> Result<Image> {
                 Err(invalid("An image is chosen by its full path."))
             }
         }
-        (None, Some(hash)) if photos::is_hash(hash) => Ok(Image::Hash(hash.to_string())),
+        (None, Some(hash)) if intake::is_hash(hash) => Ok(Image::Hash(hash.to_string())),
         (None, Some(_)) => Err(invalid(NOT_A_PHOTO)),
         (None, None) => Ok(Image::None),
     }
 }
 
-/// The image's hash in the work: copied in by `copy`, or found there.
-fn place(copy: &mut CopyIn, folder: &Path, image: &Image) -> Result<Option<String>> {
+/// The file's hash in the work — copied in by `copy` (with what was copied),
+/// or found there.
+fn place(
+    copy: &mut CopyIn,
+    folder: &Path,
+    image: &Image,
+) -> Result<Option<(String, Option<intake::Copied>)>> {
     match image {
         Image::None => Ok(None),
-        Image::Path(path) => Ok(Some(copy.copy(path)?.hash)),
+        Image::Path(path) => {
+            let copied = copy.copy(path, Accept::Documents)?;
+            Ok(Some((copied.hash.clone(), Some(copied))))
+        }
         Image::Hash(hash) => {
-            if photos::original(folder, hash).is_none() {
+            if intake::original(folder, hash).is_none() {
                 return Err(invalid(NOT_A_PHOTO));
             }
-            Ok(Some(hash.clone()))
+            Ok(Some((hash.clone(), None)))
         }
     }
+}
+
+fn today_text() -> String {
+    chrono::Local::now()
+        .date_naive()
+        .format("%Y-%m-%d")
+        .to_string()
 }
 
 /// What [`cost_line_add`] does once the state is in hand.
@@ -324,8 +340,8 @@ pub fn commitment_add_with(
     let document = image(draft.document_path, draft.document_hash)?;
     with_work(open, |state| {
         let mut copy = CopyIn::new(&state.folder);
-        let document_hash = place(&mut copy, &state.folder, &document)?;
-        money::add_commitment(
+        let placed = place(&mut copy, &state.folder, &document)?;
+        let id = money::add_commitment(
             &state.conn,
             stage_id,
             &CommitmentFields {
@@ -333,10 +349,24 @@ pub fn commitment_add_with(
                 label: label.clone(),
                 amount_cents,
                 agreed_on: agreed_on.clone(),
-                document_hash,
+                document_hash: placed.as_ref().map(|(hash, _)| hash.clone()),
             },
         )?;
         copy.keep();
+        if let Some((hash, copied)) = &placed {
+            file_it(
+                &state.conn,
+                hash,
+                copied.as_ref(),
+                "quote",
+                &today_text(),
+                &account::display_name(),
+                &DocumentTarget {
+                    target_kind: "commitment".into(),
+                    target_id: id,
+                },
+            );
+        }
         repo::snapshot(&state.conn)
     })
 }
@@ -381,11 +411,27 @@ pub fn commitment_update_with(
         if let Some(day) = &agreed_on {
             fields.agreed_on = day.clone();
         }
+        let mut placed = None;
         if let Some(document) = &document {
-            fields.document_hash = place(&mut copy, &state.folder, document)?;
+            placed = place(&mut copy, &state.folder, document)?;
+            fields.document_hash = placed.as_ref().map(|(hash, _)| hash.clone());
         }
         money::update_commitment(&state.conn, id, &fields)?;
         copy.keep();
+        if let Some((hash, copied)) = &placed {
+            file_it(
+                &state.conn,
+                hash,
+                copied.as_ref(),
+                "quote",
+                &today_text(),
+                &account::display_name(),
+                &DocumentTarget {
+                    target_kind: "commitment".into(),
+                    target_id: id.to_string(),
+                },
+            );
+        }
         repo::snapshot(&state.conn)
     })
 }
@@ -408,8 +454,8 @@ pub fn payment_add_with(
     let receipt = image(draft.receipt_path.as_deref(), draft.receipt_hash.as_deref())?;
     with_work(open, |state| {
         let mut copy = CopyIn::new(&state.folder);
-        let receipt_hash = place(&mut copy, &state.folder, &receipt)?;
-        payments::append(
+        let placed = place(&mut copy, &state.folder, &receipt)?;
+        let seq = payments::append(
             &state.conn,
             &NewPayment {
                 day: day.clone(),
@@ -418,11 +464,27 @@ pub fn payment_add_with(
                 commitment_id: draft.commitment_id.clone(),
                 amount_cents,
                 what_for: what_for.clone(),
-                receipt_hash,
+                receipt_hash: placed.as_ref().map(|(hash, _)| hash.clone()),
                 author_name: author.to_string(),
             },
         )?;
         copy.keep();
+        // The receipt is a document of the work, linked to the payment by its
+        // seq (F7).
+        if let Some((hash, copied)) = &placed {
+            file_it(
+                &state.conn,
+                hash,
+                copied.as_ref(),
+                "receipt",
+                &today.format("%Y-%m-%d").to_string(),
+                author,
+                &DocumentTarget {
+                    target_kind: "payment".into(),
+                    target_id: seq.to_string(),
+                },
+            );
+        }
         repo::snapshot(&state.conn)
     })
 }
@@ -452,7 +514,7 @@ mod tests {
     use crate::commands::work::work_close_with;
     use crate::db::lock;
     use crate::db::testing::Scratch;
-    use crate::files::photos::tests::{hostile_corpus, png};
+    use crate::files::intake::tests::{hostile_corpus, png};
 
     const AUTHOR: &str = "A. Owner (synthetic)";
 
@@ -661,7 +723,7 @@ mod tests {
             AUTHOR,
         )
         .unwrap();
-        let hash = photos::sha256_hex(&receipt_bytes);
+        let hash = intake::sha256_hex(&receipt_bytes);
         assert_eq!(
             plan.payments[0].receipt_hash.as_deref(),
             Some(hash.as_str())

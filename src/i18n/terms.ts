@@ -53,6 +53,8 @@ export const TERM_KEYS = [
   'ledger',
   'commitment',
   'trade',
+  'document',
+  'entry',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];

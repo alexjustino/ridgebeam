@@ -4,7 +4,8 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { LIMITS } from '@/data/commands';
 import { useSetActivityRooms, useUpdateActivity } from '@/data/queries';
 import type { Direction } from '@/domain/ordering';
-import type { Activity, Person, Room } from '@/domain/plan';
+import type { Activity, Person, Room, WorkSnapshot } from '@/domain/plan';
+import { DocumentsCount } from '@/features/documents/DocumentsCount';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Button } from '@/ui/Button';
@@ -45,6 +46,7 @@ export function ActivityRow({
   onMove,
   onRemove,
   children,
+  snapshot,
 }: {
   activity: Activity;
   number: string | null;
@@ -58,6 +60,8 @@ export function ActivityRow({
   onRemove: () => void;
   /** What follows the row's own fields: its links (F2). */
   children?: ReactNode;
+  /** The plan, for the row's document count. */
+  snapshot: WorkSnapshot;
 }) {
   const { t, number: formatNumber } = useI18n();
   const term = useTerms();
@@ -234,6 +238,12 @@ export function ActivityRow({
           ))}
         </Select>
         <span className="flex items-center gap-0.5">
+          <DocumentsCount
+            snapshot={snapshot}
+            target={{ targetKind: 'activity', targetId: activity.id }}
+            name={activity.name}
+            testId="activity-documents-count"
+          />
           <IconButton
             data-testid="activity-up"
             icon={<ArrowUp20Regular />}

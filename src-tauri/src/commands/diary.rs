@@ -7,7 +7,7 @@
 //! corrects and restating the day.
 //!
 //! An entry is written whole or not at all. Its photos are copied into the
-//! work folder first, under the caps (`files::photos`); a photo refused is the
+//! work folder first, under the caps (`files::intake`); a photo refused is the
 //! entry refused, with the sentence naming the file, and every file already
 //! copied for it is removed. Then the entry and its rows are one transaction.
 //!
@@ -27,11 +27,14 @@ use std::path::PathBuf;
 use chrono::NaiveDate;
 use tauri::State;
 
+use crate::commands::documents::file_it;
 use crate::commands::work::with_work;
-use crate::contract::{ChainReport, DiaryEntry, DiaryRange, DoneLine, EntryDraft, Photo};
+use crate::contract::{
+    ChainReport, DiaryEntry, DiaryRange, DocumentTarget, DoneLine, EntryDraft, Photo,
+};
 use crate::db::diary::{self, NewEntry};
 use crate::error::{Error, Result};
-use crate::files::photos::{self, CopyIn, NOT_A_PHOTO};
+use crate::files::intake::{self, Accept, CopyIn, NOT_A_PHOTO};
 use crate::folder::OpenWork;
 use crate::os::account;
 use crate::validate;
@@ -105,7 +108,7 @@ pub fn diary_verify(open: State<'_, OpenWork>) -> Result<ChainReport> {
 #[tauri::command(rename_all = "snake_case")]
 pub fn photo_thumbnail(open: State<'_, OpenWork>, hash: String) -> Result<String> {
     with_work(&open, |state| {
-        photos::thumbnail_data_url(&state.folder, &hash)
+        intake::thumbnail_data_url(&state.folder, &hash)
     })
 }
 
@@ -118,7 +121,7 @@ pub fn photo_thumbnail(open: State<'_, OpenWork>, hash: String) -> Result<String
 /// work command.
 #[tauri::command(rename_all = "snake_case")]
 pub fn photo_open(open: State<'_, OpenWork>, hash: String) -> Result<()> {
-    with_work(&open, |state| photos::open(&state.folder, &hash))
+    with_work(&open, |state| intake::open(&state.folder, &hash))
 }
 
 /// A draft, checked: the entry as it will be written (without its photos), the
@@ -148,7 +151,7 @@ pub fn diary_entry_add_with(
         let mut seen: HashSet<String> = HashSet::new();
         for hash in &hashes {
             let photo = diary::photo_by_hash(&state.conn, hash)?
-                .filter(|_| photos::original(&state.folder, hash).is_some())
+                .filter(|_| intake::original(&state.folder, hash).is_some())
                 .ok_or_else(|| Error::InvalidInput(NOT_A_PHOTO.into()))?;
             if seen.insert(photo.file_hash.clone()) {
                 attached.push(photo);
@@ -157,8 +160,10 @@ pub fn diary_entry_add_with(
 
         // Dropped without `keep`, the copy-in removes every file it wrote.
         let mut copy = CopyIn::new(&state.folder);
+        let mut brought: Vec<intake::Copied> = Vec::new();
         for path in &paths {
-            let copied = copy.copy(path)?;
+            let copied = copy.copy(path, Accept::Images)?;
+            brought.push(copied.clone());
             if seen.insert(copied.hash.clone()) {
                 attached.push(Photo {
                     file_hash: copied.hash,
@@ -174,6 +179,24 @@ pub fn diary_entry_add_with(
         entry.photos = attached;
         let seq = diary::append(&state.conn, &entry)?;
         copy.keep();
+        // Every photo of the entry is a document of the work, linked to it (F7).
+        let target = DocumentTarget {
+            target_kind: "entry".into(),
+            target_id: seq.to_string(),
+        };
+        let added_on = today.format("%Y-%m-%d").to_string();
+        for photo in &entry.photos {
+            let copied = brought.iter().find(|c| c.hash == photo.file_hash);
+            file_it(
+                &state.conn,
+                &photo.file_hash,
+                copied,
+                "photo",
+                &added_on,
+                author,
+                &target,
+            );
+        }
         diary::get(&state.conn, seq)?.ok_or(Error::Database(rusqlite::Error::QueryReturnedNoRows))
     })
 }
@@ -310,7 +333,7 @@ fn check(draft: &EntryDraft, today: NaiveDate, author: &str) -> Result<Checked> 
         paths.push(path);
     }
     for hash in &draft.photo_hashes {
-        if !photos::is_hash(hash) {
+        if !intake::is_hash(hash) {
             return Err(invalid(NOT_A_PHOTO));
         }
     }
@@ -357,7 +380,7 @@ mod tests {
     use crate::commands::work::work_close_with;
     use crate::db::lock;
     use crate::db::testing::Scratch;
-    use crate::files::photos::tests::{hostile_corpus, png};
+    use crate::files::intake::tests::{hostile_corpus, png};
 
     const AUTHOR: &str = "Ana Souza (synthetic)";
 
@@ -669,7 +692,7 @@ mod tests {
         let path = source.path().join("wall.png");
         let bytes = png(640, 480);
         std::fs::write(&path, &bytes).unwrap();
-        let hash = photos::sha256_hex(&bytes);
+        let hash = intake::sha256_hex(&bytes);
 
         let mut with_photo = draft("2026-10-08");
         with_photo.photo_paths = vec![path.to_string_lossy().into_owned()];
@@ -692,7 +715,7 @@ mod tests {
         assert!(folder.join(format!("documents/{hash}.png")).is_file());
         assert!(folder.join(format!("thumbnails/{hash}.jpg")).is_file());
         let url = with_work(&open, |state| {
-            photos::thumbnail_data_url(&state.folder, &hash)
+            intake::thumbnail_data_url(&state.folder, &hash)
         })
         .unwrap();
         assert!(url.starts_with("data:image/jpeg;base64,"));

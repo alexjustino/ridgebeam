@@ -41,6 +41,7 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     costLines: [],
     commitments: [],
     payments: [],
+    documents: [],
     ...parts,
   };
 }
@@ -64,7 +65,16 @@ const BATHROOM: Stage = {
   startedAt: null,
   closedAt: null,
 };
-const TILER: Person = { id: 'tiler', name: 'Sample tiler', trade: null };
+const TILER: Person = {
+  id: 'tiler',
+  name: 'Sample tiler',
+  trade: null,
+  phone: null,
+  email: null,
+  note: null,
+  availability: null,
+  stageIds: [],
+};
 
 const activity = (
   id: string,

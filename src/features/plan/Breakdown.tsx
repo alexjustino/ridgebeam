@@ -32,6 +32,7 @@ import {
 } from '@/domain/plan';
 import { schedule } from '@/domain/schedule';
 import { MakeDecisionDialog } from '@/features/decisions/MakeDecisionDialog';
+import { DocumentsCount } from '@/features/documents/DocumentsCount';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Card } from '@/ui/Card';
@@ -177,6 +178,14 @@ export function Breakdown({
                         {t('stage.closedNote', { day: day(stage.closedAt.slice(0, 10)) })}
                       </p>
                     )}
+                    <div className="-mt-1 mb-1 flex justify-end">
+                      <DocumentsCount
+                        snapshot={snapshot}
+                        target={{ targetKind: 'stage', targetId: stage.id }}
+                        name={stage.name}
+                        testId="stage-documents-count"
+                      />
+                    </div>
                     <fieldset disabled={closed} className="m-0 min-w-0 border-0 p-0">
                       <StageHeader
                         stage={stage}
@@ -288,6 +297,7 @@ export function Breakdown({
                                 activity={activity}
                                 number={numbers.get(activity.id) ?? null}
                                 people={snapshot.people}
+                                snapshot={snapshot}
                                 rooms={rooms}
                                 outcome={outcome}
                                 focus={focusRow === activity.id}

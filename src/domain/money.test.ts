@@ -77,7 +77,16 @@ const payment = (
  * 1 200.00 on the activity and Labour 800.00 on the stage; the tiler's quote 1 500.00; paid
  * 1 000.00, then 700.00, then the 700.00 reversed.
  */
-const TILER = { id: 'tiler', name: 'A. Tiler', trade: 'tiler' };
+const TILER = {
+  id: 'tiler',
+  name: 'A. Tiler',
+  trade: 'tiler',
+  phone: null,
+  email: null,
+  note: null,
+  availability: null,
+  stageIds: [],
+};
 const BASE = snapshot({
   people: [TILER],
   stages: [stage('tiling', 1, 'Tiling')],
@@ -257,8 +266,26 @@ describe('money by trade', () => {
       ),
       people: [
         TILER,
-        { id: 'helper', name: 'Helper', trade: '  ' },
-        { id: 'sparky', name: 'Sparky', trade: 'electrician' },
+        {
+          id: 'helper',
+          name: 'Helper',
+          trade: '  ',
+          phone: null,
+          email: null,
+          note: null,
+          availability: null,
+          stageIds: [],
+        },
+        {
+          id: 'sparky',
+          name: 'Sparky',
+          trade: 'electrician',
+          phone: null,
+          email: null,
+          note: null,
+          availability: null,
+          stageIds: [],
+        },
       ],
     };
     const rows = moneyByTrade(plan);
