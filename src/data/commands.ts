@@ -170,6 +170,7 @@ export const LIMITS = {
   whatFor: 200,
   durationDays: 3650,
   hoursPerDay: 24,
+  replanReason: 2000,
 } as const;
 
 // ── The application ──────────────────────────────────────────────────────────
@@ -366,6 +367,16 @@ export function baselineTake(
   finishDate: string | null,
 ): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('baseline_take', { rows, finish_date: finishDate });
+}
+
+/**
+ * Open a replanning: say why the approved plan must change (F8, ADR-027). Until one is open, the host
+ * refuses every edit to what a baseline records with `plan_approved`; once it is, the plan may be
+ * edited, and the replanning is closed only by taking the next baseline, which keeps this reason.
+ * The host refuses a blank reason, a plan not yet approved, and a second open replanning.
+ */
+export function replanOpen(reason: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('replan_open', { reason });
 }
 
 // ── Decisions (F3) ───────────────────────────────────────────────────────────

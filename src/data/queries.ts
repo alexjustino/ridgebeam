@@ -29,6 +29,7 @@ import {
   activityMove,
   activitySetRooms,
   baselineTake,
+  replanOpen,
   decisionAdd,
   decisionMake,
   decisionMove,
@@ -371,6 +372,10 @@ export function useTakeBaseline() {
     ({ rows, finishDate }: { rows: readonly BaselineRowDraft[]; finishDate: string | null }) =>
       baselineTake(rows, finishDate),
   );
+}
+
+export function useReplanOpen() {
+  return useWorkCommand((reason: string) => replanOpen(reason));
 }
 
 export function useAddDecision() {
