@@ -18,10 +18,9 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slice F0, the first.** The product was named on 2026-09-24
-> ([ADR-001](docs/architecture/ADR.md#adr-001)). F0 — the foundation, the shell, one stage and
-> readiness — runs from source; nothing after it exists yet, and there is no published
-> installer. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for
+> **Status: pre-release — slices F0 to F8.** The product was named on 2026-09-24
+> ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F8 — from the foundation to
+> replanning — run from source; there is no published installer yet. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for
 > every slice; [What exists today](#what-exists-today) says exactly how far the code has got.
 
 ## Why
@@ -71,7 +70,7 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F7**, and nothing after them:
+Slices **F0** to **F8**, and nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -135,6 +134,17 @@ Slices **F0** to **F7**, and nothing after them:
   attached to the work, a stage, an activity, a decision, a diary entry, a commitment or a
   payment, from one library. A hostile file corpus is refused in `cargo test`, and Diagnostics
   re-hashes every file and lists any it cannot account for, without deleting them.
+- **Replanning and baselines (F8).** An approved plan is **locked until somebody says why**:
+  changing a stage, an activity, a duration, a link, the calendar, the start date or a cost line
+  is refused until a replanning is opened with a reason, and the Plan says so with a
+  **Replan…** button beside the sentence. The diary, answers, payments and every other fact stay
+  free. The replanning ends only in the next baseline, which keeps its reason — there is no
+  silent way back. Baselines now record the stages and the money too, and **any two compare**:
+  the finish moved, the dates moved, durations changed, activities and stages added or removed,
+  the money changed and the reasons in between, each count opening onto its rows. A **what-if**
+  on the Schedule tries other durations and lags in memory and shows the finish it would give —
+  and is never saved; to keep it, replan with a reason. The dashboard says how many times the
+  plan was replanned, and whether a replanning is open.
 - **Readiness.** A figure that says how much of what the plan must know it does know, from seven
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -149,19 +159,19 @@ Slices **F0** to **F7**, and nothing after them:
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), twenty-six binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), twenty-eight binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **replanning** — a reason asked when an approved plan is edited,
-later baselines and the comparison of any two (F8); **templates** and the library, from which
-checks will come (F9); **reports**, print and the diary's export (F10); **backup** (F11).
+Not yet, and not pretended: **templates** and the library, from which checks will come (F9);
+**reports**, print and the diary's export (F10); **backup** (F11).
 
 Not in 1.0, by decision rather than by schedule: files other than images and PDFs (no Word,
 spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a
-work; a decision tied to one activity rather than its whole stage.
+work; a decision tied to one activity rather than its whole stage; a replanning abandoned without
+a baseline; a what-if applied to the plan with one button.
 Each arrives with its slice, in the order the [specification](docs/SPEC.md) §7 lists.
 
 ## Run it from source

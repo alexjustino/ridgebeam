@@ -176,37 +176,58 @@ domain expands it, where a stage stands for all its activities; SQLite cannot se
 Before scheduling, the domain expands every stage end into the stage's activities; a dependency
 onto a stage with no activities joins nothing and is reported as inert (ADR-015).
 
-### `baseline` and `baseline_activity` — insert-only
+### `baseline`, `baseline_activity` and `baseline_stage` — insert-only
 
 A baseline is the plan as it was approved: each activity's name, stage, duration, start and
-finish at that moment, and the finish date of the work (F2). Approving the plan takes baseline
-1 and sets `work.approved_at`; slice F8 takes the next ones, each with its reason. The slip is
-measured against the latest. These are the first tables of requirement one: **no row is ever
-changed or removed** (ADR-016).
+finish at that moment, each stage, the money planned, and the finish date of the work (F2, F8).
+Approving the plan takes baseline 1 and sets `work.approved_at`; every later baseline closes a
+replanning and carries its reason (F8, ADR-027). The slip is measured against the latest; any
+two compare (ADR-028). These are the first tables of requirement one: **no row is ever changed
+or removed** (ADR-016).
 
-| `baseline`    | Type    | Meaning                                                                                               |
-| ------------- | ------- | ----------------------------------------------------------------------------------------------------- |
-| `id`          | TEXT    | UUID v7                                                                                               |
-| `number`      | INTEGER | 1, 2, 3 … unique; the host takes one more than the last                                               |
-| `taken_at`    | TEXT    | UTC                                                                                                   |
-| `reason`      | TEXT    | why the plan changed, up to 2 000 characters; `NULL` for baseline 1 and, until F8, for every baseline |
-| `finish_date` | TEXT    | the work's finish date on that day, a real ISO date, or `NULL` when nothing was scheduled             |
+| `baseline`      | Type    | Meaning                                                                                                                         |
+| --------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `id`            | TEXT    | UUID v7                                                                                                                         |
+| `number`        | INTEGER | 1, 2, 3 … unique; the host takes one more than the last                                                                         |
+| `taken_at`      | TEXT    | UTC                                                                                                                             |
+| `reason`        | TEXT    | why the plan changed, up to 2 000 characters — the reason of the replanning it closed; `NULL` for baseline 1, the approval      |
+| `finish_date`   | TEXT    | the work's finish date on that day, a real ISO date, or `NULL` when nothing was scheduled                                       |
+| `planned_cents` | INTEGER | the work's planned money then — every cost line, in cents, `>= 0`; `NULL` for a baseline taken before F8: **not recorded** (F8) |
 
-| `baseline_activity` | Type    | Meaning                                                                                                                   |
-| ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `baseline_id`       | TEXT    | `REFERENCES baseline`                                                                                                     |
-| `activity_id`       | TEXT    | the activity's id — **not** a foreign key, so an activity removed after approval stays in the baseline it was approved in |
-| `position`          | INTEGER | the row's order in the breakdown when the baseline was taken                                                              |
-| `name`              | TEXT    | the activity's name then, copied                                                                                          |
-| `stage_name`        | TEXT    | its stage's name then, copied                                                                                             |
-| `duration_days`     | INTEGER | 1 to 3650, or `NULL` if it had none                                                                                       |
-| `start`, `finish`   | TEXT    | ISO dates, both or neither, start not after finish                                                                        |
+| `baseline_activity` | Type    | Meaning                                                                                                                            |
+| ------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `baseline_id`       | TEXT    | `REFERENCES baseline`                                                                                                              |
+| `activity_id`       | TEXT    | the activity's id — **not** a foreign key, so an activity removed after approval stays in the baseline it was approved in          |
+| `position`          | INTEGER | the row's order in the breakdown when the baseline was taken                                                                       |
+| `name`              | TEXT    | the activity's name then, copied                                                                                                   |
+| `stage_name`        | TEXT    | its stage's name then, copied                                                                                                      |
+| `duration_days`     | INTEGER | 1 to 3650, or `NULL` if it had none                                                                                                |
+| `start`, `finish`   | TEXT    | ISO dates, both or neither, start not after finish                                                                                 |
+| `planned_cents`     | INTEGER | the money planned on the activity then — the cost lines that name it, in cents, `>= 0`; `NULL` for a baseline taken before F8 (F8) |
 
 The primary key is `(baseline_id, activity_id)`. The host checks that a baseline's rows name
 every activity of the work exactly once and nothing else, and writes the baseline and its rows
 in one transaction.
 
-**How the schema refuses an edit.** On both tables, `BEFORE UPDATE` and `BEFORE DELETE`
+| `baseline_stage` | Type    | Meaning                                                                                                            |
+| ---------------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `baseline_id`    | TEXT    | `REFERENCES baseline`                                                                                              |
+| `stage_id`       | TEXT    | the stage's id — **not** a foreign key, so a stage removed after approval stays in the baseline it was approved in |
+| `position`       | INTEGER | the stage's order then, from 1, unique within the baseline                                                         |
+| `name`           | TEXT    | the stage's name then, copied, 1–120 characters                                                                    |
+| `planned_cents`  | INTEGER | the money planned on the stage then — its own cost lines and its activities', in cents, `>= 0`; `NULL` before F8   |
+
+The primary key is `(baseline_id, stage_id)`, one row per stage the plan held, a stage with no
+activity included (F8). Two baselines compare their stages **by id**, so a stage renamed between
+them is the same stage, not one removed and one added.
+
+**Money is recorded from F8 on, and never invented for before.** The host reads the three
+amounts from the cost lines inside the baseline's transaction, as it reads the names — the draft
+the interface sends carries only the placements the domain computed — and writes 0 where there
+is no cost line. A baseline taken before migration 009 recorded no money: its three amounts are
+`NULL`, which means _not recorded then_, and a comparison that reaches one says so, never 0.
+
+**How the schema refuses an edit.** On all three tables, `BEFORE UPDATE` and `BEFORE DELETE`
 triggers refuse every change and every removal. `INSERT OR REPLACE` removes the row it replaces
 without firing a delete trigger when `recursive_triggers` is off — SQLite's default — so each
 table also has a `BEFORE INSERT` trigger that refuses an insert whose key is already there; it
@@ -216,7 +237,37 @@ Rows may be added only to the latest baseline, so a past one cannot gain a row i
 when it was approved. And `work.approved_at`, once set, cannot change. Every one of these
 triggers raises the same message, `baseline: append-only`, and the host never issues a statement
 that would reach one: the Rust module that writes baselines holds no `UPDATE` or `DELETE`, by
-rule.
+rule. Adding a column is not an `UPDATE`: the triggers of migration 003 cover the money columns
+migration 009 added.
+
+### `replanning` — written once (F8)
+
+An approved plan is locked until somebody says why it changes (ADR-027). The "why" is a row: a
+replanning is opened with a reason, and closed only by taking the next baseline, which copies
+the reason into `baseline.reason` and writes its own number here, in one transaction. There is
+no abandon and no discard. While the plan is approved and no replanning is open, the host
+refuses every command that changes what a baseline records with `plan_approved`.
+
+| `replanning`      | Type    | Meaning                                                                                          |
+| ----------------- | ------- | ------------------------------------------------------------------------------------------------ |
+| `id`              | TEXT    | UUID v7                                                                                          |
+| `reason`          | TEXT    | why the plan changes, 1–2 000 characters, not blank                                              |
+| `opened_at`       | TEXT    | UTC                                                                                              |
+| `author_name`     | TEXT    | the display name of the Windows account that opened it                                           |
+| `closed_at`       | TEXT    | UTC, when the baseline that closed it was taken; `NULL` while it is open                         |
+| `baseline_number` | INTEGER | `REFERENCES baseline (number)` — the baseline that closed it, 2 or more; `NULL` while it is open |
+
+A `CHECK` keeps `closed_at` and `baseline_number` both set or both empty. **At most one is
+open**: a partial unique index over the open rows, on the expression `closed_at IS NULL` —
+SQLite counts `NULL`s as distinct in a unique index, so an index on `closed_at` itself would let
+a second open row in.
+
+**Written once, not append-only.** Closing a replanning writes its `closed_at` and
+`baseline_number`, so the table cannot refuse every `UPDATE` as a baseline does. Triggers refuse
+the rest, each with `replanning: written once`: a removal, an insert whose id is already there,
+and any update of a closed row or of the reason, the author or the moment it was opened — the
+one change a replanning takes is its closing. The record that matters, the reason, is the
+baseline's copy, which is insert-only.
 
 ### `decision`
 
@@ -561,16 +612,17 @@ Numbered SQL files compiled into the binary, forward-only, applied in a transact
 moves `work.schema_version`. A release that adds a migration says so in the changelog and is
 covered by a round-trip test that opens a work at version N-1 and migrates it without loss.
 
-| Migration                            | Slice | Adds                                                                                                                                              |
-| ------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `001_init.sql`                       | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`                                                                                      |
-| `002_rooms_and_quantities.sql`       | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit`                                                                                  |
-| `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers                                              |
-| `004_decisions.sql`                  | F3    | `decision`                                                                                                                                        |
-| `005_diary.sql`                      | F4    | `diary_entry`, `diary_done`, `diary_present`, `diary_photo`, with their insert-only and chain triggers                                            |
-| `006_checks.sql`                     | F5    | `stage.started_at` and `stage.closed_at`; `stage_check`; `check_answer` with its insert-only triggers                                             |
-| `007_money.sql`                      | F6    | `person.trade`; `cost_line`; `commitment`; `payment` with its insert-only and reversal triggers                                                   |
-| `008_documents.sql`                  | F7    | `person.phone`, `.email`, `.note`, `.availability`; `person_stage`; `document`; `document_link`; the backfill of every file already in the folder |
+| Migration                            | Slice | Adds                                                                                                                                                                                                         |
+| ------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `001_init.sql`                       | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`                                                                                                                                                 |
+| `002_rooms_and_quantities.sql`       | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit`                                                                                                                                             |
+| `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers                                                                                                         |
+| `004_decisions.sql`                  | F3    | `decision`                                                                                                                                                                                                   |
+| `005_diary.sql`                      | F4    | `diary_entry`, `diary_done`, `diary_present`, `diary_photo`, with their insert-only and chain triggers                                                                                                       |
+| `006_checks.sql`                     | F5    | `stage.started_at` and `stage.closed_at`; `stage_check`; `check_answer` with its insert-only triggers                                                                                                        |
+| `007_money.sql`                      | F6    | `person.trade`; `cost_line`; `commitment`; `payment` with its insert-only and reversal triggers                                                                                                              |
+| `008_documents.sql`                  | F7    | `person.phone`, `.email`, `.note`, `.availability`; `person_stage`; `document`; `document_link`; the backfill of every file already in the folder                                                            |
+| `009_replanning.sql`                 | F8    | `replanning` with its written-once triggers; `baseline.planned_cents` and `baseline_activity.planned_cents`; `baseline_stage` with its insert-only triggers; the backfill of every earlier baseline's stages |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its
 stages and activities migrates to schema 2 without loss, a work at schema 2 with rooms and
@@ -578,7 +630,9 @@ quantities migrates to schema 3 the same way, a work at schema 3 with dependenci
 baseline migrates to schema 4, a work at schema 4 with decisions migrates to schema 5, a work at schema 5 with diary entries
 migrates to schema 6 with its chain still verifying, and a work at schema 6 with checks and
 answers migrates to schema 7 the same way, and a work at schema 7 with photos, receipts and
-quotes migrates to schema 8 with a document for each and its chain still verifying.
+quotes migrates to schema 8 with a document for each and its chain still verifying, and a work
+at schema 8 with two baselines migrates to schema 9 with their stages rebuilt, their money not
+recorded and its chain still verifying.
 
 **Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
 where it came from, one row per hash in this order of precedence: a diary photo (kind `photo`,
@@ -590,10 +644,33 @@ from an earlier one. The id of a backfilled row is the first 32 hex digits of it
 earlier row recorded a media type, and only diary photos recorded a size — and the host
 completes `media_type` and `bytes` from the files when the work is opened; a row whose file is
 missing stays incomplete, and `documents_verify` lists it. That is the only case in which either
-is `NULL`. A backfilled quote's author, which no earlier row recorded, reads "Unknown account". The migrations live in `src-tauri/work_migrations/`.
+is `NULL`. A backfilled quote's author, which no earlier row recorded, reads "Unknown account".
+
+**Migration 009's backfill.** A baseline taken before F8 recorded its activities' stage names and
+nothing else about its stages. Its `baseline_stage` rows are rebuilt from them, one per stage,
+numbered in the order they first appear in the breakdown. The id is the stage the activity still
+belongs to, when the activity is still in the plan — an activity never moves between stages, so
+that is the stage it was in. When none of a stage name's activities is left, the id is derived
+from the name: four polynomial hashes of its code points, each modulo a prime just under 2³²,
+written in the 8-4-4-4-12 form — the same name gives the same id in every baseline, so two old
+baselines still compare that stage as one. A stage that had no activity when an old baseline was
+taken left no trace in it, and is not invented. The money is `NULL` everywhere: not recorded
+then, and never back-filled from today's cost lines, which are not what the plan held when it
+was approved. The rows are written before the insert-only triggers on `baseline_stage` exist,
+because from then on they refuse a row added to a past baseline.
+
+The migrations live in `src-tauri/work_migrations/`.
+
+## A comparison and a what-if are computed, not stored
+
+Nothing in the schema records the comparison of two baselines: the domain computes it from their
+rows every time (`compareBaselines`, ADR-028) — dates moved, durations changed, activities and
+stages added and removed by id, the money, and the reasons of the baselines between them. A
+what-if is never written at all: the domain applies its durations and lags to a copy of the
+snapshot in memory (`withOverrides`), and **Clear**, leaving the Schedule or a restart forgets
+it.
 
 ## Not yet in the schema
 
-Replanning (F8) works on the baseline tables F2 created — their `reason` column is empty until
-then — and adds whatever the comparison of two baselines needs. Templates are files in the
-repository, not rows (F9). A backup is a file beside the work, not a table (F11).
+Templates are files in the repository, not rows (F9). A backup is a file beside the work, not a
+table (F11).
