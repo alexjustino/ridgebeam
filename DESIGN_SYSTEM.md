@@ -465,6 +465,26 @@ breaks one is not merged.
   another answer adds to the history rather than replacing it; the screen shows the latest.
   Starting a stage cannot be undone, and its confirmation says so in words before the button is
   pressed.
+- **A range is shown as a range until a person picks.** An activity that came from a template with
+  3 to 5 working days has **no duration**, and every screen says exactly that: the breakdown's
+  duration field stays empty with the range as its hint and placeholder — never pre-filled with
+  either end, never the middle — readiness's row reads that it has a range and no duration yet, and
+  the Gantt does not draw a bar it would have to invent. The only ways a range becomes a number are a person
+  typing one, or pressing **Use the upper end of each range** or **Use the lower end** — two labelled
+  buttons under a sentence that counts the activities with a range and no duration; they write only
+  those, and announce what they did. No screen averages, rounds or picks an end on its own; a
+  number the product chose would read as the template's promise (ADR-029).
+- **A template is labelled a starting point, never a quote.** Wherever a template is offered — the
+  Start screen's picker, **Start from a template…** on an empty breakdown — its preview says what
+  it holds in counted words (stages, activities, decisions, checks) and says, in a sentence that is
+  always there, that it is _a starting point, with ranges — not a quote_. A work started from one
+  says where its plan came from — "Started from: Bathroom renovation, v1" — as provenance, never as
+  a link that would suggest the template still governs it. A cost line a template brought is a
+  label with **no amount**: it reads _not priced yet_ in words, in the money figures and on the
+  line itself, never 0, never a dash and never an empty cell that could be mistaken for zero, and
+  the planned figure says how many lines it did not count. A template that cannot be applied is a
+  list of its problems in sentences, each saying where in the file it is — never "invalid file".
+
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
   `data-destination="<id>"` with the same id the router uses — `dashboard`, `plan`, `schedule`,

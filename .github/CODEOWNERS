@@ -3,3 +3,7 @@
 # CONTRIBUTING has said so since the first commit; this file, and the branch
 # protection beside it, are what make it true rather than aspirational.
 * @alexjustino
+
+# The template library is data people take as advice: a maintainer reviews every
+# template before it merges (SPEC R10, ADR-029, CONTRIBUTING "The template library").
+/templates/ @alexjustino
