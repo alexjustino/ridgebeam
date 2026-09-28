@@ -18,14 +18,22 @@
 //!   nobody responsible); `stage_move` and `activity_move`, one step up or
 //!   down, a no-op at the edge, positions 1..n after; `activity_update` takes a
 //!   quantity and a unit. Rooms are in `commands::rooms`.
+//! - F8: once the plan is approved, what a baseline records is locked until a
+//!   replanning is open (`plan_approved`): `calendar_set`, `stage_add`,
+//!   `stage_rename`, `stage_remove`, `stage_move`, `activity_add`,
+//!   `activity_remove`, `activity_move`, and `activity_update` when it gives
+//!   another name or another duration. People, an activity's responsible,
+//!   rooms and quantity stay free.
 
 use std::collections::BTreeSet;
 
+use rusqlite::OptionalExtension;
 use tauri::State;
 
 use crate::commands::work::change_work;
 use crate::contract::{ActivityPatch, CalendarDraft, Holiday, PersonPatch, WorkSnapshot};
 use crate::db::order::{ACTIVITIES, STAGES};
+use crate::db::replanning::refuse_if_plan_locked;
 use crate::db::work::{self as repo, ActivityChange};
 use crate::error::{Error, Result};
 use crate::folder::OpenWork;
@@ -39,6 +47,9 @@ use crate::validate;
 /// hours, a date that does not exist, or the same day twice; and the errors of
 /// every work command ([`Error::NoWorkOpen`], [`Error::WorkMoved`],
 /// [`Error::Database`]).
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn calendar_set(
     open: State<'_, OpenWork>,
@@ -65,6 +76,9 @@ pub fn person_add(open: State<'_, OpenWork>, name: String) -> Result<WorkSnapsho
 ///
 /// [`Error::InvalidInput`] for an empty or long name, and the errors of every
 /// work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn stage_add(open: State<'_, OpenWork>, name: String) -> Result<WorkSnapshot> {
     stage_add_with(&open, &name)
@@ -76,6 +90,9 @@ pub fn stage_add(open: State<'_, OpenWork>, name: String) -> Result<WorkSnapshot
 ///
 /// [`Error::InvalidInput`] for a name that does not fit or a stage not in this
 /// work, and the errors of every work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn stage_rename(open: State<'_, OpenWork>, id: String, name: String) -> Result<WorkSnapshot> {
     stage_rename_with(&open, &id, &name)
@@ -87,6 +104,9 @@ pub fn stage_rename(open: State<'_, OpenWork>, id: String, name: String) -> Resu
 ///
 /// [`Error::InvalidInput`] for a stage not in this work, and the errors of
 /// every work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn stage_remove(open: State<'_, OpenWork>, id: String) -> Result<WorkSnapshot> {
     stage_remove_with(&open, &id)
@@ -99,6 +119,9 @@ pub fn stage_remove(open: State<'_, OpenWork>, id: String) -> Result<WorkSnapsho
 ///
 /// [`Error::InvalidInput`] for a name that does not fit or a stage not in this
 /// work, and the errors of every work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn activity_add(
     open: State<'_, OpenWork>,
@@ -115,6 +138,9 @@ pub fn activity_add(
 ///
 /// [`Error::InvalidInput`] for a value that does not fit, or an activity or a
 /// person not in this work; and the errors of every work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open, and the patch gives the activity another name or another duration.
 #[tauri::command(rename_all = "snake_case")]
 pub fn activity_update(
     open: State<'_, OpenWork>,
@@ -130,6 +156,9 @@ pub fn activity_update(
 ///
 /// [`Error::InvalidInput`] for an activity not in this work, and the errors of
 /// every work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn activity_remove(open: State<'_, OpenWork>, id: String) -> Result<WorkSnapshot> {
     activity_remove_with(&open, &id)
@@ -169,6 +198,9 @@ pub fn person_remove(open: State<'_, OpenWork>, id: String) -> Result<WorkSnapsh
 ///
 /// [`Error::InvalidInput`] for a direction that is neither or a stage not in
 /// this work, and the errors of every work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn stage_move(
     open: State<'_, OpenWork>,
@@ -185,6 +217,9 @@ pub fn stage_move(
 ///
 /// [`Error::InvalidInput`] for a direction that is neither or an activity not
 /// in this work, and the errors of every work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn activity_move(
     open: State<'_, OpenWork>,
@@ -220,7 +255,10 @@ pub fn calendar_set_with(
             })
         })
         .collect::<Result<Vec<_>>>()?;
-    change_work(open, |conn| repo::set_calendar(conn, &calendar, &holidays))
+    change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
+        repo::set_calendar(conn, &calendar, &holidays)
+    })
 }
 
 /// What [`person_add`] does once the state is in hand.
@@ -232,24 +270,34 @@ pub fn person_add_with(open: &OpenWork, name: &str) -> Result<WorkSnapshot> {
 /// What [`stage_add`] does once the state is in hand.
 pub fn stage_add_with(open: &OpenWork, name: &str) -> Result<WorkSnapshot> {
     let name = validate::name("stage", name)?;
-    change_work(open, |conn| repo::add_stage(conn, &name).map(|_| ()))
+    change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
+        repo::add_stage(conn, &name).map(|_| ())
+    })
 }
 
 /// What [`stage_rename`] does once the state is in hand.
 pub fn stage_rename_with(open: &OpenWork, id: &str, name: &str) -> Result<WorkSnapshot> {
     let name = validate::name("stage", name)?;
-    change_work(open, |conn| repo::rename_stage(conn, id, &name))
+    change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
+        repo::rename_stage(conn, id, &name)
+    })
 }
 
 /// What [`stage_remove`] does once the state is in hand.
 pub fn stage_remove_with(open: &OpenWork, id: &str) -> Result<WorkSnapshot> {
-    change_work(open, |conn| repo::remove_stage(conn, id))
+    change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
+        repo::remove_stage(conn, id)
+    })
 }
 
 /// What [`activity_add`] does once the state is in hand.
 pub fn activity_add_with(open: &OpenWork, stage_id: &str, name: &str) -> Result<WorkSnapshot> {
     let name = validate::name("activity", name)?;
     change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
         repo::add_activity(conn, stage_id, &name).map(|_| ())
     })
 }
@@ -281,12 +329,46 @@ pub fn activity_update_with(
             .map(|unit| validate::unit(unit.as_deref()))
             .transpose()?,
     };
-    change_work(open, |conn| repo::update_activity(conn, id, &change))
+    change_work(open, |conn| {
+        // A baseline records an activity's name and duration; its responsible,
+        // rooms and quantity are not in one, and stay free after approval.
+        if changes_what_a_baseline_records(conn, id, &change)? {
+            refuse_if_plan_locked(conn)?;
+        }
+        repo::update_activity(conn, id, &change)
+    })
+}
+
+/// Whether `change` would give the activity another name or another duration.
+/// An activity not in this work is not refused here: the update says so.
+fn changes_what_a_baseline_records(
+    conn: &rusqlite::Connection,
+    id: &str,
+    change: &ActivityChange,
+) -> Result<bool> {
+    if change.name.is_none() && change.duration_days.is_none() {
+        return Ok(false);
+    }
+    let held: Option<(String, Option<i64>)> = conn
+        .query_row(
+            "SELECT name, duration_days FROM activity WHERE id = ?1",
+            [id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((name, duration_days)) = held else {
+        return Ok(false);
+    };
+    Ok(change.name.as_ref().is_some_and(|new| *new != name)
+        || change.duration_days.is_some_and(|new| new != duration_days))
 }
 
 /// What [`activity_remove`] does once the state is in hand.
 pub fn activity_remove_with(open: &OpenWork, id: &str) -> Result<WorkSnapshot> {
-    change_work(open, |conn| repo::remove_activity(conn, id))
+    change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
+        repo::remove_activity(conn, id)
+    })
 }
 
 /// What [`person_update`] does once the state is in hand.
@@ -354,13 +436,17 @@ pub fn person_remove_with(open: &OpenWork, id: &str) -> Result<WorkSnapshot> {
 /// What [`stage_move`] does once the state is in hand.
 pub fn stage_move_with(open: &OpenWork, id: &str, direction: &str) -> Result<WorkSnapshot> {
     let direction = validate::direction(direction)?;
-    change_work(open, |conn| STAGES.move_one(conn, id, direction))
+    change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
+        STAGES.move_one(conn, id, direction)
+    })
 }
 
 /// What [`activity_move`] does once the state is in hand.
 pub fn activity_move_with(open: &OpenWork, id: &str, direction: &str) -> Result<WorkSnapshot> {
     let direction = validate::direction(direction)?;
     change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
         // An activity of a closed stage does not move (F5).
         if crate::db::work::exists(conn, "SELECT 1 FROM activity WHERE id = ?1", id)? {
             repo::refuse_if_activity_closed(conn, id)?;

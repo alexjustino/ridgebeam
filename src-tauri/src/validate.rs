@@ -225,6 +225,41 @@ pub fn contact(what: &str, value: Option<&str>, max: usize) -> Result<Option<Str
     Ok(Some(value.to_string()))
 }
 
+/// The longest reason a replanning — and the baseline it ends in — keeps.
+pub const MAX_REPLAN_REASON_CHARS: usize = 2000;
+
+/// The sentence for a replanning asked for with no reason.
+pub const REPLAN_REASON_NEEDED: &str = "A replanning needs a reason: say why the plan changes.";
+
+/// Why an approved plan changes: trimmed, not blank, at most
+/// [`MAX_REPLAN_REASON_CHARS`] characters, no control characters but line
+/// breaks and tabs.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is blank, too long, or holds a control
+/// character.
+pub fn replan_reason(value: &str) -> Result<String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(invalid(REPLAN_REASON_NEEDED));
+    }
+    if value.chars().count() > MAX_REPLAN_REASON_CHARS {
+        return Err(invalid(format!(
+            "A reason is at most {MAX_REPLAN_REASON_CHARS} characters."
+        )));
+    }
+    if value
+        .chars()
+        .any(|c| c.is_control() && !matches!(c, '\n' | '\r' | '\t'))
+    {
+        return Err(invalid(
+            "A reason holds a control character that cannot be kept.",
+        ));
+    }
+    Ok(value.to_string())
+}
+
 /// An optional date: `null`, or a date written `YYYY-MM-DD` that exists.
 ///
 /// # Errors

@@ -26,6 +26,7 @@
 //! | `stage_gate_open`       | a start or close while the gate is held; the message names the items |
 //! | `stage_closed`          | a change to a closed stage; the message names the stage         |
 //! | `money_reversal`        | a reversal of a payment that cannot be reversed; the message says why |
+//! | `plan_approved`         | a change to an approved plan with no replanning open, or a later baseline without one |
 //!
 //! A broken diary chain is not an error: `diary_verify` answers with a report
 //! that says where the chain breaks and why.
@@ -129,6 +130,12 @@ pub enum Error {
     /// has already been reversed. The sentence says which.
     #[error("{0}")]
     MoneyReversal(String),
+
+    /// A change to what a baseline records while the plan is approved and no
+    /// replanning is open — or a baseline after the first taken without one.
+    /// The sentence says which, and the way out: replan with a reason.
+    #[error("{0}")]
+    PlanApproved(String),
 }
 
 /// The sentence for a folder with no `work.sqlite3` in it.
@@ -157,6 +164,7 @@ impl Error {
             Error::StageGateOpen(_) => "stage_gate_open",
             Error::StageClosed(_) => "stage_closed",
             Error::MoneyReversal(_) => "money_reversal",
+            Error::PlanApproved(_) => "plan_approved",
         }
     }
 }
@@ -237,6 +245,14 @@ mod tests {
                 Error::MoneyReversal("Payment #2 has already been reversed by #3.".into()),
                 "money_reversal",
             ),
+            (
+                Error::PlanApproved(crate::db::replanning::PLAN_APPROVED.into()),
+                "plan_approved",
+            ),
+            (
+                Error::PlanApproved(crate::db::replanning::REASON_NEEDED.into()),
+                "plan_approved",
+            ),
         ]
     }
 
@@ -260,9 +276,9 @@ mod tests {
         }
     }
 
-    /// The contract lists sixteen kinds (F2 added `dependency_cycle`; F4 the
+    /// The contract lists seventeen kinds (F2 added `dependency_cycle`; F4 the
     /// diary's two and `photo_refused`; F5 `stage_gate_open` and
-    /// `stage_closed`; F6 `money_reversal`). A variant that maps outside the list is a
+    /// `stage_closed`; F6 `money_reversal`; F8 `plan_approved`). A variant that maps outside the list is a
     /// kind the interface cannot translate.
     #[test]
     fn the_kinds_are_exactly_the_closed_list_the_interface_translates() {
@@ -282,6 +298,7 @@ mod tests {
                 "money_reversal",
                 "no_work_open",
                 "photo_refused",
+                "plan_approved",
                 "settings_key",
                 "stage_closed",
                 "stage_gate_open",

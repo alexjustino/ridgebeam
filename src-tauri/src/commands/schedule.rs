@@ -13,15 +13,21 @@
 //!   `invalid_input`; a loop over the expanded graph is `dependency_cycle`),
 //!   `dependency_update` (the lag), `dependency_remove`, `baseline_take` (the
 //!   next number; the first approves the plan).
+//! - F8: `replan_open` — an approved plan is locked until somebody says why;
+//!   the dependency commands are refused with `plan_approved` while it is;
+//!   `baseline_take` for any baseline after the first needs the open
+//!   replanning, copies its reason and closes it.
 
 use tauri::State;
 
 use crate::commands::work::change_work;
 use crate::contract::{BaselineRowDraft, Endpoint, WorkSnapshot};
 use crate::db::baselines::{self, Placement};
-use crate::db::dependencies;
+use crate::db::replanning::refuse_if_plan_locked;
+use crate::db::{dependencies, replanning};
 use crate::error::{Error, Result};
 use crate::folder::OpenWork;
+use crate::os::account;
 use crate::validate;
 
 /// Declare that `blocked` starts `lag_days` working days after `blocker`
@@ -34,6 +40,9 @@ use crate::validate;
 /// or a lag that is not a whole number from 0 to 3650;
 /// [`Error::DependencyCycle`] for one that would close a loop; and the errors
 /// of every work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn dependency_add(
     open: State<'_, OpenWork>,
@@ -50,6 +59,9 @@ pub fn dependency_add(
 ///
 /// [`Error::InvalidInput`] for a lag that does not fit or a dependency not in
 /// this work, and the errors of every work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn dependency_update(
     open: State<'_, OpenWork>,
@@ -65,17 +77,37 @@ pub fn dependency_update(
 ///
 /// [`Error::InvalidInput`] for a dependency not in this work, and the errors
 /// of every work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn dependency_remove(open: State<'_, OpenWork>, id: String) -> Result<WorkSnapshot> {
     dependency_remove_with(&open, &id)
 }
 
-/// Take the next baseline from where the schedule placed every activity. The
-/// first one approves the plan.
+/// Open a replanning of an approved plan, with the reason it changes. Until
+/// the next baseline is taken, the plan can be changed; that baseline copies
+/// the reason and closes the replanning. There is no command that abandons
+/// one.
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] for a row that names an activity not in this work
+/// [`Error::InvalidInput`] for a blank reason, one longer than 2000
+/// characters, a plan not approved yet, or a replanning already open; and the
+/// errors of every work command.
+#[tauri::command(rename_all = "snake_case")]
+pub fn replan_open(open: State<'_, OpenWork>, reason: String) -> Result<WorkSnapshot> {
+    replan_open_with(&open, &reason, &account::display_name())
+}
+
+/// Take the next baseline from where the schedule placed every activity. The
+/// first one approves the plan; every later one needs an open replanning, whose
+/// reason it records and which it closes.
+///
+/// # Errors
+///
+/// [`Error::PlanApproved`] for a baseline after the first with no replanning
+/// open; [`Error::InvalidInput`] for a row that names an activity not in this work
 /// or names one twice, a plan with an activity left out or none at all, a date
 /// that does not exist, a start after its finish, one date without the other,
 /// or a finish date that is not the last finish; and the errors of every work
@@ -100,6 +132,7 @@ pub fn dependency_add_with(
     let blocked = validate::endpoint(blocked)?;
     let lag_days = validate::lag_days(lag_days)?;
     change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
         dependencies::add(conn, &blocker, &blocked, lag_days).map(|_| ())
     })
 }
@@ -107,12 +140,25 @@ pub fn dependency_add_with(
 /// What [`dependency_update`] does once the state is in hand.
 pub fn dependency_update_with(open: &OpenWork, id: &str, lag_days: f64) -> Result<WorkSnapshot> {
     let lag_days = validate::lag_days(lag_days)?;
-    change_work(open, |conn| dependencies::set_lag(conn, id, lag_days))
+    change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
+        dependencies::set_lag(conn, id, lag_days)
+    })
 }
 
 /// What [`dependency_remove`] does once the state is in hand.
 pub fn dependency_remove_with(open: &OpenWork, id: &str) -> Result<WorkSnapshot> {
-    change_work(open, |conn| dependencies::remove(conn, id))
+    change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
+        dependencies::remove(conn, id)
+    })
+}
+
+/// What [`replan_open`] does once the state is in hand, signed by
+/// `author_name`.
+pub fn replan_open_with(open: &OpenWork, reason: &str, author_name: &str) -> Result<WorkSnapshot> {
+    let reason = validate::replan_reason(reason)?;
+    change_work(open, |conn| replanning::open(conn, &reason, author_name))
 }
 
 /// What [`baseline_take`] does once the state is in hand.
@@ -257,10 +303,12 @@ mod tests {
         assert_eq!(wire["baselines"][0]["rows"][0]["stageName"], "Bathroom");
         assert!(wire["work"]["approvedAt"].is_string());
 
+        replan_open_with(&open, "Tiles arrive two weeks late", "Synthetic author").unwrap();
         let plan = baseline_take_with(&open, &rows, Some("2026-10-07")).unwrap();
         assert_eq!(plan.baselines[1].number, 2);
 
-        // The activity goes; its baselines keep it.
+        // The activity goes, in a replanning of its own; its baselines keep it.
+        replan_open_with(&open, "Tiling is dropped", "Synthetic author").unwrap();
         let plan = activity_remove_with(&open, &tiling).unwrap();
         assert_eq!(plan.baselines[0].rows[0].activity_id, tiling);
         work_close_with(&open);

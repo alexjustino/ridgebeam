@@ -42,6 +42,11 @@
 //!   (`Document`, `DocumentLink`, `DocumentTarget`, `DocumentPatch`,
 //!   `DocumentsAdded`, `RefusedFile`, `DocumentsReport`, `FolderHealth`;
 //!   `WorkSnapshot.documents`).
+//! - F8: replanning (`Replanning`, `WorkSnapshot.replanning` — the one open,
+//!   or `null`); baselines learn stages and money (`BaselineStage`,
+//!   `Baseline.stages`, `Baseline.plannedCents`, `BaselineRow.plannedCents`).
+//!   Money a baseline did not record — one taken before F8 — is `null`, never
+//!   0. `BaselineRowDraft` is unchanged: the host reads the money from the file.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -312,6 +317,25 @@ pub struct WorkSnapshot {
     pub payments: Vec<Payment>,
     /// The files the work holds, by the day they were added, then as added.
     pub documents: Vec<Document>,
+    /// The replanning that is open, or `null`. While the plan is approved and
+    /// this is `null`, the plan is locked (`plan_approved`).
+    pub replanning: Option<Replanning>,
+}
+
+/// An approved plan being changed, and why. Opened with a reason; closed only
+/// by taking the next baseline, which copies the reason. Only the open one
+/// crosses the boundary: a closed one lives on as its baseline's `reason`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Replanning {
+    /// UUID v7.
+    pub id: String,
+    /// Why the plan changes, 1 to 2000 characters.
+    pub reason: String,
+    /// When it was opened, UTC.
+    pub opened_at: String,
+    /// The Windows account that opened it.
+    pub author_name: String,
 }
 
 /// What a document is attached to: the work, a stage, an activity, a
@@ -699,12 +723,38 @@ pub struct Baseline {
     pub number: i64,
     /// When it was taken, UTC.
     pub taken_at: String,
-    /// Why the plan changed; `null` for baseline 1 and until slice F8 asks.
+    /// Why the plan changed — the reason of the replanning it closed; `null`
+    /// for baseline 1 (the approval), and for a later one taken before F8
+    /// asked.
     pub reason: Option<String>,
     /// The work's finish date at that moment; `null` when nothing was placed.
     pub finish_date: Option<String>,
+    /// The work's planned money at that moment — every cost line, in the
+    /// currency's minor unit; `null` when it was not recorded (a baseline
+    /// taken before F8), never 0 for that.
+    pub planned_cents: Option<i64>,
+    /// One row per stage the plan held, in their order.
+    pub stages: Vec<BaselineStage>,
     /// One row per activity the plan held, in breakdown order.
     pub rows: Vec<BaselineRow>,
+}
+
+/// One stage, as a baseline recorded it. Stages compare by id: a stage renamed
+/// between two baselines is the same stage.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BaselineStage {
+    /// The stage's id — which may since have been removed. For a baseline
+    /// taken before F8 whose stage has no activity left, an id derived from
+    /// the stage's name.
+    pub stage_id: String,
+    /// Its order then: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// Its name then.
+    pub name: String,
+    /// Its planned money then — every cost line of the stage, its activities'
+    /// included; `null` when not recorded.
+    pub planned_cents: Option<i64>,
 }
 
 /// One activity, as a baseline recorded it. The name and stage name are copies:
@@ -724,11 +774,15 @@ pub struct BaselineRow {
     pub start: Option<String>,
     /// Its finish then, `YYYY-MM-DD`; `null` when it was not placed.
     pub finish: Option<String>,
+    /// Its planned money then — the cost lines that name it; `null` when not
+    /// recorded.
+    pub planned_cents: Option<i64>,
 }
 
 /// What `baseline_take` receives for one activity: where the schedule placed
 /// it. The schedule is the domain's; everything else about the row — name,
-/// stage name, duration — the host reads from the file, so a baseline records
+/// stage name, duration, money — and the baseline's stages and reason, the
+/// host reads from the file, so a baseline records
 /// what the work held rather than what the interface said it held. Any other
 /// field sent is ignored.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
