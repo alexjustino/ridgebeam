@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 
 /**
  * The canonical button. Nothing in the product draws its own.
@@ -20,6 +20,8 @@ const SIZE: Record<ButtonSize, string> = {
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  /** The element itself, for a caller that has to put the focus on it (React 19: a plain prop). */
+  ref?: Ref<HTMLButtonElement>;
   appearance?: ButtonAppearance;
   size?: ButtonSize;
   icon?: ReactNode;

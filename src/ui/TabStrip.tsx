@@ -1,18 +1,33 @@
-import type { ReactNode } from 'react';
+import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 
 /**
  * A row of tabs.
  *
- * Arrow keys move between tabs, which is what the pattern requires and what a
- * plain row of buttons does not give you. Each tab carries its id as `data-tab`, and, given a
- * `panelId`, the tabs and the one panel point at each other (`aria-controls` / the tab's `id`,
- * `${panelId}-tab-${id}`, for the panel's `aria-labelledby`).
+ * The WAI-ARIA tabs pattern, with automatic activation: ArrowRight and ArrowLeft move to the
+ * neighbour (wrapping at either end), Home to the first tab and End to the last — and the focus
+ * goes with the selection, so every press moves on from where the last one landed rather than from
+ * a tab that no longer holds the focus. Only the selected tab is in the Tab order. Each tab carries
+ * its id as `data-tab`, and, given a `panelId`, the tabs and the one panel point at each other
+ * (`aria-controls` / the tab's `id`, `${panelId}-tab-${id}`, for the panel's `aria-labelledby`).
  */
 export interface Tab {
   id: string;
   label: string;
   icon?: ReactNode;
   badge?: string;
+}
+
+/**
+ * Where a key sends the focus in a row of `count` tabs, from `from`: the neighbour for the arrows
+ * (wrapping), the first for Home, the last for End — `null` for any other key, which is left alone.
+ */
+function tabTarget(key: string, from: number, count: number): number | null {
+  if (count === 0) return null;
+  if (key === 'ArrowRight') return (from + 1) % count;
+  if (key === 'ArrowLeft') return (from - 1 + count) % count;
+  if (key === 'Home') return 0;
+  if (key === 'End') return count - 1;
+  return null;
 }
 
 export function TabStrip({
@@ -32,9 +47,18 @@ export function TabStrip({
   /** The id of the `role="tabpanel"` the strip controls. */
   panelId?: string;
 }) {
-  const move = (from: number, step: number) => {
-    const next = tabs[(from + step + tabs.length) % tabs.length];
-    if (next) onSelect(next.id);
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
+
+  const keyed = (event: KeyboardEvent, from: number) => {
+    const to = tabTarget(event.key, from, tabs.length);
+    if (to === null) return;
+    event.preventDefault();
+    const next = tabs[to];
+    if (next === undefined) return;
+    onSelect(next.id);
+    // The focus goes with the selection: the tab pressed from is now out of the Tab order, and a
+    // press met from there would always move from the same place.
+    buttons.current.get(next.id)?.focus();
   };
 
   return (
@@ -45,6 +69,10 @@ export function TabStrip({
           return (
             <button
               key={tab.id}
+              ref={(element) => {
+                if (element === null) buttons.current.delete(tab.id);
+                else buttons.current.set(tab.id, element);
+              }}
               id={panelId === undefined ? undefined : `${panelId}-tab-${tab.id}`}
               data-tab={tab.id}
               aria-controls={panelId}
@@ -53,10 +81,7 @@ export function TabStrip({
               aria-selected={selected}
               tabIndex={selected ? 0 : -1}
               onClick={() => onSelect(tab.id)}
-              onKeyDown={(event) => {
-                if (event.key === 'ArrowRight') move(index, 1);
-                if (event.key === 'ArrowLeft') move(index, -1);
-              }}
+              onKeyDown={(event) => keyed(event, index)}
               className={[
                 'relative flex items-center gap-2 px-3 py-2 text-body whitespace-nowrap',
                 'transition-colors duration-100 ease-easy',
