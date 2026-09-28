@@ -480,3 +480,77 @@ whether it may.
 
 Not in 1.0, by decision: a work that follows its template when the library changes; prices of any
 kind in the library; a template in a third language.
+
+### Added in F10 — the dashboard and reports
+
+The front door composed from every figure the slices made, each carrying its rows; the weekly
+report as a PDF in the owner's words; the diary exported as a PDF and as CSV with its chain
+verified when it is written; the schedule printed; the work exported as JSON for anybody else's
+tool. A CSV never carries a formula, and a second PDF reader parses every report.
+
+- **The dashboard, composed.** _This week on site_, Monday to Sunday, is now figures that open onto
+  their rows: the **entries** of the week, the **working days without one** (a day is not missing
+  until it is over), **who was on site** and the **people expected** — whoever answers for an
+  activity the schedule places in the week, and whoever is on a stage that is running. Beside the
+  days the diary marked lost, **weather days lost** counts the days an entry says rain or storm and
+  nothing was done. The **last entries** are a figure too — three, with their photos' thumbnails,
+  each with a button that opens the diary at that entry. The weekly report prints these same
+  figures.
+- **Reports**, a new destination after Documents — eleven on the rail, eight needing a work. One
+  card per file, each saying in one line what the file holds and what it does not; a path chosen in
+  the save dialog (or typed); the file written, its path and pages named; and **Open**, which shows
+  it in the system's own viewer. A refusal is a sentence on its card.
+- **The weekly report** (ADR-031), for the Monday-to-Sunday week of any day chosen — this week by
+  default; a week that has not begun is refused — always in the owner's words. It opens with the
+  diary's week: each day and what the diary says of it, and the working days over with nothing
+  written — **a week with no entry says so on its first line**, in strong type, and the rest is
+  still printed. Then what was worked on and finished, who was on site, the weather days lost,
+  readiness and the first three things it lacks, the finish date against the latest baseline and
+  the slip, decisions overdue or due in the next 14 calendar days, money planned, committed and paid
+  and paid this week, and the stages planned, ready, started, closed and held. Every figure is
+  printed with its rows. Decisions, money and stages are as they stand on the day it is written, and
+  the page says so.
+- **The diary exported** (ADR-032), as a PDF and as CSV. The host verifies the chain first, over the
+  rows it is about to write, and writes **nothing** when it does not hold, naming the entry where
+  it broke; the card verifies it before offering to write — "12 entries, chain verified just now".
+  The PDF opens with the host's own block — "Chain verified on {date}: {N} entries, head {the first
+  16 hex digits of the last hash}. This is tamper-evidence: it shows whether the file was changed
+  outside Ridgebeam. It is not a signature and not legal proof." — in English or in Portuguese,
+  then every entry as it was written, a correction beside what it corrects, with its author,
+  weather, what was done and finished, who was present, the note whole and how many photos. The
+  CSV is written by the host from the database: one row per entry, thirteen columns ending in each
+  entry's hash and the one before, the photos as their hashes, UTF-8 with a byte-order mark, RFC
+  4180 quoting, `,` in English and `;` in Portuguese.
+- **A CSV never carries a formula.** Every cell whose first character is `=`, `+`, `-`, `@`, a tab
+  or a carriage return is written with a `'` before it, in every column.
+- **The schedule printed**, on landscape A4: the screen's Gantt, one column per calendar day —
+  critical bars filled, the others outlined, the latest baseline a thin bar beneath — then a table
+  of every activity with its number, stage, start, finish, duration, float and responsible. The
+  whole plan fits the page's width, each day narrower the longer it runs and the day labels thinned
+  so none touch; many activities break across pages with the day header repeated.
+- **The work as JSON** — `"ridgebeamWork": 1`, the work as `work_get` returns it and every diary
+  entry with its hashes, pretty-printed UTF-8; documents are named by their hash and not embedded.
+  The format is in [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), for anybody else's tool.
+- **How a PDF is made.** The interface composes a document from the rows the screen shows, already
+  in words; the host lays it out — A4, 20 mm margins, text wrapped by each glyph's real width,
+  tables breaking across pages with their header repeated, "Ridgebeam · {title} · page N of M" on
+  every page, no author in the metadata — and writes it with `pdf-writer` in the standard
+  Helvetica faces, WinAnsi, nothing embedded, their widths from Adobe's published metrics. Three
+  characters outside WinAnsi print as stand-ins (→ `->`, ≥ `>=`, ≤ `<=`), and a test composes every
+  report in both languages and fails on any character that would print as `?`. `cargo test` reads
+  every kind of report back with a second PDF reader, `lopdf`, a development dependency that is
+  never shipped.
+- **One write path for every file** (`files::save`, now shared with the template export): `.pdf`,
+  `.csv` or `.json` by kind, a full path, written whole or not at all, an existing file replaced
+  only when the save dialog chose it, nothing over 256 MiB; a document past its caps (5 000 blocks,
+  20 000 rows, 2 000 characters in a string) refused with a sentence. **Open** opens only a file a
+  report command wrote in this session.
+- **New dependencies.** `pdf-writer` 0.15 (MIT OR Apache-2.0) in the binary, bringing one crate
+  the binary did not have, `ryu` (Apache-2.0 OR BSL-1.0); `flate2`, already in the tree through
+  `png`, is now a direct dependency of the host; and `lopdf` 0.45 (MIT) for tests only. [`NOTICE`](NOTICE) lists them, with the notice of the font
+  metrics.
+- **The glossary** gains _export_.
+
+No migration: F10 adds no table and no column. Not in 1.0, by decision: photos inside a PDF; a
+character outside WinAnsi and the three stand-ins on paper; non-working days shaded on the printed
+schedule.
