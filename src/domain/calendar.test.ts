@@ -311,6 +311,41 @@ describe('working days between two days', () => {
     expect(workingDaysBetween(WEEKDAYS, '2026-09-04', '2026-09-01')).toBe(0);
   });
 
+  it('counts what asking every day would count, over any span, mask and holidays (F11)', () => {
+    // The count is arithmetic (whole weeks, the rest, the holidays); the walk is the definition.
+    const walk = (on: WorkingCalendar, from: string, to: string) => {
+      let count = 0;
+      for (let day = from; day <= to; day = addCalendarDays(day, 1)) {
+        if (isWorkingDay(on, day)) count += 1;
+      }
+      return count;
+    };
+    let state = 7;
+    const next = () => (state = (state * 48271) % 2147483647) / 2147483647;
+    for (let run = 0; run < 300; run += 1) {
+      const mask = Array.from({ length: 7 }, () => (next() < 0.6 ? '1' : '0')).join('');
+      if (!mask.includes('1')) continue;
+      const from = addCalendarDays('2026-01-01', Math.floor(next() * 800));
+      const to = addCalendarDays(from, Math.floor(next() * 900) - 20);
+      const holidays = [
+        ...Array.from({ length: 6 }, () => addCalendarDays(from, Math.floor(next() * 900) - 30)),
+        // A holiday that is not a real day matches no day, and is taken out of none.
+        '2026-02-30',
+        'not a day',
+      ];
+      const on = calendar(mask, holidays);
+      expect(workingDaysBetween(on, from, to), `${mask} ${from}..${to}`).toBe(walk(on, from, to));
+    }
+  });
+
+  it('is as quick four years out as tomorrow (F11)', () => {
+    const started = performance.now();
+    for (let i = 0; i < 10_000; i += 1)
+      workingDaysBetween(WITH_HOLIDAY, '2026-09-01', '2030-09-01');
+    expect(workingDaysBetween(WITH_HOLIDAY, '2026-09-01', '2030-09-01')).toBe(1043);
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
   it('agrees with counting forward: an activity of d days spans d working days', () => {
     for (const start of ['2026-09-01', '2026-09-04', '2026-09-08']) {
       for (let duration = 1; duration <= 12; duration += 1) {

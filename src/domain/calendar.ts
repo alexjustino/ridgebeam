@@ -256,13 +256,30 @@ export function addWorkingDays(calendar: WorkingCalendar, day: string, n: number
   return current;
 }
 
-/** How many working days lie between two days, both included. Zero when `to` is before `from`. */
+/**
+ * How many working days lie between two days, both included. Zero when `to` is before `from`.
+ *
+ * Counted, not walked (slice F11): every whole week holds the mask's working weekdays, the days
+ * left over are read off the mask, and each holiday in the span that falls on a working weekday is
+ * taken out. The same answer as asking `isWorkingDay` of every day, which a test holds, in a time
+ * that does not grow with the span: a deadline four years back is no slower than one tomorrow.
+ */
 export function workingDaysBetween(calendar: WorkingCalendar, from: string, to: string): number {
   const first = requireDay(from);
   const last = requireDay(to);
-  let count = 0;
-  for (let current = first; current <= last; current += 1) {
-    if (isWorkingDay(calendar, dayOf(current))) count += 1;
+  if (last < first) return 0;
+  const span = last - first + 1;
+  const firstWeekday = (((first + 3) % 7) + 7) % 7;
+  const perWeek = calendar.workingDays.filter((working) => working).length;
+  let count = Math.floor(span / 7) * perWeek;
+  for (let i = 0; i < span % 7; i += 1) {
+    if (calendar.workingDays[(firstWeekday + i) % 7] === true) count += 1;
+  }
+  for (const holiday of calendar.holidays) {
+    const day = dayNumberOf(holiday);
+    // A holiday that is not a real day matches no day, as `isWorkingDay` would find it.
+    if (day === null || day < first || day > last) continue;
+    if (calendar.workingDays[(((day + 3) % 7) + 7) % 7] === true) count -= 1;
   }
   return count;
 }

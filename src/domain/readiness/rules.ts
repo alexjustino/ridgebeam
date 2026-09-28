@@ -26,7 +26,14 @@ before F9 is priced, so no existing work's readiness moves.) Later slices add ru
  */
 
 import type { DecisionRow } from '../decisions';
-import { hasDuration, isPriced, type Activity, type Stage, type WorkSnapshot } from '../plan';
+import {
+  hasDuration,
+  hasResponsible,
+  isPriced,
+  type Activity,
+  type Stage,
+  type WorkSnapshot,
+} from '../plan';
 import { stageOfLine } from '../money';
 import { expandDependencies } from '../schedule/expand';
 
@@ -86,6 +93,12 @@ export const RULE_EXPLANATION_KEYS = {
   'stage.checks': 'readiness.explanation.stage.checks',
   'stage.money': 'readiness.explanation.stage.money',
 } as const satisfies Record<RuleId, string>;
+
+/**
+ * The line of a rule that counted nothing in this plan (slice F11): "Links · nothing to count yet",
+ * with the rule's label as `{label}`. Said instead of "0 of 0", in a muted tone, and listed last.
+ */
+export const RULE_UNCOUNTED_KEY = 'readiness.rule.uncounted';
 
 /** The readiness figure's own name, as a message key. */
 export const READINESS_LABEL_KEY = 'readiness.label';
@@ -153,9 +166,7 @@ export const ACTIVITY_RULES: readonly ActivityRule[] = [
     appliesTo: 'activity',
     applies: () => true,
     // A responsible that names nobody in the plan is not a responsible.
-    holds: (activity, plan) =>
-      activity.responsibleId !== null &&
-      plan.people.some((person) => person.id === activity.responsibleId),
+    holds: (activity, plan) => hasResponsible(activity, plan),
     messageKey: READINESS_MESSAGE_KEYS['activity.responsible'],
   },
   {

@@ -63,12 +63,61 @@ export interface MoneyRow extends AmountRow {
 export const NOT_PRICED_KEY = 'money.row.notPriced';
 
 /**
+ * The lookups money makes row by row, built once per snapshot (a snapshot is never changed: an edit
+ * returns a new one): each activity's stage, each payment by seq, each commitment by id. The first
+ * row with an id wins, as a search from the start would find it. Without them a work of 2 000
+ * activities and 2 000 payments searched the lists once per row, and the By stage table took most
+ * of a second (slice F11's benchmark).
+ */
+interface MoneyIndex {
+  readonly activityStage: ReadonlyMap<string, string>;
+  readonly paymentBySeq: ReadonlyMap<number, Payment>;
+  readonly commitmentById: ReadonlyMap<string, Commitment>;
+}
+
+const indexCache = new WeakMap<WorkSnapshot, MoneyIndex>();
+
+function firstBy<Row, K, V>(
+  rows: readonly Row[],
+  keyOf: (row: Row) => K,
+  valueOf: (row: Row) => V,
+): Map<K, V> {
+  const map = new Map<K, V>();
+  for (const row of rows) if (!map.has(keyOf(row))) map.set(keyOf(row), valueOf(row));
+  return map;
+}
+
+function indexOf(snapshot: WorkSnapshot): MoneyIndex {
+  const cached = indexCache.get(snapshot);
+  if (cached !== undefined) return cached;
+  const index: MoneyIndex = {
+    activityStage: firstBy(
+      snapshot.activities,
+      (activity) => activity.id,
+      (activity) => activity.stageId,
+    ),
+    paymentBySeq: firstBy(
+      snapshot.payments,
+      (payment) => payment.seq,
+      (payment) => payment,
+    ),
+    commitmentById: firstBy(
+      snapshot.commitments,
+      (commitment) => commitment.id,
+      (commitment) => commitment,
+    ),
+  };
+  indexCache.set(snapshot, index);
+  return index;
+}
+
+/**
  * The stage a cost line counts for: its activity's stage when the activity is in the plan (a
  * stage's planned money is its own lines and its activities' lines), otherwise the stage it names.
  */
 export function stageOfLine(snapshot: WorkSnapshot, line: CostLine): string {
   if (line.activityId === null) return line.stageId;
-  return snapshot.activities.find((a) => a.id === line.activityId)?.stageId ?? line.stageId;
+  return indexOf(snapshot).activityStage.get(line.activityId) ?? line.stageId;
 }
 
 /**
@@ -79,12 +128,12 @@ function attributionOf(
   snapshot: WorkSnapshot,
   payment: Payment,
 ): { stageId: string; personId: string | null; commitmentId: string | null } {
+  const index = indexOf(snapshot);
   const original =
-    payment.reversesSeq === null
-      ? undefined
-      : snapshot.payments.find((each) => each.seq === payment.reversesSeq);
+    payment.reversesSeq === null ? undefined : index.paymentBySeq.get(payment.reversesSeq);
   const source = original ?? payment;
-  const commitment = snapshot.commitments.find((each) => each.id === source.commitmentId);
+  const commitment =
+    source.commitmentId === null ? undefined : index.commitmentById.get(source.commitmentId);
   return {
     stageId: source.stageId,
     personId: source.personId ?? commitment?.personId ?? null,

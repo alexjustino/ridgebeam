@@ -371,6 +371,18 @@ export function hasDuration(activity: Activity): boolean {
 }
 
 /**
+ * Does this activity have a responsible: a person who is in the plan? A responsible that names
+ * nobody in the plan is not a responsible. Readiness and the plan's questions (slice F11) both ask
+ * this one question, so they can never disagree about it.
+ */
+export function hasResponsible(activity: Activity, snapshot: WorkSnapshot): boolean {
+  return (
+    activity.responsibleId !== null &&
+    snapshot.people.some((person) => person.id === activity.responsibleId)
+  );
+}
+
+/**
  * The range of working days an activity carries from its template, or `null` when it has none (or
  * one that is not a whole-number range from 1 with `min ≤ max`, which the host never stores).
  */

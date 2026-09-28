@@ -225,15 +225,23 @@ export interface RuleSummary {
   readonly figure: Figure<ReadinessRow> | null;
   readonly labelKey: string;
   readonly explanationKey: string;
+  /**
+   * Did the rule count anything in this plan? `false` when it asked nothing (`mustKnow` is 0): the
+   * line reads "nothing to count yet" (`RULE_UNCOUNTED_KEY`), in a muted tone, never "0 of 0",
+   * which reads like a failure. It moves no number: a rule that counts nothing adds 0 to both.
+   */
+  readonly counted: boolean;
 }
 
 /**
- * Readiness rule by rule, in rule order: every rule, with how much of what it asks the plan knows,
- * and the rows it finds missing. The rules add up to the whole: their `known` and `mustKnow` sum to
- * the figure's, and their rows are all its rows but the plan-level one.
+ * Readiness rule by rule: every rule, with how much of what it asks the plan knows, and the rows it
+ * finds missing. The rules that counted something come first, in rule order; the rules that counted
+ * nothing (`counted: false`) come last, in rule order too (slice F11). The rules add up to the
+ * whole: their `known` and `mustKnow` sum to the figure's, and their rows are all its rows but the
+ * plan-level one. Only the order of the lines moves; no count does.
  */
 export function readinessByRule(measure: Readiness): RuleSummary[] {
-  return measure.rules.map(({ ruleId, known, mustKnow }) => {
+  const summaries = measure.rules.map(({ ruleId, known, mustKnow }): RuleSummary => {
     const missing = measure.missing.filter((row) => row.ruleId === ruleId);
     return {
       ruleId,
@@ -252,8 +260,13 @@ export function readinessByRule(measure: Readiness): RuleSummary[] {
             ),
       labelKey: RULE_LABEL_KEYS[ruleId],
       explanationKey: RULE_EXPLANATION_KEYS[ruleId],
+      counted: mustKnow > 0,
     };
   });
+  return [
+    ...summaries.filter((summary) => summary.counted),
+    ...summaries.filter((summary) => !summary.counted),
+  ];
 }
 
 /** One sentence of the readiness explanation: a message key, and how many rows it speaks for. */
