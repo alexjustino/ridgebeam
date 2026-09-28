@@ -27,6 +27,13 @@ export interface Work {
   readonly createdAt: string;
   /** When the plan was first approved (baseline 1 taken); `null` until then. */
   readonly approvedAt: string | null;
+  /**
+   * Where the plan came from: the template's id, version and title (in the language the work was
+   * started in), or `null` for a work started empty. Provenance, not a tie: nothing links back.
+   */
+  readonly templateId: string | null;
+  readonly templateVersion: number | null;
+  readonly templateTitle: string | null;
 }
 
 /** The working calendar as stored: the mask text and the hours. */
@@ -116,7 +123,8 @@ export interface CostLine {
   /** The activity it belongs to, or `null` for a line on the stage itself. */
   readonly activityId: string | null;
   readonly label: string;
-  readonly amountCents: number;
+  /** `null`: not priced yet (a line from a template is a label until somebody prices it). */
+  readonly amountCents: number | null;
 }
 
 /** Money committed: a quote or contract accepted, for a stage, usually with one trade. */
@@ -208,6 +216,12 @@ export interface Activity {
   readonly name: string;
   /** Working days; `null` until known. */
   readonly durationDays: number | null;
+  /**
+   * The range of working days a template gave it, both or neither, `min ≤ max`; `null` when it came
+   * from no template. Shown until a person picks a duration; never a duration itself.
+   */
+  readonly durationMinDays: number | null;
+  readonly durationMaxDays: number | null;
   /** The person who answers for it; `null` until known. */
   readonly responsibleId: string | null;
   /** The rooms it touches, none or several. Order carries no meaning; the rooms' own does. */
@@ -231,6 +245,12 @@ export interface Decision {
   readonly name: string;
   /** Working days between deciding and having, zero or more. */
   readonly leadTimeDays: number;
+  /**
+   * The range of lead time a template gave it, both or neither; `leadTimeDays` took its upper end
+   * (the earlier deadline). `null` when it came from no template.
+   */
+  readonly leadMinDays: number | null;
+  readonly leadMaxDays: number | null;
   /** When it was made, UTC; `null` while it is open. */
   readonly madeAt: string | null;
   /** What was decided, as the person wrote it; only ever set on a made decision. */
@@ -348,6 +368,26 @@ export interface WorkSnapshot {
 export function hasDuration(activity: Activity): boolean {
   const days = activity.durationDays;
   return days !== null && Number.isInteger(days) && days > 0;
+}
+
+/**
+ * The range of working days an activity carries from its template, or `null` when it has none (or
+ * one that is not a whole-number range from 1 with `min ≤ max`, which the host never stores).
+ */
+export function durationRangeOf(activity: Activity): { min: number; max: number } | null {
+  const min = activity.durationMinDays;
+  const max = activity.durationMaxDays;
+  if (min === null || max === null) return null;
+  if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || min > max) return null;
+  return { min, max };
+}
+
+/**
+ * Is this cost line priced? A `null` amount is not priced yet (a line from a template); any number,
+ * 0 included, is a price. Every line before slice F9 is priced.
+ */
+export function isPriced(line: CostLine): line is CostLine & { readonly amountCents: number } {
+  return line.amountCents !== null;
 }
 
 /** Stages in the order the plan shows them: by position, then by id when positions tie. */

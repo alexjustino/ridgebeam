@@ -382,6 +382,7 @@ describe('readiness: every stage has its checks', () => {
         id: 'painting',
         name: 'Painting',
         stageName: 'Painting',
+        durationRange: null,
       },
       {
         ruleId: 'stage.checks',
@@ -389,6 +390,7 @@ describe('readiness: every stage has its checks', () => {
         id: 'garden',
         name: 'Garden',
         stageName: 'Garden',
+        durationRange: null,
       },
     ]);
     expect(

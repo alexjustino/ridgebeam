@@ -26,6 +26,9 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
       currency: 'BRL',
       createdAt: '2026-08-20T12:00:00.000Z',
       approvedAt: null,
+      templateId: null,
+      templateVersion: null,
+      templateTitle: null,
     },
     calendar: { workingDays: '1111100', hoursPerDay: 8 },
     holidays: [],
@@ -90,6 +93,8 @@ const activity = (
   position,
   name,
   durationDays,
+  durationMinDays: null,
+  durationMaxDays: null,
   responsibleId,
   roomIds: [],
   quantity: null,
@@ -171,6 +176,7 @@ describe('readiness', () => {
           id: 'tiling',
           name: 'Tiling',
           stageName: 'Bathroom',
+          durationRange: null,
         },
       ],
     });
@@ -245,6 +251,7 @@ describe('readiness', () => {
           id: 'work-1',
           name: 'Sample bathroom',
           stageName: null,
+          durationRange: null,
         },
       ],
     });
@@ -306,6 +313,7 @@ describe('readiness', () => {
         id: 'ghost',
         name: 'Ghost',
         stageName: null,
+        durationRange: null,
       },
     ]);
   });
@@ -451,6 +459,7 @@ describe('the readiness figure', () => {
         ruleId: 'activity.responsible',
         entity: 'activity',
         stageName: 'Bathroom',
+        durationRange: null,
       },
     ]);
   });

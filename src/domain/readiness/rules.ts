@@ -15,7 +15,9 @@
  * one, must not be overdue. A made decision is always ready. Slice F5 adds one over stages: every
  * stage has its checks defined, at least one at each gate (the spec's "every stage has … its checks
  * defined"). Slice F6 adds the second: every stage has its money planned, at least one cost line
- * of its own or on one of its activities. Later slices add rules as new rows here, without changing
+ * of its own or on one of its activities. Slice F9 makes that line a **priced** one: a line a template
+brought is a label until somebody writes its amount, and a label is not money planned. (Every line
+before F9 is priced, so no existing work's readiness moves.) Later slices add rules as new rows here, without changing
  * the shape.
  *
  * What this module is not: text. It holds message keys, never English or Portuguese; the i18n
@@ -24,7 +26,7 @@
  */
 
 import type { DecisionRow } from '../decisions';
-import { hasDuration, type Activity, type Stage, type WorkSnapshot } from '../plan';
+import { hasDuration, isPriced, type Activity, type Stage, type WorkSnapshot } from '../plan';
 import { stageOfLine } from '../money';
 import { expandDependencies } from '../schedule/expand';
 
@@ -204,8 +206,10 @@ export const STAGE_RULES: readonly StageRule[] = [
     id: 'stage.money',
     appliesTo: 'stage',
     applies: () => true,
-    // Some money planned for it: a cost line of its own, or on one of its activities.
-    holds: (stage, plan) => plan.costLines.some((line) => stageOfLine(plan, line) === stage.id),
+    // Some money planned for it: a priced cost line of its own, or on one of its activities. A line
+    // not priced yet (a template's label) is not money planned.
+    holds: (stage, plan) =>
+      plan.costLines.some((line) => isPriced(line) && stageOfLine(plan, line) === stage.id),
     messageKey: READINESS_MESSAGE_KEYS['stage.money'],
   },
 ];

@@ -96,6 +96,7 @@ describe('readiness of decisions', () => {
         id: 'tile',
         name: 'Which tile',
         stageName: 'Structure',
+        durationRange: null,
       },
     ]);
     expect(sentenceParts(measure.missing)).toEqual([
@@ -154,6 +155,7 @@ describe('readiness of decisions', () => {
         id: 'orphan',
         name: 'Decision orphan',
         stageName: null,
+        durationRange: null,
       },
     ]);
   });

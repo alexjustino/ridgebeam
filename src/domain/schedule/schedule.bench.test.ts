@@ -51,6 +51,8 @@ function bigPlan(): WorkSnapshot {
     position: (i % perStage) + 1,
     name: `Activity ${i + 1}`,
     durationDays: 1 + Math.floor(next() * 10),
+    durationMinDays: null,
+    durationMaxDays: null,
     responsibleId: null,
     roomIds: [],
     quantity: null,

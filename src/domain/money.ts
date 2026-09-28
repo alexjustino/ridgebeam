@@ -11,6 +11,11 @@
  * Amounts are whole numbers of the currency's minor unit (cents): **money is never a float**. The
  * interface formats them in the work's currency.
  *
+ * **A cost line may not be priced yet** (slice F9): a line a template brought is a label until
+ * somebody writes its amount. Planned sums the priced lines; an unpriced line is still one of its
+ * rows, marked `priced: false`, contributing 0, so the figure says what it did not count instead of
+ * leaving it out. Every line that existed before F9 is priced, so no existing total moves.
+ *
  * **Paid over committed is flagged, not refused**: a stage or a commitment paid beyond what was
  * committed is listed with the excess. Paying without a commitment is paying over one of zero.
  *
@@ -24,6 +29,7 @@ import { addCalendarDays, isIsoDay, isWorkingDay, workingDaysBetween } from './c
 import { counted, moneyFigure, type AmountRow, type Figure } from './figure';
 import {
   compareText,
+  isPriced,
   stagesInOrder,
   type Commitment,
   type CostLine,
@@ -46,7 +52,15 @@ export interface MoneyRow extends AmountRow {
   readonly stageId: string;
   readonly personId: string | null;
   readonly label: string;
+  /**
+   * `false` for a cost line not priced yet: shown as "not priced yet", contributing 0. Commitments
+   * and payments are always priced.
+   */
+  readonly priced: boolean;
 }
+
+/** The message key of the "not priced yet" mark on a cost line's row. */
+export const NOT_PRICED_KEY = 'money.row.notPriced';
 
 /**
  * The stage a cost line counts for: its activity's stage when the activity is in the plan (a
@@ -85,12 +99,14 @@ function lineRow(snapshot: WorkSnapshot, line: CostLine, sign: 1 | -1): MoneyRow
     title: line.label,
     day: null,
     minutes: 0,
-    amountCents: sign * line.amountCents,
+    // Not priced yet: counted as nothing, and said so. `0`, never `-0`.
+    amountCents: isPriced(line) ? sign * line.amountCents : 0,
     source: 'cost-line',
     sourceId: line.id,
     stageId: stageOfLine(snapshot, line),
     personId: null,
     label: line.label,
+    priced: isPriced(line),
   };
 }
 
@@ -107,6 +123,7 @@ function commitmentRow(commitment: Commitment, sign: 1 | -1): MoneyRow {
     stageId: commitment.stageId,
     personId: commitment.personId,
     label: commitment.label,
+    priced: true,
   };
 }
 
@@ -124,6 +141,7 @@ function paymentRow(snapshot: WorkSnapshot, payment: Payment, sign: 1 | -1): Mon
     stageId: about.stageId,
     personId: about.personId,
     label: payment.whatFor,
+    priced: true,
   };
 }
 
@@ -204,6 +222,7 @@ function figure(
 
 /**
  * Planned: the cost lines. Per trade it is empty: a cost line has no trade (see the module header).
+ * A line not priced yet is a row contributing 0, marked `priced: false`.
  */
 export function plannedOf(snapshot: WorkSnapshot, scope: MoneyScope): Figure<MoneyRow> {
   return figure(snapshot, scope, 'planned', plannedRows(snapshot, 1));
@@ -314,6 +333,11 @@ export interface WorkMoney {
   readonly paid: Figure<MoneyRow>;
   readonly remaining: Figure<MoneyRow>;
   readonly variance: Figure<MoneyRow>;
+}
+
+/** The rows of a figure that are cost lines not priced yet, in the figure's order. */
+export function unpricedRows(figure: Figure<MoneyRow>): MoneyRow[] {
+  return figure.rows.filter((row) => !row.priced);
 }
 
 /** The work's five figures. The stages' figures add up to these. */
@@ -456,7 +480,8 @@ export function sCurve(
       ? today
       : null;
 
-  for (const line of snapshot.costLines) {
+  // A line not priced yet has no money to spread: it is not on the curve (the planned figure lists it).
+  for (const line of snapshot.costLines.filter(isPriced)) {
     let span: { start: string; finish: string } | undefined;
     if (line.activityId !== null) {
       span = scheduled.dates.get(line.activityId);
@@ -500,7 +525,7 @@ export function sCurve(
 
   const edges = [...plannedOn.keys(), ...paidOn.keys(), ...(isIsoDay(today) ? [today] : [])];
   const totals = {
-    planned: snapshot.costLines.reduce((sum, line) => sum + line.amountCents, 0),
+    planned: snapshot.costLines.filter(isPriced).reduce((sum, line) => sum + line.amountCents, 0),
     paid: payments.reduce((sum, payment) => sum + payment.amountCents, 0),
   };
   if (edges.length === 0) return { days: [], totals, unscheduled };

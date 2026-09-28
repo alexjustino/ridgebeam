@@ -29,6 +29,9 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
       currency: 'BRL',
       createdAt: '2026-08-20T12:00:00.000Z',
       approvedAt: null,
+      templateId: null,
+      templateVersion: null,
+      templateTitle: null,
     },
     calendar: { workingDays: '1111100', hoursPerDay: 8 },
     holidays: [],
@@ -67,6 +70,8 @@ export function activity(
     position,
     name: `Activity ${id}`,
     durationDays,
+    durationMinDays: null,
+    durationMaxDays: null,
     responsibleId,
     roomIds: [],
     quantity: null,
@@ -106,6 +111,8 @@ export function decision(
     position,
     name: `Decision ${id}`,
     leadTimeDays,
+    leadMinDays: null,
+    leadMaxDays: null,
     madeAt,
     answer: null,
   };
@@ -213,7 +220,7 @@ export function takeBaseline(
 ): Baseline {
   const draft = baselineDraft(plan, schedule(plan));
   const sum = (keep: (line: WorkSnapshot['costLines'][number]) => boolean) =>
-    plan.costLines.filter(keep).reduce((total, line) => total + line.amountCents, 0);
+    plan.costLines.filter(keep).reduce((total, line) => total + (line.amountCents ?? 0), 0);
   return {
     id: `baseline-${number}`,
     number,
