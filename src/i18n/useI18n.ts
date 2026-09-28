@@ -6,6 +6,7 @@ import { DEFAULT_LANGUAGE, type LanguageChoice } from '@/domain/settings';
 import {
   currencyLabel,
   formatDay,
+  formatDayShort,
   formatMoney,
   formatInstant,
   formatNumber,
@@ -40,6 +41,8 @@ export interface I18n {
   describeError: (error: unknown) => string;
   /** A `YYYY-MM-DD` day, a UTC instant, a number — through `Intl`. */
   day: (day: string) => string;
+  /** The same day, shorter — "5 Oct 2026" — where a column cannot hold the long form. */
+  dayShort: (day: string) => string;
   instant: (instant: string) => string;
   number: (value: number) => string;
   weekdays: (width: 'long' | 'short') => string[];
@@ -63,6 +66,7 @@ export function build(choice: LanguageChoice, language: Language): I18n {
       }),
     describeError: (error) => describeError(error, t),
     day: (day) => formatDay(language, day),
+    dayShort: (day) => formatDayShort(language, day),
     instant: (instant) => formatInstant(language, instant),
     number: (value) => formatNumber(language, value),
     weekdays: (width) => weekdayNames(language, width),

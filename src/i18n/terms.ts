@@ -60,6 +60,8 @@ export const TERM_KEYS = [
   'entry',
   'template',
   'range',
+  'report',
+  'export',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];
@@ -85,6 +87,21 @@ export function termFor(language: Language, lens: LensChoice, key: TermKey): str
   const text = ENTRIES.get(key)?.[language];
   if (text === undefined) return key;
   return text.lenses?.[lens] ?? text.term;
+}
+
+/**
+ * Every term of one lens, in one language — for words that must not follow the lens on screen. The
+ * weekly report is always in the owner's words whichever lens the person is reading in (F10), so it
+ * asks for the owner's table directly instead of switching the screen's lens.
+ */
+export function termsFor(
+  language: Language,
+  lens: LensChoice,
+): (key: TermKey, options?: { capital?: boolean }) => string {
+  return (key, options) => {
+    const word = termFor(language, lens, key);
+    return options?.capital === true ? capitalised(language, word) : word;
+  };
 }
 
 /** The same word opening a sentence or a heading. */

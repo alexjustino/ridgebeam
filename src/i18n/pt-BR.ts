@@ -442,7 +442,7 @@ export const ptBR: Dictionary = {
   'diary.figure.started': 'Começado',
   'diary.figure.notStarted': 'Não começado',
   'diary.figure.daysWithoutEntry': 'Dias sem entrada',
-  'diary.figure.lostDays': 'Dias perdidos por tempo',
+  'diary.figure.lostDays': 'Dias perdidos',
   'dashboard.done.value': '{finished} de {total}',
   'dashboard.done.caption': '{started} começadas · {notStarted} não começadas',
   'dashboard.done.rows': 'O que o diário diz que está terminado',
@@ -450,11 +450,6 @@ export const ptBR: Dictionary = {
   'dashboard.lost.hint': 'Dias em que uma entrada disse que não foi possível trabalhar.',
   'dashboard.days.rows': 'Os dias que ele conta',
   'dashboard.week.title': 'Esta semana na obra',
-  'dashboard.week.days.one': '{count} dia com entrada',
-  'dashboard.week.days.other': '{count} dias com entrada',
-  'dashboard.week.none': 'Nenhuma entrada nos últimos 7 dias.',
-  'dashboard.week.people': 'Vistos na obra: {names}',
-  'dashboard.week.nobody': 'Ninguém registrado na obra.',
   'dashboard.last.title': 'Últimas entradas',
   'dashboard.last.none': 'Nada escrito ainda.',
   'state.finished': 'terminada em {day}',
@@ -1137,4 +1132,164 @@ export const ptBR: Dictionary = {
     '{count} textos não estavam no idioma da tela e foram usados em {language}.',
   'template.note.includes.one': 'Ele trouxe antes {count} outro modelo: {titles}.',
   'template.note.includes.other': 'Ele trouxe antes {count} outros modelos: {titles}.',
+  // ── Relatórios e exportações (F10) ────────────────────────────────────────
+  'nav.reports': 'Relatórios',
+  'reports.lead':
+    'Cada arquivo é gravado a partir das mesmas linhas que as telas mostram, com as mesmas palavras. Gravar um não muda nada na obra, e nada sai deste computador.',
+  'reports.heading': '{title} — {work}',
+  'reports.entries.one': '{count} entrada',
+  'reports.entries.other': '{count} entradas',
+  'reports.entryRow': 'nº {seq} · {day}',
+  'reports.path.pdf': 'Arquivo PDF',
+  'reports.path.csv': 'Arquivo CSV',
+  'reports.path.json': 'Arquivo JSON',
+  'reports.choose': 'Escolher…',
+  'reports.pathHint':
+    'Um caminho completo, ou escolha um. Um arquivo que já existe só é substituído quando você o escolheu na janela.',
+  'reports.invalid.extension': 'O nome do arquivo precisa terminar em .{extension}.',
+  'reports.filter.pdf': 'Documento PDF',
+  'reports.filter.csv': 'Arquivo CSV',
+  'reports.filter.json': 'Arquivo JSON',
+  'reports.done.title': 'Gravado',
+  'reports.done.pages.one': '{count} página',
+  'reports.done.pages.other': '{count} páginas',
+  'reports.done.announce': 'Gravado: {path}',
+  'reports.open': 'Abrir',
+  'reports.open.label': 'Abrir {name} no programa dele',
+  'reports.problem': 'Não gravado',
+  'reports.file.weekly': '{work} semanal {week}',
+  'reports.file.diary': '{work} diário',
+  'reports.file.schedule': '{work} cronograma',
+
+  'reports.weekly.holds':
+    'Um PDF de uma semana nas palavras do dono: os dias escritos e os dias úteis sem nada escrito, o que foi feito, quem esteve na obra, quanto o plano está pronto, quando termina, as decisões a tomar, o dinheiro e as etapas. Não traz as fotos, e anotações longas vêm encurtadas — o PDF do diário as traz inteiras.',
+  'reports.week': 'Semana',
+  'reports.weekly.write': 'Gravar o relatório semanal',
+  'reports.weekly.waiting': 'Lendo o diário…',
+  'reports.weekly.subtitle': '{work} · {from} a {to}',
+  'reports.weekly.week': 'A semana de {from} a {to}.',
+  'reports.weekly.empty.one':
+    'Nenhuma entrada no diário nesta semana: {count} dia útil já passou sem nada escrito. O resto deste relatório é impresso mesmo assim.',
+  'reports.weekly.empty.other':
+    'Nenhuma entrada no diário nesta semana: {count} dias úteis já passaram sem nada escrito. O resto deste relatório é impresso mesmo assim.',
+  'reports.weekly.emptyYet':
+    'Nenhuma entrada no diário nesta semana ainda. O resto deste relatório é impresso mesmo assim.',
+  'reports.weekly.asOf': 'Decisões, dinheiro e etapas estão como estão em {today}.',
+  'reports.weekly.site': 'Na obra nesta semana',
+  'reports.weekly.days.day': 'Dia',
+  'reports.weekly.days.diary': 'O que o diário diz',
+  'reports.weekly.holiday': 'feriado',
+  'reports.weekly.calendarUnknown':
+    'O calendário de trabalho não é confiável, então nenhum dia é chamado de dia útil ou de folga.',
+  'reports.weekly.lacksMore.one': 'E mais {count} coisa — o painel lista todas.',
+  'reports.weekly.lacksMore.other': 'E mais {count} coisas — o painel lista todas.',
+  'reports.weekly.noBaseline': 'O plano ainda não foi aprovado: não há {baseline} para comparar.',
+  'reports.weekly.stages': 'Etapas',
+  'reports.weekly.note':
+    'Cada número lista de onde foi contado. As fotos não são impressas: estão na pasta da obra.',
+  'reports.weekly.figure.worked': 'Trabalhado nesta semana',
+  'reports.weekly.figure.finished': 'Terminado nesta semana',
+  'reports.weekly.figure.decisions':
+    'Decisões atrasadas ou com prazo nos próximos {days} dias corridos',
+  'reports.weekly.figure.paidThisWeek': 'Pago nesta semana',
+  'reports.weekly.problem.invalidWeek':
+    'Isso não é um dia. Escolha qualquer dia da semana do relatório.',
+  'reports.weekly.problem.invalidToday':
+    'Não foi possível ler a data de hoje no relógio deste computador.',
+  'reports.weekly.problem.futureWeek':
+    'A semana que começa em {from} ainda não começou: não há nada para relatar.',
+
+  'reports.diary.title': 'O diário',
+  'reports.diary.holds':
+    'Cada entrada como foi escrita, em ordem, a correção ao lado do que ela corrige, cada anotação inteira — com a corrente verificada no momento em que o arquivo é gravado. Não traz as fotos, só quantas cada entrada tem.',
+  'reports.diary.csvHolds':
+    'O CSV traz as mesmas entradas, uma por linha, com os hashes, para uma planilha. Uma célula que começaria uma fórmula é gravada como texto.',
+  'reports.diary.writePdf': 'Gravar o PDF',
+  'reports.diary.writeCsv': 'Gravar o CSV',
+  'reports.diary.separator':
+    'Os valores são separados por “{separator}” — o que uma planilha neste idioma espera.',
+  'reports.diary.chain.intact.one': '{count} entrada, corrente verificada agora mesmo.',
+  'reports.diary.chain.intact.other': '{count} entradas, corrente verificada agora mesmo.',
+  'reports.diary.chain.empty':
+    'Nenhuma entrada ainda: a corrente está íntegra, e os arquivos vão dizer isso.',
+  'reports.diary.chain.broken':
+    'A corrente não fecha na entrada nº {seq}: {reason}. Nenhum dos dois arquivos será gravado.',
+  'reports.diary.chain.checking': 'Verificando a corrente…',
+  'reports.diary.status.effective': 'vale para o dia',
+  'reports.diary.status.corrected': 'não vale mais',
+  'reports.diary.written': 'Escrita por {author}, {time}',
+  'reports.diary.unknownPerson': 'alguém que não está mais no plano',
+  'reports.diary.photoCount.one': '{count} foto, guardada na pasta da obra',
+  'reports.diary.photoCount.other': '{count} fotos, guardadas na pasta da obra',
+  'reports.diary.empty': 'Nada foi escrito no diário ainda.',
+  'reports.diary.summary.one': '{count} entrada, sobre os dias de {from} a {to}.',
+  'reports.diary.summary.other': '{count} entradas, sobre os dias de {from} a {to}.',
+  'reports.diary.corrections.one':
+    '{count} delas corrige uma anterior; o que ela corrigiu está impresso como foi escrito, e marcado.',
+  'reports.diary.corrections.other':
+    '{count} delas corrigem anteriores; o que elas corrigiram está impresso como foi escrito, e marcado.',
+  'reports.diary.reading':
+    'Na ordem em que foram escritas. Uma entrada nunca é editada: uma correção é uma entrada nova, e a que ela corrige fica.',
+  'reports.diary.entry': '{entry} nº {seq} · {day}',
+  'reports.diary.photos':
+    'As fotos não são impressas: cada uma fica guardada na pasta da obra, com o nome do seu hash.',
+
+  'reports.schedule.title': 'O cronograma',
+  'reports.schedule.holds':
+    'O plano numa página deitada: uma barra para cada atividade no calendário, o caminho crítico preenchido, a linha de base embaixo, e uma tabela com todas as atividades. Não traz o avanço do diário — a página é o plano.',
+  'reports.schedule.write': 'Gravar o cronograma',
+  'reports.schedule.finish': '{finishDate}: {day}.',
+  'reports.schedule.noFinish': 'ainda não se sabe',
+  'reports.schedule.legend':
+    '{criticalPath}: barras preenchidas, e dito ao lado da linha na tabela. Outras atividades: barras vazadas. As folgas não são desenhadas à parte.',
+  'reports.schedule.baseline': 'Embaixo de cada barra, fina: {baseline} {number}.',
+  'reports.schedule.noBaseline':
+    'O plano ainda não foi aprovado, então nenhuma {baseline} é desenhada.',
+  'reports.schedule.blocked.invalidCalendar':
+    'Nada pode ser desenhado: o calendário de trabalho não é confiável.',
+  'reports.schedule.blocked.invalidStart':
+    'Nada pode ser desenhado: a data de início não é um dia.',
+  'reports.schedule.blocked.cyclic':
+    'Nada pode ser desenhado: as ligações formam um laço. Remova uma delas na estrutura.',
+  'reports.schedule.blocked.nothingPlaced':
+    'Nada pode ser desenhado ainda: nenhuma atividade tem duração.',
+  'reports.schedule.col.number': 'Nº',
+  'reports.schedule.col.start': 'Início',
+  'reports.schedule.col.finish': 'Término',
+  'reports.schedule.col.duration': 'Dias',
+  'reports.schedule.col.float': 'Folga',
+  'reports.schedule.criticalRow': '{name} · {label}',
+  'reports.schedule.nobody': 'ninguém ainda',
+  'reports.schedule.units':
+    'Dias e folga são dias úteis. Folga é quantos dias úteis uma atividade pode atrasar sem mudar o término.',
+
+  'reports.json.title': 'A obra em JSON',
+  'reports.json.holds':
+    'A obra inteira e cada entrada do diário com seus hashes, em JSON, para outro programa ler. Não traz os arquivos em si: documentos e fotos são nomeados pelo hash.',
+  'reports.json.write': 'Gravar o JSON',
+
+  // ── A porta de entrada, completa (F10) ────────────────────────────────────
+  'dashboard.figure.weekEntries': 'Entradas nesta semana',
+  'dashboard.figure.weekDaysWithoutEntry': 'Dias úteis sem entrada nesta semana',
+  'dashboard.figure.onSite': 'Quem esteve na obra',
+  'dashboard.figure.peopleExpected': 'Pessoas esperadas nesta semana',
+  'dashboard.figure.weatherLost': 'Dias perdidos por tempo',
+  'dashboard.figure.lastEntries': 'Últimas entradas',
+  'dashboard.figure.rows': 'O que ele conta',
+  'dashboard.weekDay.written': 'Escrito',
+  'dashboard.weekDay.missing': 'Um dia útil sem nada escrito',
+  'dashboard.weekDay.toCome': 'Ainda por vir',
+  'dashboard.weekDay.notWorking': 'Não é dia útil',
+  'dashboard.weekDay.beforeStart': 'Antes do início da obra',
+  'dashboard.weekDay.unknown': 'O calendário não sabe dizer',
+  'dashboard.week.range': 'De segunda, {from}, a domingo, {to}',
+  'dashboard.expected.stages': 'em {stages}, em andamento',
+  'dashboard.expected.hint':
+    'Quem responde por uma atividade programada para esta semana, ou está numa etapa em andamento.',
+  'dashboard.weatherLost.hint':
+    'Dias em que uma entrada diz chuva ou tempestade, e nada foi feito.',
+  'dashboard.last.of.one': 'As últimas {shown} de {count} entrada — o diário tem todas.',
+  'dashboard.last.of.other': 'As últimas {shown} de {count} entradas — o diário tem todas.',
+  'dashboard.last.open': 'Abrir a nº {seq} no diário',
+  'checks.figure.ready': 'Etapas prontas para começar',
 };

@@ -15,6 +15,24 @@ export function formatDay(language: Language, day: string): string {
   return new Intl.DateTimeFormat(language, { dateStyle: 'long', timeZone: 'UTC' }).format(moment);
 }
 
+/** A `YYYY-MM-DD` day, shorter: "5 Oct 2026" — for a table column, where the long form will not fit. */
+export function formatDayShort(language: Language, day: string): string {
+  const moment = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(moment.getTime())) return day;
+  return new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeZone: 'UTC' }).format(moment);
+}
+
+/** A `YYYY-MM-DD` day as its day and month in figures — "10/05", "05/10" — for a chart's column. */
+export function formatDayMonth(language: Language, day: string): string {
+  const moment = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(moment.getTime())) return day;
+  return new Intl.DateTimeFormat(language, {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'UTC',
+  }).format(moment);
+}
+
 /** An instant (UTC, from the host), as a date and a time on this machine's clock. */
 export function formatInstant(language: Language, instant: string): string {
   const moment = new Date(instant);
