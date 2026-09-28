@@ -17,6 +17,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { DiaryEntry, EntryDraft } from '@/domain/diary';
 import type { Direction } from '@/domain/ordering';
 import type { Answer, Endpoint, Gate, Holiday, WorkSnapshot } from '@/domain/plan';
+import type { PlanDraft, Provenance } from '@/domain/templates/format';
 import {
   readLanguage,
   readLens,
@@ -219,8 +220,31 @@ export function recentWorks(): Promise<RecentWork[]> {
 
 // ── The work ─────────────────────────────────────────────────────────────────
 
-export function workCreate(folder: string, draft: WorkDraft): Promise<WorkSummary> {
-  return invoke<WorkSummary>('work_create', { folder, draft });
+export type { PlanDraft, Provenance };
+
+/**
+ * A plan to write with a new work, or onto an empty one: the domain's draft, and where it came from
+ * (F9, ADR-029) — recorded on the work, never linked back: the work is its own from the first row.
+ */
+export interface PlanToApply {
+  draft: PlanDraft;
+  provenance: Provenance;
+}
+
+/**
+ * Create a work, and — when `plan` is given — write that plan into it in the same step. A plan the
+ * host refuses leaves nothing behind: the folder it created is removed again and no recent row is
+ * kept.
+ */
+export function workCreate(
+  folder: string,
+  draft: WorkDraft,
+  plan?: PlanToApply,
+): Promise<WorkSummary> {
+  return invoke<WorkSummary>(
+    'work_create',
+    plan === undefined ? { folder, draft } : { folder, draft, plan },
+  );
 }
 
 export function workOpen(folder: string): Promise<WorkSummary> {
@@ -377,6 +401,42 @@ export function baselineTake(
  */
 export function replanOpen(reason: string): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('replan_open', { reason });
+}
+
+// ── Templates (F9) ───────────────────────────────────────────────────────────
+//
+// A template is data, applied once as the work's own plan (ADR-029). The library ships inside the
+// frontend (`src/data/library.ts`); a template from a file is read by the host as text and parsed
+// and validated by the domain — the host never interprets it.
+
+/**
+ * Write a template's plan into the open work, in one transaction. Only onto a work with no stage
+ * that is not approved; the host refuses anything else, and a cycle, with its own sentence.
+ */
+export function planApply(draft: PlanDraft, provenance: Provenance): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('plan_apply', { draft, provenance });
+}
+
+/**
+ * Give every activity that has a range and no duration the lower or the upper end of its range as
+ * its duration — an explicit act by the person, locked after approval like any duration edit.
+ */
+export function rangesTake(which: 'low' | 'high'): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('ranges_take', { which });
+}
+
+/** A template file's text: `.json` only, up to 1 MiB, refused otherwise with a sentence. */
+export function templateRead(path: string): Promise<string> {
+  return invoke<string>('template_read', { path });
+}
+
+/**
+ * Write a template file: `.json` only, whole or not at all, up to 1 MiB. An existing file is
+ * replaced only with `overwrite`, which the interface sends when the save dialog chose the path —
+ * the dialog asked first; a path typed into the field never replaces a file.
+ */
+export async function templateWrite(path: string, text: string, overwrite: boolean): Promise<void> {
+  await invoke<unknown>('template_write', { path, text, overwrite });
 }
 
 // ── Decisions (F3) ───────────────────────────────────────────────────────────
@@ -541,11 +601,12 @@ export function stageReopen(id: string): Promise<WorkSnapshot> {
 // is append-only: there is no command that edits or removes a payment; a mistake is a reversal,
 // which is a new payment that says so.
 
+/** `amountCents: null` is a line not priced yet — a label, as a template's lines arrive (F9). */
 export function costLineAdd(
   stageId: string,
   activityId: string | null,
   label: string,
-  amountCents: number,
+  amountCents: number | null,
 ): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('cost_line_add', {
     stage_id: stageId,
@@ -557,7 +618,8 @@ export function costLineAdd(
 
 export interface CostLinePatch {
   label?: string;
-  amountCents?: number;
+  /** `null` takes the price away: the line is not priced yet. */
+  amountCents?: number | null;
 }
 
 export function costLineUpdate(id: string, patch: CostLinePatch): Promise<WorkSnapshot> {

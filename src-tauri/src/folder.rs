@@ -137,6 +137,23 @@ pub fn check_draft(draft: &WorkDraft) -> Result<NewWork> {
 /// [`Error::Io`] when the folder cannot be created; [`Error::Database`] when the
 /// database cannot be written.
 pub fn create(folder: &Path, draft: &WorkDraft) -> Result<WorkState> {
+    create_then(folder, draft, |_| Ok(()))
+}
+
+/// [`create`], and then `then` on the new work before it is handed back — a
+/// template's plan, applied in the same step. When `then` refuses, the work is
+/// closed and removed exactly as a failed create is: its files, and the folder
+/// too when this call created it. A folder that was there and empty before the
+/// call is left there, empty again.
+///
+/// # Errors
+///
+/// As [`create`], and whatever `then` returns.
+pub fn create_then(
+    folder: &Path,
+    draft: &WorkDraft,
+    then: impl FnOnce(&Connection) -> Result<()>,
+) -> Result<WorkState> {
     let new_work = check_draft(draft)?;
 
     let created_folder = if folder.exists() {
@@ -154,7 +171,13 @@ pub fn create(folder: &Path, draft: &WorkDraft) -> Result<WorkState> {
         true
     };
 
-    match write_new(folder, &new_work) {
+    // The connection is dropped — closed — before anything is removed: a file
+    // Windows holds open cannot be deleted.
+    let written = write_new(folder, &new_work).and_then(|conn| {
+        then(&conn)?;
+        Ok(conn)
+    });
+    match written {
         Ok(conn) => {
             log::info!("a new work was created");
             Ok(WorkState {
@@ -981,5 +1004,218 @@ mod tests {
         assert_eq!(db::work::snapshot(&again.conn).unwrap().baselines.len(), 3);
         assert!(diary::verify(&again.conn).unwrap().intact);
         close(again);
+    }
+
+    /// Every row of `sql`, each value in its debug form — raw, not through a
+    /// snapshot, so a file at an older schema can be compared with itself
+    /// after the migration.
+    fn raw_rows(conn: &Connection, sql: &str) -> Vec<String> {
+        let mut statement = conn.prepare(sql).unwrap();
+        let width = statement.column_count();
+        statement
+            .query_map([], |row| {
+                (0..width)
+                    .map(|i| {
+                        row.get::<_, rusqlite::types::Value>(i)
+                            .map(|v| format!("{v:?}"))
+                    })
+                    .collect::<std::result::Result<Vec<_>, _>>()
+                    .map(|values| values.join("|"))
+            })
+            .unwrap()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap()
+    }
+
+    /// The upgrade a person makes from F8: a work folder at schema 9 with three
+    /// cost lines — on an activity, on the stage, and one of 0 — an approval
+    /// with its baseline (stages and money recorded), and a diary entry. Opened
+    /// by F9, `cost_line` is rebuilt under `foreign_keys = ON`: every line keeps
+    /// its id, its amount (0 stays 0, not "not priced"), its label and when it
+    /// was written; its indexes are back; its references still hold and still
+    /// cascade; the baseline reads as it did; the diary chain still verifies;
+    /// and the work gains no range and no provenance.
+    #[test]
+    fn a_work_folder_at_schema_nine_with_cost_lines_a_baseline_and_a_diary_rebuilds_its_cost_lines_and_keeps_every_row(
+    ) {
+        use crate::db::diary;
+
+        let scratch = Scratch::create();
+        let bathroom = "00000000-0000-7000-8000-00000000000b";
+        let tiling = "00000000-0000-7000-8000-00000000000c";
+        let baseline = "00000000-0000-7000-8000-0000000000b1";
+        let lines = "SELECT id, stage_id, activity_id, label, amount_cents, created_at
+                     FROM cost_line ORDER BY id";
+        let baselines = [
+            "SELECT id, number, taken_at, reason, finish_date, planned_cents FROM baseline",
+            "SELECT * FROM baseline_activity ORDER BY baseline_id, position",
+            "SELECT * FROM baseline_stage ORDER BY baseline_id, position",
+        ];
+
+        let (lines_before, baselines_before, diary_before);
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 9).unwrap();
+            conn.execute_batch(&format!(
+                "INSERT INTO cost_line (id, stage_id, activity_id, label, amount_cents, created_at)
+                 VALUES ('00000000-0000-7000-8000-0000000000c1', '{bathroom}', '{tiling}',
+                         'Tiles', 120000, '2026-09-20T10:00:00.000Z'),
+                        ('00000000-0000-7000-8000-0000000000c2', '{bathroom}', NULL,
+                         'Labour', 30000, '2026-09-20T10:00:01.000Z'),
+                        ('00000000-0000-7000-8000-0000000000c3', '{bathroom}', NULL,
+                         'Contingency', 0, '2026-09-20T10:00:02.000Z');
+                 UPDATE work SET approved_at = '2026-09-25T12:00:00.000Z';
+                 INSERT INTO baseline (id, number, taken_at, finish_date, planned_cents)
+                 VALUES ('{baseline}', 1, '2026-09-25T12:00:00.000Z', '2026-10-07', 150000);
+                 INSERT INTO baseline_stage (baseline_id, stage_id, position, name, planned_cents)
+                 VALUES ('{baseline}', '{bathroom}', 1, 'Bathroom', 150000);
+                 INSERT INTO baseline_activity (baseline_id, activity_id, position, name,
+                                                stage_name, duration_days, start, finish,
+                                                planned_cents)
+                 VALUES ('{baseline}', '{tiling}', 1, 'Tiling', 'Bathroom', 3, '2026-10-05',
+                         '2026-10-07', 120000);"
+            ))
+            .expect("an F8 work's money and its baseline");
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    day: "2026-10-06".into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Tiles laid.".into()),
+                    weather: None,
+                    lost_day: false,
+                    hours: None,
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: vec![crate::contract::DoneLine {
+                        activity_id: tiling.into(),
+                        state: "worked".into(),
+                        quantity: Some(4.0),
+                        note: None,
+                    }],
+                    present: Vec::new(),
+                    photos: Vec::new(),
+                },
+            )
+            .unwrap();
+            lines_before = raw_rows(&conn, lines);
+            baselines_before = baselines.map(|sql| raw_rows(&conn, sql));
+            diary_before = diary::list(&conn, None, None).unwrap();
+            assert_eq!(lines_before.len(), 3);
+            assert_eq!(migrations::WORK.current_version(&conn), 9);
+        }
+
+        let state = open(scratch.path()).expect("an F8 work opens in F9");
+        let conn = &state.conn;
+
+        assert_eq!(migrations::WORK.current_version(conn), 10);
+        assert_eq!(raw_rows(conn, lines), lines_before, "every line, as it was");
+        assert_eq!(
+            baselines.map(|sql| raw_rows(conn, sql)),
+            baselines_before,
+            "every baseline row, untouched"
+        );
+        assert_eq!(diary::list(conn, None, None).unwrap(), diary_before);
+        let report = diary::verify(conn).unwrap();
+        assert_eq!(
+            (report.entries, report.intact),
+            (1, true),
+            "the chain still holds"
+        );
+
+        let plan = db::work::snapshot(conn).unwrap();
+        let amounts: Vec<Option<i64>> = plan.cost_lines.iter().map(|c| c.amount_cents).collect();
+        assert_eq!(
+            amounts,
+            vec![Some(120_000), Some(30_000), Some(0)],
+            "0 stays 0: every line in a file before F9 is priced"
+        );
+        assert_eq!(plan.baselines[0].planned_cents, Some(150_000));
+        assert_eq!(
+            (
+                plan.work.template_id.clone(),
+                plan.work.template_version,
+                plan.work.template_title.clone()
+            ),
+            (None, None, None)
+        );
+        assert_eq!(
+            (
+                plan.activities[0].duration_days,
+                plan.activities[0].duration_min_days,
+                plan.activities[0].duration_max_days
+            ),
+            (Some(3), None, None)
+        );
+
+        // The table is the one migration 007 made, less the NOT NULL.
+        let indexes = raw_rows(
+            conn,
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'cost_line'
+             AND name LIKE 'idx_%' ORDER BY name",
+        );
+        assert_eq!(
+            indexes,
+            vec![
+                "Text(\"idx_cost_line_activity\")",
+                "Text(\"idx_cost_line_stage\")"
+            ]
+        );
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT count(*) FROM sqlite_master WHERE name = 'cost_line_010'"
+            ),
+            vec!["Integer(0)"]
+        );
+        assert!(raw_rows(conn, "PRAGMA foreign_key_check").is_empty());
+        assert_eq!(raw_rows(conn, "PRAGMA foreign_keys"), vec!["Integer(1)"]);
+        let refused = conn
+            .execute(
+                "INSERT INTO cost_line (id, stage_id, label, amount_cents, created_at)
+                 VALUES ('00000000-0000-7000-8000-0000000000c9',
+                         '00000000-0000-7000-8000-0000000000ff', 'Nowhere', 1, 't')",
+                [],
+            )
+            .expect_err("a line on a stage that is not there");
+        assert!(refused.to_string().contains("FOREIGN KEY"), "{refused}");
+        for amount in ["-1", "1.5", "'ten'"] {
+            conn.execute(
+                &format!(
+                    "INSERT INTO cost_line (id, stage_id, label, amount_cents, created_at)
+                     VALUES ('00000000-0000-7000-8000-0000000000c8', '{bathroom}', 'X',
+                             {amount}, 't')"
+                ),
+                [],
+            )
+            .expect_err(amount);
+        }
+        conn.execute(
+            &format!(
+                "INSERT INTO cost_line (id, stage_id, label, amount_cents, created_at)
+                 VALUES ('00000000-0000-7000-8000-0000000000c8', '{bathroom}', 'Unpriced',
+                         NULL, 't')"
+            ),
+            [],
+        )
+        .expect("not priced yet");
+        conn.execute("DELETE FROM activity WHERE id = ?1", [tiling])
+            .unwrap();
+        assert_eq!(
+            db::work::snapshot(conn).unwrap().cost_lines.len(),
+            3,
+            "the activity's line went with it: the cascade survived the rebuild"
+        );
+        close(state);
+
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        assert!(diary::verify(&again.conn).unwrap().intact);
+        close(again);
+        assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
     }
 }

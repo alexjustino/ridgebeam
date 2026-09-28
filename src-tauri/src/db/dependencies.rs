@@ -21,6 +21,8 @@
 //!
 //! - F2: dependencies added, their lag changed, removed; the cycle guard; the
 //!   cascade on removal.
+//! - F9: `add_within`, the same checks inside a transaction the caller holds —
+//!   a template's links are added with the rest of its plan, or not at all.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -112,13 +114,26 @@ pub fn list(conn: &Connection) -> Result<Vec<Dependency>> {
 /// when what would wait is in a closed stage (F5).
 pub fn add(conn: &Connection, blocker: &End, blocked: &End, lag_days: i64) -> Result<String> {
     let tx = conn.unchecked_transaction()?;
-    must_exist(&tx, blocker)?;
-    must_exist(&tx, blocked)?;
+    let id = add_within(&tx, blocker, blocked, lag_days)?;
+    tx.commit()?;
+    Ok(id)
+}
+
+/// [`add`], inside a transaction the caller already holds and commits: every
+/// check, the same refusals, and the row — or an error, and the caller's
+/// transaction rolls back whatever else it wrote.
+///
+/// # Errors
+///
+/// As [`add`].
+pub fn add_within(tx: &Connection, blocker: &End, blocked: &End, lag_days: i64) -> Result<String> {
+    must_exist(tx, blocker)?;
+    must_exist(tx, blocked)?;
     // What waits must be open: a closed stage is not made to wait for anything.
     // A closed stage may still be what something else waits for.
     match blocked.kind {
-        Kind::Activity => refuse_if_activity_closed(&tx, &blocked.id)?,
-        Kind::Stage => refuse_if_stage_closed(&tx, &blocked.id)?,
+        Kind::Activity => refuse_if_activity_closed(tx, &blocked.id)?,
+        Kind::Stage => refuse_if_stage_closed(tx, &blocked.id)?,
     }
     if blocker == blocked {
         return Err(Error::InvalidInput(SELF_DEPENDENCY.into()));
@@ -137,7 +152,7 @@ pub fn add(conn: &Connection, blocker: &End, blocked: &End, lag_days: i64) -> Re
     if duplicate > 0 {
         return Err(Error::InvalidInput(DUPLICATE_DEPENDENCY.into()));
     }
-    refuse_a_cycle(&tx, blocker, blocked)?;
+    refuse_a_cycle(tx, blocker, blocked)?;
 
     let id = new_id();
     tx.execute(
@@ -154,7 +169,6 @@ pub fn add(conn: &Connection, blocker: &End, blocked: &End, lag_days: i64) -> Re
             now()
         ],
     )?;
-    tx.commit()?;
     Ok(id)
 }
 

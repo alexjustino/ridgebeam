@@ -109,7 +109,8 @@ pub fn create(conn: &Connection, work: &NewWork) -> Result<()> {
 /// [`Error::Database`] when the row cannot be read.
 pub fn work(conn: &Connection) -> Result<Work> {
     let work = conn.query_row(
-        "SELECT work_id, name, place, start_date, currency, created_at, approved_at
+        "SELECT work_id, name, place, start_date, currency, created_at, approved_at,
+                template_id, template_version, template_title
          FROM work WHERE id = 1",
         [],
         |row| {
@@ -121,6 +122,9 @@ pub fn work(conn: &Connection) -> Result<Work> {
                 currency: row.get(4)?,
                 created_at: row.get(5)?,
                 approved_at: row.get(6)?,
+                template_id: row.get(7)?,
+                template_version: row.get(8)?,
+                template_title: row.get(9)?,
             })
         },
     )?;
@@ -236,7 +240,7 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
     let activities = conn
         .prepare(
             "SELECT a.id, a.stage_id, a.position, a.name, a.duration_days, a.responsible_id,
-                    a.quantity, a.unit
+                    a.quantity, a.unit, a.duration_min_days, a.duration_max_days
              FROM activity a JOIN stage s ON s.id = a.stage_id
              ORDER BY s.position, a.position",
         )?
@@ -247,6 +251,8 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
                 position: row.get(2)?,
                 name: row.get(3)?,
                 duration_days: row.get(4)?,
+                duration_min_days: row.get(8)?,
+                duration_max_days: row.get(9)?,
                 responsible_id: row.get(5)?,
                 room_ids: Vec::new(),
                 quantity: row.get(6)?,

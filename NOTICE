@@ -23,6 +23,15 @@ to the source code; it does not grant permission to use the project name, logo
 or wordmark to endorse or promote derived products. See Section 6 of the License.
 
 --------------------------------------------------------------------------------
+THE TEMPLATE LIBRARY
+
+The templates in templates/ are original work of this project's contributors,
+distributed under the same License as the code. Each is a starting point for a
+plan, written with ranges and without prices: not a quote, not a design, and not
+the advice of an engineer, an architect or any trade on a particular site. They
+are provided on the same "AS IS" basis as everything else in this product.
+
+--------------------------------------------------------------------------------
 THIRD-PARTY COMPONENTS
 
 This product bundles or depends on third-party components distributed under

@@ -42,7 +42,8 @@ pub const NOT_MADE: &str = "That decision is still open; there is nothing to reo
 pub fn list(conn: &Connection) -> Result<Vec<Decision>> {
     let decisions = conn
         .prepare(
-            "SELECT d.id, d.stage_id, d.position, d.name, d.lead_time_days, d.made_at, d.answer
+            "SELECT d.id, d.stage_id, d.position, d.name, d.lead_time_days, d.made_at, d.answer,
+                    d.lead_min_days, d.lead_max_days
              FROM decision d JOIN stage s ON s.id = d.stage_id
              ORDER BY s.position, d.position",
         )?
@@ -53,6 +54,8 @@ pub fn list(conn: &Connection) -> Result<Vec<Decision>> {
                 position: row.get(2)?,
                 name: row.get(3)?,
                 lead_time_days: row.get(4)?,
+                lead_min_days: row.get(7)?,
+                lead_max_days: row.get(8)?,
                 made_at: row.get(5)?,
                 answer: row.get(6)?,
             })

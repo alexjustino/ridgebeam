@@ -23,7 +23,7 @@
 
 import { decisionRows } from '../decisions';
 import { percent, type Figure, type ReportRow } from '../figure';
-import { activitiesInOrder, stagesInOrder, type WorkSnapshot } from '../plan';
+import { activitiesInOrder, durationRangeOf, stagesInOrder, type WorkSnapshot } from '../plan';
 import type { Schedule } from '../schedule';
 import {
   ACTIVITY_RULES,
@@ -58,6 +58,11 @@ export interface MissingRow {
   readonly name: string;
   /** The stage it belongs to, or `null` for the plan or a row whose stage is not in the plan. */
   readonly stageName: string | null;
+  /**
+   * For an activity with no duration yet, the range of working days its template gave it ("a range
+   * of 3–5 working days, no duration yet"); `null` for every other row.
+   */
+  readonly durationRange: { readonly min: number; readonly max: number } | null;
 }
 
 /** How one rule counted. */
@@ -103,6 +108,7 @@ export function readiness(snapshot: WorkSnapshot, context: ReadinessContext): Re
           id: snapshot.work.workId,
           name: snapshot.work.name,
           stageName: null,
+          durationRange: null,
         },
       ],
       rules: rules(),
@@ -120,7 +126,7 @@ export function readiness(snapshot: WorkSnapshot, context: ReadinessContext): Re
       readonly applies: (row: Row, plan: WorkSnapshot) => boolean;
       readonly holds: (row: Row, plan: WorkSnapshot) => boolean;
     }>,
-    describe: (row: Row) => Omit<MissingRow, 'ruleId'>,
+    describe: (row: Row, ruleId: RuleId) => Omit<MissingRow, 'ruleId'>,
   ): void {
     for (const row of rows) {
       for (const rule of rules) {
@@ -128,28 +134,32 @@ export function readiness(snapshot: WorkSnapshot, context: ReadinessContext): Re
         const count = counts.get(rule.id)!;
         count.mustKnow += 1;
         if (rule.holds(row, snapshot)) count.known += 1;
-        else missing.push({ ruleId: rule.id, ...describe(row) });
+        else missing.push({ ruleId: rule.id, ...describe(row, rule.id) });
       }
     }
   }
 
-  tally(activities, ACTIVITY_RULES, (activity) => ({
+  tally(activities, ACTIVITY_RULES, (activity, ruleId) => ({
     entity: 'activity',
     id: activity.id,
     name: activity.name,
     stageName: stageNames.get(activity.stageId) ?? null,
+    // The duration row says what the template offered: a range, until a person picks.
+    durationRange: ruleId === 'activity.duration' ? durationRangeOf(activity) : null,
   }));
   tally(decisionRows(snapshot, context.schedule, context.today), DECISION_RULES, (decision) => ({
     entity: 'decision',
     id: decision.decisionId,
     name: decision.name,
     stageName: decision.stageName,
+    durationRange: null,
   }));
   tally(stagesInOrder(snapshot), STAGE_RULES, (stage) => ({
     entity: 'stage',
     id: stage.id,
     name: stage.name,
     stageName: stage.name,
+    durationRange: null,
   }));
 
   let known = 0;
@@ -166,6 +176,8 @@ export interface ReadinessRow extends ReportRow {
   readonly ruleId: MissingId;
   readonly entity: 'activity' | 'decision' | 'stage' | 'plan';
   readonly stageName: string | null;
+  /** The template's range for an activity with no duration yet; `null` otherwise. */
+  readonly durationRange: { readonly min: number; readonly max: number } | null;
 }
 
 function readinessRows(missing: readonly MissingRow[]): ReadinessRow[] {
@@ -178,6 +190,7 @@ function readinessRows(missing: readonly MissingRow[]): ReadinessRow[] {
     ruleId: row.ruleId,
     entity: row.entity,
     stageName: row.stageName,
+    durationRange: row.durationRange,
   }));
 }
 

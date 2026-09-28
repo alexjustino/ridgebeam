@@ -1,10 +1,13 @@
+import { ArrowExportLtr20Regular } from '@fluentui/react-icons';
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 
 import { useSettings } from '@/data/queries';
 import type { WorkSnapshot } from '@/domain/plan';
 import { DEFAULT_LENS, type LensChoice } from '@/domain/settings';
 import { useI18n } from '@/i18n/useI18n';
+import { ExportTemplateDialog } from '@/features/templates/ExportTemplateDialog';
 import { useTerms } from '@/i18n/useTerm';
+import { Button } from '@/ui/Button';
 import { InfoBar } from '@/ui/InfoBar';
 import { TabStrip } from '@/ui/TabStrip';
 
@@ -37,6 +40,9 @@ const TAB_FOR_LENS: Record<LensChoice, PlanTab> = {
  * breakdown; the other two arrangements show the same rows and lead back to it. Every change is
  * kept the moment it is made, the host answers with the whole plan, and every arrangement shows
  * that answer — so they can never disagree.
+ *
+ * The header offers **Export as a template…** (F9, `template-export`): the plan's shape written to a
+ * file another work can start from, with its numbers stripped or kept (ADR-030).
  */
 export function PlanPage({
   snapshot,
@@ -61,6 +67,7 @@ export function PlanPage({
   );
   const [focusRow, setFocusRow] = useState<string | null>(initialFocus);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const panel = useId();
 
   // The row another page asked for is taken once, on arrival; the request is then let go, so the
@@ -84,10 +91,20 @@ export function PlanPage({
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
-      <header>
-        <h1 className="text-title font-semibold text-fg">{t('nav.plan')}</h1>
-        <p className="mt-1 text-body-lg text-fg">{snapshot.work.name}</p>
-        <p className="mt-1 max-w-3xl text-body text-fg-secondary">{t('plan.lead')}</p>
+      <header className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-title font-semibold text-fg">{t('nav.plan')}</h1>
+          <p className="mt-1 text-body-lg text-fg">{snapshot.work.name}</p>
+          <p className="mt-1 max-w-3xl text-body text-fg-secondary">{t('plan.lead')}</p>
+        </div>
+        <Button
+          icon={<ArrowExportLtr20Regular />}
+          data-testid="template-export"
+          className="shrink-0"
+          onClick={() => setExporting(true)}
+        >
+          {t('templates.export', { template: term('template') })}
+        </Button>
       </header>
 
       {refusal !== null && (
@@ -133,6 +150,11 @@ export function PlanPage({
         {tab === 'gates' && <GatesTab snapshot={snapshot} />}
         {tab === 'people' && <PeopleTab snapshot={snapshot} />}
       </div>
+
+      {/* Mounted only while open, so each opening starts from the plan as it is now. */}
+      {exporting && (
+        <ExportTemplateDialog snapshot={snapshot} open onClose={() => setExporting(false)} />
+      )}
     </div>
   );
 }

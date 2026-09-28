@@ -10,13 +10,17 @@
 //!   fixed (`invalid_input` with the sentence). A closed stage still takes
 //!   commitments: an agreement is closer to a fact than to a plan edit.
 //!
-//! Amounts are whole minor units of the work's currency, 0 or more.
+//! Amounts are whole minor units of the work's currency, 0 or more. A cost
+//! line may have none yet — "not priced yet", which is not 0 (F9: a template's
+//! lines are labels).
 //!
 //! # Changelog of this repository
 //!
 //! - F6: cost lines and commitments added, changed, removed; the locks that
 //!   keep what was paid from disappearing (a paid stage, person or commitment
 //!   is not removed).
+//! - F9: a cost line's amount may be `None` — added without one, or its price
+//!   taken away.
 
 use rusqlite::{params, Connection, OptionalExtension};
 
@@ -113,7 +117,7 @@ pub fn add_cost_line(
     stage_id: &str,
     activity_id: Option<&str>,
     label: &str,
-    amount_cents: i64,
+    amount_cents: Option<i64>,
 ) -> Result<String> {
     if !exists(conn, "SELECT 1 FROM stage WHERE id = ?1", stage_id)? {
         return Err(Error::InvalidInput(STAGE_NOT_FOUND.into()));
@@ -151,7 +155,8 @@ fn cost_line_stage(conn: &Connection, id: &str) -> Result<String> {
     .ok_or_else(|| Error::InvalidInput(COST_LINE_NOT_FOUND.into()))
 }
 
-/// Change a cost line's label or amount; `None` leaves a field alone.
+/// Change a cost line's label or amount; `None` leaves a field alone, and
+/// `Some(None)` takes the amount away.
 ///
 /// # Errors
 ///
@@ -161,15 +166,23 @@ pub fn update_cost_line(
     conn: &Connection,
     id: &str,
     label: Option<&str>,
-    amount_cents: Option<i64>,
+    amount_cents: Option<Option<i64>>,
 ) -> Result<()> {
     refuse_if_stage_closed(conn, &cost_line_stage(conn, id)?)?;
-    conn.execute(
-        "UPDATE cost_line SET label = coalesce(?2, label),
-                              amount_cents = coalesce(?3, amount_cents)
-         WHERE id = ?1",
-        params![id, label, amount_cents],
-    )?;
+    let tx = conn.unchecked_transaction()?;
+    if let Some(label) = label {
+        tx.execute(
+            "UPDATE cost_line SET label = ?2 WHERE id = ?1",
+            params![id, label],
+        )?;
+    }
+    if let Some(amount_cents) = amount_cents {
+        tx.execute(
+            "UPDATE cost_line SET amount_cents = ?2 WHERE id = ?1",
+            params![id, amount_cents],
+        )?;
+    }
+    tx.commit()?;
     Ok(())
 }
 
@@ -407,10 +420,11 @@ mod tests {
     #[test]
     fn cost_lines_sit_on_a_stage_or_its_activity_and_are_changed_and_removed() {
         let m = money();
-        let tiles = add_cost_line(&m.conn, &m.stage, Some(&m.activity), "Tiles", 120_000).unwrap();
-        let labour = add_cost_line(&m.conn, &m.stage, None, "Labour", 80_000).unwrap();
+        let tiles =
+            add_cost_line(&m.conn, &m.stage, Some(&m.activity), "Tiles", Some(120_000)).unwrap();
+        let labour = add_cost_line(&m.conn, &m.stage, None, "Labour", Some(80_000)).unwrap();
 
-        update_cost_line(&m.conn, &labour, None, Some(85_000)).unwrap();
+        update_cost_line(&m.conn, &labour, None, Some(Some(85_000))).unwrap();
         let lines = snapshot(&m.conn).unwrap().cost_lines;
         let wire = serde_json::to_value(&lines).unwrap();
         assert_eq!(wire[0]["activityId"], m.activity.as_str());
@@ -423,7 +437,7 @@ mod tests {
 
         let other = add_stage(&m.conn, "Painting").unwrap();
         assert_eq!(
-            add_cost_line(&m.conn, &other, Some(&m.activity), "Tiles", 1)
+            add_cost_line(&m.conn, &other, Some(&m.activity), "Tiles", Some(1))
                 .unwrap_err()
                 .to_string(),
             ACTIVITY_OF_ANOTHER_STAGE
@@ -433,12 +447,12 @@ mod tests {
     #[test]
     fn a_cost_line_on_a_closed_stage_is_refused_and_a_payment_is_not() {
         let m = money();
-        let line = add_cost_line(&m.conn, &m.stage, None, "Labour", 80_000).unwrap();
+        let line = add_cost_line(&m.conn, &m.stage, None, "Labour", Some(80_000)).unwrap();
         crate::db::checks::start(&m.conn, &m.stage).unwrap();
         crate::db::checks::close(&m.conn, &m.stage).unwrap();
 
         for refused in [
-            add_cost_line(&m.conn, &m.stage, None, "Late", 1).map(|_| ()),
+            add_cost_line(&m.conn, &m.stage, None, "Late", Some(1)).map(|_| ()),
             update_cost_line(&m.conn, &line, Some("X"), None),
             remove_cost_line(&m.conn, &line),
         ] {

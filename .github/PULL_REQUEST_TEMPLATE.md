@@ -33,6 +33,20 @@
 
 - [ ] every fixture this change adds is synthetic, and says so
 
+## Templates
+
+<!-- Only when this adds or changes a file in templates/. Otherwise write "not applicable".
+     The procedure is CONTRIBUTING.md, "The template library". -->
+
+- Template(s):
+- [ ] `npx vitest run src/domain/templates` passes — the library test validates every file and
+      applies it to an empty work
+- [ ] every duration and lead time is a range of working days, not a single number
+- [ ] no price, no brand, no supplier, no real place, person or contact, no standard cited by
+      number
+- [ ] the English and the Portuguese were each read by somebody who speaks the language
+- [ ] `version` raised by one, if the template was already in the library
+
 ## What I could not verify
 
 <!-- Mandatory, and never empty. What was not opened, not printed, not read by somebody who is

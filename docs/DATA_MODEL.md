@@ -42,17 +42,24 @@ list of recent works with their folders. It holds nothing about the content of a
 
 One row, `id = 1`, created by the first migration.
 
-| Column           | Type    | Meaning                                                                            |
-| ---------------- | ------- | ---------------------------------------------------------------------------------- |
-| `id`             | INTEGER | always 1 (`CHECK (id = 1)`)                                                        |
-| `schema_version` | INTEGER | the last migration applied; moves independently of the product                     |
-| `work_id`        | TEXT    | UUID v7, the work's identity across renames and moves                              |
-| `name`           | TEXT    | what the person calls the work                                                     |
-| `place`          | TEXT    | where it is, as the person writes it — never geocoded, never sent                  |
-| `start_date`     | TEXT    | ISO 8601 date, the first day the schedule may use                                  |
-| `currency`       | TEXT    | ISO 4217 code, three letters                                                       |
-| `created_at`     | TEXT    | UTC, milliseconds, trailing `Z`                                                    |
-| `approved_at`    | TEXT    | UTC, when baseline 1 was taken; `NULL` until then, and never changed once set (F2) |
+| Column             | Type    | Meaning                                                                                                 |
+| ------------------ | ------- | ------------------------------------------------------------------------------------------------------- |
+| `id`               | INTEGER | always 1 (`CHECK (id = 1)`)                                                                             |
+| `schema_version`   | INTEGER | the last migration applied; moves independently of the product                                          |
+| `work_id`          | TEXT    | UUID v7, the work's identity across renames and moves                                                   |
+| `name`             | TEXT    | what the person calls the work                                                                          |
+| `place`            | TEXT    | where it is, as the person writes it — never geocoded, never sent                                       |
+| `start_date`       | TEXT    | ISO 8601 date, the first day the schedule may use                                                       |
+| `currency`         | TEXT    | ISO 4217 code, three letters                                                                            |
+| `created_at`       | TEXT    | UTC, milliseconds, trailing `Z`                                                                         |
+| `approved_at`      | TEXT    | UTC, when baseline 1 was taken; `NULL` until then, and never changed once set (F2)                      |
+| `template_id`      | TEXT    | the id of the template the plan was started from, 1–64 characters; `NULL` for a plan started empty (F9) |
+| `template_version` | INTEGER | that template's version, 1 or more; `NULL` with the id (F9)                                             |
+| `template_title`   | TEXT    | its title in the language the work was started in, 1–120 characters; `NULL` with the id (F9)            |
+
+**Provenance, not a tie** (ADR-029). The three `template_*` columns are all set or all `NULL`, a
+`CHECK` on the last of them. They record where the plan came from and nothing else: nothing is
+ever read from the template again, and nothing in the work refers to it.
 
 ### `calendar` and `holiday`
 
@@ -101,17 +108,19 @@ on (F7).
 | `started_at` | TEXT    | UTC, when the person started it — the start gate passed; `NULL` while planned; never changed once set (F5) |
 | `closed_at`  | TEXT    | UTC, when the person closed it — the close gate passed; only on a started stage; cleared by a reopen (F5)  |
 
-| `activity`       | Type    | Meaning                                                                                                         |
-| ---------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
-| `id`             | TEXT    | UUID v7                                                                                                         |
-| `stage_id`       | TEXT    | `REFERENCES stage ON DELETE CASCADE`                                                                            |
-| `position`       | INTEGER | order inside the stage, unique per stage                                                                        |
-| `name`           | TEXT    | not empty                                                                                                       |
-| `duration_days`  | INTEGER | working days, `NULL` until known, `> 0` once set                                                                |
-| `responsible_id` | TEXT    | `REFERENCES person ON DELETE SET NULL`, `NULL` until known                                                      |
-| `created_at`     | TEXT    | UTC                                                                                                             |
-| `quantity`       | REAL    | how much of the activity there is — 12 (m² of tile); `NULL` or `>= 0`, a number and never text (F1)             |
-| `unit`           | TEXT    | the quantity's unit as the person writes it — `m²`, `m`, `un`; 1–16 characters, and only beside a quantity (F1) |
+| `activity`          | Type    | Meaning                                                                                                         |
+| ------------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
+| `id`                | TEXT    | UUID v7                                                                                                         |
+| `stage_id`          | TEXT    | `REFERENCES stage ON DELETE CASCADE`                                                                            |
+| `position`          | INTEGER | order inside the stage, unique per stage                                                                        |
+| `name`              | TEXT    | not empty                                                                                                       |
+| `duration_days`     | INTEGER | working days, `NULL` until known, `> 0` once set                                                                |
+| `responsible_id`    | TEXT    | `REFERENCES person ON DELETE SET NULL`, `NULL` until known                                                      |
+| `created_at`        | TEXT    | UTC                                                                                                             |
+| `quantity`          | REAL    | how much of the activity there is — 12 (m² of tile); `NULL` or `>= 0`, a number and never text (F1)             |
+| `unit`              | TEXT    | the quantity's unit as the person writes it — `m²`, `m`, `un`; 1–16 characters, and only beside a quantity (F1) |
+| `duration_min_days` | INTEGER | the lower end of the range of working days a template gave, 1–3650; `NULL` when none was given (F9)             |
+| `duration_max_days` | INTEGER | the upper end, from the lower end to 3650; set exactly when `duration_min_days` is (F9)                         |
 
 **Order is explicit.** `position` is 1, 2, 3 … with no gaps — among stages, and among the
 activities of one stage, and among rooms. The host renumbers them 1 … n in the same transaction as
@@ -127,6 +136,16 @@ checks first and refuses a unit on its own with its own sentence; the schema che
 `unit` is `NULL`, or 1–16 characters that are not blank and only when `quantity` is present,
 a `CHECK` SQLite accepts on the added column and tests against every row. Clearing a quantity
 clears its unit.
+
+**A range is not a duration** (F9, ADR-029). An activity started from a template carries the
+template's range and **no duration**: `duration_days` stays `NULL` while the range is a range, and
+is written only by a person — typed, or taken from every range at once, its lower or its upper end
+(`ranges_take`, which writes only activities with a range and no duration, outside a closed
+stage, and is locked after approval like any duration edit). A range given as a point — which only
+a file may carry — is applied as the duration too. The range is not constrained to hold the
+duration: a person who knows better types what they know. The two ends are both set or both
+`NULL`, a `CHECK` on the second column, because a column's `CHECK` may name a column added before
+it and not one added after.
 
 **There is no progress column, and there never will be.** Progress is derived from the diary
 (slice F4).
@@ -275,16 +294,18 @@ A decision belongs to a stage — _which tile_, _which colour_, _which contracto
 and carries a lead time: the working days between deciding and having what was decided on site
 (F3).
 
-| Column           | Type    | Meaning                                                                       |
-| ---------------- | ------- | ----------------------------------------------------------------------------- |
-| `id`             | TEXT    | UUID v7                                                                       |
-| `stage_id`       | TEXT    | `REFERENCES stage ON DELETE CASCADE` — removing a stage removes its decisions |
-| `position`       | INTEGER | order inside the stage, unique per stage, 1 … n                               |
-| `name`           | TEXT    | 1–120 characters, not blank                                                   |
-| `lead_time_days` | INTEGER | working days between deciding and having, 0 to 3650, default 0                |
-| `made_at`        | TEXT    | UTC, when it was made; `NULL` while it is open                                |
-| `answer`         | TEXT    | what was decided, 1–500 characters, optional — and only on a made decision    |
-| `created_at`     | TEXT    | UTC                                                                           |
+| Column           | Type    | Meaning                                                                             |
+| ---------------- | ------- | ----------------------------------------------------------------------------------- |
+| `id`             | TEXT    | UUID v7                                                                             |
+| `stage_id`       | TEXT    | `REFERENCES stage ON DELETE CASCADE` — removing a stage removes its decisions       |
+| `position`       | INTEGER | order inside the stage, unique per stage, 1 … n                                     |
+| `name`           | TEXT    | 1–120 characters, not blank                                                         |
+| `lead_time_days` | INTEGER | working days between deciding and having, 0 to 3650, default 0                      |
+| `lead_min_days`  | INTEGER | the lower end of the lead range a template gave, 0 to 3650; `NULL` when none (F9)   |
+| `lead_max_days`  | INTEGER | the upper end, from the lower end to 3650; set exactly when `lead_min_days` is (F9) |
+| `made_at`        | TEXT    | UTC, when it was made; `NULL` while it is open                                      |
+| `answer`         | TEXT    | what was decided, 1–500 characters, optional — and only on a made decision          |
+| `created_at`     | TEXT    | UTC                                                                                 |
 
 **The deadline is never a column** (ADR-017). It is computed by the domain every time: the
 earliest scheduled start among the stage's activities minus the lead time, counted backwards in
@@ -294,6 +315,12 @@ overdue is the deadline against today, and today is an input the interface passe
 domain, not a fact the file could keep. An answer belongs to the making: `CHECK (answer IS NULL
 OR made_at IS NOT NULL)`, and reopening a decision clears both. Positions are renumbered 1 … n
 by the host with every move and removal, as for activities.
+
+**A lead range keeps its upper end as the lead time** (F9). A decision a template brought takes
+the **upper** end of its range as `lead_time_days` — the earlier deadline, the careful reading —
+and keeps both ends for display. The ends are both set or both `NULL`, like an activity's. A
+template may say which activity needs a decision; the host checks that it names one of the stage's
+and does not store it, because in 1.0 a decision is needed by its whole stage.
 
 ### The diary — `diary_entry`, `diary_done`, `diary_present`, `diary_photo` — insert-only
 
@@ -449,11 +476,18 @@ domain adds cents; the interface formats them.
 | `stage_id`     | TEXT    | `REFERENCES stage ON DELETE CASCADE`                                              |
 | `activity_id`  | TEXT    | `REFERENCES activity ON DELETE CASCADE`, or `NULL` for a line on the stage itself |
 | `label`        | TEXT    | 1–120 characters, not blank                                                       |
-| `amount_cents` | INTEGER | the planned amount, `>= 0`                                                        |
+| `amount_cents` | INTEGER | the planned amount, `>= 0`; `NULL` for a line **not priced yet** (F9)             |
 | `created_at`   | TEXT    | UTC                                                                               |
 
 **Planned** is cost lines: a stage's planned amount is its own lines plus its activities'. Cost
 lines are plan, edited per work, and refused on a closed stage (ADR-022).
+
+**A line may be a label with no amount** (F9, ADR-029). A template carries no prices, so the cost
+lines it brings have `amount_cents` `NULL` — _not priced yet_, which is not 0. Planned money sums
+the priced lines and lists each unpriced one as a row marked so, contributing nothing; the S-curve
+draws only priced lines; and readiness's `stage.money` needs a priced line. `cost_line_add` and
+`cost_line_update` accept `NULL` to leave a line unpriced or to unprice it. Every line written
+before F9 has an amount, so no existing total or readiness figure moved with the change.
 
 | `commitment`    | Type    | Meaning                                                   |
 | --------------- | ------- | --------------------------------------------------------- |
@@ -563,21 +597,24 @@ each that does not is a _missing_ row, named, and opens from the figure. The fig
 must-know`; the rules, summed, give exactly that figure; and the sentence is built from the
 count of missing rows per rule, in the person's language.
 
-| Rule                   | Slice | Applies to                               | Holds when                                                            | The sentence, in English                 |
-| ---------------------- | ----- | ---------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------- |
-| `activity.duration`    | F0    | every activity                           | it has a duration of one working day or more                          | "1 activity has no duration."            |
-| `activity.responsible` | F0    | every activity                           | its responsible is a person of the work                               | "1 activity has no responsible."         |
-| `activity.linked`      | F2    | every activity, in a plan of two or more | a dependency joins it to another, stages expanded                     | "1 activity is not linked to any other." |
-| `decision.deadline`    | F3    | every decision                           | its stage has a scheduled activity, so it has a deadline              | "1 decision has no deadline yet."        |
-| `decision.timely`      | F3    | every decision whose deadline is known   | it is made, or its deadline is today or later                         | "2 decisions are overdue."               |
-| `stage.checks`         | F5    | every stage                              | it has at least one check at its start gate and one at its close gate | "2 stages have no checks."               |
-| `stage.money`          | F6    | every stage                              | it has at least one cost line, its own or one of its activities'      | "2 stages have no money planned."        |
+| Rule                   | Slice | Applies to                               | Holds when                                                                                   | The sentence, in English                 |
+| ---------------------- | ----- | ---------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `activity.duration`    | F0    | every activity                           | it has a duration of one working day or more                                                 | "1 activity has no duration."            |
+| `activity.responsible` | F0    | every activity                           | its responsible is a person of the work                                                      | "1 activity has no responsible."         |
+| `activity.linked`      | F2    | every activity, in a plan of two or more | a dependency joins it to another, stages expanded                                            | "1 activity is not linked to any other." |
+| `decision.deadline`    | F3    | every decision                           | its stage has a scheduled activity, so it has a deadline                                     | "1 decision has no deadline yet."        |
+| `decision.timely`      | F3    | every decision whose deadline is known   | it is made, or its deadline is today or later                                                | "2 decisions are overdue."               |
+| `stage.checks`         | F5    | every stage                              | it has at least one check at its start gate and one at its close gate                        | "2 stages have no checks."               |
+| `stage.money`          | F6    | every stage                              | it has at least one **priced** cost line, its own or one of its activities' (priced from F9) | "2 stages have no money planned."        |
 
 A plan with no activity at all is not ready: it has one missing row, "The plan has no activity
 yet.", and a figure of 0 %. The nouns in the sentences follow the lens — the owner reads "job"
 where the engineer reads "activity" (ADR-014). Every rule also has a one-sentence explanation of
 why the plan must know it, in both languages, shown when its line on the dashboard is opened.
-A later rule is a row of this table, and never a change of its shape.
+A later rule is a row of this table, and never a change of its shape. Slice F9 changed two rows'
+reading and neither's shape: `activity.duration`'s missing row names the range an activity carries
+from its template, and `stage.money` counts only a priced line — every line before F9 was one, so
+no existing figure moved.
 
 ## The application database
 
@@ -612,17 +649,18 @@ Numbered SQL files compiled into the binary, forward-only, applied in a transact
 moves `work.schema_version`. A release that adds a migration says so in the changelog and is
 covered by a round-trip test that opens a work at version N-1 and migrates it without loss.
 
-| Migration                            | Slice | Adds                                                                                                                                                                                                         |
-| ------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `001_init.sql`                       | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`                                                                                                                                                 |
-| `002_rooms_and_quantities.sql`       | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit`                                                                                                                                             |
-| `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers                                                                                                         |
-| `004_decisions.sql`                  | F3    | `decision`                                                                                                                                                                                                   |
-| `005_diary.sql`                      | F4    | `diary_entry`, `diary_done`, `diary_present`, `diary_photo`, with their insert-only and chain triggers                                                                                                       |
-| `006_checks.sql`                     | F5    | `stage.started_at` and `stage.closed_at`; `stage_check`; `check_answer` with its insert-only triggers                                                                                                        |
-| `007_money.sql`                      | F6    | `person.trade`; `cost_line`; `commitment`; `payment` with its insert-only and reversal triggers                                                                                                              |
-| `008_documents.sql`                  | F7    | `person.phone`, `.email`, `.note`, `.availability`; `person_stage`; `document`; `document_link`; the backfill of every file already in the folder                                                            |
-| `009_replanning.sql`                 | F8    | `replanning` with its written-once triggers; `baseline.planned_cents` and `baseline_activity.planned_cents`; `baseline_stage` with its insert-only triggers; the backfill of every earlier baseline's stages |
+| Migration                            | Slice | Adds                                                                                                                                                                                                                  |
+| ------------------------------------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `001_init.sql`                       | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`                                                                                                                                                          |
+| `002_rooms_and_quantities.sql`       | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit`                                                                                                                                                      |
+| `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers                                                                                                                  |
+| `004_decisions.sql`                  | F3    | `decision`                                                                                                                                                                                                            |
+| `005_diary.sql`                      | F4    | `diary_entry`, `diary_done`, `diary_present`, `diary_photo`, with their insert-only and chain triggers                                                                                                                |
+| `006_checks.sql`                     | F5    | `stage.started_at` and `stage.closed_at`; `stage_check`; `check_answer` with its insert-only triggers                                                                                                                 |
+| `007_money.sql`                      | F6    | `person.trade`; `cost_line`; `commitment`; `payment` with its insert-only and reversal triggers                                                                                                                       |
+| `008_documents.sql`                  | F7    | `person.phone`, `.email`, `.note`, `.availability`; `person_stage`; `document`; `document_link`; the backfill of every file already in the folder                                                                     |
+| `009_replanning.sql`                 | F8    | `replanning` with its written-once triggers; `baseline.planned_cents` and `baseline_activity.planned_cents`; `baseline_stage` with its insert-only triggers; the backfill of every earlier baseline's stages          |
+| `010_templates.sql`                  | F9    | `activity.duration_min_days` and `.duration_max_days`; `decision.lead_min_days` and `.lead_max_days`; `work.template_id`, `.template_version` and `.template_title`; `cost_line` rebuilt with `amount_cents` nullable |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its
 stages and activities migrates to schema 2 without loss, a work at schema 2 with rooms and
@@ -632,7 +670,8 @@ migrates to schema 6 with its chain still verifying, and a work at schema 6 with
 answers migrates to schema 7 the same way, and a work at schema 7 with photos, receipts and
 quotes migrates to schema 8 with a document for each and its chain still verifying, and a work
 at schema 8 with two baselines migrates to schema 9 with their stages rebuilt, their money not
-recorded and its chain still verifying.
+recorded and its chain still verifying, and a work at schema 9 with cost lines, a baseline and a
+diary entry migrates to schema 10 with every amount and id kept and its chain still verifying.
 
 **Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
 where it came from, one row per hash in this order of precedence: a diary photo (kind `photo`,
@@ -659,6 +698,17 @@ then, and never back-filled from today's cost lines, which are not what the plan
 was approved. The rows are written before the insert-only triggers on `baseline_stage` exist,
 because from then on they refuse a row added to a past baseline.
 
+**Migration 010's rebuild of `cost_line`.** SQLite cannot drop a `NOT NULL` from a column, so the
+table is rebuilt, and the migration's header says how: `cost_line_010` is created with every
+column, reference and `CHECK` exactly as migration 007 wrote them but `amount_cents`, which now
+allows `NULL`; every row is copied across as it is — id, stage, activity, label, amount and the
+moment it was written — so the ids the interface and the baselines know stay the ids; `cost_line`
+is dropped, which drops its two indexes; `cost_line_010` is renamed `cost_line`; and the indexes
+are created again under the names they had. It runs with `foreign_keys = ON` inside the runner's
+transaction. No table, trigger or view refers to `cost_line`, so dropping it removes no row that
+anything points at, and each copied row is checked against `stage` and `activity` as it is
+inserted. A failure anywhere rolls the whole migration back and the file stays at version 9.
+
 The migrations live in `src-tauri/work_migrations/`.
 
 ## A comparison and a what-if are computed, not stored
@@ -672,5 +722,14 @@ it.
 
 ## Not yet in the schema
 
-Templates are files in the repository, not rows (F9). A backup is a file beside the work, not a
-table (F11).
+A backup is a file beside the work, not a table (F11).
+
+## Templates are files, not rows
+
+A template is a JSON file (ADR-029): the library is `templates/*.json` in the repository, bundled
+into the application, and a template from somebody else is a file read as text and validated by
+the domain. No table holds a template. Applying one writes ordinary rows — stages, activities
+with their ranges, checks, cost lines with no amount, decisions with their lead ranges, rooms and
+dependencies — with new ids, in one transaction, and the work keeps only the three `template_*`
+columns that say where its plan came from. Exporting a work as a template (ADR-030) reads the
+snapshot and writes a file; nothing in the work records it.

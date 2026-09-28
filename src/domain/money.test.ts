@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { activity, snapshot, stage } from './__fixtures__/plan';
+import { activity, snapshot, stage, takeBaseline } from './__fixtures__/plan';
 import { traceable } from './figure';
 import {
   committedOf,
   moneyByStage,
   moneyByTrade,
   moneyOfWork,
+  NOT_PRICED_KEY,
   overCommitted,
   overCommittedFigure,
   owedOf,
@@ -17,6 +18,7 @@ import {
   sCurve,
   stageOfLine,
   tradeOf,
+  unpricedRows,
   validatePayment,
   varianceOf,
   type Commitment,
@@ -608,8 +610,77 @@ describe('readiness: every stage has its money planned', () => {
         id: 'paint',
         name: 'Painting',
         stageName: 'Painting',
+        durationRange: null,
       },
     ]);
     expect(traceable(rule.figure!)).toBe(true);
+  });
+});
+
+describe('a cost line not priced yet', () => {
+  const unpriced = (id: string, stageId: string, activityId: string | null = null): CostLine => ({
+    id,
+    stageId,
+    activityId,
+    label: `Label ${id}`,
+    amountCents: null,
+  });
+  const plan = snapshot({
+    stages: [stage('s1', 1), stage('s2', 2)],
+    activities: [activity('a1', 's1', 1, 2)],
+    costLines: [line('p1', 's1', 300_00), unpriced('u1', 's1', 'a1'), unpriced('u2', 's2')],
+    payments: [],
+  });
+
+  it('is a row of planned, marked, counting nothing, and the figure still adds up', () => {
+    const planned = plannedOf(plan, { kind: 'work' });
+    expect(planned.value).toBe(300_00);
+    expect(traceable(planned)).toBe(true);
+    expect(planned.rows.map((row) => [row.sourceId, row.amountCents, row.priced])).toEqual([
+      ['p1', 300_00, true],
+      ['u1', 0, false],
+      ['u2', 0, false],
+    ]);
+    expect(unpricedRows(planned).map((row) => row.sourceId)).toEqual(['u1', 'u2']);
+    expect(NOT_PRICED_KEY).toBe('money.row.notPriced');
+  });
+
+  it('counts as nothing, never as minus nothing, where planned is taken away', () => {
+    const variance = varianceOf(plan, { kind: 'stage', stageId: 's2' });
+    expect(variance.rows).toHaveLength(1);
+    expect(Object.is(variance.rows[0]!.amountCents, 0)).toBe(true);
+    expect(variance.value).toBe(0);
+    expect(traceable(variance)).toBe(true);
+    expect(traceable(remainingOf(plan, { kind: 'work' }))).toBe(true);
+  });
+
+  it('leaves the stage with no money planned when it is all the stage has', () => {
+    const [first, second] = moneyByStage(plan);
+    expect(first!.planned.value).toBe(300_00);
+    expect(second!.planned.value).toBe(0);
+    expect(unpricedRows(second!.planned)).toHaveLength(1);
+  });
+
+  it('is not on the S-curve: it has no money to spread', () => {
+    const curve = sCurve(plan, schedule(plan), [], '2026-09-01');
+    expect(curve.totals.planned).toBe(300_00);
+    expect(curve.unscheduled).toEqual([]);
+    expect(curve.days.at(-1)!.planned).toBe(300_00);
+  });
+
+  it('is recorded as nothing by a baseline, like the host records it', () => {
+    const taken = takeBaseline(plan, 1);
+    expect(taken.plannedCents).toBe(300_00);
+    expect(taken.stages.map((each) => each.plannedCents)).toEqual([300_00, 0]);
+  });
+
+  it('marks commitments and payments as priced, always', () => {
+    const withMoney = snapshot({
+      stages: [stage('s1', 1)],
+      commitments: [commitment('c1', 's1', 100_00)],
+      payments: [payment(1, '2026-09-01', 's1', 50_00)],
+    });
+    expect(committedOf(withMoney, { kind: 'work' }).rows[0]!.priced).toBe(true);
+    expect(paidOf(withMoney, { kind: 'work' }).rows[0]!.priced).toBe(true);
   });
 });

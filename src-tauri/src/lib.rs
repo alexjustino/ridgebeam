@@ -75,6 +75,19 @@
 //!   (`baseline_stage`, insert-only by the same battery) and their planned
 //!   money — backfilling the stages of baselines taken before, whose money
 //!   stays "not recorded". A what-if is the interface's alone: nothing here.
+//! - F9: templates. A template is data the domain reads; the host writes the
+//!   plan it becomes (`plan_apply`, or `work_create` with a `plan`) onto a
+//!   work with no stage and no approval, in one transaction, every row checked
+//!   as its own command checks it and every key resolved, a loop in its links
+//!   refused as `dependency_cycle` — or nothing at all, and a folder the call
+//!   created removed again. Work migration 010 adds an activity's and a
+//!   decision's range, where the plan came from (provenance, not a tie), and
+//!   rebuilds `cost_line` so a line may be not priced yet. `ranges_take` gives
+//!   every range without a duration its lower or upper end, locked after
+//!   approval. A template file is read as text and written whole
+//!   (`template_read`, `template_write`: `.json`, 1 MiB) — the host never
+//!   parses one. No new error kind, no new capability: the save dialog was
+//!   already allowed.
 
 pub mod commands;
 pub mod contract;
@@ -200,6 +213,10 @@ pub fn run() {
             commands::documents::documents_verify,
             commands::documents::folder_health,
             commands::work::recent_relocate,
+            commands::templates::plan_apply,
+            commands::templates::ranges_take,
+            commands::templates::template_read,
+            commands::templates::template_write,
         ])
         .build(tauri::generate_context!())
         .expect("Ridgebeam failed to start");

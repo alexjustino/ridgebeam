@@ -173,6 +173,12 @@ function DecisionLine({
   };
 
   const made = decision.madeAt !== null;
+  // A template's range of lead time (F9): the lead time took its upper end, the earlier deadline;
+  // the range stays beside the field for the person to read.
+  const range =
+    decision.leadMinDays === null || decision.leadMaxDays === null
+      ? null
+      : t('plan.range', { min: number(decision.leadMinDays), max: number(decision.leadMaxDays) });
 
   return (
     <li
@@ -215,14 +221,26 @@ function DecisionLine({
               name: decision.name,
             })}
             aria-invalid={leadInvalid}
-            aria-describedby={leadInvalid ? `${hint}-lead` : undefined}
+            aria-describedby={
+              leadInvalid ? `${hint}-lead` : range === null ? undefined : `${hint}-range`
+            }
             value={lead}
             onChange={(event) => editLead(event.target.value)}
           />
-          {leadInvalid && (
+          {leadInvalid ? (
             <span id={`${hint}-lead`} className="mt-1 text-caption text-fg-secondary">
               {t('decisions.invalid.lead', { max: number(LIMITS.durationDays) })}
             </span>
+          ) : (
+            range !== null && (
+              <span
+                id={`${hint}-range`}
+                data-testid="decision-lead-range"
+                className="mt-1 text-caption text-fg-tertiary"
+              >
+                {t('plan.range.hint', { range })}
+              </span>
+            )
           )}
         </span>
         <span data-testid="decision-deadline" className="pt-1.5 text-body text-fg">

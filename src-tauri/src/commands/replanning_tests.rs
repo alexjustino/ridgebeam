@@ -103,8 +103,8 @@ fn work() -> Work {
     .dependencies[0]
         .id
         .clone();
-    cost_line_add_with(&open, &bathroom, Some(&tiling), "Tiles", 120_000.0).unwrap();
-    let plan = cost_line_add_with(&open, &finishes, None, "Paint", 50_000.0).unwrap();
+    cost_line_add_with(&open, &bathroom, Some(&tiling), "Tiles", Some(120_000.0)).unwrap();
+    let plan = cost_line_add_with(&open, &finishes, None, "Paint", Some(50_000.0)).unwrap();
     let (tiles, paint_line) = (plan.cost_lines[0].id.clone(), plan.cost_lines[1].id.clone());
     Work {
         db,
@@ -251,7 +251,7 @@ fn locked_changes(w: &Work) -> Vec<(&'static str, Change<'_>)> {
         ),
         (
             "cost_line_add",
-            Box::new(move || cost_line_add_with(open, &w.bathroom, None, "Labour", 30_000.0)),
+            Box::new(move || cost_line_add_with(open, &w.bathroom, None, "Labour", Some(30_000.0))),
         ),
         (
             "cost_line_update (amount)",
@@ -260,7 +260,7 @@ fn locked_changes(w: &Work) -> Vec<(&'static str, Change<'_>)> {
                     open,
                     &w.tiles,
                     &CostLinePatch {
-                        amount_cents: Some(130_000.0),
+                        amount_cents: Some(Some(130_000.0)),
                         ..CostLinePatch::default()
                     },
                 )
@@ -396,7 +396,7 @@ fn facts_stay_free_after_approval() {
         &w.tiles,
         &CostLinePatch {
             label: Some("Tiles".into()),
-            amount_cents: Some(120_000.0),
+            amount_cents: Some(Some(120_000.0)),
         },
     )
     .expect("the line as it is: no change");
@@ -560,7 +560,7 @@ fn a_second_baseline_needs_the_reason_records_it_and_locks_the_plan_again() {
         &w.open,
         &w.tiles,
         &CostLinePatch {
-            amount_cents: Some(135_000.0),
+            amount_cents: Some(Some(135_000.0)),
             ..CostLinePatch::default()
         },
     )

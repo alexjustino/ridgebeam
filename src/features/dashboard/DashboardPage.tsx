@@ -3,7 +3,7 @@ import {
   ChevronRight16Regular,
   Dismiss20Regular,
 } from '@fluentui/react-icons';
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 
 import { useToday } from '@/app/today';
 import { decisionRows, decisionsDue, type DecisionDueRow } from '@/domain/decisions';
@@ -18,6 +18,7 @@ import {
   RULES,
   sentenceParts,
   type MissingId,
+  type MissingRow,
   type ReadinessRow,
   type RuleSummary,
 } from '@/domain/readiness';
@@ -25,8 +26,9 @@ import { schedule, type Schedule } from '@/domain/schedule';
 import { useStatusText } from '@/features/decisions/statusText';
 import { slip } from '@/domain/schedule/slip';
 import { SlipFigure } from '@/features/schedule/SlipFigure';
+import { TemplateNotes } from '@/features/templates/TemplateNotes';
 import type { MessageKey } from '@/i18n/en';
-import { useI18n } from '@/i18n/useI18n';
+import { useI18n, type I18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
@@ -49,6 +51,22 @@ const ROW_KEYS: Record<MissingId, MessageKey> = {
   'stage.money': 'readiness.row.stage.money',
   'plan.activity': 'readiness.row.plan.activity',
 };
+
+/**
+ * What a missing row lacks, in words. An activity a template gave a range says so — "a range of 3–5
+ * working days, no duration yet" — because a range is shown as a range until a person picks (F9).
+ */
+function rowText(row: Pick<MissingRow, 'ruleId' | 'durationRange'>, i18n: I18n): string {
+  if (row.ruleId === 'activity.duration' && row.durationRange !== null) {
+    return i18n.t('readiness.row.activity.durationRange', {
+      range: i18n.t('plan.range', {
+        min: i18n.number(row.durationRange.min),
+        max: i18n.number(row.durationRange.max),
+      }),
+    });
+  }
+  return i18n.t(ROW_KEYS[row.ruleId]);
+}
 
 /** The heading each missing row is listed under: its rule, in rule order; the plan's own row last. */
 function ruleGroup(ruleId: MissingId, t: (key: MessageKey) => string) {
@@ -86,9 +104,11 @@ export function DashboardPage({
   closing: boolean;
   closeError: string | null;
 }) {
-  const { t, tp, number } = useI18n();
+  const i18n = useI18n();
+  const { t, tp, number } = i18n;
   const term = useTerms();
   const today = useToday();
+  const title = useRef<HTMLHeadingElement>(null);
   const scheduled = useMemo(() => schedule(snapshot), [snapshot]);
   const measure = readiness(snapshot, { schedule: scheduled, today });
   const figure = readinessFigure(measure);
@@ -102,7 +122,9 @@ export function DashboardPage({
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-6">
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-title font-semibold text-fg">{t('nav.dashboard')}</h1>
+          <h1 ref={title} tabIndex={-1} className="text-title font-semibold text-fg">
+            {t('nav.dashboard')}
+          </h1>
           <p className="mt-1 text-subtitle text-fg">{snapshot.work.name}</p>
           {snapshot.work.place !== '' && (
             <p className="text-body text-fg-secondary">{snapshot.work.place}</p>
@@ -124,6 +146,8 @@ export function DashboardPage({
         </InfoBar>
       )}
 
+      <TemplateNotes workId={snapshot.work.workId} onDismissed={() => title.current?.focus()} />
+
       <Card>
         <FigureRow<ReadinessRow>
           figure={figure}
@@ -141,7 +165,7 @@ export function DashboardPage({
                 </>
               )}
               <span aria-hidden="true"> — </span>
-              <span>{t(ROW_KEYS[row.ruleId])}</span>
+              <span>{rowText(row, i18n)}</span>
             </>
           )}
         />
@@ -284,6 +308,21 @@ function CalendarCard({ snapshot }: { snapshot: WorkSnapshot }) {
           </dd>
           <dt className="text-fg-tertiary">{t('dashboard.currency')}</dt>
           <dd className="text-fg">{currency(snapshot.work.currency)}</dd>
+          {snapshot.work.templateTitle !== null && (
+            <>
+              <dt className="text-fg-tertiary">
+                {t('dashboard.calendar.template', { template: term('template') })}
+              </dt>
+              <dd data-testid="template-provenance" className="text-fg">
+                {snapshot.work.templateVersion === null
+                  ? snapshot.work.templateTitle
+                  : t('dashboard.calendar.templateVersion', {
+                      title: snapshot.work.templateTitle,
+                      version: number(snapshot.work.templateVersion),
+                    })}
+              </dd>
+            </>
+          )}
         </dl>
       )}
     </Card>
@@ -312,7 +351,8 @@ function RuleList({ summaries }: { summaries: readonly RuleSummary[] }) {
 }
 
 function RuleLine({ summary }: { summary: RuleSummary }) {
-  const { t, number } = useI18n();
+  const i18n = useI18n();
+  const { t, number } = i18n;
   const [open, setOpen] = useState(false);
   const rows = useId();
   const complete = summary.known === summary.mustKnow;
@@ -357,7 +397,7 @@ function RuleLine({ summary }: { summary: RuleSummary }) {
                   </>
                 )}
                 <span aria-hidden="true"> — </span>
-                <span>{t(ROW_KEYS[row.ruleId])}</span>
+                <span>{rowText(row, i18n)}</span>
               </li>
             ))}
           </ul>

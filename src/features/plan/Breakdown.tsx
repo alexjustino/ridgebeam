@@ -1,6 +1,7 @@
 import {
   Add20Regular,
   ArrowDown20Regular,
+  DocumentText20Regular,
   ArrowUp20Regular,
   Delete20Regular,
   Rename20Regular,
@@ -37,8 +38,11 @@ import { MakeDecisionDialog } from '@/features/decisions/MakeDecisionDialog';
 import { DocumentsCount } from '@/features/documents/DocumentsCount';
 import { ReplanButton } from '@/features/schedule/ReplanDialog';
 import { useReplanningFocus } from '@/features/schedule/replanningFocus';
+import { StartFromTemplateDialog } from '@/features/templates/StartFromTemplateDialog';
+import { TemplateNotes } from '@/features/templates/TemplateNotes';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
+import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { EmptyState } from '@/ui/EmptyState';
@@ -57,6 +61,8 @@ import { chordDirection, useMover } from './moves';
 import { NameField } from './NameField';
 import type { Outcome } from './outcome';
 import { PeopleCard } from './PeopleCard';
+import { RangesBar } from './RangesBar';
+import { useRewritten } from './rewritten';
 import { RoomsCard } from './RoomsCard';
 
 type Removal =
@@ -77,6 +83,11 @@ type Removal =
  * on the row that tried the edit (`stage-problem`, `activity-problem`, `link-problem`,
  * `cost-line-problem`), never only at the top of the page. One refusal at a time: the next edit
  * that is kept, or a refusal anywhere else, takes it away.
+ *
+ * A work with no stage can start from a template (F9, `template-start`); activities a template gave
+ * a range and no duration are counted above the stages, with the two ways to take every range at
+ * once (`RangesBar`). Either act rewrites the plan and removes the control that did it, so the focus
+ * then goes to the breakdown's heading (`useRewritten`).
  */
 export function Breakdown({
   snapshot,
@@ -104,6 +115,8 @@ export function Breakdown({
   const mover = useMover(outcome);
   const [removal, setRemoval] = useState<Removal | null>(null);
   const [problem, setProblem] = useState<{ scope: string; text: string } | null>(null);
+  const [starting, setStarting] = useState(false);
+  const { generation, heading, rewritten } = useRewritten(snapshot);
 
   // The page's channel, for the cards whose refusals are not a row's: a refusal there takes a
   // row's away, so two never argue on screen.
@@ -214,18 +227,34 @@ export function Breakdown({
 
       <section aria-labelledby="plan-breakdown" className="flex flex-col gap-3">
         <div>
-          <h2 id="plan-breakdown" className="text-subtitle font-semibold text-fg">
+          <h2
+            ref={heading}
+            id="plan-breakdown"
+            tabIndex={-1}
+            className="text-subtitle font-semibold text-fg"
+          >
             {term('plan', { capital: true })}
           </h2>
           <p className="mt-0.5 text-caption text-fg-tertiary">{t('plan.move.hint')}</p>
         </div>
+        <TemplateNotes workId={snapshot.work.workId} onDismissed={() => heading.current?.focus()} />
+        <RangesBar snapshot={snapshot} onTaken={rewritten} />
         <AddStage outcome={at('stage-add')} problem={problemAt('stage-add')} />
 
         {stages.length === 0 ? (
           <Card>
             <EmptyState
               title={t('plan.stages.emptyTitle')}
-              description={t('plan.stages.emptyDescription')}
+              description={t('plan.stages.emptyTemplate', { template: term('template') })}
+              action={
+                <Button
+                  icon={<DocumentText20Regular />}
+                  data-testid="template-start"
+                  onClick={() => setStarting(true)}
+                >
+                  {t('templates.start', { template: term('template') })}
+                </Button>
+              }
             />
           </Card>
         ) : (
@@ -386,7 +415,7 @@ export function Breakdown({
                           <ul className="flex flex-col">
                             {activities.map((activity) => (
                               <ActivityRow
-                                key={activity.id}
+                                key={`${activity.id}:${generation}`}
                                 activity={activity}
                                 number={numbers.get(activity.id) ?? null}
                                 people={snapshot.people}
@@ -472,6 +501,14 @@ export function Breakdown({
                 ? t('plan.confirm.stageEmpty')
                 : tp('plan.confirm.stageBody', removal.activities)}
       </ConfirmDialog>
+      {starting && (
+        <StartFromTemplateDialog
+          snapshot={snapshot}
+          open
+          onClose={() => setStarting(false)}
+          onApplied={rewritten}
+        />
+      )}
       <MakeDecisionDialog
         decision={making}
         onClose={() => setMaking(null)}

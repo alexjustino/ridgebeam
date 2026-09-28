@@ -21,6 +21,9 @@
 //! - F8: once the plan is approved, the cost lines are locked until a
 //!   replanning is open (`plan_approved`) — planned money is compared between
 //!   baselines. Commitments and payments are facts, and stay free.
+//! - F9: a cost line may be added with no amount, and its amount taken away
+//!   (`amount_cents: null`, `CostLinePatch.amountCents: null`) — "not priced
+//!   yet", which is not 0.
 
 use std::path::{Path, PathBuf};
 
@@ -64,7 +67,7 @@ pub fn cost_line_add(
     stage_id: String,
     activity_id: Option<String>,
     label: String,
-    amount_cents: f64,
+    amount_cents: Option<f64>,
 ) -> Result<WorkSnapshot> {
     cost_line_add_with(
         &open,
@@ -203,7 +206,7 @@ fn invalid(sentence: impl Into<String>) -> Error {
 }
 
 /// A label: trimmed, not empty, at most 120 characters.
-fn label(what: &str, value: &str) -> Result<String> {
+pub(crate) fn label(what: &str, value: &str) -> Result<String> {
     let value = value.trim();
     if value.is_empty() {
         return Err(invalid(format!("{what} needs a label.")));
@@ -297,10 +300,12 @@ pub fn cost_line_add_with(
     stage_id: &str,
     activity_id: Option<&str>,
     label_text: &str,
-    amount_cents: f64,
+    amount_cents: Option<f64>,
 ) -> Result<WorkSnapshot> {
     let label = label("A cost line", label_text)?;
-    let amount = validate::amount_cents(amount_cents, false)?;
+    let amount = amount_cents
+        .map(|a| validate::amount_cents(a, false))
+        .transpose()?;
     change_work(open, |conn| {
         refuse_if_plan_locked(conn)?;
         money::add_cost_line(conn, stage_id, activity_id, &label, amount).map(|_| ())
@@ -320,7 +325,7 @@ pub fn cost_line_update_with(
         .transpose()?;
     let amount = patch
         .amount_cents
-        .map(|a| validate::amount_cents(a, false))
+        .map(|a| a.map(|a| validate::amount_cents(a, false)).transpose())
         .transpose()?;
     change_work(open, |conn| {
         if cost_line_would_change(conn, id, label.as_deref(), amount)? {
@@ -346,9 +351,9 @@ fn cost_line_would_change(
     conn: &rusqlite::Connection,
     id: &str,
     label: Option<&str>,
-    amount_cents: Option<i64>,
+    amount_cents: Option<Option<i64>>,
 ) -> Result<bool> {
-    let held: Option<(String, i64)> = conn
+    let held: Option<(String, Option<i64>)> = conn
         .query_row(
             "SELECT label, amount_cents FROM cost_line WHERE id = ?1",
             [id],
@@ -608,10 +613,13 @@ mod tests {
             .id
             .clone();
 
-        cost_line_add_with(&open, &stage, Some(&activity), "Tiles", 120_000.0).unwrap();
-        let plan = cost_line_add_with(&open, &stage, None, "Labour", 80_000.0).unwrap();
+        cost_line_add_with(&open, &stage, Some(&activity), "Tiles", Some(120_000.0)).unwrap();
+        let plan = cost_line_add_with(&open, &stage, None, "Labour", Some(80_000.0)).unwrap();
         assert_eq!(
-            plan.cost_lines.iter().map(|c| c.amount_cents).sum::<i64>(),
+            plan.cost_lines
+                .iter()
+                .filter_map(|c| c.amount_cents)
+                .sum::<i64>(),
             200_000
         );
 
@@ -711,13 +719,14 @@ mod tests {
         }
         for amount in [-1.0, 0.5] {
             assert_eq!(
-                cost_line_add_with(&open, &stage, None, "Tiles", amount)
+                cost_line_add_with(&open, &stage, None, "Tiles", Some(amount))
                     .unwrap_err()
                     .kind(),
                 "invalid_input"
             );
         }
-        cost_line_add_with(&open, &stage, None, "Contingency", 0.0).expect("zero is planned too");
+        cost_line_add_with(&open, &stage, None, "Contingency", Some(0.0))
+            .expect("zero is planned too");
         assert!(crate::commands::work::work_get_with(&open)
             .unwrap()
             .payments

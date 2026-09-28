@@ -514,9 +514,10 @@ fn a_baseline_records_every_stage_and_the_planned_money() {
             r.get(0)
         })
         .unwrap();
-    crate::db::money::add_cost_line(&f.conn, &f.stage, Some(&f.tiling), "Tiles", 120_000).unwrap();
-    crate::db::money::add_cost_line(&f.conn, &f.stage, None, "Labour", 30_000).unwrap();
-    crate::db::money::add_cost_line(&f.conn, &finishes, None, "Paint", 50_000).unwrap();
+    crate::db::money::add_cost_line(&f.conn, &f.stage, Some(&f.tiling), "Tiles", Some(120_000))
+        .unwrap();
+    crate::db::money::add_cost_line(&f.conn, &f.stage, None, "Labour", Some(30_000)).unwrap();
+    crate::db::money::add_cost_line(&f.conn, &finishes, None, "Paint", Some(50_000)).unwrap();
 
     baselines::take(&f.conn, &placements(&f), Some("2026-10-08")).unwrap();
 

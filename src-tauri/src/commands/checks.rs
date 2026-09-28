@@ -199,7 +199,7 @@ fn invalid(sentence: impl Into<String>) -> Error {
     Error::InvalidInput(sentence.into())
 }
 
-fn gate(value: &str) -> Result<Gate> {
+pub(crate) fn gate(value: &str) -> Result<Gate> {
     match value {
         "start" => Ok(Gate::Start),
         "close" => Ok(Gate::Close),
@@ -210,7 +210,7 @@ fn gate(value: &str) -> Result<Gate> {
 }
 
 /// A check's question: trimmed, not empty, at most 200 characters.
-fn check_name(value: &str) -> Result<String> {
+pub(crate) fn check_name(value: &str) -> Result<String> {
     let value = value.trim();
     if value.is_empty() {
         return Err(invalid("A check needs a question."));

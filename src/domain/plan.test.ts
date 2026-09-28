@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   activitiesInOrder,
   compareText,
+  durationRangeOf,
   hasDuration,
+  isPriced,
   isLocked,
   latestBaseline,
   roomsInOrder,
@@ -27,6 +29,9 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
       currency: 'BRL',
       createdAt: '2026-08-20T12:00:00.000Z',
       approvedAt: null,
+      templateId: null,
+      templateVersion: null,
+      templateTitle: null,
     },
     calendar: { workingDays: '1111100', hoursPerDay: 8 },
     holidays: [],
@@ -68,6 +73,8 @@ const activity = (
   position,
   name: `Activity ${id}`,
   durationDays,
+  durationMinDays: null,
+  durationMaxDays: null,
   responsibleId,
   roomIds: [],
   quantity: null,
@@ -207,5 +214,44 @@ describe('text order', () => {
   it('is by code point, the same on every machine', () => {
     expect(['b', 'a', 'B', 'a'].sort(compareText)).toEqual(['B', 'a', 'a', 'b']);
     expect(compareText('a', 'a')).toBe(0);
+  });
+});
+
+describe('a range from a template', () => {
+  const ranged = (min: number | null, max: number | null): Activity => ({
+    ...activity('a', 's', 1, null),
+    durationMinDays: min,
+    durationMaxDays: max,
+  });
+
+  it('is the two ends, when both are whole days from 1 and in order', () => {
+    expect(durationRangeOf(ranged(3, 5))).toEqual({ min: 3, max: 5 });
+    expect(durationRangeOf(ranged(2, 2))).toEqual({ min: 2, max: 2 });
+  });
+
+  it('is nothing when it came from no template, or is not a range the host would keep', () => {
+    expect(durationRangeOf(ranged(null, null))).toBeNull();
+    expect(durationRangeOf(ranged(3, null))).toBeNull();
+    expect(durationRangeOf(ranged(null, 5))).toBeNull();
+    expect(durationRangeOf(ranged(0, 5))).toBeNull();
+    expect(durationRangeOf(ranged(5, 3))).toBeNull();
+    expect(durationRangeOf(ranged(1.5, 3))).toBeNull();
+    expect(durationRangeOf(ranged(1, 3.5))).toBeNull();
+  });
+});
+
+describe('a priced cost line', () => {
+  const line = (amountCents: number | null) => ({
+    id: 'l',
+    stageId: 's',
+    activityId: null,
+    label: 'Line',
+    amountCents,
+  });
+
+  it('has an amount, zero included; one from a template has none yet', () => {
+    expect(isPriced(line(12_00))).toBe(true);
+    expect(isPriced(line(0))).toBe(true);
+    expect(isPriced(line(null))).toBe(false);
   });
 });

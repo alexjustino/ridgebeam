@@ -1,0 +1,857 @@
+{
+  "ridgebeamTemplate": 1,
+  "id": "kitchen-renovation",
+  "version": 1,
+  "title": {
+    "en": "Kitchen renovation",
+    "pt-BR": "Reforma de cozinha"
+  },
+  "summary": {
+    "en": "A small kitchen stripped and rebuilt: water, gas and circuits, walls and floor, cabinets, a worktop made to measure, appliances. A starting point, not a quote: durations and lead times are ranges of working days to confirm with the people doing the work, and the cost lines have no prices.",
+    "pt-BR": "Uma cozinha pequena desmontada e refeita: água, gás e circuitos, paredes e piso, armários, bancada sob medida, eletrodomésticos. Um ponto de partida, não um orçamento: durações e prazos de entrega são faixas de dias úteis para confirmar com quem vai fazer o serviço, e as linhas de custo não têm preço."
+  },
+  "rooms": [
+    {
+      "key": "kitchen",
+      "name": {
+        "en": "Kitchen",
+        "pt-BR": "Cozinha"
+      }
+    }
+  ],
+  "stages": [
+    {
+      "key": "kitchen-strip-out",
+      "name": {
+        "en": "Kitchen strip-out",
+        "pt-BR": "Demolição da cozinha"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the water supply to the kitchen shut off and tested?",
+            "pt-BR": "O registro de água da cozinha está fechado e testado?"
+          },
+          {
+            "en": "Is the gas shut off and its point capped by somebody qualified?",
+            "pt-BR": "O gás está fechado e o ponto tampado por alguém habilitado?"
+          },
+          {
+            "en": "Are the kitchen circuits switched off at the board and marked?",
+            "pt-BR": "Os circuitos da cozinha estão desligados no quadro e sinalizados?"
+          },
+          {
+            "en": "Are the floors and doors on the way out protected?",
+            "pt-BR": "O piso e as portas no caminho até a saída estão protegidos?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Are the walls and the floor down to a sound base, with nothing loose?",
+            "pt-BR": "Paredes e piso estão numa base firme, sem nada solto?"
+          },
+          {
+            "en": "Are the old water and gas points capped and dry?",
+            "pt-BR": "Os pontos antigos de água e gás estão tampados e secos?"
+          },
+          {
+            "en": "Has all the debris left the site?",
+            "pt-BR": "Todo o entulho já saiu da obra?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Strip-out labour",
+            "pt-BR": "Mão de obra de demolição"
+          }
+        },
+        {
+          "label": {
+            "en": "Debris removal",
+            "pt-BR": "Retirada de entulho"
+          },
+          "activity": "remove-debris"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "remove-units",
+          "name": {
+            "en": "Remove the old cabinets and worktop",
+            "pt-BR": "Retirar os armários e a bancada antigos"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "remove-tiles",
+          "name": {
+            "en": "Remove the wall and floor tiles",
+            "pt-BR": "Remover o revestimento de parede e piso"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 3
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "remove-debris",
+          "name": {
+            "en": "Take the debris away",
+            "pt-BR": "Retirar o entulho"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        }
+      ]
+    },
+    {
+      "key": "kitchen-rough-in",
+      "name": {
+        "en": "Kitchen water, gas and wiring",
+        "pt-BR": "Água, gás e elétrica da cozinha"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the layout drawn, with the sink, the hob and every appliance in place?",
+            "pt-BR": "O layout está desenhado, com a pia, o cooktop e cada eletrodoméstico no lugar?"
+          },
+          {
+            "en": "Are the pipes, fittings and cables for the new layout on site?",
+            "pt-BR": "Os tubos, as conexões e os cabos do novo layout estão na obra?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Did the new water pipes hold their pressure with no drop and no leak?",
+            "pt-BR": "A nova tubulação de água segurou a pressão sem queda e sem vazamento?"
+          },
+          {
+            "en": "Was the gas line tested for leaks by somebody qualified?",
+            "pt-BR": "A tubulação de gás foi testada contra vazamento por alguém habilitado?"
+          },
+          {
+            "en": "Does each large appliance have a circuit of its own?",
+            "pt-BR": "Cada eletrodoméstico de maior potência tem um circuito próprio?"
+          },
+          {
+            "en": "Were photos taken of the pipes and cables before the walls were closed?",
+            "pt-BR": "Foram tiradas fotos dos tubos e cabos antes de fechar as paredes?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Plumbing and gas materials",
+            "pt-BR": "Material hidráulico e de gás"
+          }
+        },
+        {
+          "label": {
+            "en": "Electrical materials",
+            "pt-BR": "Material elétrico"
+          }
+        },
+        {
+          "label": {
+            "en": "Plumbing and gas labour",
+            "pt-BR": "Mão de obra de hidráulica e gás"
+          }
+        },
+        {
+          "label": {
+            "en": "Electrical labour",
+            "pt-BR": "Mão de obra de elétrica"
+          },
+          "activity": "circuits"
+        }
+      ],
+      "decisions": [
+        {
+          "key": "layout",
+          "name": {
+            "en": "The kitchen layout",
+            "pt-BR": "O layout da cozinha"
+          },
+          "leadDays": {
+            "min": 3,
+            "max": 10
+          },
+          "needs": "water-drains"
+        },
+        {
+          "key": "appliances",
+          "name": {
+            "en": "The appliances: hob, oven, hood and fridge",
+            "pt-BR": "Os eletrodomésticos: cooktop, forno, coifa e geladeira"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 20
+          },
+          "needs": "circuits"
+        }
+      ],
+      "activities": [
+        {
+          "key": "water-drains",
+          "name": {
+            "en": "Run the water and the drains",
+            "pt-BR": "Executar as tubulações de água e esgoto"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "gas-point",
+          "name": {
+            "en": "Move or run the gas point",
+            "pt-BR": "Deslocar ou executar o ponto de gás"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "circuits",
+          "name": {
+            "en": "Run the circuits for the outlets, the appliances and the lights",
+            "pt-BR": "Passar os circuitos de tomadas, eletrodomésticos e iluminação"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 3
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "test",
+          "name": {
+            "en": "Test the water, the gas and the circuits",
+            "pt-BR": "Testar água, gás e circuitos"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "close-chases",
+          "name": {
+            "en": "Close the chases in the walls",
+            "pt-BR": "Fechar os rasgos nas paredes"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        }
+      ]
+    },
+    {
+      "key": "kitchen-walls-floor",
+      "name": {
+        "en": "Kitchen walls and floor",
+        "pt-BR": "Paredes e piso da cozinha"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Did every test of the water, the gas and the circuits pass?",
+            "pt-BR": "Todos os testes de água, gás e circuitos foram aprovados?"
+          },
+          {
+            "en": "Are the floor tiles on site, from one batch, with some to spare?",
+            "pt-BR": "O piso está na obra, do mesmo lote, com sobra?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Are the walls flat and plumb where the cabinets will stand?",
+            "pt-BR": "As paredes estão planas e no prumo onde os armários vão ficar?"
+          },
+          {
+            "en": "Is the floor level, with no hollow sound when tapped?",
+            "pt-BR": "O piso está nivelado, sem som oco ao bater?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Plaster repair",
+            "pt-BR": "Recuperação do reboco"
+          },
+          "activity": "plaster-repair"
+        },
+        {
+          "label": {
+            "en": "Floor tiles, adhesive and grout",
+            "pt-BR": "Piso, argamassa colante e rejunte"
+          }
+        },
+        {
+          "label": {
+            "en": "Tiling labour",
+            "pt-BR": "Mão de obra de assentamento"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "floor",
+          "name": {
+            "en": "The floor tiles",
+            "pt-BR": "O piso"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 20
+          },
+          "needs": "floor-tiles"
+        }
+      ],
+      "activities": [
+        {
+          "key": "plaster-repair",
+          "name": {
+            "en": "Repair the plaster",
+            "pt-BR": "Recuperar o reboco"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "floor-tiles",
+          "name": {
+            "en": "Tile the floor",
+            "pt-BR": "Assentar o piso"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 3
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "grout",
+          "name": {
+            "en": "Grout the floor",
+            "pt-BR": "Rejuntar o piso"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        }
+      ]
+    },
+    {
+      "key": "kitchen-cabinets",
+      "name": {
+        "en": "Kitchen cabinets",
+        "pt-BR": "Armários da cozinha"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Was the kitchen measured again, on the finished walls and floor, for the cabinets?",
+            "pt-BR": "A cozinha foi medida de novo, com paredes e piso prontos, para os armários?"
+          },
+          {
+            "en": "Are the cabinets on site and checked against the drawing?",
+            "pt-BR": "Os armários estão na obra e conferidos com o projeto?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Are the cabinets level and fixed to the wall, with the doors aligned?",
+            "pt-BR": "Os armários estão nivelados e fixados na parede, com as portas alinhadas?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Cabinets",
+            "pt-BR": "Armários"
+          }
+        },
+        {
+          "label": {
+            "en": "Cabinet fitting",
+            "pt-BR": "Montagem dos armários"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "cabinets",
+          "name": {
+            "en": "The cabinets: layout, material and finish",
+            "pt-BR": "Os armários: layout, material e acabamento"
+          },
+          "leadDays": {
+            "min": 15,
+            "max": 40
+          },
+          "needs": "install-base"
+        }
+      ],
+      "activities": [
+        {
+          "key": "install-base",
+          "name": {
+            "en": "Install the base cabinets",
+            "pt-BR": "Instalar os armários de baixo"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "install-wall",
+          "name": {
+            "en": "Install the wall cabinets",
+            "pt-BR": "Instalar os armários aéreos"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "measure-worktop",
+          "name": {
+            "en": "Measure the worktop on the installed cabinets",
+            "pt-BR": "Medir a bancada sobre os armários instalados"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        }
+      ]
+    },
+    {
+      "key": "kitchen-worktop",
+      "name": {
+        "en": "Kitchen worktop and splashback",
+        "pt-BR": "Bancada e frontão da cozinha"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Was the worktop measured on the installed cabinets, with the sink and the hob on hand?",
+            "pt-BR": "A bancada foi medida sobre os armários instalados, com a cuba e o cooktop em mãos?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Is the worktop level and sealed at the wall and around the sink?",
+            "pt-BR": "A bancada está nivelada e vedada junto à parede e em volta da cuba?"
+          },
+          {
+            "en": "Is the splashback grouted and clean?",
+            "pt-BR": "O frontão está rejuntado e limpo?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Worktop",
+            "pt-BR": "Bancada"
+          },
+          "activity": "make-worktop"
+        },
+        {
+          "label": {
+            "en": "Splashback tiles",
+            "pt-BR": "Revestimento do frontão"
+          },
+          "activity": "splashback"
+        }
+      ],
+      "decisions": [
+        {
+          "key": "worktop",
+          "name": {
+            "en": "The worktop material",
+            "pt-BR": "O material da bancada"
+          },
+          "leadDays": {
+            "min": 3,
+            "max": 10
+          },
+          "needs": "make-worktop"
+        },
+        {
+          "key": "sink-tap",
+          "name": {
+            "en": "The sink and the tap",
+            "pt-BR": "A cuba e a torneira"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 15
+          },
+          "needs": "make-worktop"
+        },
+        {
+          "key": "splashback-tiles",
+          "name": {
+            "en": "The splashback tiles",
+            "pt-BR": "O revestimento do frontão"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 20
+          },
+          "needs": "splashback"
+        }
+      ],
+      "activities": [
+        {
+          "key": "make-worktop",
+          "name": {
+            "en": "Worktop made to measure",
+            "pt-BR": "Fabricação da bancada sob medida"
+          },
+          "durationDays": {
+            "min": 5,
+            "max": 15
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "install-worktop",
+          "name": {
+            "en": "Install the worktop",
+            "pt-BR": "Instalar a bancada"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "splashback",
+          "name": {
+            "en": "Tile the splashback",
+            "pt-BR": "Revestir o frontão"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["kitchen"]
+        }
+      ]
+    },
+    {
+      "key": "kitchen-fit-out",
+      "name": {
+        "en": "Kitchen appliances and fittings",
+        "pt-BR": "Eletrodomésticos e acabamentos da cozinha"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the worktop fixed and sealed?",
+            "pt-BR": "A bancada está fixada e vedada?"
+          },
+          {
+            "en": "Are the appliances on site and checked for damage?",
+            "pt-BR": "Os eletrodomésticos estão na obra e conferidos contra avaria?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Does every appliance switch on and work?",
+            "pt-BR": "Cada eletrodoméstico liga e funciona?"
+          },
+          {
+            "en": "Do the tap and the sink drain run with no leak?",
+            "pt-BR": "A torneira e o sifão da pia funcionam sem vazamento?"
+          },
+          {
+            "en": "Does the hood draw, and does every outlet work?",
+            "pt-BR": "A coifa puxa o ar, e todas as tomadas funcionam?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Appliances",
+            "pt-BR": "Eletrodomésticos"
+          }
+        },
+        {
+          "label": {
+            "en": "Sink and tap",
+            "pt-BR": "Cuba e torneira"
+          }
+        },
+        {
+          "label": {
+            "en": "Light fittings, outlets and switches",
+            "pt-BR": "Luminárias, tomadas e interruptores"
+          }
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "connect-sink",
+          "name": {
+            "en": "Connect the sink, the tap and the drain",
+            "pt-BR": "Ligar a cuba, a torneira e o sifão"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "install-appliances",
+          "name": {
+            "en": "Install and connect the appliances",
+            "pt-BR": "Instalar e ligar os eletrodomésticos"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "electrical-fittings",
+          "name": {
+            "en": "Fit the outlets, the switches and the lights",
+            "pt-BR": "Instalar tomadas, interruptores e luminárias"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        }
+      ]
+    },
+    {
+      "key": "kitchen-handover",
+      "name": {
+        "en": "Kitchen cleaning and handover",
+        "pt-BR": "Limpeza e entrega da cozinha"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is every appliance installed and working?",
+            "pt-BR": "Todos os eletrodomésticos estão instalados e funcionando?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Did the owner walk the kitchen and agree the list of snags?",
+            "pt-BR": "O proprietário vistoriou a cozinha e aprovou a lista de pendências?"
+          },
+          {
+            "en": "Are the appliances’ manuals and warranties handed over?",
+            "pt-BR": "Os manuais e as garantias dos eletrodomésticos foram entregues?"
+          },
+          {
+            "en": "Is every snag put right?",
+            "pt-BR": "Todas as pendências foram corrigidas?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Final cleaning",
+            "pt-BR": "Limpeza final"
+          },
+          "activity": "clean"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "clean",
+          "name": {
+            "en": "Final clean",
+            "pt-BR": "Limpeza final"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "walk-through",
+          "name": {
+            "en": "Walk-through and list of snags",
+            "pt-BR": "Vistoria e lista de pendências"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen"]
+        },
+        {
+          "key": "snags",
+          "name": {
+            "en": "Put the snags right",
+            "pt-BR": "Corrigir as pendências"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["kitchen"]
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "blocker": "kitchen-strip-out",
+      "blocked": "kitchen-rough-in",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-rough-in",
+      "blocked": "kitchen-walls-floor",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-walls-floor",
+      "blocked": "kitchen-cabinets",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-cabinets",
+      "blocked": "kitchen-worktop",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-worktop",
+      "blocked": "kitchen-fit-out",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-fit-out",
+      "blocked": "kitchen-handover",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-strip-out/remove-units",
+      "blocked": "kitchen-strip-out/remove-tiles",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-strip-out/remove-tiles",
+      "blocked": "kitchen-strip-out/remove-debris",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-rough-in/water-drains",
+      "blocked": "kitchen-rough-in/test",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-rough-in/gas-point",
+      "blocked": "kitchen-rough-in/test",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-rough-in/circuits",
+      "blocked": "kitchen-rough-in/test",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-rough-in/test",
+      "blocked": "kitchen-rough-in/close-chases",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-walls-floor/plaster-repair",
+      "blocked": "kitchen-walls-floor/floor-tiles",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-walls-floor/floor-tiles",
+      "blocked": "kitchen-walls-floor/grout",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-cabinets/install-base",
+      "blocked": "kitchen-cabinets/install-wall",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-cabinets/install-wall",
+      "blocked": "kitchen-cabinets/measure-worktop",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-worktop/make-worktop",
+      "blocked": "kitchen-worktop/install-worktop",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-worktop/install-worktop",
+      "blocked": "kitchen-worktop/splashback",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-fit-out/connect-sink",
+      "blocked": "kitchen-fit-out/install-appliances",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-handover/clean",
+      "blocked": "kitchen-handover/walk-through",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-handover/walk-through",
+      "blocked": "kitchen-handover/snags",
+      "lagDays": 0
+    }
+  ]
+}

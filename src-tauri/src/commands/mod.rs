@@ -27,4 +27,7 @@ pub mod rooms;
 pub mod schedule;
 pub mod settings;
 pub mod system;
+pub mod templates;
+#[cfg(test)]
+mod templates_tests;
 pub mod work;

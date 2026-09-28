@@ -63,6 +63,16 @@ describe('shell', () => {
     await driver.waitForElement('main h1');
   });
 
+  it('with no work open, an unavailable destination leads back to Start', async () => {
+    const { driver } = session;
+    await go(session, 'settings');
+    expect(await driver.findAll('[data-testid="start"]')).toHaveLength(0);
+    await (await driver.waitForElement('nav[data-rail] button[data-destination="plan"]')).click();
+    await driver.waitForElement('[data-testid="start"]');
+    const plan = await driver.find('nav[data-rail] button[data-destination="plan"]');
+    expect(await plan.attribute('aria-disabled')).toBe('true');
+  });
+
   it('Diagnostics reports the application database the suite relocated', async () => {
     const { driver } = session;
     await go(session, 'diagnostics');
