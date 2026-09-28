@@ -66,6 +66,10 @@ export function App({ settings }: { settings: Settings }) {
         setDiaryFocus(seq);
         setDestination('diary');
       },
+      openPlan: (focus) => {
+        setPlanFocus(focus);
+        setDestination('plan');
+      },
     }),
     [],
   );

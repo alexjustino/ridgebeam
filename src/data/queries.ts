@@ -25,6 +25,11 @@ import type { Endpoint, Holiday } from '@/domain/plan';
 
 import {
   accentRamp,
+  backupInspect,
+  backupLast,
+  backupRestore,
+  backupWrite,
+  diagnosticsSummary,
   activityAdd,
   activityMove,
   activitySetRooms,
@@ -120,6 +125,7 @@ import {
   type PersonPatch,
   type PlanToApply,
   type ReportDocument,
+  type RestoreReport,
   type Provenance,
   type DocumentKind,
   type DocumentPatch,
@@ -142,6 +148,7 @@ export const keys = {
   photo: (hash: string) => ['photo', hash] as const,
   documentThumb: (id: string) => ['document-thumb', id] as const,
   folderHealth: ['folder-health'] as const,
+  backupLast: ['backup-last'] as const,
 };
 
 // ── The application ──────────────────────────────────────────────────────────
@@ -221,6 +228,7 @@ async function reread(client: QueryClient): Promise<void> {
     client.invalidateQueries({ queryKey: keys.recent }),
     client.invalidateQueries({ queryKey: keys.diagnostics }),
     client.invalidateQueries({ queryKey: keys.diary }),
+    client.invalidateQueries({ queryKey: keys.backupLast }),
   ]);
 }
 
@@ -257,6 +265,7 @@ export function useCloseWork() {
     onSuccess: async () => {
       client.setQueryData(keys.work, null);
       client.removeQueries({ queryKey: keys.diary });
+      client.removeQueries({ queryKey: keys.backupLast });
       await Promise.all([
         client.invalidateQueries({ queryKey: keys.recent }),
         client.invalidateQueries({ queryKey: keys.diagnostics }),
@@ -751,4 +760,55 @@ export function useExportWorkJson() {
 /** Open a file a report command wrote in this session. */
 export function useOpenReport() {
   return useMutation({ mutationFn: (path: string) => reportOpen(path) });
+}
+
+// ── Backup, restore and the diagnostics summary (F11) ────────────────────────
+
+/** When the open work was last backed up on this machine — kept in the application database. */
+export function useBackupLast(enabled: boolean) {
+  return useQuery({
+    queryKey: keys.backupLast,
+    queryFn: backupLast,
+    enabled,
+    refetchOnMount: 'always',
+  });
+}
+
+/** Write the open work as one `.ridgebeam` file. The last backup's day is read again after. */
+export function useWriteBackup() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ path, overwrite }: { path: string; overwrite: boolean }) =>
+      backupWrite(path, overwrite),
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.backupLast }),
+  });
+}
+
+/** Read a backup's manifest without restoring it: a question asked of a file, so not cached. */
+export function useInspectBackup() {
+  return useMutation({ mutationFn: (path: string) => backupInspect(path) });
+}
+
+/**
+ * Restore a backup into a new folder. The host opens the restored work, so everything a work opens
+ * with is read again — and the act is not finished until it has been.
+ *
+ * `onRestored` hears the report before the work is read again: the screen that asked (Start) is
+ * gone once the work is open, so what the restore found has to be handed on before then.
+ */
+export function useRestoreBackup(onRestored: (report: RestoreReport) => void) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ path, folder }: { path: string; folder: string }) => backupRestore(path, folder),
+    onSuccess: (report) => {
+      onRestored(report);
+      return reread(client);
+    },
+    onError: () => client.invalidateQueries({ queryKey: keys.recent }),
+  });
+}
+
+/** Diagnostics as plain text, asked for at the moment it is copied. */
+export function useDiagnosticsSummary() {
+  return useMutation({ mutationFn: diagnosticsSummary });
 }

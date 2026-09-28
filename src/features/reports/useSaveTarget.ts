@@ -4,19 +4,24 @@ import { useCallback, useState } from 'react';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n } from '@/i18n/useI18n';
 
-/** The three kinds of file a report command writes, each its own extension (decision 8). */
-export type FileKind = 'pdf' | 'csv' | 'json';
+/**
+ * The kinds of file a command writes, each its own extension: the three a report command writes
+ * (decision 8), and the backup (F11), which follows the same rule.
+ */
+export type FileKind = 'pdf' | 'csv' | 'json' | 'ridgebeam';
 
 const FILTER_KEYS: Record<FileKind, MessageKey> = {
   pdf: 'reports.filter.pdf',
   csv: 'reports.filter.csv',
   json: 'reports.filter.json',
+  ridgebeam: 'backup.filter',
 };
 
 export const PATH_KEYS: Record<FileKind, MessageKey> = {
   pdf: 'reports.path.pdf',
   csv: 'reports.path.csv',
   json: 'reports.path.json',
+  ridgebeam: 'backup.path',
 };
 
 /** Characters a file name on Windows cannot hold, folded to a space for a suggested name. */

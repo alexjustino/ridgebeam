@@ -1,5 +1,6 @@
 import {
   Add20Regular,
+  ArchiveArrowBack20Regular,
   Building20Regular,
   FolderOpen20Regular,
   Warning20Regular,
@@ -17,13 +18,14 @@ import { EmptyState } from '@/ui/EmptyState';
 import { InfoBar } from '@/ui/InfoBar';
 import { Input } from '@/ui/Input';
 
+import { RestoreDialog } from './RestoreDialog';
 import { NewWorkDialog, OpenWorkDialog } from './WorkDialogs';
 
 /**
  * Start: what the window shows while no work is open.
  *
- * Three doors and nothing else — a new work, a work that already exists, and the works this
- * machine opened before. A recent work whose folder is gone is not dropped from the list and not
+ * Four doors and nothing else — a new work, a work that already exists, a work restored from a
+ * backup (F11), and the works this machine opened before. A recent work whose folder is gone is not dropped from the list and not
  * shown as if it were there: it says the folder is missing, where it was, and offers to open the
  * work from wherever it is now (DESIGN_SYSTEM §10: degrade visibly).
  */
@@ -31,7 +33,7 @@ export function StartPage({ onOpened }: { onOpened: () => void }) {
   const { t, describeError } = useI18n();
   const recent = useRecentWorks();
   const reopen = useOpenWork();
-  const [dialog, setDialog] = useState<'new' | 'open' | null>(null);
+  const [dialog, setDialog] = useState<'new' | 'open' | 'restore' | null>(null);
   const [openFrom, setOpenFrom] = useState('');
 
   const openDialog = (folder: string) => {
@@ -46,7 +48,7 @@ export function StartPage({ onOpened }: { onOpened: () => void }) {
         <p className="mt-1 max-w-2xl text-body text-fg-secondary">{t('start.lead')}</p>
       </header>
 
-      <div className="grid grid-cols-2 gap-2 sm:flex">
+      <div className="grid grid-cols-1 gap-2 sm:flex">
         <Button
           appearance="accent"
           icon={<Add20Regular />}
@@ -61,6 +63,13 @@ export function StartPage({ onOpened }: { onOpened: () => void }) {
           onClick={() => openDialog('')}
         >
           {t('start.open')}
+        </Button>
+        <Button
+          icon={<ArchiveArrowBack20Regular />}
+          data-testid="restore-open"
+          onClick={() => setDialog('restore')}
+        >
+          {t('start.restore')}
         </Button>
       </div>
 
@@ -111,6 +120,7 @@ export function StartPage({ onOpened }: { onOpened: () => void }) {
           onOpened={onOpened}
         />
       )}
+      {dialog === 'restore' && <RestoreDialog onClose={() => setDialog(null)} />}
     </div>
   );
 }
