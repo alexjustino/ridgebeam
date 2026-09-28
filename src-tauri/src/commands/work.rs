@@ -19,6 +19,9 @@
 //!   `work_current`, `work_get`, `work_update`.
 //! - F7: `recent_relocate` — a recent work found again where it now is, after
 //!   the folder was moved while the work was closed.
+//! - F8: `work_update` that moves the start date of an approved plan is
+//!   refused with `plan_approved` unless a replanning is open; its name, place
+//!   and currency stay free.
 
 use std::path::Path;
 
@@ -105,6 +108,9 @@ pub fn work_get(open: State<'_, OpenWork>) -> Result<WorkSnapshot> {
 ///
 /// [`Error::InvalidInput`] for a field that does not fit, and the errors of
 /// [`work_get`].
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open, and the patch moves the start date.
 #[tauri::command(rename_all = "snake_case")]
 pub fn work_update(
     db: State<'_, Db>,
@@ -273,6 +279,13 @@ pub fn work_update_with(db: &Db, open: &OpenWork, patch: &WorkPatch) -> Result<W
         .transpose()?;
 
     with_work(open, |state| {
+        // The start date moves every date a baseline records; the name, the
+        // place and the currency do not, and stay free after approval.
+        if let Some(start_date) = &start_date {
+            if *start_date != db::work::work(&state.conn)?.start_date {
+                db::replanning::refuse_if_plan_locked(&state.conn)?;
+            }
+        }
         db::work::update_work(
             &state.conn,
             name.as_deref(),

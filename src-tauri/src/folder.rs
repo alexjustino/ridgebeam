@@ -744,4 +744,242 @@ mod tests {
         assert_eq!(db::work::snapshot(&again.conn).unwrap().documents.len(), 4);
         close(again);
     }
+
+    /// The id migration 009 derives for a stage none of whose activities is
+    /// left, computed here the long way: four polynomial hashes of the name's
+    /// code points, each modulo a prime just under 2^32, in the form of a UUID.
+    fn derived_stage_id(name: &str) -> String {
+        let (mut a, mut b, mut c, mut d) =
+            (2_166_136_261u64, 16_777_619u64, 5381u64, 1_315_423_911u64);
+        for ch in name.chars() {
+            let u = u64::from(ch);
+            a = (a * 31 + u) % 4_294_967_291;
+            b = (b * 37 + u) % 4_294_967_279;
+            c = (c * 41 + u) % 4_294_967_231;
+            d = (d * 43 + u) % 4_294_967_197;
+        }
+        format!(
+            "{a:08x}-{:04x}-{:04x}-{:04x}-{:04x}{d:08x}",
+            b >> 16,
+            b & 0xffff,
+            c >> 16,
+            c & 0xffff
+        )
+    }
+
+    /// The upgrade a person makes from F7: a work folder at schema 8 with two
+    /// baselines — taken freely, as F2 to F7 allowed — and a diary entry. The
+    /// first baseline names a stage later renamed and a stage ("Demolition")
+    /// all of whose activities were removed since; the second names the
+    /// renamed stage by its new name, a stage added in between, and
+    /// Demolition again. Opened by F8: every baseline gains its stages, by
+    /// the id of the stage its activities still belong to — the renamed stage
+    /// is one stage in both — and by an id derived from the name where none is
+    /// left, the same in both; their money reads "not recorded"; nothing else
+    /// in them moves; the diary chain still verifies; no replanning is open,
+    /// so the approved plan is locked — and a third baseline, taken through a
+    /// replanning, records its money.
+    #[test]
+    fn a_work_folder_at_schema_eight_with_two_baselines_gains_their_stages_and_the_chain_still_verifies(
+    ) {
+        use crate::db::{baselines, diary, replanning};
+
+        let scratch = Scratch::create();
+        let bathroom = "00000000-0000-7000-8000-00000000000b";
+        let tiling = "00000000-0000-7000-8000-00000000000c";
+        let painting = "00000000-0000-7000-8000-0000000000a1";
+        let walls = "00000000-0000-7000-8000-0000000000a2";
+        let (first, second) = (
+            "00000000-0000-7000-8000-0000000000b1",
+            "00000000-0000-7000-8000-0000000000b2",
+        );
+        let raw_baselines = |conn: &Connection| -> Vec<String> {
+            let mut statement = conn
+                .prepare(
+                    "SELECT b.number, b.reason, b.finish_date, ba.activity_id, ba.position, ba.name,
+                            ba.stage_name, ba.duration_days, ba.start, ba.finish
+                     FROM baseline b JOIN baseline_activity ba ON ba.baseline_id = b.id
+                     ORDER BY b.number, ba.position",
+                )
+                .unwrap();
+            let width = statement.column_count();
+            statement
+                .query_map([], |row| {
+                    (0..width)
+                        .map(|i| {
+                            row.get::<_, rusqlite::types::Value>(i)
+                                .map(|v| format!("{v:?}"))
+                        })
+                        .collect::<std::result::Result<Vec<_>, _>>()
+                        .map(|values| values.join("|"))
+                })
+                .unwrap()
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .unwrap()
+        };
+
+        let rows_before;
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 8).unwrap();
+            conn.execute_batch(&format!(
+                "INSERT INTO stage (id, position, name, created_at)
+                 VALUES ('{painting}', 2, 'Painting', 't');
+                 INSERT INTO activity (id, stage_id, position, name, duration_days, created_at)
+                 VALUES ('{walls}', '{painting}', 1, 'Walls', 2, 't');
+                 UPDATE work SET approved_at = '2026-09-25T12:00:00.000Z';
+                 INSERT INTO baseline (id, number, taken_at, finish_date)
+                 VALUES ('{first}', 1, '2026-09-25T12:00:00.000Z', '2026-10-09');
+                 INSERT INTO baseline_activity (baseline_id, activity_id, position, name,
+                                                stage_name, duration_days, start, finish)
+                 VALUES ('{first}', '00000000-0000-7000-8000-0000000000d1', 1, 'Strip out',
+                         'Demolition', 1, '2026-10-05', '2026-10-05'),
+                        ('{first}', '00000000-0000-7000-8000-0000000000d2', 2, 'Skip hire',
+                         'Demolition', NULL, NULL, NULL),
+                        ('{first}', '{tiling}', 3, 'Tiling', 'Bathroom', 3,
+                         '2026-10-06', '2026-10-08');
+                 INSERT INTO baseline (id, number, taken_at, finish_date)
+                 VALUES ('{second}', 2, '2026-09-28T12:00:00.000Z', '2026-10-12');
+                 INSERT INTO baseline_activity (baseline_id, activity_id, position, name,
+                                                stage_name, duration_days, start, finish)
+                 VALUES ('{second}', '{tiling}', 1, 'Tiling', 'Main bathroom', 3,
+                         '2026-10-06', '2026-10-08'),
+                        ('{second}', '{walls}', 2, 'Walls', 'Painting', 2,
+                         '2026-10-09', '2026-10-12'),
+                        ('{second}', '00000000-0000-7000-8000-0000000000d3', 3, 'Rubble out',
+                         'Demolition', 1, '2026-10-05', '2026-10-05');
+                 UPDATE stage SET name = 'Main bathroom' WHERE id = '{bathroom}';"
+            ))
+            .expect("an F7 work's two baselines");
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    day: "2026-10-06".into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Tiles laid.".into()),
+                    weather: None,
+                    lost_day: false,
+                    hours: None,
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: Vec::new(),
+                    present: Vec::new(),
+                    photos: Vec::new(),
+                },
+            )
+            .unwrap();
+            rows_before = raw_baselines(&conn);
+            assert_eq!(migrations::WORK.current_version(&conn), 8);
+        }
+
+        let state = open(scratch.path()).expect("an F7 work opens in F8");
+
+        assert_eq!(
+            migrations::WORK.current_version(&state.conn),
+            migrations::WORK.target_version()
+        );
+        let report = diary::verify(&state.conn).unwrap();
+        assert_eq!(
+            (report.entries, report.intact),
+            (1, true),
+            "the chain still holds"
+        );
+        assert_eq!(
+            raw_baselines(&state.conn),
+            rows_before,
+            "every row a baseline held reads as it did"
+        );
+
+        let plan = db::work::snapshot(&state.conn).unwrap();
+        let demolition = derived_stage_id("Demolition");
+        assert_eq!(demolition.len(), 36);
+        let stages = |number: usize| -> Vec<(String, i64, String, Option<i64>)> {
+            plan.baselines[number]
+                .stages
+                .iter()
+                .map(|s| {
+                    (
+                        s.stage_id.clone(),
+                        s.position,
+                        s.name.clone(),
+                        s.planned_cents,
+                    )
+                })
+                .collect()
+        };
+        assert_eq!(
+            stages(0),
+            vec![
+                (demolition.clone(), 1, "Demolition".into(), None),
+                (bathroom.into(), 2, "Bathroom".into(), None),
+            ],
+            "in the order they first appear; the stage by the id its activity still has"
+        );
+        assert_eq!(
+            stages(1),
+            vec![
+                (bathroom.into(), 1, "Main bathroom".into(), None),
+                (painting.into(), 2, "Painting".into(), None),
+                (demolition.clone(), 3, "Demolition".into(), None),
+            ],
+            "renamed, the same stage; gone, the same derived id in both"
+        );
+        for baseline in &plan.baselines {
+            assert_eq!(baseline.planned_cents, None, "not recorded then");
+            assert!(baseline.rows.iter().all(|row| row.planned_cents.is_none()));
+        }
+        let wire = serde_json::to_value(&plan.baselines[0]).unwrap();
+        assert_eq!(wire["plannedCents"], serde_json::Value::Null);
+        assert_eq!(wire["stages"][0]["plannedCents"], serde_json::Value::Null);
+        assert_eq!(plan.replanning, None);
+
+        // The approved plan is locked; the backfilled rows are insert-only.
+        assert_eq!(
+            replanning::refuse_if_plan_locked(&state.conn)
+                .unwrap_err()
+                .kind(),
+            "plan_approved"
+        );
+        for attack in [
+            "UPDATE baseline_stage SET name = 'Rewritten'",
+            "UPDATE baseline_stage SET planned_cents = 0",
+            "DELETE FROM baseline_stage",
+            "UPDATE baseline SET planned_cents = 0",
+        ] {
+            let refused = state.conn.execute(attack, []).expect_err(attack);
+            assert!(
+                refused.to_string().contains("baseline: append-only"),
+                "{attack}"
+            );
+        }
+
+        // A third baseline, through a replanning, records money — 0 is
+        // recorded, and is not "not recorded".
+        replanning::open(&state.conn, "Walls need a second coat", "Synthetic author").unwrap();
+        let placements: Vec<baselines::Placement> = plan
+            .activities
+            .iter()
+            .map(|a| baselines::Placement {
+                activity_id: a.id.clone(),
+                start: None,
+                finish: None,
+            })
+            .collect();
+        assert_eq!(baselines::take(&state.conn, &placements, None).unwrap(), 3);
+        let third = db::work::snapshot(&state.conn).unwrap().baselines.remove(2);
+        assert_eq!(third.planned_cents, Some(0));
+        assert_eq!(third.reason.as_deref(), Some("Walls need a second coat"));
+        assert_eq!(third.stages.len(), 2);
+        close(state);
+
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        assert_eq!(db::work::snapshot(&again.conn).unwrap().baselines.len(), 3);
+        assert!(diary::verify(&again.conn).unwrap().intact);
+        close(again);
+    }
 }

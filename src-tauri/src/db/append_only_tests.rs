@@ -9,10 +9,14 @@
 //! opens every file, and off, as SQLite's default and any other tool would open
 //! it. Each must be refused with `baseline: append-only`, and after all of them
 //! the baselines must read exactly as they did before.
+//!
+//! F8 extends the battery to `baseline_stage` and the money columns, and adds
+//! the replanning's own: written once, closed once, never removed.
 
 use rusqlite::Connection;
 
 use crate::db::baselines::{self, Placement, FINISH_IS_THE_LAST, NAMED_TWICE, NOTHING_TO_APPROVE};
+use crate::db::replanning::{self, REASON_NEEDED};
 use crate::db::work::tests::a_work;
 use crate::db::work::{
     add_activity, add_stage, remove_activity, remove_stage, rename_stage, snapshot,
@@ -20,6 +24,14 @@ use crate::db::work::{
 };
 
 const REFUSAL: &str = "baseline: append-only";
+
+/// A reason a plan changes, synthetic.
+const REASON: &str = "Tiles arrive two weeks late";
+
+/// Open a replanning, as `replan_open` would.
+fn replan(conn: &Connection) {
+    replanning::open(conn, REASON, "Synthetic author").expect("a replanning");
+}
 
 /// A plan of two stages and three activities, and where a schedule put them.
 struct Fixture {
@@ -132,10 +144,12 @@ fn the_first_baseline_is_number_one_and_approves_the_plan() {
     );
 
     std::thread::sleep(std::time::Duration::from_millis(5));
+    replan(&f.conn);
     let number = baselines::take(&f.conn, &placements(&f), Some("2026-10-08")).unwrap();
     assert_eq!(number, 2, "max + 1");
     let plan = snapshot(&f.conn).unwrap();
     assert_eq!(plan.baselines.len(), 2);
+    assert_eq!(plan.baselines[1].reason.as_deref(), Some(REASON));
     assert_eq!(
         plan.work.approved_at,
         Some(approved),
@@ -211,12 +225,13 @@ fn editing_or_removing_the_plan_after_approval_leaves_the_baseline_as_it_was() {
     assert_eq!(snapshot(&f.conn).unwrap().baselines, before);
 }
 
-/// Every way SQL can rewrite a row, against both tables and the approval,
-/// with `recursive_triggers` on and off.
+/// Every way SQL can rewrite a row, against the three tables, their money and
+/// the approval, with `recursive_triggers` on and off.
 #[test]
 fn every_update_delete_and_replace_of_a_baseline_is_refused_whatever_the_pragmas() {
     let f = fixture();
     baselines::take(&f.conn, &placements(&f), Some("2026-10-08")).unwrap();
+    replan(&f.conn);
     baselines::take(&f.conn, &placements(&f), Some("2026-10-08")).unwrap();
     let plan = snapshot(&f.conn).unwrap();
     let before = plan.baselines.clone();
@@ -224,6 +239,7 @@ fn every_update_delete_and_replace_of_a_baseline_is_refused_whatever_the_pragmas
     let first = &before[0].id;
     let second = &before[1].id;
     let tiling = &f.tiling;
+    let stage = &f.stage;
 
     let attacks = [
         format!("UPDATE baseline SET finish_date = '2027-01-01' WHERE id = '{first}'"),
@@ -267,6 +283,43 @@ fn every_update_delete_and_replace_of_a_baseline_is_refused_whatever_the_pragmas
         ),
         "UPDATE work SET approved_at = '2020-01-01T00:00:00.000Z'".to_string(),
         "UPDATE work SET approved_at = NULL".to_string(),
+        // F8: the money a baseline recorded, and the reason it was taken.
+        format!("UPDATE baseline SET planned_cents = 1 WHERE id = '{first}'"),
+        "UPDATE baseline SET planned_cents = NULL".to_string(),
+        format!("UPDATE baseline SET reason = NULL WHERE id = '{second}'"),
+        "UPDATE baseline_activity SET planned_cents = 0".to_string(),
+        // F8: its stages.
+        format!("UPDATE baseline_stage SET name = 'Rewritten' WHERE baseline_id = '{first}'"),
+        "UPDATE baseline_stage SET planned_cents = 999".to_string(),
+        format!("UPDATE baseline_stage SET position = 9 WHERE baseline_id = '{second}'"),
+        format!("DELETE FROM baseline_stage WHERE baseline_id = '{first}'"),
+        "DELETE FROM baseline_stage".to_string(),
+        format!(
+            "INSERT OR REPLACE INTO baseline_stage (baseline_id, stage_id, position, name)
+             VALUES ('{second}', '{stage}', 1, 'Rewritten')"
+        ),
+        format!(
+            "REPLACE INTO baseline_stage (baseline_id, stage_id, position, name)
+             VALUES ('{second}', '{stage}', 1, 'Rewritten')"
+        ),
+        format!(
+            "INSERT INTO baseline_stage (baseline_id, stage_id, position, name)
+             VALUES ('{second}', '{stage}', 1, 'Twice')
+             ON CONFLICT DO UPDATE SET name = 'Rewritten'"
+        ),
+        // A stage slipped into the latest baseline at a position already held:
+        // a replace by another key.
+        format!(
+            "INSERT OR REPLACE INTO baseline_stage (baseline_id, stage_id, position, name)
+             VALUES ('{second}', '{}', 1, 'Usurper')",
+            crate::db::new_id()
+        ),
+        // A stage added to a past baseline.
+        format!(
+            "INSERT INTO baseline_stage (baseline_id, stage_id, position, name)
+             VALUES ('{first}', '{}', 9, 'Smuggled in')",
+            crate::db::new_id()
+        ),
     ];
 
     for recursive in ["ON", "OFF"] {
@@ -355,4 +408,245 @@ fn the_module_that_writes_baselines_holds_no_update_delete_or_replace() {
         source.contains("INSERT INTO baseline"),
         "the scan is reading the right file"
     );
+    // F8: the writer of a baseline's stages is this module, and so under the
+    // same scan — no other module writes `baseline_stage`.
+    for table in [
+        "INSERT INTO baseline_stage",
+        "INSERT INTO baseline_activity",
+    ] {
+        assert!(
+            source.contains(table),
+            "`{table}` is written here, under the scan"
+        );
+    }
+}
+
+/// No module but `db::baselines` names a baseline table in a statement that
+/// writes: the scan above covers every writer there is. Test code is left out
+/// — the upgrade tests write old baselines by hand, as an older build would
+/// have.
+#[test]
+fn no_other_module_writes_a_baseline_table() {
+    let sources = [
+        ("work.rs", include_str!("work.rs")),
+        ("replanning.rs", include_str!("replanning.rs")),
+        ("money.rs", include_str!("money.rs")),
+        ("dependencies.rs", include_str!("dependencies.rs")),
+        ("order.rs", include_str!("order.rs")),
+        ("documents.rs", include_str!("documents.rs")),
+    ];
+    for (file, source) in sources {
+        let product = source.split("#[cfg(test)]").next().unwrap_or(source);
+        for line in product
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("//"))
+        {
+            let lower = line.to_ascii_lowercase();
+            for table in ["baseline_stage", "baseline_activity", "baseline "] {
+                for verb in ["insert into ", "update ", "delete from ", "replace into "] {
+                    assert!(
+                        !lower.contains(&format!("{verb}{table}")),
+                        "{file} writes a baseline table: {line}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Baseline 1 is the approval; every later baseline needs the reason the plan
+/// changed. Refused without one — nothing written — and with one, the reason
+/// is copied and the replanning closed in the same transaction.
+#[test]
+fn a_baseline_after_the_first_needs_an_open_replanning_and_closes_it() {
+    let f = fixture();
+    baselines::take(&f.conn, &placements(&f), Some("2026-10-08")).unwrap();
+
+    let refused = baselines::take(&f.conn, &placements(&f), Some("2026-10-08")).unwrap_err();
+    assert_eq!(refused.kind(), "plan_approved");
+    assert_eq!(refused.to_string(), REASON_NEEDED);
+    assert_eq!(snapshot(&f.conn).unwrap().baselines.len(), 1);
+
+    replan(&f.conn);
+    // A take refused for another reason leaves the replanning open.
+    let refused = baselines::take(&f.conn, &placements(&f)[1..], Some("2026-10-08")).unwrap_err();
+    assert_eq!(refused.kind(), "invalid_input");
+    assert!(snapshot(&f.conn).unwrap().replanning.is_some());
+
+    assert_eq!(
+        baselines::take(&f.conn, &placements(&f), Some("2026-10-08")).unwrap(),
+        2
+    );
+    let plan = snapshot(&f.conn).unwrap();
+    assert_eq!(plan.baselines[0].reason, None, "the approval has no reason");
+    assert_eq!(plan.baselines[1].reason.as_deref(), Some(REASON));
+    assert_eq!(plan.replanning, None, "closed by the baseline");
+    let (closed, number): (Option<String>, Option<i64>) = f
+        .conn
+        .query_row(
+            "SELECT closed_at, baseline_number FROM replanning",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert!(closed.is_some());
+    assert_eq!(number, Some(2));
+
+    let refused = baselines::take(&f.conn, &placements(&f), Some("2026-10-08")).unwrap_err();
+    assert_eq!(
+        refused.to_string(),
+        REASON_NEEDED,
+        "a closed replanning is spent"
+    );
+}
+
+/// A baseline records its stages — a stage with no activity included — and
+/// the planned money: the work's, each stage's (its activities' lines
+/// included) and each activity's. With no cost line, the money is 0, not
+/// "not recorded".
+#[test]
+fn a_baseline_records_every_stage_and_the_planned_money() {
+    let f = fixture();
+    let empty = add_stage(&f.conn, "Cleanup").unwrap();
+    let finishes: String = f
+        .conn
+        .query_row("SELECT id FROM stage WHERE name = 'Finishes'", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    crate::db::money::add_cost_line(&f.conn, &f.stage, Some(&f.tiling), "Tiles", 120_000).unwrap();
+    crate::db::money::add_cost_line(&f.conn, &f.stage, None, "Labour", 30_000).unwrap();
+    crate::db::money::add_cost_line(&f.conn, &finishes, None, "Paint", 50_000).unwrap();
+
+    baselines::take(&f.conn, &placements(&f), Some("2026-10-08")).unwrap();
+
+    let baseline = snapshot(&f.conn).unwrap().baselines.remove(0);
+    assert_eq!(baseline.planned_cents, Some(200_000));
+    let stages: Vec<_> = baseline
+        .stages
+        .iter()
+        .map(|s| {
+            (
+                s.stage_id.as_str(),
+                s.position,
+                s.name.as_str(),
+                s.planned_cents,
+            )
+        })
+        .collect();
+    assert_eq!(
+        stages,
+        vec![
+            (f.stage.as_str(), 1, "Bathroom", Some(150_000)),
+            (finishes.as_str(), 2, "Finishes", Some(50_000)),
+            (empty.as_str(), 3, "Cleanup", Some(0)),
+        ]
+    );
+    let rows: Vec<_> = baseline
+        .rows
+        .iter()
+        .map(|r| (r.name.as_str(), r.planned_cents))
+        .collect();
+    assert_eq!(
+        rows,
+        vec![
+            ("Tiling", Some(120_000)),
+            ("Grout", Some(0)),
+            ("Paint", Some(0))
+        ]
+    );
+
+    let wire = serde_json::to_value(&baseline).unwrap();
+    assert_eq!(wire["plannedCents"], 200_000);
+    assert_eq!(
+        wire["stages"][0],
+        serde_json::json!({
+            "stageId": f.stage, "position": 1, "name": "Bathroom", "plannedCents": 150_000
+        })
+    );
+    assert_eq!(wire["rows"][0]["plannedCents"], 120_000);
+}
+
+const WRITTEN_ONCE: &str = "replanning: written once";
+
+/// A replanning is not a baseline — closing it writes two columns once — but
+/// it is written once: its reason is never rewritten, a closed one never
+/// reopened or re-closed, none removed, and never two open at once.
+#[test]
+fn a_replanning_is_written_once_closed_once_and_never_removed() {
+    let f = fixture();
+    baselines::take(&f.conn, &placements(&f), Some("2026-10-08")).unwrap();
+    replan(&f.conn);
+    let refused = replanning::open(&f.conn, "A second one", "Synthetic author").unwrap_err();
+    assert_eq!(refused.to_string(), replanning::ALREADY_OPEN);
+
+    let attacks_on_the_open_one = [
+        "UPDATE replanning SET reason = 'Rewritten'",
+        "UPDATE replanning SET author_name = 'Somebody else'",
+        "UPDATE replanning SET opened_at = '2020-01-01T00:00:00.000Z'",
+        "DELETE FROM replanning",
+    ];
+    for attack in attacks_on_the_open_one {
+        let refused = f.conn.execute(attack, []).expect_err(attack);
+        assert!(
+            refused.to_string().contains(WRITTEN_ONCE),
+            "{attack}: {refused}"
+        );
+    }
+    // A second open row: the partial UNIQUE index, even past the command.
+    let refused = f
+        .conn
+        .execute(
+            "INSERT INTO replanning (id, reason, opened_at, author_name)
+             VALUES (?1, 'Another', 't', 'Synthetic author')",
+            [crate::db::new_id()],
+        )
+        .expect_err("two open at once");
+    assert!(refused.to_string().contains("UNIQUE"), "{refused}");
+
+    baselines::take(&f.conn, &placements(&f), Some("2026-10-08")).unwrap();
+    for recursive in ["ON", "OFF"] {
+        f.conn
+            .pragma_update(None, "recursive_triggers", recursive)
+            .unwrap();
+        for attack in [
+            "UPDATE replanning SET closed_at = NULL, baseline_number = NULL",
+            "UPDATE replanning SET baseline_number = 3",
+            "UPDATE replanning SET closed_at = '2030-01-01T00:00:00.000Z'",
+            "UPDATE replanning SET reason = 'Rewritten after the fact'",
+            "DELETE FROM replanning",
+        ] {
+            let refused = f.conn.execute(attack, []).expect_err(attack);
+            assert!(
+                refused.to_string().contains(WRITTEN_ONCE),
+                "{attack}: {refused}"
+            );
+        }
+        let id: String = f
+            .conn
+            .query_row("SELECT id FROM replanning", [], |r| r.get(0))
+            .unwrap();
+        let refused = f
+            .conn
+            .execute(
+                "INSERT OR REPLACE INTO replanning (id, reason, opened_at, author_name)
+                 VALUES (?1, 'Rewritten', 't', 'Synthetic author')",
+                [&id],
+            )
+            .expect_err("a replace");
+        assert!(refused.to_string().contains(WRITTEN_ONCE), "{refused}");
+    }
+    let plan = snapshot(&f.conn).unwrap();
+    assert_eq!(plan.baselines[1].reason.as_deref(), Some(REASON));
+    assert_eq!(plan.replanning, None);
+}
+
+/// Refused before the plan is approved: there is nothing to replan.
+#[test]
+fn a_replanning_before_approval_is_refused() {
+    let f = fixture();
+    let refused = replanning::open(&f.conn, REASON, "Synthetic author").unwrap_err();
+    assert_eq!(refused.kind(), "invalid_input");
+    assert_eq!(refused.to_string(), replanning::NOT_APPROVED_YET);
+    assert!(replanning::refuse_if_plan_locked(&f.conn).is_ok());
 }

@@ -5,7 +5,7 @@ import {
   Delete20Regular,
   Rename20Regular,
 } from '@fluentui/react-icons';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useToday } from '@/app/today';
 
@@ -23,6 +23,8 @@ import { decisionRows } from '@/domain/decisions';
 import {
   activitiesInOrder,
   decisionsOf,
+  isLocked,
+  latestBaseline,
   roomsInOrder,
   stagesInOrder,
   type Activity,
@@ -33,12 +35,15 @@ import {
 import { schedule } from '@/domain/schedule';
 import { MakeDecisionDialog } from '@/features/decisions/MakeDecisionDialog';
 import { DocumentsCount } from '@/features/documents/DocumentsCount';
+import { ReplanButton } from '@/features/schedule/ReplanDialog';
+import { useReplanningFocus } from '@/features/schedule/replanningFocus';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Card } from '@/ui/Card';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { EmptyState } from '@/ui/EmptyState';
 import { IconButton } from '@/ui/IconButton';
+import { InfoBar } from '@/ui/InfoBar';
 
 import { ACTIVITY_COLUMNS, ActivityRow } from './ActivityRow';
 import { AddForm } from './AddForm';
@@ -66,6 +71,12 @@ type Removal =
  * order, each numbered, each with its activities numbered under it — the same rows the other two
  * arrangements show, never a copy of them (DESIGN_SYSTEM §8). Every row can be moved one place by
  * its buttons or by Alt+ArrowUp/Down from any control in it, and where it went is announced.
+ *
+ * An approved plan is locked until somebody says why it changes (ADR-027): the breakdown says so at
+ * the top and offers **Replan…**, but disables nothing — the refusal is the host's, and it is said
+ * on the row that tried the edit (`stage-problem`, `activity-problem`, `link-problem`,
+ * `cost-line-problem`), never only at the top of the page. One refusal at a time: the next edit
+ * that is kept, or a refusal anywhere else, takes it away.
  */
 export function Breakdown({
   snapshot,
@@ -82,7 +93,8 @@ export function Breakdown({
   focusRow: string | null;
   onFocused: () => void;
 }) {
-  const { t, tp, day } = useI18n();
+  const { t, tp, day, describeError } = useI18n();
+  const replanningFocus = useReplanningFocus();
   const term = useTerms();
   const removeStage = useRemoveStage();
   const removeActivity = useRemoveActivity();
@@ -91,6 +103,39 @@ export function Breakdown({
   const [making, setMaking] = useState<Decision | null>(null);
   const mover = useMover(outcome);
   const [removal, setRemoval] = useState<Removal | null>(null);
+  const [problem, setProblem] = useState<{ scope: string; text: string } | null>(null);
+
+  // The page's channel, for the cards whose refusals are not a row's: a refusal there takes a
+  // row's away, so two never argue on screen.
+  const page: Outcome = useMemo(
+    () => ({
+      refused: (error: unknown) => {
+        setProblem(null);
+        outcome.refused(error);
+      },
+      kept: () => {
+        setProblem(null);
+        outcome.kept();
+      },
+    }),
+    [outcome],
+  );
+  /** A row's own channel: its refusal is said on that row, and the page's is taken away. */
+  const at = useCallback(
+    (scope: string): Outcome => ({
+      refused: (error: unknown) => {
+        outcome.kept();
+        setProblem({ scope, text: describeError(error) });
+      },
+      kept: () => {
+        setProblem(null);
+        outcome.kept();
+      },
+    }),
+    [outcome, describeError],
+  );
+  const problemAt = (scope: string): string | null =>
+    problem !== null && problem.scope === scope ? problem.text : null;
 
   const numbers = new Map(breakdown(snapshot).map((row) => [row.id, row.number]));
   const endpointName = useEndpointName(snapshot, numbers);
@@ -108,13 +153,14 @@ export function Breakdown({
 
   const confirmRemoval = () => {
     if (removal === null) return;
+    const report = removal.kind === 'decision' ? page : at(`${removal.kind}:${removal.id}`);
     const options = {
       onSuccess: () => {
-        outcome.kept();
+        report.kept();
         setRemoval(null);
       },
       onError: (error: unknown) => {
-        outcome.refused(error);
+        report.refused(error);
         setRemoval(null);
       },
     };
@@ -123,16 +169,48 @@ export function Breakdown({
     else removeDecision.mutate(removal.id, options);
   };
 
+  const replanning = snapshot.replanning;
+  const baseline = latestBaseline(snapshot);
+
   return (
     <>
+      {isLocked(snapshot) && (
+        <div data-testid="plan-locked">
+          <InfoBar severity="info" title={t('replan.locked.title')}>
+            <p>{t('replan.locked.body')}</p>
+            <div className="mt-2">
+              <ReplanButton />
+            </div>
+          </InfoBar>
+        </div>
+      )}
+      {replanning !== null && (
+        <div ref={replanningFocus} tabIndex={-1} data-testid="replanning-open">
+          <InfoBar
+            severity="info"
+            title={t('replan.since', {
+              replanning: term('replanning', { capital: true }),
+              day: day(replanning.openedAt.slice(0, 10)),
+            })}
+          >
+            <p>{replanning.reason}</p>
+            <p className="mt-1">
+              {t('replan.closeOnSchedule', {
+                baseline: term('baseline'),
+                number: (baseline?.number ?? 0) + 1,
+              })}
+            </p>
+          </InfoBar>
+        </div>
+      )}
       <CalendarCard
         snapshot={snapshot}
-        outcome={outcome}
+        outcome={page}
         open={calendarOpen}
         onOpen={onCalendarOpen}
       />
-      <PeopleCard snapshot={snapshot} outcome={outcome} />
-      <RoomsCard snapshot={snapshot} outcome={outcome} mover={mover.go} />
+      <PeopleCard snapshot={snapshot} outcome={page} />
+      <RoomsCard snapshot={snapshot} outcome={page} mover={mover.go} />
 
       <section aria-labelledby="plan-breakdown" className="flex flex-col gap-3">
         <div>
@@ -141,7 +219,7 @@ export function Breakdown({
           </h2>
           <p className="mt-0.5 text-caption text-fg-tertiary">{t('plan.move.hint')}</p>
         </div>
-        <AddStage outcome={outcome} />
+        <AddStage outcome={at('stage-add')} problem={problemAt('stage-add')} />
 
         {stages.length === 0 ? (
           <Card>
@@ -166,7 +244,14 @@ export function Breakdown({
                     const direction = chordDirection(event);
                     if (direction === null || closed) return;
                     event.preventDefault();
-                    mover.go('stage', stage.id, direction, stageIds, stage.name);
+                    mover.go(
+                      'stage',
+                      stage.id,
+                      direction,
+                      stageIds,
+                      stage.name,
+                      at(`stage:${stage.id}`),
+                    );
                   }}
                 >
                   <Card>
@@ -190,9 +275,16 @@ export function Breakdown({
                       <StageHeader
                         stage={stage}
                         number={numbers.get(stage.id) ?? ''}
-                        outcome={outcome}
+                        outcome={at(`stage:${stage.id}`)}
                         onMove={(direction) =>
-                          mover.go('stage', stage.id, direction, stageIds, stage.name)
+                          mover.go(
+                            'stage',
+                            stage.id,
+                            direction,
+                            stageIds,
+                            stage.name,
+                            at(`stage:${stage.id}`),
+                          )
                         }
                         onRemove={() =>
                           setRemoval({
@@ -203,6 +295,7 @@ export function Breakdown({
                           })
                         }
                       />
+                      <RowProblem testId="stage-problem" text={problemAt(`stage:${stage.id}`)} />
                       {snapshot.dependencies.some(
                         (dependency) =>
                           dependency.blocked.kind === 'stage' && dependency.blocked.id === stage.id,
@@ -223,7 +316,7 @@ export function Breakdown({
                                   key={dependency.id}
                                   dependency={dependency}
                                   name={endpointName}
-                                  outcome={outcome}
+                                  outcome={at(`stage:${stage.id}`)}
                                 />
                               ))}
                           </ul>
@@ -236,7 +329,7 @@ export function Breakdown({
                         snapshot={snapshot}
                         scheduled={scheduled}
                         today={today}
-                        outcome={outcome}
+                        outcome={page}
                         focusRow={focusRow}
                         onFocused={onFocused}
                         onMove={(decision, direction) =>
@@ -256,7 +349,7 @@ export function Breakdown({
                       <ChecksBlock
                         stage={stage}
                         snapshot={snapshot}
-                        outcome={outcome}
+                        outcome={page}
                         readOnly={closed}
                         onMove={(check, direction, checkSiblings) =>
                           mover.go('check', check.id, direction, checkSiblings, check.name)
@@ -267,7 +360,7 @@ export function Breakdown({
                           snapshot={snapshot}
                           stageId={stage.id}
                           activityId={null}
-                          outcome={outcome}
+                          outcome={page}
                           readOnly={closed}
                         />
                       </div>
@@ -299,7 +392,8 @@ export function Breakdown({
                                 people={snapshot.people}
                                 snapshot={snapshot}
                                 rooms={rooms}
-                                outcome={outcome}
+                                outcome={at(`activity:${activity.id}`)}
+                                problem={problemAt(`activity:${activity.id}`)}
                                 focus={focusRow === activity.id}
                                 onFocused={onFocused}
                                 onMove={(direction) =>
@@ -309,6 +403,7 @@ export function Breakdown({
                                     direction,
                                     siblings,
                                     activity.name,
+                                    at(`activity:${activity.id}`),
                                   )
                                 }
                                 onRemove={() =>
@@ -324,7 +419,7 @@ export function Breakdown({
                                   activityName={activity.name}
                                   snapshot={snapshot}
                                   numbers={numbers}
-                                  outcome={outcome}
+                                  outcome={at(`activity:${activity.id}`)}
                                   readOnly={closed}
                                 />
                                 <div className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-2">
@@ -333,7 +428,7 @@ export function Breakdown({
                                     snapshot={snapshot}
                                     stageId={stage.id}
                                     activityId={activity.id}
-                                    outcome={outcome}
+                                    outcome={page}
                                     readOnly={closed}
                                   />
                                 </div>
@@ -342,7 +437,13 @@ export function Breakdown({
                           </ul>
                         </>
                       )}
-                      {!closed && <AddActivity stage={stage} outcome={outcome} />}
+                      {!closed && (
+                        <AddActivity
+                          stage={stage}
+                          outcome={at(`activity-add:${stage.id}`)}
+                          problem={problemAt(`activity-add:${stage.id}`)}
+                        />
+                      )}
                     </fieldset>
                   </Card>
                 </li>
@@ -482,32 +583,56 @@ function StageHeader({
   );
 }
 
-function AddStage({ outcome }: { outcome: Outcome }) {
+/** The host's refusal of an edit, said on the row that tried it. Nothing when there is none. */
+function RowProblem({ testId, text }: { testId: string; text: string | null }) {
+  const { t } = useI18n();
+  if (text === null) return null;
+  return (
+    <div data-testid={testId} className="mb-3">
+      <InfoBar severity="caution" title={t('plan.refused')}>
+        {text}
+      </InfoBar>
+    </div>
+  );
+}
+
+function AddStage({ outcome, problem }: { outcome: Outcome; problem: string | null }) {
   const { t } = useI18n();
   const term = useTerms();
   const add = useAddStage();
   return (
-    <AddForm
-      label={t('plan.toAdd', { what: term('stage', { capital: true }) })}
-      inputTestId="stage-add-name"
-      buttonTestId="stage-add"
-      buttonLabel={t('plan.add', { what: term('stage') })}
-      icon={<Add20Regular />}
-      pending={add.isPending}
-      onAdd={(name, done) =>
-        add.mutate(name, {
-          onSuccess: () => {
-            outcome.kept();
-            done();
-          },
-          onError: outcome.refused,
-        })
-      }
-    />
+    <>
+      <AddForm
+        label={t('plan.toAdd', { what: term('stage', { capital: true }) })}
+        inputTestId="stage-add-name"
+        buttonTestId="stage-add"
+        buttonLabel={t('plan.add', { what: term('stage') })}
+        icon={<Add20Regular />}
+        pending={add.isPending}
+        onAdd={(name, done) =>
+          add.mutate(name, {
+            onSuccess: () => {
+              outcome.kept();
+              done();
+            },
+            onError: outcome.refused,
+          })
+        }
+      />
+      <RowProblem testId="stage-problem" text={problem} />
+    </>
   );
 }
 
-function AddActivity({ stage, outcome }: { stage: Stage; outcome: Outcome }) {
+function AddActivity({
+  stage,
+  outcome,
+  problem,
+}: {
+  stage: Stage;
+  outcome: Outcome;
+  problem: string | null;
+}) {
   const { t } = useI18n();
   const term = useTerms();
   const add = useAddActivity();
@@ -533,6 +658,9 @@ function AddActivity({ stage, outcome }: { stage: Stage; outcome: Outcome }) {
           )
         }
       />
+      <div className="mt-2">
+        <RowProblem testId="stage-problem" text={problem} />
+      </div>
     </div>
   );
 }

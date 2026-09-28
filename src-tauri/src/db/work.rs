@@ -32,6 +32,8 @@
 //!   payments, or a person the money names, cannot be removed.
 //! - F7: a person as a contact (phone, e-mail, note, availability) with the
 //!   stages they are expected on; the snapshot carries documents.
+//! - F8: the snapshot carries the open replanning. The lock on an approved
+//!   plan is `db::replanning`'s, asked by the commands before they call here.
 
 use std::collections::HashMap;
 
@@ -41,6 +43,7 @@ use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, Wo
 use crate::db::order::{ACTIVITIES, STAGES};
 use crate::db::{
     baselines, check_answers, checks, decisions, dependencies, documents, money, payments,
+    replanning,
 };
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
@@ -275,6 +278,7 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         commitments: money::commitments(conn)?,
         payments: payments::list(conn)?,
         documents: documents::list(conn)?,
+        replanning: replanning::current(conn)?,
     })
 }
 

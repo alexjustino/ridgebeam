@@ -66,6 +66,15 @@
 //!   SVG by name; the hostile corpus is generated in `cargo test` against a
 //!   committed manifest. `documents_verify` re-reads the bytes; orphans are
 //!   listed, never deleted. A moved work is found again by `recent_relocate`.
+//! - F8: replanning. Once approved, a plan is locked until somebody says why:
+//!   every command that changes what a baseline records is refused as
+//!   `plan_approved` unless a replanning is open (`replan_open`, a row with a
+//!   reason, one at a time). It closes only by taking the next baseline, which
+//!   copies the reason in the same transaction; facts never ask. Work
+//!   migration 009 adds `replanning`, and baselines that record their stages
+//!   (`baseline_stage`, insert-only by the same battery) and their planned
+//!   money — backfilling the stages of baselines taken before, whose money
+//!   stays "not recorded". A what-if is the interface's alone: nothing here.
 
 pub mod commands;
 pub mod contract;
@@ -151,6 +160,7 @@ pub fn run() {
             commands::schedule::dependency_update,
             commands::schedule::dependency_remove,
             commands::schedule::baseline_take,
+            commands::schedule::replan_open,
             commands::decisions::decision_add,
             commands::decisions::decision_update,
             commands::decisions::decision_remove,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { COMPARISON_LABEL_KEYS, COMPARISON_PROBLEM_KEYS } from '@/domain/baselines';
 import { DEFAULT_CHECK_KEYS, GATES_HELD_LABEL_KEY, STAGES_LABEL_KEYS } from '@/domain/checks';
 import { DECISIONS_DUE_LABEL_KEY } from '@/domain/decisions';
 import { DONE_LABEL_KEYS } from '@/domain/diary';
@@ -12,6 +13,7 @@ import {
   RULE_LABEL_KEYS,
 } from '@/domain/readiness';
 import { SLIP_LABEL_KEY } from '@/domain/schedule/slip';
+import { WHAT_IF_LABEL_KEY, WHAT_IF_PROBLEM_KEYS } from '@/domain/schedule/whatIf';
 import { LANGUAGES as LANGUAGE_CHOICES } from '@/domain/settings';
 
 import { en } from './en';
@@ -172,6 +174,10 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         'documents.target.detached',
         ...DEFAULT_CHECK_KEYS.start,
         ...DEFAULT_CHECK_KEYS.close,
+        ...Object.values(COMPARISON_LABEL_KEYS),
+        ...Object.values(COMPARISON_PROBLEM_KEYS),
+        WHAT_IF_LABEL_KEY,
+        ...Object.values(WHAT_IF_PROBLEM_KEYS),
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }

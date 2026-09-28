@@ -27,7 +27,7 @@ is intent.
 | Asset                                                              | Threat                                                                                                                                                           | Control                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Slice          |
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
 | The diary                                                          | an entry silently edited, deleted or replaced; an entry slipped in out of order                                                                                  | four insert-only tables; triggers refuse `UPDATE`, `DELETE` and `REPLACE`; a guard refuses a sequence number that exists; the chain trigger refuses an entry that is not next or does not carry the previous hash; no edit command, a correction instead; a hash chain verified in Diagnostics (and on export, F10)                                                                                                                                                                                                                                                 | **F4**         |
-| The baselines                                                      | a baseline overwritten, withdrawn or given rows it did not have                                                                                                  | insert-only tables, triggers refuse `UPDATE`, `DELETE` and `REPLACE`; rows only on the latest baseline; `approved_at` never changes; the reason for each change                                                                                                                                                                                                                                                                                                                                                                                                     | **F2**, F8     |
+| The baselines                                                      | a baseline overwritten, withdrawn or given rows it did not have; an approved plan changed with no reason                                                         | insert-only tables — `baseline`, `baseline_activity` and, from F8, `baseline_stage` — triggers refuse `UPDATE`, `DELETE` and `REPLACE`; rows only on the latest baseline; `approved_at` never changes; an approved plan refuses every change a baseline records (`plan_approved`) until a replanning is opened with a reason; every baseline after the first closes one and carries its reason; the replanning itself is written once                                                                                                                               | **F2**, **F8** |
 | A stage's gate answers                                             | an answer silently changed or removed; a stage started or closed with an item unanswered or answered no                                                          | `check_answer` insert-only with the diary's battery — triggers refuse `UPDATE`, `DELETE` and `REPLACE`, a guard refuses a key that exists; answering again appends and the latest counts; _not applicable_ requires a reason; the gate is enforced by the domain and by the host (`stage_gate_open`); a closed stage refuses every change to its rows (`stage_closed`); no hash chain                                                                                                                                                                               | **F5**         |
 | The payments ledger                                                | a payment silently edited or removed; a mistake hidden by rewriting it; money summed with rounding errors                                                        | `payment` insert-only with the same battery — triggers refuse `UPDATE`, `DELETE` and `REPLACE`, a guard refuses a key that exists, payments numbered in order; a mistake is a reversal — a negative payment naming the one it reverses, never larger, once only; a commitment locked once something is paid against it; amounts are integers in minor units; no hash chain                                                                                                                                                                                          | **F6**         |
 | The plan's progress                                                | progress typed in that the site never did                                                                                                                        | there is no command, column or control that writes progress; progress is derived from diary entries only, in states                                                                                                                                                                                                                                                                                                                                                                                                                                                 | **F0**, **F4** |
@@ -102,14 +102,15 @@ hostile. **Shipped for every document in F7** (ADR-025), on the pipeline F4 buil
 ## The diary and the baselines are append-only
 
 This is requirement one of the specification, and it is enforced in two places on purpose.
-**Shipped: the baselines in F2 (ADR-016), the diary in F4 (ADR-019).**
+**Shipped: the baselines in F2 (ADR-016) and their stages in F8 (ADR-028), the diary in F4
+(ADR-019).**
 
 - **In the schema.** The diary is four tables — `diary_entry`, `diary_done`, `diary_present`
-  and `diary_photo` — and the baselines two, `baseline` and `baseline_activity`. On each,
-  triggers refuse `UPDATE` and `DELETE`. `INSERT OR REPLACE` removes the row it replaces
-  without firing a delete trigger when `recursive_triggers` is off, so each table also has a
-  guard before insert that refuses a key that already exists; the product opens every file with
-  `recursive_triggers` on as well. A done line, a person present or a photo may be added only to
+  and `diary_photo` — and the baselines three, `baseline`, `baseline_activity` and
+  `baseline_stage`. On each, triggers refuse `UPDATE` and `DELETE`. `INSERT OR REPLACE` removes
+  the row it replaces without firing a delete trigger when `recursive_triggers` is off, so each
+  table also has a guard before insert that refuses a key that already exists; the product opens
+  every file with `recursive_triggers` on as well. A done line, a person present or a photo may be added only to
   the latest entry — the one being written — so a past entry cannot gain a line it did not have
   when its hash was computed; rows are added only to the latest baseline for the same reason. A
   further trigger refuses a diary entry whose sequence number is not the next one, or whose
@@ -119,12 +120,14 @@ This is requirement one of the specification, and it is enforced in two places o
   row.
 - **In the host.** No Tauri command edits or deletes an entry or a baseline. The Rust module that
   writes the diary contains no `UPDATE`, `DELETE` or `REPLACE`, and a test reads its source to
-  prove it; the same rule holds for baselines. An entry dated in the future is refused by the
-  domain against today and by the host against its own clock.
+  prove it; the same rule holds for baselines, `baseline_stage` included, and a second test
+  reads the modules that write the plan and the replanning and fails if one writes a baseline
+  table. An entry dated in the future is refused by the domain against today and by the host
+  against its own clock.
 - **A correction is a new entry.** It names the entry it corrects, restates the day, and says
   what was wrong. The interface offers _Correct…_ where an edit would be expected, and says why;
-  the day view shows the original struck through beside its correction. A replan (F8) is a new
-  baseline with its reason.
+  the day view shows the original struck through beside its correction. A change to an approved
+  plan is a new baseline with its reason (F8), never an edit of the last one.
 - **A chain.** Each entry carries the SHA-256 hash of the entry before it — the empty string for
   the first — and its own hash over a canonical form of the entry and its children: every field,
   every done line, every person present and every photo, with `NULL` distinguishable from the
@@ -146,6 +149,25 @@ host holds no statement that would reach them. Answering again appends a row and
 counts, so the history of a gate — who answered what, and when — is never rewritten. There is no
 hash chain over answers: a gate's history is short and local to one check, and the chain is the
 diary's. A photo on an answer goes through exactly the pipeline in _Files are hostile_.
+
+**An approved plan changes only after somebody says why** (F8, ADR-027). Once the plan is
+approved, the host refuses every command that changes what a baseline records — the stages, the
+activities' names, durations and order, the dependencies, the calendar, the start date, the cost
+lines — with `plan_approved`, unless a **replanning** is open. A replanning is opened with a
+reason that is not blank, and closed only by taking the next baseline, which copies the reason
+and is insert-only like every baseline. There is no abandon: an edit already in the file ends in
+a baseline that records it. Facts are never locked — the diary, answers, payments and the rest
+are the record, and refusing them would push them out of it.
+
+**The replanning is written once, and not a requirement-one table.** Its `closed_at` and
+`baseline_number` are written into the row by the transaction that takes the baseline closing
+it, so the table cannot refuse every `UPDATE` as the baselines do. Triggers hold the rest, each
+with `replanning: written once`: no removal, no replacement, and no change but that one closing —
+the reason, the author and the moment it was opened never move, and a closed replanning never
+reopens. It is not in requirement one because it is not the record: it is the lock's state, and
+the reason it carries is copied into the baseline, which is. At most one is open, by a unique
+index over the open rows. The same caveat as every table here holds: somebody who owns the file
+can drop the triggers.
 
 **The payments ledger is append-only, with reversals, and not chained** (F6, ADR-023). `payment`
 carries the same triggers and guard as the diary's tables and raises `money: append-only`. A

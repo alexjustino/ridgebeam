@@ -62,6 +62,8 @@ export function useMover(outcome: Outcome) {
       direction: Direction,
       siblings: readonly string[],
       name: string,
+      /** Where a refusal is said, when it belongs to the row that moved rather than the page. */
+      report: Outcome = outcome,
     ) => {
       const after = moved(siblings, id, direction);
       if (after.every((each, index) => each === siblings[index])) {
@@ -75,7 +77,7 @@ export function useMover(outcome: Outcome) {
         { kind, id, direction },
         {
           onSuccess: (snapshot) => {
-            outcome.kept();
+            report.kept();
             announce(t('plan.move.done', { name, number: positionOf(snapshot, kind, id) }));
             window.requestAnimationFrame(() => {
               if (focused !== null && focused.isConnected && document.activeElement !== focused) {
@@ -83,7 +85,7 @@ export function useMover(outcome: Outcome) {
               }
             });
           },
-          onError: outcome.refused,
+          onError: report.refused,
         },
       );
     },

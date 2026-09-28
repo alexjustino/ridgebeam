@@ -18,10 +18,14 @@
 //! - F6: `cost_line_add`, `cost_line_update`, `cost_line_remove`,
 //!   `commitment_add`, `commitment_update`, `commitment_remove`,
 //!   `payment_add`, `payment_reverse`.
+//! - F8: once the plan is approved, the cost lines are locked until a
+//!   replanning is open (`plan_approved`) — planned money is compared between
+//!   baselines. Commitments and payments are facts, and stay free.
 
 use std::path::{Path, PathBuf};
 
 use chrono::NaiveDate;
+use rusqlite::OptionalExtension;
 use tauri::State;
 
 use crate::commands::documents::file_it;
@@ -29,6 +33,7 @@ use crate::commands::work::{change_work, with_work};
 use crate::contract::{CommitmentPatch, CostLinePatch, DocumentTarget, PaymentDraft, WorkSnapshot};
 use crate::db::money::{self, CommitmentFields};
 use crate::db::payments::{self, NewPayment};
+use crate::db::replanning::refuse_if_plan_locked;
 use crate::db::work as repo;
 use crate::error::{Error, Result};
 use crate::files::intake::{self, Accept, CopyIn, NOT_A_PHOTO};
@@ -50,6 +55,9 @@ pub const MAX_WHAT_FOR_CHARS: usize = 200;
 /// or an activity not in this work, or an activity of another stage;
 /// [`Error::StageClosed`] for a closed stage; and the errors of every work
 /// command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn cost_line_add(
     open: State<'_, OpenWork>,
@@ -74,6 +82,9 @@ pub fn cost_line_add(
 /// [`Error::InvalidInput`] for a value that does not fit or a line not in this
 /// work; [`Error::StageClosed`] for a closed stage; and the errors of every
 /// work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open, and the patch gives the line another label or amount.
 #[tauri::command(rename_all = "snake_case")]
 pub fn cost_line_update(
     open: State<'_, OpenWork>,
@@ -89,9 +100,12 @@ pub fn cost_line_update(
 ///
 /// [`Error::InvalidInput`] for a line not in this work; [`Error::StageClosed`]
 /// for a closed stage; and the errors of every work command.
+///
+/// [`Error::PlanApproved`] when the plan is approved and no replanning is
+/// open.
 #[tauri::command(rename_all = "snake_case")]
 pub fn cost_line_remove(open: State<'_, OpenWork>, id: String) -> Result<WorkSnapshot> {
-    change_work(&open, |conn| money::remove_cost_line(conn, &id))
+    cost_line_remove_with(&open, &id)
 }
 
 /// Add a commitment — a quote or contract accepted — to a stage, with its
@@ -288,6 +302,7 @@ pub fn cost_line_add_with(
     let label = label("A cost line", label_text)?;
     let amount = validate::amount_cents(amount_cents, false)?;
     change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
         money::add_cost_line(conn, stage_id, activity_id, &label, amount).map(|_| ())
     })
 }
@@ -308,8 +323,43 @@ pub fn cost_line_update_with(
         .map(|a| validate::amount_cents(a, false))
         .transpose()?;
     change_work(open, |conn| {
+        if cost_line_would_change(conn, id, label.as_deref(), amount)? {
+            refuse_if_plan_locked(conn)?;
+        }
         money::update_cost_line(conn, id, label.as_deref(), amount)
     })
+}
+
+/// What [`cost_line_remove`] does once the state is in hand.
+pub fn cost_line_remove_with(open: &OpenWork, id: &str) -> Result<WorkSnapshot> {
+    change_work(open, |conn| {
+        refuse_if_plan_locked(conn)?;
+        money::remove_cost_line(conn, id)
+    })
+}
+
+/// Whether a cost line would read differently after the change — a patch
+/// that repeats what the line holds changes nothing, and is not refused as a
+/// change to an approved plan. A line not in this work is not refused here:
+/// the update says so.
+fn cost_line_would_change(
+    conn: &rusqlite::Connection,
+    id: &str,
+    label: Option<&str>,
+    amount_cents: Option<i64>,
+) -> Result<bool> {
+    let held: Option<(String, i64)> = conn
+        .query_row(
+            "SELECT label, amount_cents FROM cost_line WHERE id = ?1",
+            [id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((held_label, held_amount)) = held else {
+        return Ok(false);
+    };
+    Ok(label.is_some_and(|new| new != held_label)
+        || amount_cents.is_some_and(|new| new != held_amount))
 }
 
 /// A commitment as the interface sent it.

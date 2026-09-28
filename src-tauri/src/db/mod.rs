@@ -33,6 +33,9 @@
 //!   migration 007.
 //! - F7: `documents` (the files the work owns, and their links); work
 //!   migration 008, with its backfill.
+//! - F8: `replanning` (an approved plan locked until somebody says why; the
+//!   next baseline closes it), and baselines that record stages and money;
+//!   work migration 009, with its backfill of old baselines' stages.
 
 #[cfg(test)]
 mod append_only_tests;
@@ -50,6 +53,7 @@ pub mod money;
 pub mod order;
 pub mod payments;
 pub mod recent;
+pub mod replanning;
 pub mod rooms;
 pub mod settings;
 pub mod work;

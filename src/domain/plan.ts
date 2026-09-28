@@ -264,6 +264,20 @@ export interface BaselineRow {
   /** `YYYY-MM-DD`, or `null` when the schedule could not place it. */
   readonly start: string | null;
   readonly finish: string | null;
+  /**
+   * The money planned on the activity then (its cost lines, in cents); `null` when the baseline did
+   * not record money (taken before slice F8): "not recorded", never 0.
+   */
+  readonly plannedCents: number | null;
+}
+
+/** One stage as a baseline recorded it. A stage renamed later is the same stage: same `stageId`. */
+export interface BaselineStage {
+  readonly stageId: string;
+  readonly position: number;
+  readonly name: string;
+  /** The money planned on the stage then, in cents; `null` when not recorded. */
+  readonly plannedCents: number | null;
 }
 
 /** A photograph of the plan, taken when it was approved. Insert-only; never overwritten. */
@@ -273,10 +287,33 @@ export interface Baseline {
   readonly number: number;
   /** UTC, milliseconds, trailing `Z`. */
   readonly takenAt: string;
-  /** Why the approved plan was changed; `null` for baseline 1 (and until slice F8 asks). */
+  /**
+   * Why the approved plan was changed: the reason of the replanning the baseline closed. `null` for
+   * baseline 1, the approval itself.
+   */
   readonly reason: string | null;
   readonly finishDate: string | null;
+  /**
+   * The work's planned total then (every cost line, in cents); `null` when the baseline did not
+   * record money (taken before slice F8): "not recorded", never 0.
+   */
+  readonly plannedCents: number | null;
+  readonly stages: readonly BaselineStage[];
   readonly rows: readonly BaselineRow[];
+}
+
+/**
+ * A replanning: somebody said why an approved plan must change. While one is open the plan may be
+ * edited; it is closed only by taking the next baseline, which records its reason. A row, not a mode
+ * of the interface: it survives a restart. At most one is open.
+ */
+export interface Replanning {
+  readonly id: string;
+  /** Why the plan changes, as the person wrote it; never blank. */
+  readonly reason: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly openedAt: string;
+  readonly authorName: string;
 }
 
 /** The whole plan of one work, as `work_get` returns it. */
@@ -290,6 +327,8 @@ export interface WorkSnapshot {
   readonly activities: readonly Activity[];
   readonly dependencies: readonly Dependency[];
   readonly baselines: readonly Baseline[];
+  /** The open replanning, or `null` when none is open. */
+  readonly replanning: Replanning | null;
   readonly decisions: readonly Decision[];
   readonly checks: readonly Check[];
   readonly checkAnswers: readonly CheckAnswer[];
@@ -377,6 +416,16 @@ export function latestBaseline(snapshot: WorkSnapshot): Baseline | null {
     if (latest === null || baseline.number > latest.number) latest = baseline;
   }
   return latest;
+}
+
+/**
+ * Is the plan locked: approved, with no replanning open? Then every edit to what a baseline records
+ * (stages, activities, durations, links, the calendar, the start date, the cost lines) is refused by
+ * the host until somebody says why the plan changes. Facts (the diary, answers, payments …) are never
+ * locked. The interface asks this to offer the way out; the refusal itself is the host's.
+ */
+export function isLocked(snapshot: WorkSnapshot): boolean {
+  return snapshot.work.approvedAt !== null && snapshot.replanning === null;
 }
 
 /** Code-point order, the same on every machine whatever its locale. */

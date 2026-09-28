@@ -2,12 +2,14 @@ import { Add20Regular, Delete20Regular } from '@fluentui/react-icons';
 import { useId, useState, type FormEvent } from 'react';
 
 import { LIMITS } from '@/data/commands';
+import { errorKind } from '@/data/errors';
 import { useAddCostLine, useRemoveCostLine, useUpdateCostLine } from '@/data/queries';
 import type { CostLine, WorkSnapshot } from '@/domain/plan';
 import { fromCents, toCents } from '@/i18n/format';
 import { useI18n } from '@/i18n/useI18n';
 import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
+import { InfoBar } from '@/ui/InfoBar';
 import { Input } from '@/ui/Input';
 
 import { NameField } from './NameField';
@@ -21,6 +23,10 @@ import type { Outcome } from './outcome';
  *
  * The stage's own add line and an activity's carry different test ids, because the stage's
  * container holds its activities too: `stage-cost-line-add-*` and `cost-line-add-*`.
+ *
+ * A change the host refuses — an approved plan's money is locked until it is replanned (ADR-027) —
+ * is said on the line that tried it (`cost-line-problem`), and an amount the file did not take is
+ * read back from the file, so the screen never shows money the plan does not hold.
  */
 export function CostLines({
   snapshot,
@@ -96,12 +102,28 @@ function CostLineRow({
   readOnly: boolean;
   outcome: Outcome;
 }) {
-  const { t, money } = useI18n();
+  const { t, money, describeError } = useI18n();
   const update = useUpdateCostLine();
   const remove = useRemoveCostLine();
   const hint = useId();
   const [amount, setAmount] = useState(fromCents(line.amountCents));
   const [invalid, setInvalid] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  // Bumped when the file refused an edit: the label field is put back to what the file holds.
+  const [generation, setGeneration] = useState(0);
+
+  const kept = () => {
+    setRefusal(null);
+    outcome.kept();
+  };
+  const refused = (error: unknown) => {
+    setRefusal(describeError(error));
+    if (errorKind(error) === 'plan_approved') {
+      setAmount(fromCents(line.amountCents));
+      setInvalid(false);
+      setGeneration((now) => now + 1);
+    }
+  };
 
   const editAmount = (next: string) => {
     setAmount(next);
@@ -114,7 +136,7 @@ function CostLineRow({
     if (cents !== line.amountCents) {
       update.mutate(
         { id: line.id, patch: { amountCents: cents } },
-        { onSuccess: outcome.kept, onError: outcome.refused },
+        { onSuccess: kept, onError: refused },
       );
     }
   };
@@ -132,14 +154,11 @@ function CostLineRow({
     <li data-cost-line-id={line.id} className="flex flex-col gap-0.5">
       <div className="grid grid-cols-[minmax(0,1fr)_9rem_auto] items-start gap-2">
         <NameField
-          key={line.label}
+          key={`${line.label}:${generation}`}
           value={line.label}
           label={t('plan.fieldOf', { field: t('money.costLines'), name: line.label })}
           onCommit={(label) =>
-            update.mutate(
-              { id: line.id, patch: { label } },
-              { onSuccess: outcome.kept, onError: outcome.refused },
-            )
+            update.mutate({ id: line.id, patch: { label } }, { onSuccess: kept, onError: refused })
           }
         />
         <Input
@@ -159,15 +178,20 @@ function CostLineRow({
           icon={<Delete20Regular />}
           label={t('plan.removeNamed', { name: line.label })}
           disabled={remove.isPending}
-          onClick={() =>
-            remove.mutate(line.id, { onSuccess: outcome.kept, onError: outcome.refused })
-          }
+          onClick={() => remove.mutate(line.id, { onSuccess: kept, onError: refused })}
         />
       </div>
       {invalid && (
         <span id={hint} className="text-caption text-fg-secondary">
           {t('money.invalid.amount')}
         </span>
+      )}
+      {refusal !== null && (
+        <div data-testid="cost-line-problem">
+          <InfoBar severity="caution" title={t('plan.refused')}>
+            {refusal}
+          </InfoBar>
+        </div>
       )}
     </li>
   );
@@ -186,12 +210,13 @@ function AddCostLine({
   prefix: string;
   outcome: Outcome;
 }) {
-  const { t } = useI18n();
+  const { t, describeError } = useI18n();
   const add = useAddCostLine();
   const hint = useId();
   const [label, setLabel] = useState('');
   const [amount, setAmount] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -210,10 +235,12 @@ function AddCostLine({
       {
         onSuccess: () => {
           outcome.kept();
+          setRefusal(null);
           setLabel('');
           setAmount('');
         },
-        onError: outcome.refused,
+        // Said on the add line that asked; what was typed stays, to be kept once it can be.
+        onError: (error) => setRefusal(describeError(error)),
       },
     );
   };
@@ -254,6 +281,13 @@ function AddCostLine({
         <span id={hint} className="text-caption text-fg-secondary">
           {problem}
         </span>
+      )}
+      {refusal !== null && (
+        <div data-testid="cost-line-problem">
+          <InfoBar severity="caution" title={t('plan.refused')}>
+            {refusal}
+          </InfoBar>
+        </div>
       )}
     </form>
   );

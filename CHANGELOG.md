@@ -372,3 +372,52 @@ found again from a dialog.
   verifies.
 
 Readiness is unchanged: the specification names no rule for contacts or documents.
+
+### Added in F8 — replanning and baselines
+
+Editing an approved plan asks for a reason and makes baseline N+1; any two baselines compare with
+the dates moved, the stages added or removed, the money changed and the reasons between them; a
+what-if that is not saved is not a baseline.
+
+- **An approved plan is locked until somebody says why** (ADR-027). After approval, the host
+  refuses every change to what a baseline records — adding, renaming, moving or removing a stage
+  or an activity, an activity's name or duration, a link or its lag, the calendar, the work's
+  start date, a cost line — with a new error kind, `plan_approved`: "The plan is approved. To
+  change it, replan it with a reason first." Facts stay free: the diary, gate answers, starting,
+  closing and reopening a stage, payments, commitments, decisions, people, rooms and documents,
+  and what a baseline does not record — an activity's responsible, rooms and quantity, and the
+  work's name, place and currency.
+- **Replan…** opens a replanning with its reason, from the Plan's breakdown — where a banner
+  says the plan is locked — or from the Schedule's baseline card. A blank reason is refused; so is
+  a replanning before approval, and a second one while one is open. A replanning is a row, so it
+  survives a restart; while it is open the Plan, the Schedule and the Dashboard show since when
+  and why, and the plan can be edited.
+- **Take baseline N+1** closes it: the new baseline copies the replanning's reason, in the same
+  transaction. A second baseline without an open replanning is refused — "A second baseline needs
+  the reason the plan changed." There is no abandon: an edit already made ends in a baseline.
+- **Baselines record stages and money.** Every stage — one with no activities included — with its
+  planned money, each activity's planned money and the work's total, in cents, read from the file
+  when the baseline is taken.
+- **Any two baselines compare** (ADR-028), on the Schedule's new **Baselines** card: every
+  baseline with its reason — or "the approval" — its finish date and its planned money, and two
+  to compare, the last two by default. The comparison is counted figures that open onto their
+  rows: the finish moved, dates moved, durations changed, activities added and removed, stages
+  added and removed, the money changed, and the reasons in between, in order. Activities and
+  stages are matched by id, so one renamed is the same one. The pair is read from the earlier to
+  the later whichever way it was chosen, and the card says so; a baseline compared with itself is
+  refused with a sentence.
+- **What if**, on the Schedule: try other durations for activities and other lags for links, as
+  many as wanted, and see the finish date they would give against today's plan and against the
+  latest baseline. Nothing is written — a sentence says so, **Clear** drops it, and leaving the
+  Schedule or a restart forgets it; to keep it, replan with a reason. A duration on an activity of a closed stage is
+  refused.
+- **The Dashboard** says how many times the plan was replanned, and whether a replanning is open.
+- **Work migration 009** (`009_replanning.sql`) adds `replanning` with its written-once triggers,
+  the money columns of `baseline` and `baseline_activity`, and `baseline_stage` with the
+  insert-only triggers of every baseline table. Baselines taken before it gain their stages,
+  rebuilt from their activity rows, and their money reads **not recorded** — never 0. A work from
+  F7 is migrated when it is opened, without loss, and its diary's chain still verifies.
+
+Readiness is unchanged, and the slip still measures the plan against the latest baseline. Not in
+1.0, by decision: abandoning a replanning without a baseline, and applying a what-if with one
+button.

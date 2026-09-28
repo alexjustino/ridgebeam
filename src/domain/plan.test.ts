@@ -4,6 +4,7 @@ import {
   activitiesInOrder,
   compareText,
   hasDuration,
+  isLocked,
   latestBaseline,
   roomsInOrder,
   stagesInOrder,
@@ -35,6 +36,7 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     activities: [],
     dependencies: [],
     baselines: [],
+    replanning: null,
     decisions: [],
     checks: [],
     checkAnswers: [],
@@ -162,6 +164,8 @@ describe('baselines', () => {
     takenAt: '2026-09-01T12:00:00.000Z',
     reason: null,
     finishDate: null,
+    plannedCents: null,
+    stages: [],
     rows: [],
   });
 
@@ -172,6 +176,30 @@ describe('baselines', () => {
   it('are read latest by number, whatever order the host lists them in', () => {
     const plan = snapshot({ baselines: [baseline('b2', 2), baseline('b3', 3), baseline('b1', 1)] });
     expect(latestBaseline(plan)?.id).toBe('b3');
+  });
+});
+
+describe('a locked plan', () => {
+  const approved = snapshot({
+    work: { ...snapshot().work, approvedAt: '2026-08-31T12:00:00.000Z' },
+  });
+
+  it('is not locked before it is approved', () => {
+    expect(isLocked(snapshot())).toBe(false);
+  });
+
+  it('is locked once approved, until somebody says why it changes', () => {
+    expect(isLocked(approved)).toBe(true);
+  });
+
+  it('is open to edits while a replanning is open', () => {
+    const replanning = {
+      id: 'r1',
+      reason: 'Tiles arrive two weeks late',
+      openedAt: '2026-09-10T12:00:00.000Z',
+      authorName: 'Sample author',
+    };
+    expect(isLocked({ ...approved, replanning })).toBe(false);
   });
 });
 
