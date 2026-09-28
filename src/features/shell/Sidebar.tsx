@@ -1,6 +1,7 @@
 import {
   Board20Regular,
   ClipboardTask20Regular,
+  DocumentBulletList20Regular,
   DocumentMultiple20Regular,
   Money20Regular,
   Notebook20Regular,
@@ -27,11 +28,11 @@ import { useI18n } from '@/i18n/useI18n';
  * Every destination here is built. A destination that is planned and not built is not listed —
  * nothing on the rail pretends to work when it does not.
  *
- * Ten destinations are two groups: the seven that show a work, and the three that are about the
+ * Eleven destinations are two groups: the eight that show a work, and the three that are about the
  * product itself. The gap between them is a `separator`, and never a button, so the rail a
  * keyboard walks through is exactly the destinations it names.
  *
- * With no work open, the seven that show one are **unavailable, not hidden**: they stay buttons
+ * With no work open, the eight that show one are **unavailable, not hidden**: they stay buttons
  * with `aria-disabled`, reachable by Tab so a keyboard finds them where a pointer does, and the
  * reason is visible text — shown under the entry on hover and on focus, and wired to it as its
  * description — never a `title` tooltip that a keyboard and a screen reader cannot reach
@@ -48,6 +49,7 @@ const ICONS: Record<Destination, ReactNode> = {
   diary: <Notebook20Regular />,
   money: <Money20Regular />,
   documents: <DocumentMultiple20Regular />,
+  reports: <DocumentBulletList20Regular />,
   settings: <Settings20Regular />,
   diagnostics: <Wrench20Regular />,
   about: <Info20Regular />,

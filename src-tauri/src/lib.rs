@@ -88,6 +88,17 @@
 //!   (`template_read`, `template_write`: `.json`, 1 MiB) — the host never
 //!   parses one. No new error kind, no new capability: the save dialog was
 //!   already allowed.
+//! - F10: reports. A report is a document the interface composes, already in
+//!   words; the host lays it out (pure, `report::layout`) and writes it as a
+//!   PDF in the standard Helvetica faces, WinAnsi, nothing embedded
+//!   (`report_pdf_write`). The diary's exports (`diary_export_pdf`,
+//!   `diary_export_csv`) verify the chain first, over the rows they write, and
+//!   write nothing when it does not hold; the PDF carries the host's own
+//!   verification block, the CSV is the database's own rows, neutralised
+//!   against formulas. The work is exported as JSON (`work_export_json`).
+//!   Every file goes through `files::save` (F9's atomic write, now shared);
+//!   `report_open` opens only a file this session wrote. No new error kind,
+//!   no new capability, no migration.
 
 pub mod commands;
 pub mod contract;
@@ -96,6 +107,7 @@ pub mod error;
 pub mod files;
 pub mod folder;
 pub mod os;
+pub mod report;
 pub mod validate;
 
 use std::sync::Mutex;
@@ -129,6 +141,7 @@ pub fn run() {
             let connection = db::open(app.handle())?;
             app.manage(db::Db(Mutex::new(connection)));
             app.manage(folder::OpenWork::default());
+            app.manage(commands::reports::Written::default());
             if db::relocated_data_dir().is_some() {
                 log::warn!(
                     "the application data folder is relocated by {}",
@@ -217,6 +230,11 @@ pub fn run() {
             commands::templates::ranges_take,
             commands::templates::template_read,
             commands::templates::template_write,
+            commands::reports::report_pdf_write,
+            commands::reports::diary_export_pdf,
+            commands::reports::diary_export_csv,
+            commands::reports::work_export_json,
+            commands::reports::report_open,
         ])
         .build(tauri::generate_context!())
         .expect("Ridgebeam failed to start");

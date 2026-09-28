@@ -484,11 +484,31 @@ breaks one is not merged.
   line itself, never 0, never a dash and never an empty cell that could be mistaken for zero, and
   the planned figure says how many lines it did not count. A template that cannot be applied is a
   list of its problems in sentences, each saying where in the file it is — never "invalid file".
+- **A report says what the screen says, in the same words.** A PDF is composed from the rows the
+  screen shows, by the same domain selections, through the same `t()` and the same dictionaries —
+  never from a second calculation and never from words written for paper only (ADR-031). A figure
+  on the page carries its rows under it, as it opens onto them on the screen. The weekly report is
+  in the **owner's** words whatever lens is on, because it is the owner's report; the diary and the
+  schedule follow the lens and the language on screen. A string the page cannot print is a defect
+  the encoder test finds before a person does: the three stand-ins (→ `->`, ≥ `>=`, ≤ `<=`) are the
+  only difference allowed, and a `?` fails the gate. What the page leaves out it says in words —
+  photos are counted and said to be in the work's folder, a note shortened in a row is whole in the
+  diary's PDF — and each card on **Reports** says in one line what its file holds **and what it
+  does not**, and after writing names the path and offers **Open**.
+- **An empty week is printed, and says it is empty.** A week with no diary entry still makes a
+  weekly report: its **first line**, in strong type, says that nothing was written and how many
+  working days are over with nothing written — _"No diary entry this week: 3 working days are over
+  with nothing written. The rest of this report is still printed."_ — and the working days without
+  an entry are listed by date. Then the rest of the report follows as it would on any week:
+  readiness, the finish, the decisions, the money and the stages as they stand. A report never
+  drops a section because it has nothing in it — a figure with nothing to count is printed with its
+  zero — and never leaves a reader unable to tell an empty week from a page that failed to print
+  (SPEC R2).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
   `data-destination="<id>"` with the same id the router uses — `dashboard`, `plan`, `schedule`,
-  `decisions`, `diary`, `money`, `documents`, `settings`, `diagnostics`, `about`. The end-to-end suite and the accessibility audit find destinations by
+  `decisions`, `diary`, `money`, `documents`, `reports`, `settings`, `diagnostics`, `about`. The end-to-end suite and the accessibility audit find destinations by
   these attributes and never by visible text, which changes with the language (§9).
 - **Degrade visibly: a missing work folder is a state with a way out.** A recent work whose
   folder is gone is not hidden and not an error dialog: its row says the folder was not found
@@ -525,7 +545,8 @@ Maximising works; the hover flyout does not appear yet.
 ### The rail
 
 The destinations are ordered **the work first, then the product**: Dashboard · Plan ·
-Schedule · Decisions · Diary · Money · Documents, then Settings · Diagnostics · About. Between the two groups sits a hairline with `role="separator"` —
+Schedule · Decisions · Diary · Money · Documents · Reports, then Settings · Diagnostics · About —
+eleven destinations. Between the two groups sits a hairline with `role="separator"` —
 a separator and **never** a disabled button, a heading nobody can reach or an empty `div` used as
 a gap: the grouping has to be a fact for somebody who is listening to the rail rather than
 looking at it, and nothing new may appear in the tab order to say it.
@@ -565,9 +586,16 @@ attached to; each file with its thumbnail or its mark, an editable title and kin
 day, its attachments as chips, and **Open**, **Attach to…**, **Detach** and **Remove**; **Add
 documents…** at the top, which attaches to the work unless a target is chosen.
 
-With no work open, Dashboard, Plan, Schedule, Decisions, Diary, Money and Documents have
+**Reports** is where files leave the product: one card each for the **weekly report**, **the
+diary** (as a PDF and as CSV), **the schedule** and **the work as JSON**. Each card says in one line
+what its file holds and what it does not, chooses where to write it in the save dialog, writes it,
+names the path it wrote and offers **Open**; a refusal is a sentence on that card. The diary's card
+says how many entries there are and that the chain was verified just now before it offers to write
+(ADR-032).
+
+With no work open, Dashboard, Plan, Schedule, Decisions, Diary, Money, Documents and Reports have
 nothing to show: the Start screen — a new work, an open work, the recent works — takes the
-content region, and the seven destinations are disabled
+content region, and the eight destinations are disabled
 with the reason in their accessible description, not removed. A rail that changes shape under
 the keyboard is a rail nobody learns.
 

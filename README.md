@@ -6,7 +6,7 @@
 plan is intent, the diary is fact, and the plan says what it does not yet know.**
 
 Stages and activities · Critical path on a working calendar · Decisions with computed deadlines ·
-Readiness · Append-only site diary · Check gates · Money · Templates that are plans ·
+Readiness · Append-only site diary · Check gates · Money · Templates that are plans · Reports ·
 Three lenses, one model · English and Portuguese
 
 No cloud. No account. No telemetry. A work is a folder you own.
@@ -18,9 +18,9 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F9.** The product was named on 2026-09-24
-> ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F9 — from the foundation to
-> templates and the library — run from source; there is no published installer yet. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for
+> **Status: pre-release — slices F0 to F10.** The product was named on 2026-09-24
+> ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F10 — from the foundation to
+> the dashboard and reports — run from source; there is no published installer yet. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for
 > every slice; [What exists today](#what-exists-today) says exactly how far the code has got.
 
 ## Why
@@ -70,7 +70,7 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F9**, and nothing after them:
+Slices **F0** to **F10**, and nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -159,33 +159,49 @@ Slices **F0** to **F9**, and nothing after them:
   work by a test in CI, and reviewed by a maintainer; [`CONTRIBUTING.md`](CONTRIBUTING.md) is the
   procedure. Any work **exports as a template**, its numbers stripped for sharing or kept for the
   next work like it.
+- **The dashboard and reports (F10).** The dashboard is the front door, composed from every
+  figure the slices made, and now also says **this week on site** — the entries written and the
+  working days without one — the **people expected** this week, the **weather days lost**, and the
+  **last diary entries** with their photos, each opening the diary at that entry; every figure
+  still opens onto its rows. A new destination, **Reports**, writes four files, each to a place
+  chosen in the save dialog: the **weekly report**, a PDF in the owner's words — the days written
+  and the working days not, what was done and finished, who was on site, readiness and what it
+  lacks, the finish against the baseline, the decisions due and the money — where a week with no
+  entry says so on its first line; **the diary** as a PDF and as CSV, written only after the host
+  has verified the chain, the PDF headed by that verification and by the words that it is
+  tamper-evidence, not a signature and not legal proof; **the schedule** on landscape A4, a Gantt
+  and its table; and **the work as JSON**, a documented format for anybody else's tool. A CSV never
+  carries a formula — a cell that would start one is written with an apostrophe before it. The PDFs
+  are written by the host in the standard Helvetica fonts, and a second PDF reader parses every kind
+  of report in the tests. **Open** shows a file just written in the system's own viewer.
 - **Readiness.** A figure that says how much of what the plan must know it does know, from seven
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
   gates and its money planned, with a priced line — that opens onto the rows it
   counts and says in a sentence what is missing, in English and in Portuguese. Rule by rule on
   the dashboard, each with why it matters; the rules add up to the figure.
-- **The shell.** Dashboard, Plan, Schedule, Decisions, Diary, Money, Documents, Settings
-  (language, theme, lens), Diagnostics and About, in light and dark, in English and Portuguese. There is no command, field or
-  control that sets progress.
+- **The shell.** Dashboard, Plan, Schedule, Decisions, Diary, Money, Documents, Reports, Settings
+  (language, theme, lens), Diagnostics and About — eleven destinations — in light and dark, in
+  English and Portuguese. There is no command, field or control that sets progress.
 - **The documents written before the first work:** [`docs/SPEC.md`](docs/SPEC.md), the
   specification; [`SECURITY.md`](SECURITY.md), the threat model;
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-two binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **reports**, print and the diary's export (F10); **backup** (F11).
+Not yet, and not pretended: **backup** (F11).
 
 Not in 1.0, by decision rather than by schedule: files other than images and PDFs (no Word,
 spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a
 work; a decision tied to one activity rather than its whole stage; a replanning abandoned without
 a baseline; a what-if applied to the plan with one button; a work that follows its template when
-the library changes; prices in the library.
+the library changes; prices in the library; photos inside a PDF report; a character outside the
+standard PDF fonts' set on paper; non-working days shaded on the printed schedule.
 Each arrives with its slice, in the order the [specification](docs/SPEC.md) §7 lists.
 
 ## Run it from source

@@ -12,7 +12,7 @@ language, a term or a sentence, or names a lens that does not exist.
 
 A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-57 terms.
+58 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
@@ -72,6 +72,7 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `dashboard` | dashboard | The front door of a work: readiness, this week, the finish date against the baseline, decisions due, money, the last diary entries. Every figure opens onto its rows. | painel | A porta de entrada de uma obra: prontidão, esta semana, a data de término contra a linha de base, decisões a tomar, dinheiro, as últimas entradas do diário. Cada número abre nas suas linhas. |
 | `figure` | figure | A number on a screen that always knows which rows it was counted from, and opens onto them when clicked. | número | Um valor na tela que sempre sabe de quais linhas foi contado, e abre nelas ao ser clicado. |
 | `report` | weekly report | One page a week, in the owner's words: what was done, what slipped, what to decide, what to pay. | relatório semanal | Uma página por semana, nas palavras do dono: o que foi feito, o que atrasou, o que decidir, o que pagar. |
+| `export` | export | A file written from the work for somebody else, or another program, to read — a PDF, a spreadsheet file or JSON. Writing it changes nothing in the work. | exportação | Um arquivo gravado a partir da obra para outra pessoa, ou outro programa, ler — um PDF, uma planilha ou JSON. Gravá-lo não muda nada na obra. |
 | `backup` | backup | The whole work as one file you can copy anywhere and bring back exactly as it was. | cópia de segurança | A obra inteira como um arquivo que você pode copiar para qualquer lugar e trazer de volta exatamente como estava. |
 
 ## The lenses
@@ -80,7 +81,7 @@ A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a 
 with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
 The sentence never changes with the lens, and nothing about a work is stored per lens.
 
-9 of the 57 terms change with the lens.
+9 of the 58 terms change with the lens.
 
 | Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
 | --- | --- | --- | --- | --- | --- | --- |

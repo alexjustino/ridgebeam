@@ -795,3 +795,122 @@ export function folderHealth(): Promise<FolderHealth> {
 export async function recentRelocate(workId: string, folder: string): Promise<void> {
   await invoke<unknown>('recent_relocate', { work_id: workId, folder });
 }
+
+// ── Reports and exports (F10) ────────────────────────────────────────────────
+//
+// A report is a document the interface composes from the rows the screen shows, already in words,
+// and the host lays out and writes as a PDF in the standard Helvetica faces (ADR-031). Every
+// command here writes one file: `.pdf`, `.csv` or `.json` by kind, an absolute path, whole or not
+// at all; an existing file is replaced only with `overwrite`, which the interface sends only when
+// the save dialog chose that exact path (F9's rule). The diary exports verify the chain first,
+// inside the host, and write nothing when it does not hold (ADR-032).
+
+/** One block of a report, in the order it is printed. Every string is already in words. */
+export type ReportBlock =
+  | { type: 'heading'; level: 1 | 2; text: string }
+  | { type: 'paragraph'; text: string; tone?: 'normal' | 'muted' | 'strong' }
+  /** A figure with its rows listed under it: a report carries its rows too. */
+  | { type: 'figure'; label: string; value: string; rows: string[] }
+  | {
+      type: 'table';
+      /** `width` is the column's fraction of the line; the fractions add up to 1. */
+      columns: Array<{ text: string; align: 'left' | 'right'; width: number }>;
+      rows: string[][];
+    }
+  | {
+      type: 'gantt';
+      /** Day columns, counted from day 0 (the first day drawn). */
+      days: number;
+      /** One per column heading; an empty string leaves that column unlabelled. */
+      dayLabels: string[];
+      rows: ReportGanttRow[];
+    }
+  | { type: 'rule' }
+  | { type: 'pageBreak' };
+
+/** One bar of a printed Gantt: offsets in day columns from day 0. */
+export interface ReportGanttRow {
+  label: string;
+  start: number;
+  length: number;
+  critical: boolean;
+  baselineStart: number | null;
+  baselineLength: number | null;
+}
+
+export type ReportKind = 'weekly' | 'diary' | 'schedule';
+
+/** What the host renders: a title for the page footer and the metadata, and the blocks. */
+export interface ReportDocument {
+  kind: ReportKind;
+  title: string;
+  subtitle: string;
+  pageSize: 'a4' | 'a4-landscape';
+  /** The language the words are in — the host's own verification block is written in it. */
+  language: 'en' | 'pt-BR';
+  blocks: ReportBlock[];
+}
+
+/** What the host says it wrote. */
+export interface WrittenFile {
+  path: string;
+  bytes: number;
+  /** For a PDF. */
+  pages?: number;
+}
+
+/** The weekly report or the printed schedule, as a PDF. `createdAt` is the metadata's date. */
+export function reportPdfWrite(
+  path: string,
+  document: ReportDocument,
+  overwrite: boolean,
+  createdAt: string,
+): Promise<WrittenFile> {
+  return invoke<WrittenFile>('report_pdf_write', {
+    path,
+    document,
+    overwrite,
+    created_at: createdAt,
+  });
+}
+
+/**
+ * The diary as a PDF. The host verifies the chain first and prepends its own verification block —
+ * the interface cannot claim it; a chain that does not hold writes nothing, and the refusal names
+ * the entry that broke.
+ */
+export function diaryExportPdf(
+  path: string,
+  document: ReportDocument,
+  overwrite: boolean,
+  createdAt: string,
+): Promise<WrittenFile> {
+  return invoke<WrittenFile>('diary_export_pdf', {
+    path,
+    document,
+    overwrite,
+    created_at: createdAt,
+  });
+}
+
+/**
+ * The diary as CSV, written by the host from the database itself, chain verified first. `,` for an
+ * English spreadsheet, `;` for a Portuguese one. A cell that would start a formula is neutralised.
+ */
+export function diaryExportCsv(
+  path: string,
+  separator: ',' | ';',
+  overwrite: boolean,
+): Promise<WrittenFile> {
+  return invoke<WrittenFile>('diary_export_csv', { path, separator, overwrite });
+}
+
+/** The whole work as JSON for anybody else's tool: the snapshot and the diary with its hashes. */
+export function workExportJson(path: string, overwrite: boolean): Promise<WrittenFile> {
+  return invoke<WrittenFile>('work_export_json', { path, overwrite });
+}
+
+/** Open a file a report command wrote in this session — that file only — in the system's viewer. */
+export async function reportOpen(path: string): Promise<void> {
+  await invoke<unknown>('report_open', { path });
+}

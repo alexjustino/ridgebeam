@@ -18,7 +18,6 @@ import {
   RULES,
   sentenceParts,
   type MissingId,
-  type MissingRow,
   type ReadinessRow,
   type RuleSummary,
 } from '@/domain/readiness';
@@ -26,9 +25,10 @@ import { schedule, type Schedule } from '@/domain/schedule';
 import { useStatusText } from '@/features/decisions/statusText';
 import { slip } from '@/domain/schedule/slip';
 import { SlipFigure } from '@/features/schedule/SlipFigure';
+import { readinessRowText } from '@/features/reports/compose/words';
 import { TemplateNotes } from '@/features/templates/TemplateNotes';
 import type { MessageKey } from '@/i18n/en';
-import { useI18n, type I18n } from '@/i18n/useI18n';
+import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
@@ -39,34 +39,6 @@ import { DocumentsCard } from './DocumentsCard';
 import { MoneyCard } from './MoneyCard';
 import { SiteCard } from './SiteCard';
 import { StagesCard } from './StagesCard';
-
-/** What each kind of missing row lacks, said on the row itself. */
-const ROW_KEYS: Record<MissingId, MessageKey> = {
-  'activity.duration': 'readiness.row.activity.duration',
-  'activity.responsible': 'readiness.row.activity.responsible',
-  'activity.linked': 'readiness.row.activity.linked',
-  'decision.deadline': 'readiness.row.decision.deadline',
-  'decision.timely': 'readiness.row.decision.timely',
-  'stage.checks': 'readiness.row.stage.checks',
-  'stage.money': 'readiness.row.stage.money',
-  'plan.activity': 'readiness.row.plan.activity',
-};
-
-/**
- * What a missing row lacks, in words. An activity a template gave a range says so — "a range of 3–5
- * working days, no duration yet" — because a range is shown as a range until a person picks (F9).
- */
-function rowText(row: Pick<MissingRow, 'ruleId' | 'durationRange'>, i18n: I18n): string {
-  if (row.ruleId === 'activity.duration' && row.durationRange !== null) {
-    return i18n.t('readiness.row.activity.durationRange', {
-      range: i18n.t('plan.range', {
-        min: i18n.number(row.durationRange.min),
-        max: i18n.number(row.durationRange.max),
-      }),
-    });
-  }
-  return i18n.t(ROW_KEYS[row.ruleId]);
-}
 
 /** The heading each missing row is listed under: its rule, in rule order; the plan's own row last. */
 function ruleGroup(ruleId: MissingId, t: (key: MessageKey) => string) {
@@ -165,7 +137,7 @@ export function DashboardPage({
                 </>
               )}
               <span aria-hidden="true"> — </span>
-              <span>{rowText(row, i18n)}</span>
+              <span>{readinessRowText(i18n, row)}</span>
             </>
           )}
         />
@@ -188,7 +160,7 @@ export function DashboardPage({
 
       <DocumentsCard snapshot={snapshot} />
 
-      <SiteCard snapshot={snapshot} today={today} />
+      <SiteCard snapshot={snapshot} scheduled={scheduled} today={today} />
     </div>
   );
 }
@@ -397,7 +369,7 @@ function RuleLine({ summary }: { summary: RuleSummary }) {
                   </>
                 )}
                 <span aria-hidden="true"> — </span>
-                <span>{rowText(row, i18n)}</span>
+                <span>{readinessRowText(i18n, row)}</span>
               </li>
             ))}
           </ul>

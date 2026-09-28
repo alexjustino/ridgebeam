@@ -709,6 +709,17 @@
       }
     },
     {
+      "key": "export",
+      "en": {
+        "term": "export",
+        "sentence": "A file written from the work for somebody else, or another program, to read — a PDF, a spreadsheet file or JSON. Writing it changes nothing in the work."
+      },
+      "pt-BR": {
+        "term": "exportação",
+        "sentence": "Um arquivo gravado a partir da obra para outra pessoa, ou outro programa, ler — um PDF, uma planilha ou JSON. Gravá-lo não muda nada na obra."
+      }
+    },
+    {
       "key": "backup",
       "en": {
         "term": "backup",

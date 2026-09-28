@@ -446,7 +446,7 @@ export const en = {
   'diary.figure.started': 'Started',
   'diary.figure.notStarted': 'Not started',
   'diary.figure.daysWithoutEntry': 'Days without an entry',
-  'diary.figure.lostDays': 'Weather days lost',
+  'diary.figure.lostDays': 'Days lost',
   'dashboard.done.value': '{finished} of {total}',
   'dashboard.done.caption': '{started} started · {notStarted} not started',
   'dashboard.done.rows': 'What the diary says is finished',
@@ -454,11 +454,6 @@ export const en = {
   'dashboard.lost.hint': 'Days an entry said no work was possible.',
   'dashboard.days.rows': 'The days it counts',
   'dashboard.week.title': 'This week on site',
-  'dashboard.week.days.one': '{count} day with an entry',
-  'dashboard.week.days.other': '{count} days with an entry',
-  'dashboard.week.none': 'No entry in the last 7 days.',
-  'dashboard.week.people': 'Seen on site: {names}',
-  'dashboard.week.nobody': 'Nobody recorded on site.',
   'dashboard.last.title': 'Last entries',
   'dashboard.last.none': 'Nothing written yet.',
   'state.finished': 'finished on {day}',
@@ -1129,6 +1124,161 @@ export const en = {
     '{count} texts were not in the language on screen and were taken in {language}.',
   'template.note.includes.one': 'It brought in {count} other template first: {titles}.',
   'template.note.includes.other': 'It brought in {count} other templates first: {titles}.',
+  // ── Reports and exports (F10) ─────────────────────────────────────────────
+  'nav.reports': 'Reports',
+  'reports.lead':
+    'Each file is written from the same rows the screens show, in the same words. Writing one changes nothing in the work, and nothing leaves this machine.',
+  'reports.heading': '{title} — {work}',
+  'reports.entries.one': '{count} entry',
+  'reports.entries.other': '{count} entries',
+  'reports.entryRow': '#{seq} · {day}',
+  'reports.path.pdf': 'PDF file',
+  'reports.path.csv': 'CSV file',
+  'reports.path.json': 'JSON file',
+  'reports.choose': 'Choose…',
+  'reports.pathHint':
+    'A full path, or choose one. A file that is already there is replaced only when you chose it in the dialog.',
+  'reports.invalid.extension': 'The file’s name must end in .{extension}.',
+  'reports.filter.pdf': 'PDF document',
+  'reports.filter.csv': 'CSV file',
+  'reports.filter.json': 'JSON file',
+  'reports.done.title': 'Written',
+  'reports.done.pages.one': '{count} page',
+  'reports.done.pages.other': '{count} pages',
+  'reports.done.announce': 'Written: {path}',
+  'reports.open': 'Open',
+  'reports.open.label': 'Open {name} in its own program',
+  'reports.problem': 'Not written',
+  'reports.file.weekly': '{work} weekly {week}',
+  'reports.file.diary': '{work} diary',
+  'reports.file.schedule': '{work} schedule',
+
+  'reports.weekly.holds':
+    'One PDF of a week in the owner’s words: the days written and the working days with nothing written, what was done, who was on site, how ready the plan is, when it ends, the decisions due, the money and the stages. It does not hold the photos, and long notes are shortened — the diary’s PDF has them whole.',
+  'reports.week': 'Week',
+  'reports.weekly.write': 'Write the weekly report',
+  'reports.weekly.waiting': 'Reading the diary…',
+  'reports.weekly.subtitle': '{work} · {from} to {to}',
+  'reports.weekly.week': 'The week from {from} to {to}.',
+  'reports.weekly.empty.one':
+    'No diary entry this week: {count} working day is over with nothing written. The rest of this report is still printed.',
+  'reports.weekly.empty.other':
+    'No diary entry this week: {count} working days are over with nothing written. The rest of this report is still printed.',
+  'reports.weekly.emptyYet':
+    'No diary entry this week yet. The rest of this report is still printed.',
+  'reports.weekly.asOf': 'Decisions, money and stages are as they stand on {today}.',
+  'reports.weekly.site': 'On site this week',
+  'reports.weekly.days.day': 'Day',
+  'reports.weekly.days.diary': 'What the diary says',
+  'reports.weekly.holiday': 'holiday',
+  'reports.weekly.calendarUnknown':
+    'The working calendar cannot be counted on, so no day is called a working day or a day off.',
+  'reports.weekly.lacksMore.one': 'And {count} more thing — the dashboard lists them all.',
+  'reports.weekly.lacksMore.other': 'And {count} more things — the dashboard lists them all.',
+  'reports.weekly.noBaseline':
+    'The plan is not approved yet: there is no {baseline} to measure it against.',
+  'reports.weekly.stages': 'Stages',
+  'reports.weekly.note':
+    'Every number lists what it was counted from. Photos are not printed: they are in the work’s folder.',
+  'reports.weekly.figure.worked': 'Worked on this week',
+  'reports.weekly.figure.finished': 'Finished this week',
+  'reports.weekly.figure.decisions': 'Decisions overdue or due in the next {days} calendar days',
+  'reports.weekly.figure.paidThisWeek': 'Paid this week',
+  'reports.weekly.problem.invalidWeek':
+    'That is not a day. Choose any day of the week to report on.',
+  'reports.weekly.problem.invalidToday':
+    'Today’s date could not be read from this machine’s clock.',
+  'reports.weekly.problem.futureWeek':
+    'The week starting {from} has not begun: there is nothing to report on yet.',
+
+  'reports.diary.title': 'The diary',
+  'reports.diary.holds':
+    'Every entry as it was written, in order, a correction beside what it corrects, each note whole — with the chain verified at the moment the file is written. It does not hold the photos, only how many each entry has.',
+  'reports.diary.csvHolds':
+    'The CSV holds the same entries, one row each, with their hashes, for a spreadsheet. A cell that would start a formula is written as text.',
+  'reports.diary.writePdf': 'Write the PDF',
+  'reports.diary.writeCsv': 'Write the CSV',
+  'reports.diary.separator':
+    'Values are separated by “{separator}” — what a spreadsheet in this language expects.',
+  'reports.diary.chain.intact.one': '{count} entry, chain verified just now.',
+  'reports.diary.chain.intact.other': '{count} entries, chain verified just now.',
+  'reports.diary.chain.empty': 'No entry yet: the chain is intact, and the files will say so.',
+  'reports.diary.chain.broken':
+    'The chain does not hold at entry #{seq}: {reason}. Neither file will be written.',
+  'reports.diary.chain.checking': 'Verifying the chain…',
+  'reports.diary.status.effective': 'counts for its day',
+  'reports.diary.status.corrected': 'no longer counts',
+  'reports.diary.written': 'Written by {author}, {time}',
+  'reports.diary.unknownPerson': 'someone no longer in the plan',
+  'reports.diary.photoCount.one': '{count} photo, kept in the work’s folder',
+  'reports.diary.photoCount.other': '{count} photos, kept in the work’s folder',
+  'reports.diary.empty': 'Nothing has been written in the diary yet.',
+  'reports.diary.summary.one': '{count} entry, about the days from {from} to {to}.',
+  'reports.diary.summary.other': '{count} entries, about the days from {from} to {to}.',
+  'reports.diary.corrections.one':
+    '{count} of them corrects an earlier one; what it corrected is printed as it was written, and marked.',
+  'reports.diary.corrections.other':
+    '{count} of them correct earlier ones; what they corrected is printed as it was written, and marked.',
+  'reports.diary.reading':
+    'In the order they were written. An entry is never edited: a correction is a new entry, and the one it corrects stays.',
+  'reports.diary.entry': '{entry} #{seq} · {day}',
+  'reports.diary.photos':
+    'Photos are not printed: each is kept in the work’s folder, named by its hash.',
+
+  'reports.schedule.title': 'The schedule',
+  'reports.schedule.holds':
+    'The plan on a landscape page: a bar for each activity on the calendar, the critical path filled, the baseline beneath, and a table of every activity. It does not hold the diary’s progress — the page is the plan.',
+  'reports.schedule.write': 'Write the schedule',
+  'reports.schedule.finish': '{finishDate}: {day}.',
+  'reports.schedule.noFinish': 'not yet known',
+  'reports.schedule.legend':
+    '{criticalPath}: filled bars, and said beside the row in the table. Other activities: outlined bars. Days off are not drawn apart.',
+  'reports.schedule.baseline': 'Beneath each bar, thin: {baseline} {number}.',
+  'reports.schedule.noBaseline': 'The plan is not approved yet, so no {baseline} is drawn.',
+  'reports.schedule.blocked.invalidCalendar':
+    'Nothing can be drawn: the working calendar cannot be counted on.',
+  'reports.schedule.blocked.invalidStart': 'Nothing can be drawn: the start date is not a day.',
+  'reports.schedule.blocked.cyclic':
+    'Nothing can be drawn: the links make a loop. Remove one of them in the breakdown.',
+  'reports.schedule.blocked.nothingPlaced': 'Nothing can be drawn yet: no activity has a duration.',
+  'reports.schedule.col.number': 'No.',
+  'reports.schedule.col.start': 'Start',
+  'reports.schedule.col.finish': 'Finish',
+  'reports.schedule.col.duration': 'Days',
+  'reports.schedule.col.float': 'Float',
+  'reports.schedule.criticalRow': '{name} · {label}',
+  'reports.schedule.nobody': 'nobody yet',
+  'reports.schedule.units':
+    'Days and float are working days. Float is how many working days an activity can slip without moving the finish.',
+
+  'reports.json.title': 'The work as JSON',
+  'reports.json.holds':
+    'The whole work and every diary entry with its hashes, as JSON for another program to read. It does not hold the files themselves: documents and photos are named by their hash.',
+  'reports.json.write': 'Write the JSON',
+
+  // ── The front door, composed (F10) ─────────────────────────────────────────
+  'dashboard.figure.weekEntries': 'Entries this week',
+  'dashboard.figure.weekDaysWithoutEntry': 'Working days without an entry this week',
+  'dashboard.figure.onSite': 'Who was on site',
+  'dashboard.figure.peopleExpected': 'People expected this week',
+  'dashboard.figure.weatherLost': 'Weather days lost',
+  'dashboard.figure.lastEntries': 'Last entries',
+  'dashboard.figure.rows': 'What it counts',
+  'dashboard.weekDay.written': 'Written',
+  'dashboard.weekDay.missing': 'A working day with nothing written',
+  'dashboard.weekDay.toCome': 'Still to come',
+  'dashboard.weekDay.notWorking': 'Not a working day',
+  'dashboard.weekDay.beforeStart': 'Before the work started',
+  'dashboard.weekDay.unknown': 'The calendar cannot say',
+  'dashboard.week.range': 'From Monday, {from}, to Sunday, {to}',
+  'dashboard.expected.stages': 'on {stages}, running',
+  'dashboard.expected.hint':
+    'Whoever answers for an activity scheduled this week, or is put on a stage that is running.',
+  'dashboard.weatherLost.hint': 'Days an entry says rain or storm, and nothing was done.',
+  'dashboard.last.of.one': 'The last {shown} of {count} entry — the diary has every one.',
+  'dashboard.last.of.other': 'The last {shown} of {count} entries — the diary has every one.',
+  'dashboard.last.open': 'Open #{seq} in the diary',
+  'checks.figure.ready': 'Stages ready to start',
 } as const;
 
 /** Every key the interface may ask for. */

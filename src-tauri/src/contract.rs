@@ -55,6 +55,12 @@
 //!   (`Work.templateId`, `.templateVersion`, `.templateTitle`). A plan applied
 //!   whole (`PlanDraft` and its parts, keyed locally; `Provenance`;
 //!   `PlanStart`, what `work_create` may carry).
+//! - F10: reports. `WrittenFile`, what a report or export command wrote
+//!   (`pages` present for a PDF only); the document itself is
+//!   `report::model::ReportDocument`. The shapes of `WorkSnapshot` and
+//!   `DiaryEntry` are also the JSON export's, and a test reads an export back
+//!   into them (they derive `Deserialize` under `cfg(test)` only: no command
+//!   accepts one).
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -138,6 +144,7 @@ pub struct WorkSummary {
 
 /// The work row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Work {
     /// The work's UUID.
@@ -190,6 +197,7 @@ pub struct Holiday {
 
 /// Somebody who can be responsible for an activity, and be paid.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Person {
     /// UUID v7.
@@ -238,6 +246,7 @@ pub struct PersonPatch {
 
 /// A stage of the work.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Stage {
     /// UUID v7.
@@ -255,6 +264,7 @@ pub struct Stage {
 /// A room of the work — the architect's and the owner's map of it. Named by
 /// the person; an activity touches zero or more.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Room {
     /// UUID v7.
@@ -267,6 +277,7 @@ pub struct Room {
 
 /// An activity inside a stage.
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Activity {
     /// UUID v7.
@@ -300,6 +311,7 @@ pub struct Activity {
 /// enough to send whole after every edit, which keeps the interface's cache one
 /// query and every screen consistent with every other.
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct WorkSnapshot {
     /// The work row.
@@ -346,6 +358,7 @@ pub struct WorkSnapshot {
 /// by taking the next baseline, which copies the reason. Only the open one
 /// crosses the boundary: a closed one lives on as its baseline's `reason`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Replanning {
     /// UUID v7.
@@ -378,6 +391,7 @@ pub type DocumentLink = DocumentTarget;
 /// A file the work owns: copied into its folder, typed by its bytes, named by
 /// its hash.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Document {
     /// UUID.
@@ -498,6 +512,7 @@ pub struct FolderHealth {
 
 /// Planned money: a line on a stage, or on one of its activities.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct CostLine {
     /// UUID v7.
@@ -528,6 +543,7 @@ pub struct CostLinePatch {
 
 /// Committed money: a quote or contract accepted.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Commitment {
     /// UUID v7.
@@ -579,6 +595,7 @@ pub struct CommitmentPatch {
 /// Paid money: one line of the ledger — never edited. A reversal is a
 /// payment with a negative amount that names the one it reverses.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Payment {
     /// UUID v7.
@@ -637,6 +654,7 @@ pub struct PaymentDraft {
 
 /// A question a stage must answer at one of its gates.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Check {
     /// UUID v7.
@@ -653,6 +671,7 @@ pub struct Check {
 
 /// One answer to a check — a fact, never rewritten.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct CheckAnswer {
     /// UUID v7.
@@ -677,6 +696,7 @@ pub struct CheckAnswer {
 /// and how long it takes between deciding and having it on site. Its deadline
 /// is computed by the domain from the schedule; it is not a field.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Decision {
     /// UUID v7.
@@ -729,6 +749,7 @@ pub struct Endpoint {
 /// "`blocked` starts after `blocker` finishes, and `lagDays` working days
 /// later." Finish-to-start; a stage endpoint stands for every activity in it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
     /// UUID v7.
@@ -743,6 +764,7 @@ pub struct Dependency {
 
 /// The plan as it was approved, never rewritten.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Baseline {
     /// UUID v7.
@@ -770,6 +792,7 @@ pub struct Baseline {
 /// One stage, as a baseline recorded it. Stages compare by id: a stage renamed
 /// between two baselines is the same stage.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct BaselineStage {
     /// The stage's id — which may since have been removed. For a baseline
@@ -788,6 +811,7 @@ pub struct BaselineStage {
 /// One activity, as a baseline recorded it. The name and stage name are copies:
 /// an activity renamed or removed later is still what it was here.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct BaselineRow {
     /// The activity's id — which may since have been removed.
@@ -938,6 +962,7 @@ pub struct EntryDraft {
 
 /// One done line, as the diary holds it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct DoneLine {
     /// The activity — which may since have been removed from the plan.
@@ -952,6 +977,7 @@ pub struct DoneLine {
 
 /// A photo of an entry: a copy the work owns, named by the SHA-256 of its bytes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct Photo {
     /// SHA-256 of the bytes, 64 lowercase hex digits.
@@ -971,6 +997,7 @@ pub struct Photo {
 
 /// One diary entry, never edited.
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 #[serde(rename_all = "camelCase")]
 pub struct DiaryEntry {
     /// 1, 2, 3 … in the order written — the chain's order.
@@ -1250,6 +1277,20 @@ pub struct WorkDiagnostics {
     pub synchronous: String,
     /// Whether references are enforced.
     pub foreign_keys: bool,
+}
+
+/// What a report or export command wrote. The document a report is written
+/// from is `report::model::ReportDocument`, next to the layout that reads it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WrittenFile {
+    /// The file, as the command was given it.
+    pub path: String,
+    /// Its size.
+    pub bytes: u64,
+    /// How many pages, for a PDF; absent for a CSV or a JSON file.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pages: Option<usize>,
 }
 
 /// A field that was sent, whatever it holds — `null` included — as opposed to

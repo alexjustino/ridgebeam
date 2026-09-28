@@ -4,10 +4,10 @@ import { useDiary } from '@/data/queries';
 import { progress } from '@/domain/diary';
 import { breakdown } from '@/domain/arrangements';
 import { latestBaseline, type WorkSnapshot } from '@/domain/plan';
-import { schedule, type UnplacedReason } from '@/domain/schedule';
+import { schedule } from '@/domain/schedule';
 import { ganttLayout } from '@/domain/schedule/gantt';
 import { slip } from '@/domain/schedule/slip';
-import type { MessageKey } from '@/i18n/en';
+import { UNPLACED_KEYS } from '@/features/reports/compose/words';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Card } from '@/ui/Card';
@@ -20,14 +20,6 @@ import { Gantt } from './Gantt';
 import { toGanttView } from './ganttView';
 import { SlipFigure } from './SlipFigure';
 import { WhatIfCard } from './WhatIfCard';
-
-const UNPLACED: Record<UnplacedReason, MessageKey> = {
-  'no-duration': 'schedule.unplaced.noDuration',
-  'no-stage': 'schedule.unplaced.noStage',
-  'invalid-calendar': 'schedule.unplaced.invalidCalendar',
-  'invalid-start': 'schedule.unplaced.invalidStart',
-  cyclic: 'schedule.unplaced.cyclic',
-};
 
 /**
  * The schedule: the plan on the working calendar (SPEC §2.3, slice F2).
@@ -266,7 +258,7 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
                 <span className="min-w-0 flex-1 font-semibold text-fg">
                   {names.get(row.activityId)}
                 </span>
-                <span className="text-fg-secondary">{t(UNPLACED[row.reason])}</span>
+                <span className="text-fg-secondary">{t(UNPLACED_KEYS[row.reason])}</span>
               </li>
             ))}
           </ul>

@@ -1,9 +1,9 @@
-import { useCallback } from 'react';
+import { useMemo } from 'react';
 
 import { useSettings } from '@/data/queries';
 import { DEFAULT_LENS } from '@/domain/settings';
 
-import { capitalised, termFor, type TermKey } from './terms';
+import { termsFor, type TermKey } from './terms';
 import { useI18n } from './useI18n';
 
 export interface TermOptions {
@@ -22,13 +22,7 @@ export function useTerms(): (key: TermKey, options?: TermOptions) => string {
   const { language } = useI18n();
   const settings = useSettings();
   const lens = settings.data?.lens ?? DEFAULT_LENS;
-  return useCallback(
-    (key: TermKey, options?: TermOptions) => {
-      const word = termFor(language, lens, key);
-      return options?.capital === true ? capitalised(language, word) : word;
-    },
-    [language, lens],
-  );
+  return useMemo(() => termsFor(language, lens), [language, lens]);
 }
 
 export function useTerm(key: TermKey, options?: TermOptions): string {

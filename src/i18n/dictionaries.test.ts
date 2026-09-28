@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { COMPARISON_LABEL_KEYS, COMPARISON_PROBLEM_KEYS } from '@/domain/baselines';
-import { DEFAULT_CHECK_KEYS, GATES_HELD_LABEL_KEY, STAGES_LABEL_KEYS } from '@/domain/checks';
+import {
+  DEFAULT_CHECK_KEYS,
+  GATES_HELD_LABEL_KEY,
+  STAGES_LABEL_KEYS,
+  STAGES_READY_LABEL_KEY,
+} from '@/domain/checks';
+import { DASHBOARD_LABEL_KEYS, WEEK_DAY_STATUS_KEYS } from '@/domain/dashboard';
 import { DECISIONS_DUE_LABEL_KEY } from '@/domain/decisions';
 import { DONE_LABEL_KEYS } from '@/domain/diary';
 import { DOCUMENTS_LABEL_KEYS, TARGET_KINDS } from '@/domain/documents';
@@ -12,6 +18,9 @@ import {
   RULE_EXPLANATION_KEYS,
   RULE_LABEL_KEYS,
 } from '@/domain/readiness';
+import { DIARY_ROW_STATUS_KEYS } from '@/domain/reports/diary';
+import { SCHEDULE_BLOCKED_KEYS } from '@/domain/reports/schedule';
+import { WEEKLY_LABEL_KEYS, WEEKLY_PROBLEM_KEYS } from '@/domain/reports/weekly';
 import { SLIP_LABEL_KEY } from '@/domain/schedule/slip';
 import { WHAT_IF_LABEL_KEY, WHAT_IF_PROBLEM_KEYS } from '@/domain/schedule/whatIf';
 import { LANGUAGES as LANGUAGE_CHOICES } from '@/domain/settings';
@@ -182,6 +191,13 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         ...Object.values(WHAT_IF_PROBLEM_KEYS),
         NOT_PRICED_KEY,
         ...Object.values(TEMPLATE_PROBLEM_KEYS),
+        ...Object.values(DASHBOARD_LABEL_KEYS),
+        ...Object.values(WEEK_DAY_STATUS_KEYS),
+        ...Object.values(WEEKLY_LABEL_KEYS),
+        ...Object.values(WEEKLY_PROBLEM_KEYS),
+        ...Object.values(DIARY_ROW_STATUS_KEYS),
+        ...Object.values(SCHEDULE_BLOCKED_KEYS),
+        STAGES_READY_LABEL_KEY,
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }

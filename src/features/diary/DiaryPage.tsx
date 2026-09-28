@@ -1,5 +1,5 @@
 import { Edit20Regular } from '@fluentui/react-icons';
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 
 import { useToday } from '@/app/today';
 import { useDiary } from '@/data/queries';
@@ -25,14 +25,39 @@ import { WEATHER_KEYS } from './weather';
  * there is "Correct…", which opens the form as a correction of that entry; the original stays,
  * struck through, and says which entry corrected it. The diary is read on its own, not with the
  * plan, and every entry written reads it again.
+ *
+ * Opened from the dashboard's last entries (F10), it opens at that entry: once the diary is read,
+ * the focus is put on the entry and it is scrolled into view — the button that asked is gone with
+ * the dashboard, so the focus goes where the person was sent.
  */
-export function DiaryPage({ snapshot }: { snapshot: WorkSnapshot }) {
+export function DiaryPage({
+  snapshot,
+  initialEntry = null,
+  onFocusTaken,
+}: {
+  snapshot: WorkSnapshot;
+  /** The seq of an entry to open at, or `null` to open at the top. */
+  initialEntry?: number | null;
+  /** Called once the focus has been put on `initialEntry`, so it is not taken twice. */
+  onFocusTaken?: () => void;
+}) {
   const { t, describeError } = useI18n();
   const today = useToday();
   const diary = useDiary(true);
   const scheduled = useMemo(() => schedule(snapshot), [snapshot]);
   const [correcting, setCorrecting] = useState<DiaryEntry | null>(null);
   const entries = diary.data ?? [];
+  const read = diary.data !== undefined;
+
+  useEffect(() => {
+    if (initialEntry === null || !read) return;
+    const entry = document.querySelector<HTMLElement>(`main [data-entry-seq="${initialEntry}"]`);
+    if (entry !== null) {
+      entry.focus();
+      entry.scrollIntoView?.({ block: 'center' });
+    }
+    onFocusTaken?.();
+  }, [initialEntry, read, onFocusTaken]);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-6">
@@ -131,12 +156,15 @@ export function EntryView({
   snapshot,
   correctedBySeq,
   onCorrect,
+  footer,
 }: {
   entry: DiaryEntry;
   snapshot: WorkSnapshot;
   correctedBySeq: number | null;
   /** Absent where an entry is only shown, as on the dashboard. */
   onCorrect?: () => void;
+  /** What the place showing the entry adds under it — the dashboard's way to the diary. */
+  footer?: ReactNode;
 }) {
   const { t, instant, number } = useI18n();
   const why = useId();
@@ -174,6 +202,9 @@ export function EntryView({
   return (
     <li
       data-entry-seq={entry.seq}
+      // Reachable by the focus the dashboard sends here (F10), never by Tab: an entry is read, and
+      // its one control, Correct…, is the tab stop.
+      tabIndex={onCorrect === undefined ? undefined : -1}
       {...(struck ? { 'data-corrected-by': String(correctedBySeq) } : {})}
       className="flex flex-col gap-1.5 border-t border-stroke-subtle pt-3 first:border-t-0 first:pt-0"
     >
@@ -231,6 +262,7 @@ export function EntryView({
           </span>
         </div>
       )}
+      {footer}
     </li>
   );
 }

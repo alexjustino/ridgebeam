@@ -23,6 +23,9 @@ pub mod money;
 pub mod plan;
 #[cfg(test)]
 mod replanning_tests;
+pub mod reports;
+#[cfg(test)]
+mod reports_tests;
 pub mod rooms;
 pub mod schedule;
 pub mod settings;

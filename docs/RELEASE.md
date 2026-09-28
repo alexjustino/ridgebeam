@@ -72,11 +72,22 @@ release that skipped a step is a release nobody can reason about afterwards.
    - attach a real PDF and a real photo to a stage from the dialog, open each with the system
      viewer, try a Word file and see it refused by name, then run **Re-hash the documents** in
      Diagnostics and read "all as recorded";
+   - on **Reports**, write the weekly report, the diary as a PDF and as CSV, the schedule and the
+     work as JSON, each to a path chosen **in the save dialog**, and press **Open** on each PDF: the
+     system viewer shows it. Read the weekly report in English and in Portuguese — the accents
+     print, and nothing reads `?` — and check that a week with no entry says so on its first line.
+     The diary PDF opens with "Chain verified on …" and says it is not a signature and not legal
+     proof. Open the CSV in a spreadsheet: one entry per row, the columns split, and a note typed
+     as `=1+1` shows as text with its apostrophe, not as `2`;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and
-   its weekly report read by somebody who is not an engineer. A release that carries this proof
-   ships only when a person has done it.
+   its weekly report **written from Reports, printed on paper** and read by somebody who is not an
+   engineer. Print it from the system viewer on a real printer, A4: the footer reads "page N of M"
+   on every page, nothing is cut at a margin, and the reader can say from the page what was done
+   that week, what is late, what to decide and what to pay. Write down who read it and what they
+   could not follow; a sentence they could not follow is a defect in the dictionaries, not in the
+   reader. A release that carries this proof ships only when a person has done it.
 
 ## The tag
 

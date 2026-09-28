@@ -422,8 +422,10 @@ flag is not in it: it describes the copy, not the day. The tag carries the versi
 form can be introduced without making earlier entries unverifiable.
 
 **What verification cannot see.** An entry removed from the _end_ of the diary leaves no
-successor pointing at it, so the chain of what remains still verifies. The export of slice F10
-records the count and the last hash, so that a copy kept elsewhere can show it.
+successor pointing at it, so the chain of what remains still verifies. The diary export (F10,
+ADR-032) records the count and the head of the chain — the first 16 hex digits of the last entry's
+`hash` — so that a copy kept elsewhere can show it; the CSV and the JSON export carry every hash
+in full.
 
 ### `stage_check` and `check_answer` — a stage's gates (F5)
 
@@ -733,3 +735,52 @@ with their ranges, checks, cost lines with no amount, decisions with their lead 
 dependencies — with new ids, in one transaction, and the work keeps only the three `template_*`
 columns that say where its plan came from. Exporting a work as a template (ADR-030) reads the
 snapshot and writes a file; nothing in the work records it.
+
+## The work as JSON — the export format (F10)
+
+`work_export_json` writes the whole work as one JSON file for anybody else's tool (SPEC R4,
+ADR-031). It is written by the host from the database (`src-tauri/src/report/json.rs`),
+pretty-printed, UTF-8 with no byte-order mark, ending in a line break, and it is a format this
+document fixes. **`ridgebeamWork` is the version of the shape**: a field may be added under the same
+number, and a reader should ignore a field it does not know; anything that changes what an existing
+field means, or removes one, takes the next number.
+
+```json
+{
+  "ridgebeamWork": 1,
+  "exportedAt": "2026-09-28T14:03:11.402Z",
+  "work": { "work": { "name": "…" }, "stages": [], "activities": [] },
+  "diary": [{ "seq": 1, "day": "2026-09-21", "hash": "…", "prevHash": "" }]
+}
+```
+
+| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                |
+| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                       |
+| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, and the open replanning |
+| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                   |
+
+Field names are camelCase, as the interface receives them; money is whole minor units, dates are
+`YYYY-MM-DD` and instants UTC, as everywhere in this model. Nothing is computed: no schedule, no
+critical path, no readiness, no progress and no totals — those are the domain's, derived every
+time from these rows, and a reader who wants them derives them too.
+
+**What it does not hold.** The files themselves: a document or a photo is named by its hash (its
+name in `documents/`) and by the file name it arrived with, and **not embedded**; copy the work
+folder to carry them. No path from the person's machine — not the work folder, not where a file
+came from. No settings, no lens, no recent list: those are the application's, not the work's. It
+does carry everything the work holds about people and money — names, phone numbers, e-mail
+addresses, payments, and the Windows account name on each entry — so it is as private as the work
+folder itself.
+
+**It is not verified on the way out.** Unlike the diary's own exports (ADR-032), the JSON is
+written as the database holds it, chain or no chain; it carries every hash so that its reader can
+check it.
+
+**It is not a backup.** Nothing reads it back into the product: there is no import. A backup — one
+file that restores the work exactly, files included — is F11's.
+
+**Reports are files, not rows.** Nothing in either database records that a report or an export
+was written, where, or when. The set of files written in a session, which **Open** may open, is
+kept in the host's memory and forgotten when the application closes.
