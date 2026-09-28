@@ -3,7 +3,7 @@ import {
   ChevronRight16Regular,
   Dismiss20Regular,
 } from '@fluentui/react-icons';
-import { useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useId, useMemo, useRef, useState } from 'react';
 
 import { useToday } from '@/app/today';
 import { decisionRows, decisionsDue, type DecisionDueRow } from '@/domain/decisions';
@@ -15,6 +15,7 @@ import {
   readinessFigure,
   RULE_EXPLANATION_KEYS,
   RULE_LABEL_KEYS,
+  RULE_UNCOUNTED_KEY,
   RULES,
   sentenceParts,
   type MissingId,
@@ -26,6 +27,7 @@ import { useStatusText } from '@/features/decisions/statusText';
 import { slip } from '@/domain/schedule/slip';
 import { SlipFigure } from '@/features/schedule/SlipFigure';
 import { readinessRowText } from '@/features/reports/compose/words';
+import { RestoredNote } from '@/features/start/RestoredNote';
 import { TemplateNotes } from '@/features/templates/TemplateNotes';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n } from '@/i18n/useI18n';
@@ -37,6 +39,7 @@ import { InfoBar } from '@/ui/InfoBar';
 
 import { DocumentsCard } from './DocumentsCard';
 import { MoneyCard } from './MoneyCard';
+import { NextQuestionCard } from './NextQuestionCard';
 import { SiteCard } from './SiteCard';
 import { StagesCard } from './StagesCard';
 
@@ -81,6 +84,7 @@ export function DashboardPage({
   const term = useTerms();
   const today = useToday();
   const title = useRef<HTMLHeadingElement>(null);
+  const focusTitle = useCallback(() => title.current?.focus(), []);
   const scheduled = useMemo(() => schedule(snapshot), [snapshot]);
   const measure = readiness(snapshot, { schedule: scheduled, today });
   const figure = readinessFigure(measure);
@@ -118,7 +122,15 @@ export function DashboardPage({
         </InfoBar>
       )}
 
+      <RestoredNote workId={snapshot.work.workId} onDismissed={() => title.current?.focus()} />
       <TemplateNotes workId={snapshot.work.workId} onDismissed={() => title.current?.focus()} />
+
+      <NextQuestionCard
+        snapshot={snapshot}
+        scheduled={scheduled}
+        today={today}
+        onGone={focusTitle}
+      />
 
       <Card>
         <FigureRow<ReadinessRow>
@@ -304,7 +316,9 @@ function CalendarCard({ snapshot }: { snapshot: WorkSnapshot }) {
 /**
  * Readiness rule by rule (slice F3, ADR-018): each rule a line — "Durations · 4 of 4" — that opens
  * onto the rows it finds missing and the one sentence that says why the plan must know it. The
- * rules add up to the figure above them; a test in the domain holds that.
+ * rules add up to the figure above them; a test in the domain holds that. A rule that counted
+ * nothing in this plan reads "nothing to count yet", muted, never "0 of 0" — and the domain lists
+ * those last (F11, decision 8a).
  */
 function RuleList({ summaries }: { summaries: readonly RuleSummary[] }) {
   const { t } = useI18n();
@@ -341,17 +355,23 @@ function RuleLine({ summary }: { summary: RuleSummary }) {
         <span aria-hidden="true" className="inline-grid text-fg-tertiary">
           {open ? <ChevronDown16Regular /> : <ChevronRight16Regular />}
         </span>
-        <span className={complete ? 'text-fg' : 'font-semibold text-fg'}>
-          {t('readiness.rule.line', {
-            label: t(RULE_LABEL_KEYS[summary.ruleId]),
-            known: number(summary.known),
-            mustKnow: number(summary.mustKnow),
-          })}
-        </span>
+        {summary.counted ? (
+          <span className={complete ? 'text-fg' : 'font-semibold text-fg'}>
+            {t('readiness.rule.line', {
+              label: t(RULE_LABEL_KEYS[summary.ruleId]),
+              known: number(summary.known),
+              mustKnow: number(summary.mustKnow),
+            })}
+          </span>
+        ) : (
+          <span data-uncounted="true" className="text-fg-tertiary">
+            {t(RULE_UNCOUNTED_KEY, { label: t(RULE_LABEL_KEYS[summary.ruleId]) })}
+          </span>
+        )}
       </button>
       <div id={rows} hidden={!open} className="ml-7 border-l border-stroke-subtle pl-3">
         <p className="text-caption text-fg-secondary">{t(RULE_EXPLANATION_KEYS[summary.ruleId])}</p>
-        {summary.missing.length === 0 ? (
+        {!summary.counted ? null : summary.missing.length === 0 ? (
           <p className="text-caption text-fg-tertiary">{t('readiness.rule.nothing')}</p>
         ) : (
           <ul className="mt-1 flex flex-col gap-0.5">

@@ -28,7 +28,21 @@ import type { Outcome } from './outcome';
  * question that says what follows — every activity they answered for is left with nobody, and
  * readiness drops by as much, which is the truth about a plan that has lost a person.
  */
-export function PeopleCard({ snapshot, outcome }: { snapshot: WorkSnapshot; outcome: Outcome }) {
+/** The focus a link elsewhere asks the breakdown for: this card's field that adds a person. */
+export const PEOPLE_ADD_FOCUS = 'people:add';
+
+export function PeopleCard({
+  snapshot,
+  outcome,
+  focusAdd = false,
+  onFocused,
+}: {
+  snapshot: WorkSnapshot;
+  outcome: Outcome;
+  /** Put the focus on the field that adds a person ("Add a person" on the Next question card). */
+  focusAdd?: boolean;
+  onFocused?: (() => void) | undefined;
+}) {
   const { t, tp } = useI18n();
   const term = useTerms();
   const add = useAddPerson();
@@ -95,6 +109,8 @@ export function PeopleCard({ snapshot, outcome }: { snapshot: WorkSnapshot; outc
         buttonLabel={t('plan.person.add')}
         icon={<PersonAdd20Regular />}
         pending={add.isPending}
+        focus={focusAdd}
+        onFocused={onFocused}
         onAdd={(name, done) =>
           add.mutate(name, {
             onSuccess: () => {

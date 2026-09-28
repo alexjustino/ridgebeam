@@ -60,10 +60,11 @@ import { LinkChip, LinksLine } from './LinksLine';
 import { chordDirection, useMover } from './moves';
 import { NameField } from './NameField';
 import type { Outcome } from './outcome';
-import { PeopleCard } from './PeopleCard';
+import { PEOPLE_ADD_FOCUS, PeopleCard } from './PeopleCard';
 import { RangesBar } from './RangesBar';
 import { useRewritten } from './rewritten';
 import { RoomsCard } from './RoomsCard';
+import { stageControls, type StageControls } from './stageControls';
 
 type Removal =
   | { kind: 'stage'; id: string; name: string; activities: number }
@@ -222,7 +223,12 @@ export function Breakdown({
         open={calendarOpen}
         onOpen={onCalendarOpen}
       />
-      <PeopleCard snapshot={snapshot} outcome={page} />
+      <PeopleCard
+        snapshot={snapshot}
+        outcome={page}
+        focusAdd={focusRow === PEOPLE_ADD_FOCUS}
+        onFocused={onFocused}
+      />
       <RoomsCard snapshot={snapshot} outcome={page} mover={mover.go} />
 
       <section aria-labelledby="plan-breakdown" className="flex flex-col gap-3">
@@ -263,15 +269,18 @@ export function Breakdown({
               const activities = activitiesOf(stage);
               const siblings = activities.map((activity) => activity.id);
               // A closed stage is read-only until it is reopened (ADR-022): every control in it is
-              // disabled by one fieldset, and one sentence says where to reopen it.
+              // disabled by one fieldset, and one sentence says where to reopen it. Its own header
+              // follows the host's rules exactly (decision 8c): a closed stage still moves among the
+              // others, and is neither renamed nor removed.
               const closed = stageState(stage) === 'closed';
+              const controls = stageControls(stageState(stage));
               return (
                 <li
                   key={stage.id}
                   data-stage-id={stage.id}
                   onKeyDown={(event) => {
                     const direction = chordDirection(event);
-                    if (direction === null || closed) return;
+                    if (direction === null || !controls.move) return;
                     event.preventDefault();
                     mover.go(
                       'stage',
@@ -300,30 +309,31 @@ export function Breakdown({
                         testId="stage-documents-count"
                       />
                     </div>
+                    <StageHeader
+                      controls={controls}
+                      stage={stage}
+                      number={numbers.get(stage.id) ?? ''}
+                      outcome={at(`stage:${stage.id}`)}
+                      onMove={(direction) =>
+                        mover.go(
+                          'stage',
+                          stage.id,
+                          direction,
+                          stageIds,
+                          stage.name,
+                          at(`stage:${stage.id}`),
+                        )
+                      }
+                      onRemove={() =>
+                        setRemoval({
+                          kind: 'stage',
+                          id: stage.id,
+                          name: stage.name,
+                          activities: activities.length,
+                        })
+                      }
+                    />
                     <fieldset disabled={closed} className="m-0 min-w-0 border-0 p-0">
-                      <StageHeader
-                        stage={stage}
-                        number={numbers.get(stage.id) ?? ''}
-                        outcome={at(`stage:${stage.id}`)}
-                        onMove={(direction) =>
-                          mover.go(
-                            'stage',
-                            stage.id,
-                            direction,
-                            stageIds,
-                            stage.name,
-                            at(`stage:${stage.id}`),
-                          )
-                        }
-                        onRemove={() =>
-                          setRemoval({
-                            kind: 'stage',
-                            id: stage.id,
-                            name: stage.name,
-                            activities: activities.length,
-                          })
-                        }
-                      />
                       <RowProblem testId="stage-problem" text={problemAt(`stage:${stage.id}`)} />
                       {snapshot.dependencies.some(
                         (dependency) =>
@@ -526,12 +536,14 @@ export function Breakdown({
  * Renaming swaps the heading for a field and back — the name is always one thing on screen.
  */
 function StageHeader({
+  controls,
   stage,
   number,
   outcome,
   onMove,
   onRemove,
 }: {
+  controls: StageControls;
   stage: Stage;
   number: string;
   outcome: Outcome;
@@ -594,6 +606,7 @@ function StageHeader({
           ref={button}
           icon={<Rename20Regular />}
           label={t('plan.rename', { name: stage.name })}
+          disabled={!controls.rename}
           aria-expanded={renaming}
           onClick={() => setRenaming((now) => !now)}
         />
@@ -601,18 +614,21 @@ function StageHeader({
           data-testid="stage-up"
           icon={<ArrowUp20Regular />}
           label={t('plan.move.up', { name: stage.name })}
+          disabled={!controls.move}
           onClick={() => onMove('up')}
         />
         <IconButton
           data-testid="stage-down"
           icon={<ArrowDown20Regular />}
           label={t('plan.move.down', { name: stage.name })}
+          disabled={!controls.move}
           onClick={() => onMove('down')}
         />
         <IconButton
           data-testid="stage-remove"
           icon={<Delete20Regular />}
           label={t('plan.removeNamed', { name: stage.name })}
+          disabled={!controls.remove}
           onClick={onRemove}
         />
       </span>
