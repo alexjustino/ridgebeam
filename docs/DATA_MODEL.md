@@ -841,7 +841,7 @@ name is refused on the way back in:
 {
   "ridgebeamBackup": 1,
   "createdAt": "2026-09-28T17:05:30.000Z",
-  "app": "Ridgebeam 0.1.0",
+  "app": "Ridgebeam 1.0.0",
   "workId": "01920000-0000-7000-8000-000000000000",
   "workName": "Bathroom",
   "schemaVersion": 10,

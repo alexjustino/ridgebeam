@@ -18,11 +18,12 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F11.** The product was named on 2026-09-24
-> ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 — from the foundation to backup,
-> restore and polish — run from source; there is no published installer yet: that is F12, the
-> release. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for every
-> slice; [What exists today](#what-exists-today) says exactly how far the code has got.
+> **Status: 1.0.0 — the first release.** The product was named on 2026-09-24
+> ([ADR-001](docs/architecture/ADR.md#adr-001)) and built in twelve slices, F0 to F11. The
+> installers are on the [Releases](https://github.com/alexjustino/ridgebeam/releases) page, with the
+> SHA-256 of each; they are not code-signed, so Windows SmartScreen warns on the first run. The
+> [specification](docs/SPEC.md) says what 1.0.0 is and what "done" meant for every slice;
+> [What exists today](#what-exists-today) lists what the product does.
 
 ## Why
 
@@ -212,8 +213,10 @@ Slices **F0** to **F11**, and nothing after them:
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **the release** (F12) — an installer, tried on a clean machine, and a
-real work planned, run for a week and its weekly report read by somebody who is not an engineer.
+Every release is tried by a person before it is tagged — the installer on a clean machine, and,
+for 1.0.0, a real work planned from a template, run for a week through the diary, and its weekly
+report printed and read by somebody who is not an engineer ([`docs/RELEASE.md`](docs/RELEASE.md),
+steps 8 and 9). The tests cannot do that part, and the checklist does not pretend they can.
 
 Not in 1.0, by decision rather than by schedule: files other than images and PDFs (no Word,
 spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a

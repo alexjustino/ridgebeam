@@ -7,11 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Slice F0 — the foundation, the shell, one stage, and readiness. The product's thesis is on the
-screen from the first slice: the plan says what it does not yet know, in English and in
-Portuguese.
+Nothing yet.
 
-### Added
+## [1.0.0] — 2026-09-28
+
+The first release. Ridgebeam plans a building work — a bathroom, a kitchen, a roof, a house — for
+the engineer, the architect and the owner who is not either, on one Windows machine, with no
+account and no network. It is built in twelve slices, F0 to F11, each described below in the order
+it arrived.
+
+**What it does.** A work is a folder on the person's disk. Its plan is stages and activities on a
+working calendar, linked with lags, with the critical path and the finish date computed, and the
+plan can start from a template of the library (six, in English and Portuguese) whose durations are
+ranges until somebody picks. **Readiness** — how much of what the plan must know it does know — is
+the front door's figure, and it says in a sentence what is missing. Decisions carry a deadline
+computed from the schedule. The **site diary** is append-only and hash-chained; progress comes from
+it, never from a field. Each stage has a start gate and a close gate of checks. Money is planned,
+committed and paid in whole cents, the payments in an append-only ledger. Approving the plan takes
+baseline 1; after that the plan changes only through a replanning with a reason, and any two
+baselines compare. Files the work holds are copied into its folder by their hash and never parsed.
+The weekly report, the diary and the schedule print as PDFs; the diary exports as CSV and the work
+as JSON; the whole work backs up as one file and restores into a new folder.
+
+**What it is not.** Not a signature and not legal proof: the diary's chain shows whether the file
+was changed outside the product, nothing more. Not a quote: the library carries ranges and no
+prices. Not synchronised, not shared and not in the cloud — one person, one machine, in 1.0. The
+installers are not code-signed, so Windows SmartScreen warns on the first run.
+
+**Migrations.** A work written by this release is at schema 10 and the application database at 3.
+There is no earlier release to migrate from.
+
+### Added in F0 — the foundation, the shell, one stage, and readiness
+
+The product's thesis is on the screen from the first slice: the plan says what it does not yet
+know, in English and in Portuguese.
 
 - **A work is a folder.** A new work is created in an empty folder chosen in the system dialog,
   as one SQLite database (`work.sqlite3`) opened in WAL mode with `synchronous = FULL`, and

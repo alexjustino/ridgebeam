@@ -144,6 +144,16 @@ one-sentence essence is therefore part of the product's voice — on the About s
 README and in the glossary — not an afterthought. The name is always one word, capitalised,
 never "Ridge Beam" and never "RB". Firstbrick and Ridgepole stay in the record as the runners-up.
 
+**Re-checked for 1.0.0 — 2026-09-28** (`docs/RELEASE.md` step 7). What changed since the decision:
+the GitHub user "Ridgebeam" now holds four small repositories (tools for an online game), up from
+two; nothing else found moved. npm, crates.io, PyPI and RubyGems: still free. Domains: `.com`
+still registered, `.app`, `.dev`, `.io` and `.com.br` still free (RDAP 404). USPTO, through the
+same search index with the same control passing (73 marks for "procore"): still no mark containing
+"ridgebeam", still the one "RIDGE BEAM" in class 27. **Not re-checked this time**, stated plainly:
+TMview, the INPI radical search and the Microsoft Store — the built-in browser did not load
+TMview within five minutes, and the INPI and Store checks need a browser session. They stand as
+they were on 2026-09-24.
+
 ## ADR-002 — Tauri 2 with a deliberately thin Rust host {#adr-002}
 
 **Status.** Accepted — 2026-09-25.
