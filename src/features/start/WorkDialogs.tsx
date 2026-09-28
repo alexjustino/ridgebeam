@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent, type ReactNode } from 'react';
 
 import { today } from '@/app/today';
 import { LIMITS, type WorkDraft } from '@/data/commands';
+import { errorKind } from '@/data/errors';
 import { useCreateWork, useOpenWork } from '@/data/queries';
 import { formatWorkingDays, isIsoDay, validateCalendar } from '@/domain/calendar';
 import type { MessageKey } from '@/i18n/en';
@@ -13,6 +14,10 @@ import { InfoBar } from '@/ui/InfoBar';
 import { Input } from '@/ui/Input';
 import { Modal } from '@/ui/Modal';
 import { Select } from '@/ui/Select';
+
+import { keepNotes } from '@/features/templates/notes';
+import { TemplatePicker } from '@/features/templates/TemplatePicker';
+import { useTemplateChoice } from '@/features/templates/useTemplateChoice';
 
 import { FolderField } from './FolderField';
 
@@ -86,6 +91,11 @@ function Field({ label, children }: { label: string; children: (id: string) => R
  * day could never schedule anything (SPEC §6, a mandatory negative case) — and what the host
  * refuses (a folder that is not empty) is said in the host's sentence, in the window's language.
  * Nothing typed is lost to a refusal.
+ *
+ * A work may start from a template (F9): an empty plan, one of the library, or a file. The template
+ * is applied in the same host step that creates the work, so a plan refused leaves no folder and no
+ * recent row behind; a template the domain refuses never reaches the host, and why is said under
+ * the picker. What applying it left to know is kept for the Dashboard to say once.
  */
 export function NewWorkDialog({
   open,
@@ -106,6 +116,9 @@ export function NewWorkDialog({
   const [hours, setHours] = useState('8');
   const [folder, setFolder] = useState('');
   const [problems, setProblems] = useState<MessageKey[]>([]);
+  const template = useTemplateChoice({ allowEmpty: true });
+  const [resolving, setResolving] = useState(false);
+  const [planRefusal, setPlanRefusal] = useState<string | null>(null);
 
   const close = () => {
     create.reset();
@@ -113,7 +126,7 @@ export function NewWorkDialog({
     onClose();
   };
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const hoursPerDay = Number(hours);
     const found: MessageKey[] = [];
@@ -138,12 +151,33 @@ export function NewWorkDialog({
       workingDays: formatWorkingDays(workingDays),
       hoursPerDay,
     };
+    setPlanRefusal(null);
+    create.reset();
+    setResolving(true);
+    const chosen = await template.resolve();
+    setResolving(false);
+    if (chosen.kind === 'refused') return;
+    const plan = chosen.kind === 'plan' ? chosen.plan : null;
+
     create.mutate(
-      { folder: folder.trim(), draft },
+      plan === null
+        ? { folder: folder.trim(), draft }
+        : { folder: folder.trim(), draft, plan: plan.plan },
       {
-        onSuccess: () => {
+        onSuccess: (work) => {
           setProblems([]);
+          if (plan !== null) {
+            keepNotes({ workId: work.workId, title: plan.title, notes: plan.notes });
+          }
           onCreated();
+        },
+        onError: (error) => {
+          // What the host refused in the plan — a loop, a value past its limits — is the template's
+          // problem, said under the picker; a folder that cannot hold a work is said below it.
+          const kind = errorKind(error);
+          if (plan !== null && (kind === 'dependency_cycle' || kind === 'invalid_input')) {
+            setPlanRefusal(describeError(error));
+          }
         },
       },
     );
@@ -156,19 +190,19 @@ export function NewWorkDialog({
       <DialogFrame
         title={t('work.new.title')}
         lead={t('work.new.lead')}
-        onSubmit={submit}
+        onSubmit={(event) => void submit(event)}
         actions={
           <>
-            <Button onClick={close} disabled={create.isPending}>
+            <Button onClick={close} disabled={create.isPending || resolving}>
               {t('common.cancel')}
             </Button>
             <Button
               type="submit"
               appearance="accent"
               data-testid="work-create"
-              disabled={create.isPending}
+              disabled={create.isPending || resolving}
             >
-              {create.isPending ? t('common.working') : t('work.create')}
+              {create.isPending || resolving ? t('common.working') : t('work.create')}
             </Button>
           </>
         }
@@ -271,6 +305,8 @@ export function NewWorkDialog({
           </Field>
         </div>
 
+        <TemplatePicker state={template} hostProblem={planRefusal} />
+
         <FolderField value={folder} onChange={setFolder} hint={t('work.field.folderHintNew')} />
 
         {problems.length > 0 && (
@@ -282,7 +318,7 @@ export function NewWorkDialog({
             </ul>
           </InfoBar>
         )}
-        {create.isError && (
+        {create.isError && planRefusal === null && (
           <InfoBar severity="danger" title={t('work.createRefused')}>
             {describeError(create.error)}
           </InfoBar>
