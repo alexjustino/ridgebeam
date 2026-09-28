@@ -7,7 +7,7 @@ plan is intent, the diary is fact, and the plan says what it does not yet know.*
 
 Stages and activities · Critical path on a working calendar · Decisions with computed deadlines ·
 Readiness · Append-only site diary · Check gates · Money · Templates that are plans · Reports ·
-Three lenses, one model · English and Portuguese
+Backup and restore · Three lenses, one model · English and Portuguese
 
 No cloud. No account. No telemetry. A work is a folder you own.
 
@@ -18,10 +18,11 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F10.** The product was named on 2026-09-24
-> ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F10 — from the foundation to
-> the dashboard and reports — run from source; there is no published installer yet. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for
-> every slice; [What exists today](#what-exists-today) says exactly how far the code has got.
+> **Status: pre-release — slices F0 to F11.** The product was named on 2026-09-24
+> ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 — from the foundation to backup,
+> restore and polish — run from source; there is no published installer yet: that is F12, the
+> release. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for every
+> slice; [What exists today](#what-exists-today) says exactly how far the code has got.
 
 ## Why
 
@@ -70,7 +71,7 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F10**, and nothing after them:
+Slices **F0** to **F11**, and nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -174,6 +175,22 @@ Slices **F0** to **F10**, and nothing after them:
   carries a formula — a cell that would start one is written with an apostrophe before it. The PDFs
   are written by the host in the standard Helvetica fonts, and a second PDF reader parses every kind
   of report in the tests. **Open** shows a file just written in the system's own viewer.
+- **Backup, restore and polish (F11).** **Back up this work**, in Settings, writes the whole work
+  as one `.ridgebeam` file — a ZIP Windows opens by itself, holding the database, every document and
+  thumbnail, and a manifest with each file's size and SHA-256 and the manifest's own hash. **Restore
+  a backup…**, on the Start screen, treats that file as hostile — a closed list of names, every size
+  capped while it inflates, every hash checked, the database checked to be this work — and brings it
+  back into a **new** folder, never over one; on any refusal nothing is left, and afterwards it says
+  "Restored: N entries, chain verified, N documents as recorded". `cargo test` proves the round trip
+  byte for byte and table by table, and refuses a corpus of hostile archives. **A backup is not
+  encrypted**: keep it as you keep the work folder. A plan started from a template now **asks one
+  question at a time** on the dashboard — how long, who, how much, what was decided — through the
+  same commands as the breakdown, which stays. Diagnostics lists each database's migrations, the
+  chain, folder health and the last backup, and copies it all as text for a bug report; About lists
+  the licence of every shipped crate and npm package, generated from the lockfiles and held by a
+  gate. And the polish owed: "nothing to count yet" instead of "0 of 0", a photo field behind **Add
+  a photo** on the Gates tab, and a benchmark that holds a work of 2 000 activities, 2 000 payments
+  and 3 000 diary entries to its budgets.
 - **Readiness.** A figure that says how much of what the plan must know it does know, from seven
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -181,28 +198,45 @@ Slices **F0** to **F10**, and nothing after them:
   counts and says in a sentence what is missing, in English and in Portuguese. Rule by rule on
   the dashboard, each with why it matters; the rules add up to the figure.
 - **The shell.** Dashboard, Plan, Schedule, Decisions, Diary, Money, Documents, Reports, Settings
-  (language, theme, lens), Diagnostics and About — eleven destinations — in light and dark, in
-  English and Portuguese. There is no command, field or control that sets progress.
+  (language, theme, lens, and backing up the open work), Diagnostics and About — eleven destinations
+  — in light and dark, in English and Portuguese. There is no command, field or control that sets
+  progress.
 - **The documents written before the first work:** [`docs/SPEC.md`](docs/SPEC.md), the
   specification; [`SECURITY.md`](SECURITY.md), the threat model;
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-two binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-four binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **backup** (F11).
+Not yet, and not pretended: **the release** (F12) — an installer, tried on a clean machine, and a
+real work planned, run for a week and its weekly report read by somebody who is not an engineer.
 
 Not in 1.0, by decision rather than by schedule: files other than images and PDFs (no Word,
 spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a
 work; a decision tied to one activity rather than its whole stage; a replanning abandoned without
 a baseline; a what-if applied to the plan with one button; a work that follows its template when
 the library changes; prices in the library; photos inside a PDF report; a character outside the
-standard PDF fonts' set on paper; non-working days shaded on the printed schedule.
-Each arrives with its slice, in the order the [specification](docs/SPEC.md) §7 lists.
+standard PDF fonts' set on paper; non-working days shaded on the printed schedule; an encrypted
+backup, an incremental one, a backup the product makes on its own, or a restore over an existing
+folder.
+
+## What 1.0 does not do
+
+Said once, plainly, so nobody finds out on site. Ridgebeam 1.0 is one person's planner on one
+Windows computer. It has **no accounts, no sync and no network**: a work is shared by copying its
+folder or a backup, and two people editing copies get two works. It has **no phone, tablet, web,
+macOS or Linux** version. It does not read drawings, BIM, IFC or CAD, has **no price database**,
+and makes **no quote, invoice or tax** document. It schedules finish-to-start links with lags on a
+working calendar — no other link types, no milestones, **no resource levelling** and no earned value
+beyond the S-curve. Its diary's chain is **tamper-evidence, not a signature and not legal proof**.
+Its backups are **not encrypted**, and it never backs up on its own. It is not an engineer, an
+architect or a contractor: a template is a starting point with ranges, not advice about a site. It
+has no plugins, no auto-update and no AI. And the installers are not code-signed, so Windows warns
+on first run ([ADR-012](docs/architecture/ADR.md#adr-012)).
 
 ## Run it from source
 
@@ -224,12 +258,12 @@ folder and never touches your own works.
 
 ## Roadmap
 
-| Release   | Theme               | Contents                                                                                                                                                                                                                                      |
-| --------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1.0.0** | The plan            | the work, stages and activities, the schedule with critical path and baselines, decisions, readiness, the diary, checks, money, people, documents, replanning, templates and the library, three lenses, the dashboard, reports, print, backup |
-| 1.1.0     | The site            | the diary from a phone: a companion build of the same app for Android, writing into the same work folder                                                                                                                                      |
-| 1.2.0     | The crew            | the work shared between the owner, the engineer and the contractors: file-based sync with conflict rules, a read-only owner view                                                                                                              |
-| 2.0       | Only if it earns it | quantities from drawings · price databases per region · IFC import · resource levelling · the network                                                                                                                                         |
+| Release   | Theme               | Contents                                                                                                                                                                                                                                                  |
+| --------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1.0.0** | The plan            | the work, stages and activities, the schedule with critical path and baselines, decisions, readiness, the diary, checks, money, people, documents, replanning, templates and the library, three lenses, the dashboard, reports, print, backup and restore |
+| 1.1.0     | The site            | the diary from a phone: a companion build of the same app for Android, writing into the same work folder                                                                                                                                                  |
+| 1.2.0     | The crew            | the work shared between the owner, the engineer and the contractors: file-based sync with conflict rules, a read-only owner view                                                                                                                          |
+| 2.0       | Only if it earns it | quantities from drawings · price databases per region · IFC import · resource levelling · the network                                                                                                                                                     |
 
 Deliberately not in 1.0.0: accounts, sync, a phone or web app, BIM/IFC/CAD import, bills of
 quantities and price databases, invoicing and tax, resource levelling, dependencies other than

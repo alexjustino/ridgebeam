@@ -33,8 +33,9 @@ and its `-shm` as three files at three moments. Sharing a work is release 1.2.
 
 **The application keeps one small database of its own**, `ridgebeam.sqlite3`, in the
 application data folder (`%APPDATA%/io.github.alexjustino.ridgebeam/`). It holds the settings
-that are the person's rather than a work's — language, theme, the lens they last used — and the
-list of recent works with their folders. It holds nothing about the content of a work.
+that are the person's rather than a work's — language, theme, the lens they last used — the
+list of recent works with their folders, and the day each work was last backed up (F11). It holds
+nothing about the content of a work.
 
 ## The work database
 
@@ -635,6 +636,31 @@ the default for a new work is `owner`). A key outside the list is refused by the
 | `folder`    | TEXT | the folder as last seen; if it is gone, the row says so on screen and offers a dialog |
 | `opened_at` | TEXT | UTC                                                                                   |
 
+Restoring a backup of a work this list already knows at another folder moves its row to the
+restored folder; the old folder is left as it was, and the answer names it (ADR-033).
+
+### `backup` — the day of the last backup (F11)
+
+| Column       | Type    | Meaning                                                                        |
+| ------------ | ------- | ------------------------------------------------------------------------------ |
+| `work_id`    | TEXT    | primary key, the work's UUID (36 characters)                                   |
+| `day`        | TEXT    | `YYYY-MM-DD`, the day the last backup was written, on this computer's calendar |
+| `written_at` | TEXT    | UTC                                                                            |
+| `bytes`      | INTEGER | the backup file's size                                                         |
+| `files`      | INTEGER | how many of the work's files it holds, the database included (≥ 1)             |
+
+One row per work, replaced by the next backup. It is here and not in the work: a backup cannot hold
+the moment it was itself written, and a work restored on another computer was never backed up
+_there_. Where the file went is not kept — it is the person's, and may be moved or deleted without
+the product being told. Settings reads it as "Last backed up on this machine on {day}." or "Not backed up on this
+machine yet.", and Diagnostics' folder health as its last backup, or "never, on this machine".
+
+### Application migrations
+
+Numbered like the work's, in `src-tauri/migrations/`: `001_init` (`workspace`, `recent_work`),
+`002_settings` (`settings`) and, from F11, `003_backups` (`backup`). Diagnostics lists every
+migration each database has been through, by number and name.
+
 ## Conventions
 
 - Identifiers are UUID v7 as 36-character text; timestamps are UTC with milliseconds and a
@@ -724,7 +750,8 @@ it.
 
 ## Not yet in the schema
 
-A backup is a file beside the work, not a table (F11).
+Nothing that 1.0 needs. A backup is a file the person keeps, not a table: the work records nothing
+about it, and the application database only the day of the last one.
 
 ## Templates are files, not rows
 
@@ -779,8 +806,70 @@ written as the database holds it, chain or no chain; it carries every hash so th
 check it.
 
 **It is not a backup.** Nothing reads it back into the product: there is no import. A backup — one
-file that restores the work exactly, files included — is F11's.
+file that restores the work exactly, files included — is the next section.
 
 **Reports are files, not rows.** Nothing in either database records that a report or an export
 was written, where, or when. The set of files written in a session, which **Open** may open, is
 kept in the host's memory and forgotten when the application closes.
+
+## A backup — the `.ridgebeam` format (F11)
+
+`backup_write` writes the whole work as one file, `<name>.ridgebeam` (ADR-033), and
+`backup_restore` reads it back into a new folder. It is written and read by the host
+(`src-tauri/src/files/backup.rs`, on the ZIP of `src-tauri/src/files/archive.rs`), and it is a
+format this document fixes. **`ridgebeamBackup` is the version of the shape**; a build refuses a
+later number, saying the backup was written by a newer version.
+
+**The file is a plain ZIP** that Windows opens by itself: local headers with their sizes and CRC in
+place, each entry **stored** or **deflated**, the central directory right after the last entry, the
+end record with no comment — no ZIP64, no encryption, no extra field, no data descriptor, no
+directory entry, lowercase ASCII names with `/`. At most 4 GiB (one byte under) and 65 535 entries.
+Its entries, in this order and no other:
+
+| Entry                       | Kept     | What it is                                                                                                                                                                                       |
+| --------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `manifest.json`             | stored   | what the backup holds, below                                                                                                                                                                     |
+| `work.sqlite3`              | deflated | a consistent snapshot of the work's database: `VACUUM INTO` on the open connection, every committed row with the write-ahead log folded in and no free page, set to WAL mode as a closed work is |
+| `documents/<sha-256>.<ext>` | stored   | every file of the work's `documents/`, by name, as the folder holds it (a `.bmp` is deflated, the one kept format that is not already compressed)                                                |
+| `thumbnails/<sha-256>.jpg`  | stored   | every thumbnail, by name                                                                                                                                                                         |
+| `manifest.sha256`           | stored   | `<64 hex>  manifest.json` and a line feed — the SHA-256 of the manifest's bytes, in the form `sha256sum -c` reads                                                                                |
+
+The manifest is pretty-printed UTF-8 JSON ending in a line feed, camelCase, and a field it does not
+name is refused on the way back in:
+
+```json
+{
+  "ridgebeamBackup": 1,
+  "createdAt": "2026-09-28T17:05:30.000Z",
+  "app": "Ridgebeam 0.1.0",
+  "workId": "01920000-0000-7000-8000-000000000000",
+  "workName": "Bathroom",
+  "schemaVersion": 10,
+  "files": [
+    { "path": "work.sqlite3", "bytes": 245760, "sha256": "…" },
+    { "path": "documents/….pdf", "bytes": 81234, "sha256": "…" }
+  ]
+}
+```
+
+| Field             | Meaning                                                                                                                                                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ridgebeamBackup` | the format's version, `1`                                                                                                                                                                                                      |
+| `createdAt`       | when the backup was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                          |
+| `app`             | the build that wrote it, `Ridgebeam <version>`                                                                                                                                                                                 |
+| `workId`          | the work's UUID — the restored database must hold the same                                                                                                                                                                     |
+| `workName`        | the work's name when it was backed up, 1 to 120 characters — what the Restore dialog shows                                                                                                                                     |
+| `schemaVersion`   | the work's schema version then; a restore refuses one newer than the build, and migrates an older one forward                                                                                                                  |
+| `files`           | every file the archive holds between the manifest and its hash, **in the archive's order**, the database first: its path inside the archive (and inside the work folder), its size, and its SHA-256 as 64 lowercase hex digits |
+
+**What it holds, and what it does not.** Everything in the work folder that the work owns — the
+database, `documents/` and `thumbnails/` — and nothing else: no path from the machine, nothing of
+the application's database. A file in `documents/` or `thumbnails/` whose name is not
+`<sha-256>.<ext>` (something put there by hand) is left out, and `backup_write` names it. The
+backup is **not encrypted**.
+
+**Restoring it** writes the files into a temporary folder beside the target, checks each against
+the manifest, opens the work there (migrating it forward if its schema is older), and renames the
+folder into place — so the restored folder is the work folder above, and its `work.sqlite3` is,
+byte for byte, the snapshot the archive held (unless a migration ran). What restore refuses, and
+why, is in [`SECURITY.md`](../SECURITY.md).
