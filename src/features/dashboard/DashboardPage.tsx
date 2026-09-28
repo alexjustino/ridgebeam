@@ -172,7 +172,9 @@ export function DashboardPage({
 /**
  * The finish date, computed from the durations and the links on the working calendar — and, once
  * the plan is approved, read against the baseline: the baseline's finish, the slip with the same
- * rows the Schedule page shows, and how many activities are on the critical path.
+ * rows the Schedule page shows, how many baselines there are and how many times the plan was
+ * replanned (F8), a replanning still open with its reason, and how many activities are on the
+ * critical path.
  */
 function FinishCard({ snapshot, scheduled }: { snapshot: WorkSnapshot; scheduled: Schedule }) {
   const { t, tp, day } = useI18n();
@@ -218,6 +220,33 @@ function FinishCard({ snapshot, scheduled }: { snapshot: WorkSnapshot; scheduled
             })}
           </p>
           <SlipFigure figure={slip(scheduled, baseline)} size="title" />
+          <p data-testid="baselines-count" className="text-body text-fg-secondary">
+            {[
+              tp('dashboard.baselines', snapshot.baselines.length),
+              snapshot.baselines.length > 1
+                ? tp('dashboard.replanned', snapshot.baselines.length - 1)
+                : t('dashboard.replanned.never'),
+            ].join(' · ')}
+          </p>
+          {snapshot.replanning !== null && (
+            <div data-testid="replanning-open">
+              <InfoBar
+                severity="info"
+                title={t('replan.since', {
+                  replanning: term('replanning', { capital: true }),
+                  day: day(snapshot.replanning.openedAt.slice(0, 10)),
+                })}
+              >
+                <p>{snapshot.replanning.reason}</p>
+                <p className="mt-1">
+                  {t('replan.closeOnSchedule', {
+                    baseline: term('baseline'),
+                    number: baseline.number + 1,
+                  })}
+                </p>
+              </InfoBar>
+            </div>
+          )}
         </div>
       )}
       <p data-testid="critical-count" className="mt-3 text-body text-fg">
