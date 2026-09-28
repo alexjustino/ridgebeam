@@ -417,6 +417,20 @@ breaks one is not merged.
   use. What the chart could not place, it says: a cost line with nothing scheduled is placed at
   the work's start, and the chart names how much and why, instead of hiding it in the first
   week's slope.
+- **One editing place for documents; elsewhere, a count that links.** A document is added,
+  titled, typed, attached, detached and removed on the **Documents** destination and nowhere
+  else. A stage header, an activity row, a decision, a diary entry, a commitment and a payment
+  show a paperclip and a count — _"2 documents"_ — that is a link opening the Documents page
+  filtered to that target, never a second editor (§8, _arrangements are the same rows, never a
+  copy_). Adding files names every one refused, with its reason, in one list beside the control
+  that chose them; the files that were kept are kept. Removing a document whose file something
+  else still names says, in words, that the file stays in the work folder and why (ADR-025).
+- **A PDF is a mark, not a picture.** A PDF is never rendered inside the product: it is shown as
+  the same document mark every time — an icon from the one icon set, with the word _PDF_ and the
+  file's title beside it — and it opens in the system's own viewer on a labelled button. No
+  screen draws a first-page preview, a blurred placeholder or anything that suggests the product
+  looked inside the file; it did not. An image shows its thumbnail, with an `alt` that says what
+  it is; a missing thumbnail shows the mark and says so.
 - **N/A always carries its reason.** _Not applicable_ is an answer, not a way to skip a
   question: choosing it opens a small form that asks why, and the answer is not recorded without
   one. Wherever the answer is shown, the reason is shown with it — _"N/A — no tiling in this
@@ -427,11 +441,13 @@ breaks one is not merged.
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
   `data-destination="<id>"` with the same id the router uses — `dashboard`, `plan`, `schedule`,
-  `decisions`, `diary`, `money`, `settings`, `diagnostics`, `about`. The end-to-end suite and the accessibility audit find destinations by
+  `decisions`, `diary`, `money`, `documents`, `settings`, `diagnostics`, `about`. The end-to-end suite and the accessibility audit find destinations by
   these attributes and never by visible text, which changes with the language (§9).
 - **Degrade visibly: a missing work folder is a state with a way out.** A recent work whose
   folder is gone is not hidden and not an error dialog: its row says the folder was not found
-  where it was last seen, and offers to find it from a dialog or to take it off the list. A
+  where it was last seen, and offers **Find it…** — a folder chosen in the dialog or typed, which
+  opens only if it holds the same work; a folder holding another work is refused with a sentence
+  naming both — or to take it off the list. A
   work whose folder disappears while it is open stops, says so in a sentence, and takes the
   person back to the Start screen — never a blank screen and never a stack trace (§10).
 
@@ -462,7 +478,7 @@ Maximising works; the hover flyout does not appear yet.
 ### The rail
 
 The destinations are ordered **the work first, then the product**: Dashboard · Plan ·
-Schedule · Decisions · Diary · Money, then Settings · Diagnostics · About. Between the two groups sits a hairline with `role="separator"` —
+Schedule · Decisions · Diary · Money · Documents, then Settings · Diagnostics · About. Between the two groups sits a hairline with `role="separator"` —
 a separator and **never** a disabled button, a heading nobody can reach or an empty `div` used as
 a gap: the grouping has to be a fact for somebody who is listening to the rail rather than
 looking at it, and nothing new may appear in the tab order to say it.
@@ -473,8 +489,11 @@ lead time, deadline and days left, and the way to mark it made or reopen it. Nam
 are edited where the rest of the plan is, in the breakdown, and the list links back there — one
 place to edit, as for the arrangements (§8).
 
-**Plan** holds four tabs over the same work: **Breakdown**, **By room** and **Checklist** — the
-three arrangements of the same rows (§8) — and **Gates**, one card per stage in order: its state
+**Plan** holds five tabs over the same work: **Breakdown**, **By room** and **Checklist** — the
+three arrangements of the same rows (§8) — **People** and **Gates**. **People** lists everyone
+with their trade, contact, availability and stages, the days they were on site and the last one
+— from the diary, never typed — and what they are owed, from money (ADR-026); people are edited
+in the breakdown's People card. **Gates** is one card per stage in order: its state
 (_Planned_, _Started on …_, _Closed on …_), its start and close checklists with each item's
 latest answer and the **Yes**, **No** and **N/A** buttons, a photo beside an item answered with
 one, and **Start stage**, **Close stage** and **Reopen**. Checks are written in the breakdown —
@@ -494,9 +513,14 @@ and the **Ledger**, payments newest first with their receipts, a form to record 
 **Reverse…** on each. Cost lines are written in the breakdown, where the rest of the plan is;
 commitments on By stage. The S-curve and its table sit above the tabs.
 
-With no work open, Dashboard, Plan, Schedule, Decisions, Diary and Money have nothing to show:
-the Start screen — a new work, an open work, the recent works — takes the content region, and
-the six destinations are disabled
+**Documents** is the library of every file the work holds: filters by kind and by what a file is
+attached to; each file with its thumbnail or its mark, an editable title and kind, its size and
+day, its attachments as chips, and **Open**, **Attach to…**, **Detach** and **Remove**; **Add
+documents…** at the top, which attaches to the work unless a target is chosen.
+
+With no work open, Dashboard, Plan, Schedule, Decisions, Diary, Money and Documents have
+nothing to show: the Start screen — a new work, an open work, the recent works — takes the
+content region, and the seven destinations are disabled
 with the reason in their accessible description, not removed. A rail that changes shape under
 the keyboard is a rail nobody learns.
 
