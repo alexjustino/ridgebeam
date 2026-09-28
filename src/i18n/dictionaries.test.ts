@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_CHECK_KEYS, GATES_HELD_LABEL_KEY, STAGES_LABEL_KEYS } from '@/domain/checks';
 import { DECISIONS_DUE_LABEL_KEY } from '@/domain/decisions';
 import { DONE_LABEL_KEYS } from '@/domain/diary';
+import { MONEY_LABEL_KEYS, OVER_COMMITTED_LABEL_KEY } from '@/domain/money';
 import {
   READINESS_LABEL_KEY,
   READINESS_MESSAGE_KEYS,
@@ -162,6 +163,8 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         'diary.figure.lostDays',
         ...Object.values(STAGES_LABEL_KEYS),
         GATES_HELD_LABEL_KEY,
+        ...Object.values(MONEY_LABEL_KEYS),
+        OVER_COMMITTED_LABEL_KEY,
         ...DEFAULT_CHECK_KEYS.start,
         ...DEFAULT_CHECK_KEYS.close,
       ]) {

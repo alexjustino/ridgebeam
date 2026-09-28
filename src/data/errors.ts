@@ -49,6 +49,7 @@ const KINDS: Readonly<Record<string, MessageKey>> = {
   photo_refused: 'errors.photoRefused',
   stage_gate_open: 'errors.stageGateOpen',
   stage_closed: 'errors.stageClosed',
+  money_reversal: 'errors.moneyReversal',
   invalid_input: 'errors.invalidInput',
   settings_key: 'errors.settingsKey',
 };

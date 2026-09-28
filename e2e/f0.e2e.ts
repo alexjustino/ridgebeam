@@ -122,8 +122,9 @@ describe('F0 — a work, one stage, one activity, and what the plan does not kno
   it('readiness reads below 100 % and opens onto "1 activity has no responsible"', async () => {
     const { driver } = session;
     await go(session, 'dashboard');
-    // Three things to know: the duration (known), the responsible, and the stage's checks (F5).
-    expect(await readinessValue(session)).toBe('33 %');
+    // Four things to know: the duration (known), the responsible, the stage's checks (F5) and
+    // its money (F6).
+    expect(await readinessValue(session)).toBe('25 %');
     const sentence = await driver.waitForElement('[data-testid="readiness-sentence"]');
     expect((await sentence.text()).trim()).toContain('1 activity has no responsible.');
 
@@ -140,7 +141,7 @@ describe('F0 — a work, one stage, one activity, and what the plan does not kno
     await go(session, 'dashboard');
     const sentence = await driver.waitForElement('[data-testid="readiness-sentence"]');
     expect((await sentence.text()).trim()).toContain('1 atividade não tem responsável.');
-    expect(await readinessValue(session)).toBe('33 %');
+    expect(await readinessValue(session)).toBe('25 %');
     await session.screenshot('f0-dashboard-pt-BR');
     await chooseLanguage(session, 'English');
   });
@@ -156,6 +157,11 @@ describe('F0 — a work, one stage, one activity, and what the plan does not kno
     await driver.waitFor('the usual checks', async () =>
       (await driver.findAll('[data-check-id]')).length === 8 ? true : null,
     );
+    // The stage's money (F6): one cost line.
+    await setValue(session, 'stage-cost-line-add-label', 'Labour');
+    await setValue(session, 'stage-cost-line-add-amount', '800');
+    await click(session, 'stage-cost-line-add');
+    await driver.waitForElement('[data-cost-line-id]');
     await setValue(session, 'person-add-name', 'A. Tiler');
     await click(session, 'person-add');
     await driver.waitFor('the person in the select', async () => {

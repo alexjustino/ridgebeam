@@ -28,6 +28,9 @@
 //! - F5: `checks` (gates and a stage's lifecycle) and `check_answers`
 //!   (append-only, holding no statement that edits or removes a row); work
 //!   migration 006.
+//! - F6: `money` (cost lines and commitments) and `payments` (the ledger,
+//!   append-only, holding no statement that edits or removes a row); work
+//!   migration 007.
 
 #[cfg(test)]
 mod append_only_tests;
@@ -40,7 +43,9 @@ pub mod diary;
 #[cfg(test)]
 mod diary_tests;
 pub mod migrations;
+pub mod money;
 pub mod order;
+pub mod payments;
 pub mod recent;
 pub mod rooms;
 pub mod settings;

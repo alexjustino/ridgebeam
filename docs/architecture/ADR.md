@@ -42,6 +42,8 @@ sixth, templates are plans, waits for F9.
 | [020](#adr-020) | Progress is derived from the diary, in states, never as an invented number                                    | Accepted — 2026-09-25          |
 | [021](#adr-021) | Photos are copied by the host under caps and shown as data URLs                                               | Accepted — 2026-09-25          |
 | [022](#adr-022) | A stage's gates are answered facts, and a closed stage is closed                                              | Accepted — 2026-09-27          |
+| [023](#adr-023) | Money is three facts with three sources, in minor units, and the ledger is append-only                        | Accepted — 2026-09-27          |
+| [024](#adr-024) | Every money figure carries its rows, and paid over committed is flagged, not refused                          | Accepted — 2026-09-27          |
 
 ---
 
@@ -978,3 +980,106 @@ mis-click is permanent — which is why the confirmation says so. Reopening is a
 usual checks are generic until templates arrive, and a person who needs other questions writes
 them. And answers carry no chain: tampering with a gate's history through the file, with the
 triggers dropped, is not detected the way the diary's is.
+
+## ADR-023 — Money is three facts with three sources, in minor units, and the ledger is append-only {#adr-023}
+
+**Status.** Accepted — 2026-09-27.
+
+**Context.** "The money ran out in the stage nobody had priced" is the specification's third
+example of a build going wrong (SPEC §1). Slice F6's proof is planned, committed and paid per
+stage and per trade, a payments ledger with receipts, every figure opening onto its rows, paid
+over committed flagged, and an S-curve of planned against paid (SPEC §2.8, §7). The easy model —
+one "amount" column per stage, edited as the work goes — cannot say what was agreed, what was
+paid, or when either changed; and a ledger that can be edited is not a ledger.
+
+**Decision.**
+
+- **Three amounts, three sources, never one column edited three ways.**
+  - **Planned** is what the plan expects to spend: **cost lines**, typed on a stage or on one of
+    its activities — a label and an amount, several per row. A stage's planned amount is its own
+    lines plus its activities'. Cost lines are plan, and are edited like plan.
+  - **Committed** is what somebody agreed to: **commitments** — a quote or a contract accepted,
+    with its stage, the person or trade, a label, an amount, the day it was agreed and optionally
+    the quote itself. A commitment can be changed or removed only while nothing has been paid
+    against it; after that it is part of the record.
+  - **Paid** is what left somebody's account: the **payments ledger** — the day, the stage, the
+    person, the commitment it pays if any, the amount, what it was for, a receipt, the account's
+    name and the moment.
+- **Amounts are whole numbers of minor units** — cents — in `INTEGER` columns, in the work's
+  one currency ([ADR-004](#adr-004), `work.currency`). No amount is ever a floating-point number,
+  in the schema, the host or the domain; the interface reads what a person types in major units
+  and formats with the platform's own number formatting for the work's currency and the person's
+  language.
+- **The ledger is append-only, with reversals.** A payment is never edited or removed: the same
+  battery of triggers as the diary and the gate answers ([ADR-019](#adr-019),
+  [ADR-022](#adr-022)) refuses `UPDATE`, `DELETE` and `REPLACE`, and payments are numbered in
+  order. A mistake is a **reversal**: a new payment with a negative amount that names the one it
+  reverses, with a required note. Only a reversal may be negative, and it must be; it may not
+  exceed what it reverses, may not reverse another reversal, must name the same stage, person and
+  commitment as the payment it reverses, and a payment may be reversed once — each refused by a
+  trigger with `money: reversal`. A stage, a person or a commitment that a payment names cannot
+  be removed: nothing that was paid disappears. The domain applies reversals everywhere a paid amount
+  is shown.
+- **No chain.** The hash chain is the diary's, the spine of the record; the ledger is protected
+  by the schema and the host, as the baselines and the gate answers are.
+- **Receipts are images in F6.** A receipt goes through the photo pipeline — the same caps,
+  copy, hash and thumbnail ([ADR-021](#adr-021)). A PDF receipt is a document, and documents are
+  F7's; until then a receipt is an image or nothing, and the interface says so.
+- **Per trade.** A person gains a trade; money per trade groups commitments and payments by the
+  trade of the person they name, and people with no trade yet are grouped as such, not dropped.
+- **Readiness asks for it.** A seventh rule, `stage.money`: every stage has at least one cost
+  line, its own or an activity's — the specification's "every stage has … its money planned"
+  (§2.5). The totals of readiness move again, and the rule-by-rule list says why
+  ([ADR-018](#adr-018)).
+
+**Why.** Three sources make three questions answerable: what did we expect, what did we agree,
+what did we pay — and the differences between them are the variance and the remaining, not
+somebody's recollection. Integers make money add up: a sum of cents is exact, and a sum of
+floating-point amounts is not. And a ledger that only grows is one both sides of an argument can
+read.
+
+**Cost accepted.** A payment typed wrongly stays, followed by its reversal: two lines where a
+person expected to fix one. A commitment cannot be corrected once something was paid against it
+— a new commitment says what changed. A stage or a person that a payment names can never be
+removed from the work. One currency per work; a build paid in two is out of 1.0.
+Payments travel in the work's snapshot, which is right for the thousands a house might have and
+would need a query of its own at a scale 1.0 does not target. And the ledger carries no chain:
+tampering through the file with the triggers dropped is not detected as the diary's would be.
+
+## ADR-024 — Every money figure carries its rows, and paid over committed is flagged, not refused {#adr-024}
+
+**Status.** Accepted — 2026-09-27.
+
+**Context.** [ADR-008](#adr-008) made "a figure carries its rows" the product's first rule, for
+readiness. Money is where a number without its rows does the most harm: a stage "12 % over
+budget" is an accusation until it can be opened onto the lines that make it. And a payment
+larger than what was agreed is common on a real site — extras, a change of material, a day of
+work nobody quoted — and is precisely what the owner needs to see, not what the product should
+stop.
+
+**Decision.**
+
+- **A money figure is a figure of unit `money`** — an amount in minor units and the rows it was
+  added from — and it opens onto them. Its rule is exact: the value is the sum of its rows. Per
+  stage, per trade and for the work, the product shows **planned** (the cost lines), **committed**
+  (the commitments), **paid** (the payments, reversals applied), **remaining** — planned minus
+  paid, whose rows are both sets, signed — and **variance** — committed minus planned, likewise.
+  The stages sum to the work; a test holds it.
+- **Paid over committed is flagged, not refused.** A payment that takes a stage or a commitment
+  past what was committed — or that pays against no commitment at all — is recorded, and marked
+  _over committed_ with the excess, in words and not by colour alone. The dashboard counts the
+  stages paid over what was committed, opening onto them.
+- **The S-curve says what it cannot place.** Planned money is spread over time by the schedule:
+  each cost line evenly over its activity's scheduled working days, a stage's line over the
+  stage's span. A line with nothing scheduled to spread it over is placed at the work's start and
+  the chart says so. Paid money is placed on each payment's day. The chart is a picture; a table
+  beneath it, by week, is the reading a screen reader and a careful person use.
+
+**Why.** A money figure a person can open is one they can check against their own papers. A
+refusal would push an honest extra payment out of the product and into a notebook, and the
+ledger would stop being the record; a flag keeps it in, and says what it means.
+
+**Cost accepted.** Over committed is a mark the person has to read, not a stop — somebody who
+pays twice by mistake is told, not prevented; the reversal is the way back. The S-curve's
+planned line is only as good as the schedule under it, and an unscheduled plan front-loads its
+money at the start, visibly.

@@ -33,6 +33,7 @@ import { Card } from '@/ui/Card';
 import { FigureRow } from '@/ui/FigureRow';
 import { InfoBar } from '@/ui/InfoBar';
 
+import { MoneyCard } from './MoneyCard';
 import { SiteCard } from './SiteCard';
 import { StagesCard } from './StagesCard';
 
@@ -44,6 +45,7 @@ const ROW_KEYS: Record<MissingId, MessageKey> = {
   'decision.deadline': 'readiness.row.decision.deadline',
   'decision.timely': 'readiness.row.decision.timely',
   'stage.checks': 'readiness.row.stage.checks',
+  'stage.money': 'readiness.row.stage.money',
   'plan.activity': 'readiness.row.plan.activity',
 };
 
@@ -156,6 +158,8 @@ export function DashboardPage({
       </div>
 
       <StagesCard snapshot={snapshot} />
+
+      <MoneyCard snapshot={snapshot} />
 
       <SiteCard snapshot={snapshot} today={today} />
     </div>

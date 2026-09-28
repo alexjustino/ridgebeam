@@ -31,6 +31,9 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     decisions: [],
     checks: [],
     checkAnswers: [],
+    costLines: [],
+    commitments: [],
+    payments: [],
     ...parts,
   };
 }
@@ -148,13 +151,24 @@ export const finished = (activityId: string, quantity: number | null = null): Do
   note: null,
 });
 
-/** The plan with one check at each gate of every stage, so the stage rule is known. */
-export function withChecks(plan: WorkSnapshot): WorkSnapshot {
+/**
+ * The plan with what the stage rules ask of every stage: one check at each gate, and one cost line.
+ * For tests about the other rules; the stage rules then add one known and one must-know each, per
+ * stage.
+ */
+export function withStageRules(plan: WorkSnapshot): WorkSnapshot {
   return {
     ...plan,
     checks: plan.stages.flatMap((each) => [
       { id: `${each.id}-start`, stageId: each.id, gate: 'start' as const, position: 1, name: 'S' },
       { id: `${each.id}-close`, stageId: each.id, gate: 'close' as const, position: 1, name: 'C' },
     ]),
+    costLines: plan.stages.map((each) => ({
+      id: `${each.id}-cost`,
+      stageId: each.id,
+      activityId: null,
+      label: 'Sample cost',
+      amountCents: 100_00,
+    })),
   };
 }

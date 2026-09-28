@@ -52,6 +52,12 @@
 //!   only when its gate is passed (`stage_gate_open` names what holds it), and
 //!   a closed stage is read-only until reopened (`stage_closed`). An answer's
 //!   photo takes the diary's pipeline, caps and folder.
+//! - F6: money. Work migration 007 adds cost lines (planned), commitments
+//!   (committed — fixed from the first payment against them) and the payments
+//!   ledger (paid), append-only with its reversal rules in the schema, in whole
+//!   minor units; and a person's trade. `person_update` replaces
+//!   `person_rename`. A receipt or a quote is an image through the photo
+//!   pipeline; a PDF is F7's.
 
 pub mod commands;
 pub mod contract;
@@ -125,7 +131,7 @@ pub fn run() {
             commands::plan::activity_remove,
             commands::plan::activity_move,
             commands::plan::stage_move,
-            commands::plan::person_rename,
+            commands::plan::person_update,
             commands::plan::person_remove,
             commands::rooms::room_add,
             commands::rooms::room_rename,
@@ -157,6 +163,14 @@ pub fn run() {
             commands::checks::stage_start,
             commands::checks::stage_close,
             commands::checks::stage_reopen,
+            commands::money::cost_line_add,
+            commands::money::cost_line_update,
+            commands::money::cost_line_remove,
+            commands::money::commitment_add,
+            commands::money::commitment_update,
+            commands::money::commitment_remove,
+            commands::money::payment_add,
+            commands::money::payment_reverse,
         ])
         .build(tauri::generate_context!())
         .expect("Ridgebeam failed to start");

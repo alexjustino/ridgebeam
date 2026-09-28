@@ -12,7 +12,7 @@ language, a term or a sentence, or names a lens that does not exist.
 
 A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-55 terms.
+56 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
@@ -49,6 +49,7 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `notApplicable` | not applicable | An answer to a check that says it does not apply here — and why. The reason is required. | não se aplica | Uma resposta a uma verificação que diz que ela não cabe aqui — e por quê. O motivo é obrigatório. |
 | `planned` | planned | The money a stage or activity is expected to cost, before any quote. | planejado | O dinheiro que uma etapa ou atividade deve custar, antes de qualquer orçamento. |
 | `committed` | committed | Money promised to somebody by a quote or a contract that was accepted. Not yet paid. | comprometido | Dinheiro prometido a alguém por um orçamento ou contrato aceito. Ainda não pago. |
+| `commitment` | commitment | A quote or a contract accepted: the money agreed for a stage, with whom, and on which day. | compromisso | Um orçamento ou contrato aceito: o dinheiro combinado para uma etapa, com quem e em que dia. |
 | `paid` | paid | Money that has left your hands, recorded as a payment in the ledger. | pago | Dinheiro que já saiu das suas mãos, registrado como pagamento no livro-razão. |
 | `remaining` | remaining | Planned minus paid: what is still expected to leave your hands. | restante | Planejado menos pago: o que ainda deve sair das suas mãos. |
 | `variance` | variance | How far committed or paid has drifted from planned, in money. Positive means over the plan. | desvio | Quanto o comprometido ou o pago se afastou do planejado, em dinheiro. Positivo significa acima do plano. |
@@ -78,7 +79,7 @@ A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a 
 with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
 The sentence never changes with the lens, and nothing about a work is stored per lens.
 
-9 of the 55 terms change with the lens.
+9 of the 56 terms change with the lens.
 
 | Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
 | --- | --- | --- | --- | --- | --- | --- |

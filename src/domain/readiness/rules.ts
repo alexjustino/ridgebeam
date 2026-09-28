@@ -14,7 +14,9 @@
  * decisions: a decision must have a deadline (its stage has something scheduled), and, once it has
  * one, must not be overdue. A made decision is always ready. Slice F5 adds one over stages: every
  * stage has its checks defined, at least one at each gate (the spec's "every stage has … its checks
- * defined"). Later slices add rules (a stage's money) as new rows here, without changing the shape.
+ * defined"). Slice F6 adds the second: every stage has its money planned, at least one cost line
+ * of its own or on one of its activities. Later slices add rules as new rows here, without changing
+ * the shape.
  *
  * What this module is not: text. It holds message keys, never English or Portuguese; the i18n
  * tables turn a key and a count into "1 activity has no responsible." or "1 atividade não tem
@@ -23,6 +25,7 @@
 
 import type { DecisionRow } from '../decisions';
 import { hasDuration, type Activity, type Stage, type WorkSnapshot } from '../plan';
+import { stageOfLine } from '../money';
 import { expandDependencies } from '../schedule/expand';
 
 /** The rules over activities. */
@@ -32,7 +35,7 @@ export type ActivityRuleId = 'activity.duration' | 'activity.responsible' | 'act
 export type DecisionRuleId = 'decision.deadline' | 'decision.timely';
 
 /** The rules over stages. */
-export type StageRuleId = 'stage.checks';
+export type StageRuleId = 'stage.checks' | 'stage.money';
 
 /** The rules that exist today. */
 export type RuleId = ActivityRuleId | DecisionRuleId | StageRuleId;
@@ -51,6 +54,7 @@ export const READINESS_MESSAGE_KEYS = {
   'decision.deadline': 'readiness.missing.decision.deadline',
   'decision.timely': 'readiness.missing.decision.timely',
   'stage.checks': 'readiness.missing.stage.checks',
+  'stage.money': 'readiness.missing.stage.money',
   'plan.activity': 'readiness.missing.plan.activity',
 } as const satisfies Record<MissingId, string>;
 
@@ -64,6 +68,7 @@ export const RULE_LABEL_KEYS = {
   'decision.deadline': 'readiness.rule.decision.deadline',
   'decision.timely': 'readiness.rule.decision.timely',
   'stage.checks': 'readiness.rule.stage.checks',
+  'stage.money': 'readiness.rule.stage.money',
 } as const satisfies Record<RuleId, string>;
 
 /**
@@ -77,6 +82,7 @@ export const RULE_EXPLANATION_KEYS = {
   'decision.deadline': 'readiness.explanation.decision.deadline',
   'decision.timely': 'readiness.explanation.decision.timely',
   'stage.checks': 'readiness.explanation.stage.checks',
+  'stage.money': 'readiness.explanation.stage.money',
 } as const satisfies Record<RuleId, string>;
 
 /** The readiness figure's own name, as a message key. */
@@ -193,6 +199,14 @@ export const STAGE_RULES: readonly StageRule[] = [
       plan.checks.some((check) => check.stageId === stage.id && check.gate === 'start') &&
       plan.checks.some((check) => check.stageId === stage.id && check.gate === 'close'),
     messageKey: READINESS_MESSAGE_KEYS['stage.checks'],
+  },
+  {
+    id: 'stage.money',
+    appliesTo: 'stage',
+    applies: () => true,
+    // Some money planned for it: a cost line of its own, or on one of its activities.
+    holds: (stage, plan) => plan.costLines.some((line) => stageOfLine(plan, line) === stage.id),
+    messageKey: READINESS_MESSAGE_KEYS['stage.money'],
   },
 ];
 

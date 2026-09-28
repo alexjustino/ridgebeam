@@ -35,6 +35,9 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     decisions: [],
     checks: [],
     checkAnswers: [],
+    costLines: [],
+    commitments: [],
+    payments: [],
     ...parts,
   };
 }
@@ -66,7 +69,7 @@ const activity = (
  * an empty room — added out of order.
  */
 const PLAN = snapshot({
-  people: [{ id: 'tiler', name: 'Sample tiler' }],
+  people: [{ id: 'tiler', name: 'Sample tiler', trade: null }],
   rooms: [
     { id: 'hall', position: 3, name: 'Hall' },
     { id: 'kitchen', position: 2, name: 'Kitchen' },
@@ -435,7 +438,7 @@ function randomPlan(seed: number): WorkSnapshot {
     calendar: { workingDays: pick(['1111100', '0000001', '0000000']), hoursPerDay: 8 },
     dependencies,
     holidays: pick([[], [{ date: '2026-09-03', name: 'A holiday' }]]),
-    people: [{ id: 'p0', name: 'Person 0' }],
+    people: [{ id: 'p0', name: 'Person 0', trade: null }],
     rooms,
     stages,
     activities,

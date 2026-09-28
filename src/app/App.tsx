@@ -9,6 +9,7 @@ import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { DiagnosticsPage } from '@/features/diagnostics/DiagnosticsPage';
 import { DecisionsPage } from '@/features/decisions/DecisionsPage';
 import { DiaryPage } from '@/features/diary/DiaryPage';
+import { MoneyPage } from '@/features/money/MoneyPage';
 import { PlanPage } from '@/features/plan/PlanPage';
 import { SchedulePage } from '@/features/schedule/SchedulePage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
@@ -145,6 +146,9 @@ export function App({ settings }: { settings: Settings }) {
               )}
               {!showsStart && destination === 'diary' && snapshot !== null && (
                 <DiaryPage snapshot={snapshot} />
+              )}
+              {!showsStart && destination === 'money' && snapshot !== null && (
+                <MoneyPage snapshot={snapshot} />
               )}
               {destination === 'settings' && <SettingsPage settings={settings} />}
               {destination === 'diagnostics' && <DiagnosticsPage />}

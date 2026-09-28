@@ -36,6 +36,7 @@ const SCREENS = [
   'schedule',
   'decisions',
   'diary',
+  'money',
   'settings',
   'diagnostics',
   'about',

@@ -10,6 +10,8 @@
 //!
 //! - F0: `calendar_set`, `person_add`, `stage_add`, `stage_rename`,
 //!   `stage_remove`, `activity_add`, `activity_update`, `activity_remove`.
+//! - F6: `person_update` (name and trade) replaces `person_rename`; a person
+//!   the money names is not removed.
 //! - F1: `person_rename`, `person_remove` (their activities are left with
 //!   nobody responsible); `stage_move` and `activity_move`, one step up or
 //!   down, a no-op at the edge, positions 1..n after; `activity_update` takes a
@@ -20,7 +22,7 @@ use std::collections::BTreeSet;
 use tauri::State;
 
 use crate::commands::work::change_work;
-use crate::contract::{ActivityPatch, CalendarDraft, Holiday, WorkSnapshot};
+use crate::contract::{ActivityPatch, CalendarDraft, Holiday, PersonPatch, WorkSnapshot};
 use crate::db::order::{ACTIVITIES, STAGES};
 use crate::db::work::{self as repo, ActivityChange};
 use crate::error::{Error, Result};
@@ -131,15 +133,19 @@ pub fn activity_remove(open: State<'_, OpenWork>, id: String) -> Result<WorkSnap
     activity_remove_with(&open, &id)
 }
 
-/// Rename a person.
+/// Change a person's name or trade.
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] for a name that does not fit or a person not in this
-/// work, and the errors of every work command.
+/// [`Error::InvalidInput`] for a name or a trade that does not fit, or a person
+/// not in this work, and the errors of every work command.
 #[tauri::command(rename_all = "snake_case")]
-pub fn person_rename(open: State<'_, OpenWork>, id: String, name: String) -> Result<WorkSnapshot> {
-    person_rename_with(&open, &id, &name)
+pub fn person_update(
+    open: State<'_, OpenWork>,
+    id: String,
+    patch: PersonPatch,
+) -> Result<WorkSnapshot> {
+    person_update_with(&open, &id, &patch)
 }
 
 /// Remove a person. The activities they were responsible for stay, with
@@ -281,10 +287,26 @@ pub fn activity_remove_with(open: &OpenWork, id: &str) -> Result<WorkSnapshot> {
     change_work(open, |conn| repo::remove_activity(conn, id))
 }
 
-/// What [`person_rename`] does once the state is in hand.
-pub fn person_rename_with(open: &OpenWork, id: &str, name: &str) -> Result<WorkSnapshot> {
-    let name = validate::name("person", name)?;
-    change_work(open, |conn| repo::rename_person(conn, id, &name))
+/// What [`person_update`] does once the state is in hand.
+pub fn person_update_with(open: &OpenWork, id: &str, patch: &PersonPatch) -> Result<WorkSnapshot> {
+    let name = patch
+        .name
+        .as_deref()
+        .map(|name| validate::name("person", name))
+        .transpose()?;
+    let trade = patch
+        .trade
+        .as_ref()
+        .map(|trade| validate::trade(trade.as_deref()))
+        .transpose()?;
+    change_work(open, |conn| {
+        repo::update_person(
+            conn,
+            id,
+            name.as_deref(),
+            trade.as_ref().map(|t| t.as_deref()),
+        )
+    })
 }
 
 /// What [`person_remove`] does once the state is in hand.
@@ -633,8 +655,23 @@ mod tests {
         )
         .unwrap();
 
-        let plan = person_rename_with(&open, &tiler, "Ana Tiler").unwrap();
+        let patch: PersonPatch =
+            serde_json::from_value(serde_json::json!({ "name": "Ana Tiler", "trade": " tiler " }))
+                .unwrap();
+        let plan = person_update_with(&open, &tiler, &patch).unwrap();
         assert_eq!(plan.people[0].name, "Ana Tiler");
+        assert_eq!(plan.people[0].trade.as_deref(), Some("tiler"));
+        let patch: PersonPatch =
+            serde_json::from_value(serde_json::json!({ "trade": null })).unwrap();
+        let plan = person_update_with(&open, &tiler, &patch).unwrap();
+        assert_eq!(
+            (
+                plan.people[0].name.as_str(),
+                plan.people[0].trade.as_deref()
+            ),
+            ("Ana Tiler", None),
+            "the name left alone, the trade cleared"
+        );
         let plan = person_remove_with(&open, &tiler).unwrap();
 
         assert!(plan.people.is_empty());

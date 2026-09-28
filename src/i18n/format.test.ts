@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { currencyLabel, formatDay, formatNumber, weekdayNames, workingDaysList } from './format';
+import {
+  currencyLabel,
+  formatDay,
+  formatMoney,
+  formatNumber,
+  fromCents,
+  toCents,
+  weekdayNames,
+  workingDaysList,
+} from './format';
 
 /**
  * The platform's words, in the person's language: dates, numbers, weekdays and currencies come
@@ -37,5 +46,31 @@ describe('formatting through Intl', () => {
   it('names a currency in the language, beside its code', () => {
     expect(currencyLabel('en', 'BRL')).toBe('BRL — Brazilian Real');
     expect(currencyLabel('pt-BR', 'BRL')).toBe('BRL — Real brasileiro');
+  });
+
+  it('writes money in the work’s currency, the way the language writes it', () => {
+    expect(formatMoney('en', 100000, 'USD')).toBe('$1,000.00');
+    expect(formatMoney('pt-BR', 100000, 'USD').replace(/\u00a0/g, ' ')).toBe('US$ 1.000,00');
+    expect(formatMoney('pt-BR', -50000, 'BRL').replace(/\u00a0/g, ' ')).toBe('-R$ 500,00');
+  });
+
+  it('reads an amount typed in major units as whole cents, never as a float', () => {
+    expect(toCents('1200')).toBe(120000);
+    expect(toCents('1200.5')).toBe(120050);
+    expect(toCents('1200.50')).toBe(120050);
+    expect(toCents('0.1')).toBe(10);
+    expect(toCents(' 7 ')).toBe(700);
+  });
+
+  it('refuses what is not an amount', () => {
+    for (const text of ['', 'abc', '-5', '1.234', '1,5', '1e3', '.5']) {
+      expect(toCents(text), text).toBeNull();
+    }
+  });
+
+  it('writes cents back as the text a number field holds', () => {
+    expect(fromCents(120000)).toBe('1200.00');
+    expect(fromCents(5)).toBe('0.05');
+    expect(fromCents(-70000)).toBe('-700.00');
   });
 });

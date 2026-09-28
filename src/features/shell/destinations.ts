@@ -9,7 +9,15 @@
 import type { MessageKey } from '@/i18n/en';
 
 export type Destination =
-  'dashboard' | 'plan' | 'schedule' | 'decisions' | 'diary' | 'settings' | 'diagnostics' | 'about';
+  | 'dashboard'
+  | 'plan'
+  | 'schedule'
+  | 'decisions'
+  | 'diary'
+  | 'money'
+  | 'settings'
+  | 'diagnostics'
+  | 'about';
 
 /** The order of the rail: the work first, then the three that are about the product itself. */
 export const DESTINATIONS: readonly Destination[] = [
@@ -18,6 +26,7 @@ export const DESTINATIONS: readonly Destination[] = [
   'schedule',
   'decisions',
   'diary',
+  'money',
   'settings',
   'diagnostics',
   'about',
@@ -37,6 +46,7 @@ export const NEEDS_WORK: ReadonlySet<Destination> = new Set<Destination>([
   'schedule',
   'decisions',
   'diary',
+  'money',
 ]);
 
 export const DESTINATION_LABELS: Record<Destination, MessageKey> = {
@@ -45,6 +55,7 @@ export const DESTINATION_LABELS: Record<Destination, MessageKey> = {
   schedule: 'nav.schedule',
   decisions: 'nav.decisions',
   diary: 'nav.diary',
+  money: 'nav.money',
   settings: 'nav.settings',
   diagnostics: 'nav.diagnostics',
   about: 'nav.about',

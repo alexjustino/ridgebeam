@@ -6,6 +6,7 @@ import { DEFAULT_LANGUAGE, type LanguageChoice } from '@/domain/settings';
 import {
   currencyLabel,
   formatDay,
+  formatMoney,
   formatInstant,
   formatNumber,
   weekdayNames,
@@ -44,6 +45,8 @@ export interface I18n {
   weekdays: (width: 'long' | 'short') => string[];
   workingDays: (mask: readonly boolean[]) => string;
   currency: (code: string) => string;
+  /** Whole cents in a currency, as the language writes money. */
+  money: (cents: number, currency: string) => string;
 }
 
 export function build(choice: LanguageChoice, language: Language): I18n {
@@ -65,6 +68,7 @@ export function build(choice: LanguageChoice, language: Language): I18n {
     weekdays: (width) => weekdayNames(language, width),
     workingDays: (mask) => workingDaysList(language, mask),
     currency: (code) => currencyLabel(language, code),
+    money: (cents, currency) => formatMoney(language, cents, currency),
   };
 }
 
