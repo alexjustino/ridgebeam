@@ -4,7 +4,14 @@ import { activity, decision, link, snapshot, stage, withStageRules } from '../__
 import { traceable } from '../figure';
 import type { WorkSnapshot } from '../plan';
 import { schedule } from '../schedule';
-import { readiness, readinessByRule, readinessFigure, sentenceParts } from './index';
+import {
+  RULES,
+  RULE_UNCOUNTED_KEY,
+  readiness,
+  readinessByRule,
+  readinessFigure,
+  sentenceParts,
+} from './index';
 
 /**
  * Readiness on `today`, every stage given a check at each gate: these tests are about decisions, so
@@ -225,24 +232,52 @@ describe('readiness rule by rule', () => {
     });
   });
 
-  it('gives a rule that asked nothing no figure, and still lists it', () => {
+  it('gives a rule that asked nothing no figure, and still lists it — last (F11)', () => {
     const one = snapshot({ stages: [stage('s', 1)], activities: [activity('a', 's', 1, 3)] });
     const byRule = readinessByRule(at(one, '2026-09-01'));
-    expect(byRule.map((rule) => [rule.ruleId, rule.mustKnow, rule.figure === null])).toEqual([
-      ['activity.duration', 1, false],
-      ['activity.responsible', 1, false],
-      ['activity.linked', 0, true],
-      ['decision.deadline', 0, true],
-      ['decision.timely', 0, true],
-      ['stage.checks', 1, false],
-      ['stage.money', 1, false],
+    expect(
+      byRule.map((rule) => [rule.ruleId, rule.mustKnow, rule.figure === null, rule.counted]),
+    ).toEqual([
+      ['activity.duration', 1, false, true],
+      ['activity.responsible', 1, false, true],
+      ['stage.checks', 1, false, true],
+      ['stage.money', 1, false, true],
+      ['activity.linked', 0, true, false],
+      ['decision.deadline', 0, true, false],
+      ['decision.timely', 0, true, false],
     ]);
+  });
+
+  it('names the line of a rule that counted nothing by its own message key (F11)', () => {
+    expect(RULE_UNCOUNTED_KEY).toBe('readiness.rule.uncounted');
+  });
+
+  it('marks every rule of a plan that asks everything as counted, in rule order (F11)', () => {
+    expect(rules.every((rule) => rule.counted)).toBe(true);
+    expect(rules.map((rule) => rule.ruleId)).toEqual(RULES.map((rule) => rule.id));
+  });
+
+  it('moves no number when it sorts the uncounted rules last (F11)', () => {
+    const one = snapshot({ stages: [stage('s', 1)], activities: [activity('a', 's', 1, 3)] });
+    const measure = at(one, '2026-09-01');
+    const byRule = readinessByRule(measure);
+    // The measure's own rule counts keep rule order; the lines are the same counts, re-ordered.
+    expect(measure.rules.map((rule) => rule.ruleId)).toEqual(RULES.map((rule) => rule.id));
+    const counts = (list: ReadonlyArray<{ ruleId: string; known: number; mustKnow: number }>) =>
+      Object.fromEntries(list.map((rule) => [rule.ruleId, [rule.known, rule.mustKnow]]));
+    expect(counts(byRule)).toEqual(counts(measure.rules));
+    expect(byRule.reduce((sum, rule) => sum + rule.known, 0)).toBe(measure.known);
+    expect(byRule.reduce((sum, rule) => sum + rule.mustKnow, 0)).toBe(measure.mustKnow);
+    expect(readinessFigure(measure).value).toBe(Math.min(99, Math.round((100 * 3) / 4)));
   });
 
   it('adds up for an empty plan too, where only the plan-level row is missing', () => {
     const empty = at(snapshot(), '2026-09-01');
     const byRule = readinessByRule(empty);
     expect(byRule.every((rule) => rule.mustKnow === 0 && rule.figure === null)).toBe(true);
+    // Nothing counted: every line says so, and they keep rule order among themselves.
+    expect(byRule.every((rule) => !rule.counted)).toBe(true);
+    expect(byRule.map((rule) => rule.ruleId)).toEqual(RULES.map((rule) => rule.id));
     expect(byRule.flatMap((rule) => rule.missing)).toEqual([]);
     expect(empty.missing.map((row) => row.ruleId)).toEqual(['plan.activity']);
   });
@@ -271,6 +306,10 @@ describe('readiness rule by rule', () => {
       expect(byRule.reduce((sum, rule) => sum + rule.mustKnow, 0)).toBe(generated.mustKnow);
       for (const rule of byRule)
         if (rule.figure !== null) expect(traceable(rule.figure)).toBe(true);
+      // Counted lines first, uncounted last; `counted` is exactly "the rule asked something".
+      const flags = byRule.map((rule) => rule.counted);
+      expect(flags).toEqual([...flags].sort((a, b) => Number(b) - Number(a)));
+      for (const rule of byRule) expect(rule.counted).toBe(rule.mustKnow > 0);
       expect(traceable(readinessFigure(generated))).toBe(true);
     },
   );

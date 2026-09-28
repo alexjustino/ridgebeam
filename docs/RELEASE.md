@@ -79,6 +79,19 @@ release that skipped a step is a release nobody can reason about afterwards.
      The diary PDF opens with "Chain verified on …" and says it is not a signature and not legal
      proof. Open the CSV in a spreadsheet: one entry per row, the columns split, and a note typed
      as `=1+1` shows as text with its apostrophe, not as `2`;
+   - **back up and restore a real work**: open a work with diary entries, a correction, photos
+     and a PDF, and in **Settings → This work** press **Back up this work** and save the
+     `.ridgebeam` file where the save dialog says. The sentence names the path, the size and how
+     many files it holds, and Settings and Diagnostics now show today as the last backup. Open
+     the file with Windows' own **Extract all** and look inside: `manifest.json`, `work.sqlite3`,
+     `documents/`, `thumbnails/` and `manifest.sha256`. Close the work, press **Restore a
+     backup…** on the Start screen, choose the file and a **new, empty** folder in the dialogs:
+     the preview names the work, the day it was backed up and the build that wrote it, and after
+     restoring the Start screen says "Restored: N entries, chain verified, N documents as
+     recorded", with the same N the work had. The dashboard reads the same readiness, finish date,
+     slip and money as before; the old folder is still where it was, untouched. Then flip one byte
+     of a copy of the file in a hex editor and restore that copy: it is refused with a sentence,
+     and no folder is left behind;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and

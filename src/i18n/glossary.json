@@ -231,11 +231,11 @@
       "key": "baseline",
       "en": {
         "term": "baseline",
-        "sentence": "A photograph of the plan taken when it was approved. Later changes are compared against it; it is never overwritten."
+        "sentence": "A photograph of the plan, taken when it is approved and again at every replanning. Later changes are compared against it; none is ever overwritten."
       },
       "pt-BR": {
         "term": "linha de base",
-        "sentence": "Uma fotografia do plano tirada quando ele foi aprovado. As mudanças posteriores são comparadas com ela; ela nunca é sobrescrita."
+        "sentence": "Uma fotografia do plano, tirada quando ele é aprovado e de novo a cada replanejamento. As mudanças posteriores são comparadas com ela; nenhuma é sobrescrita."
       }
     },
     {
@@ -624,11 +624,11 @@
       "key": "range",
       "en": {
         "term": "range",
-        "sentence": "A duration or a cost given as a low and a high, never a single number, because a template cannot know your site."
+        "sentence": "A duration or a lead time given as a low and a high, never a single number, because a template cannot know your site. Costs have no ranges in 1.0: a template's cost line has no amount."
       },
       "pt-BR": {
         "term": "faixa",
-        "sentence": "Uma duração ou um custo dado como um mínimo e um máximo, nunca um número só, porque um modelo não conhece a sua obra."
+        "sentence": "Uma duração ou um prazo de entrega dado como um mínimo e um máximo, nunca um número só, porque um modelo não conhece a sua obra. Custos não têm faixa na 1.0: a linha de custo de um modelo vem sem valor."
       }
     },
     {
@@ -701,11 +701,11 @@
       "key": "report",
       "en": {
         "term": "weekly report",
-        "sentence": "One page a week, in the owner's words: what was done, what slipped, what to decide, what to pay."
+        "sentence": "A PDF for one week, in the owner's words: what was done, what slipped, what to decide, what to pay — as many pages as the week needs."
       },
       "pt-BR": {
         "term": "relatório semanal",
-        "sentence": "Uma página por semana, nas palavras do dono: o que foi feito, o que atrasou, o que decidir, o que pagar."
+        "sentence": "Um PDF de uma semana, nas palavras do dono: o que foi feito, o que atrasou, o que decidir, o que pagar — com quantas páginas a semana pedir."
       }
     },
     {
@@ -723,11 +723,22 @@
       "key": "backup",
       "en": {
         "term": "backup",
-        "sentence": "The whole work as one file you can copy anywhere and bring back exactly as it was."
+        "sentence": "The whole work as one file you can copy anywhere and bring back exactly as it was. It is not encrypted: keep it as carefully as the work folder."
       },
       "pt-BR": {
         "term": "cópia de segurança",
-        "sentence": "A obra inteira como um arquivo que você pode copiar para qualquer lugar e trazer de volta exatamente como estava."
+        "sentence": "A obra inteira como um arquivo que você pode copiar para qualquer lugar e trazer de volta exatamente como estava. Não é criptografada: guarde-a com o mesmo cuidado que a pasta da obra."
+      }
+    },
+    {
+      "key": "restore",
+      "en": {
+        "term": "restore",
+        "sentence": "Bringing a backup back as a work in a new, empty folder. Every file is checked against the backup first, and the folder the work was in before is left as it was."
+      },
+      "pt-BR": {
+        "term": "restauração",
+        "sentence": "Trazer uma cópia de segurança de volta como uma obra numa pasta nova e vazia. Cada arquivo é conferido com a cópia antes, e a pasta onde a obra estava é deixada como estava."
       }
     }
   ]

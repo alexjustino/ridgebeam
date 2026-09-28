@@ -20,10 +20,16 @@ export function FolderField({
   value,
   onChange,
   hint,
+  label,
+  testId = 'work-folder',
 }: {
   value: string;
   onChange: (next: string) => void;
   hint: string;
+  /** The field's name, when it is not the work's folder (a restore's new folder). */
+  label?: string;
+  /** The field's test id — the contract with the end-to-end suite. */
+  testId?: string;
 }) {
   const { t } = useI18n();
   const id = useId();
@@ -42,12 +48,12 @@ export function FolderField({
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={`${id}-path`} className="text-caption font-semibold text-fg-secondary">
-        {t('work.field.folder')}
+        {label ?? t('work.field.folder')}
       </label>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
         <Input
           id={`${id}-path`}
-          data-testid="work-folder"
+          data-testid={testId}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           aria-describedby={`${id}-hint`}

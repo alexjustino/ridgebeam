@@ -12,7 +12,7 @@ language, a term or a sentence, or names a lens that does not exist.
 
 A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-58 terms.
+59 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
@@ -31,7 +31,7 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `criticalPath` | critical path | The chain of activities with no slack: a day lost on any of them is a day lost on the finish date. | caminho crítico | A corrente de atividades sem folga: um dia perdido em qualquer uma delas é um dia perdido na data de término. |
 | `float` | float | How many working days an activity can slip before it delays the finish date. Zero float means it is on the critical path. | folga | Quantos dias úteis uma atividade pode atrasar antes de atrasar a data de término. Folga zero significa que ela está no caminho crítico. |
 | `finishDate` | finish date | The day the last activity ends, computed from the schedule — never typed. | data de término | O dia em que a última atividade termina, calculado a partir do cronograma — nunca digitado. |
-| `baseline` | baseline | A photograph of the plan taken when it was approved. Later changes are compared against it; it is never overwritten. | linha de base | Uma fotografia do plano tirada quando ele foi aprovado. As mudanças posteriores são comparadas com ela; ela nunca é sobrescrita. |
+| `baseline` | baseline | A photograph of the plan, taken when it is approved and again at every replanning. Later changes are compared against it; none is ever overwritten. | linha de base | Uma fotografia do plano, tirada quando ele é aprovado e de novo a cada replanejamento. As mudanças posteriores são comparadas com ela; nenhuma é sobrescrita. |
 | `slip` | slip | How many working days the finish date, or a stage, has moved past the baseline. Shown before anybody asks. | atraso | Quantos dias úteis a data de término, ou uma etapa, passou da linha de base. Mostrado antes que alguém pergunte. |
 | `decision` | decision | Something a person has to choose before a stage can go ahead — which tile, where the outlets go, which contractor for the roof. | decisão | Algo que uma pessoa precisa escolher antes de uma etapa poder seguir — qual piso, onde ficam as tomadas, qual empreiteiro para o telhado. |
 | `leadTime` | lead time | How long it takes between deciding and having — the weeks the tile takes to arrive after it is chosen. | prazo de entrega | Quanto tempo passa entre decidir e ter — as semanas que o piso leva para chegar depois de escolhido. |
@@ -64,16 +64,17 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `whatIf` | what-if | The schedule worked out again with a duration or a wait changed, to see when the work would finish. It is never saved: to keep it, replan with a reason. | simulação | O cronograma calculado de novo com uma duração ou uma espera trocada, para ver quando a obra terminaria. Nunca é salva: para mantê-la, replaneje com um motivo. |
 | `reason` | reason | The sentence that explains why an approved plan changed. Required, and kept with the baseline it produced. | motivo | A frase que explica por que um plano aprovado mudou. Obrigatória, e guardada com a linha de base que gerou. |
 | `template` | template | A plan to start from — stages, typical activities, dependencies, duration ranges, the decisions and checks each stage needs. A starting point, not a promise. | modelo | Um plano para começar — etapas, atividades típicas, dependências, faixas de duração, as decisões e verificações de cada etapa. Um ponto de partida, não uma promessa. |
-| `range` | range | A duration or a cost given as a low and a high, never a single number, because a template cannot know your site. | faixa | Uma duração ou um custo dado como um mínimo e um máximo, nunca um número só, porque um modelo não conhece a sua obra. |
+| `range` | range | A duration or a lead time given as a low and a high, never a single number, because a template cannot know your site. Costs have no ranges in 1.0: a template's cost line has no amount. | faixa | Uma duração ou um prazo de entrega dado como um mínimo e um máximo, nunca um número só, porque um modelo não conhece a sua obra. Custos não têm faixa na 1.0: a linha de custo de um modelo vem sem valor. |
 | `lens` | lens | A way of looking at the same work in the words of the engineer, the architect or the owner. Switching lenses changes the words and the arrangement, never the data. | lente | Um jeito de olhar a mesma obra nas palavras do engenheiro, do arquiteto ou do dono. Trocar de lente muda as palavras e a disposição, nunca os dados. |
 | `lensEngineer` | engineer's lens | Work breakdown, critical path, float, S-curve, quantities. | lente do engenheiro | Estrutura analítica, caminho crítico, folga, curva S, quantidades. |
 | `lensArchitect` | architect's lens | Rooms, finishes, specifications, decisions. | lente do arquiteto | Cômodos, acabamentos, especificações, decisões. |
 | `lensOwner` | owner's lens | This week, what to decide, what to pay, what is done. The default for a new work. | lente do dono | Esta semana, o que decidir, o que pagar, o que está feito. O padrão para uma obra nova. |
 | `dashboard` | dashboard | The front door of a work: readiness, this week, the finish date against the baseline, decisions due, money, the last diary entries. Every figure opens onto its rows. | painel | A porta de entrada de uma obra: prontidão, esta semana, a data de término contra a linha de base, decisões a tomar, dinheiro, as últimas entradas do diário. Cada número abre nas suas linhas. |
 | `figure` | figure | A number on a screen that always knows which rows it was counted from, and opens onto them when clicked. | número | Um valor na tela que sempre sabe de quais linhas foi contado, e abre nelas ao ser clicado. |
-| `report` | weekly report | One page a week, in the owner's words: what was done, what slipped, what to decide, what to pay. | relatório semanal | Uma página por semana, nas palavras do dono: o que foi feito, o que atrasou, o que decidir, o que pagar. |
+| `report` | weekly report | A PDF for one week, in the owner's words: what was done, what slipped, what to decide, what to pay — as many pages as the week needs. | relatório semanal | Um PDF de uma semana, nas palavras do dono: o que foi feito, o que atrasou, o que decidir, o que pagar — com quantas páginas a semana pedir. |
 | `export` | export | A file written from the work for somebody else, or another program, to read — a PDF, a spreadsheet file or JSON. Writing it changes nothing in the work. | exportação | Um arquivo gravado a partir da obra para outra pessoa, ou outro programa, ler — um PDF, uma planilha ou JSON. Gravá-lo não muda nada na obra. |
-| `backup` | backup | The whole work as one file you can copy anywhere and bring back exactly as it was. | cópia de segurança | A obra inteira como um arquivo que você pode copiar para qualquer lugar e trazer de volta exatamente como estava. |
+| `backup` | backup | The whole work as one file you can copy anywhere and bring back exactly as it was. It is not encrypted: keep it as carefully as the work folder. | cópia de segurança | A obra inteira como um arquivo que você pode copiar para qualquer lugar e trazer de volta exatamente como estava. Não é criptografada: guarde-a com o mesmo cuidado que a pasta da obra. |
+| `restore` | restore | Bringing a backup back as a work in a new, empty folder. Every file is checked against the backup first, and the folder the work was in before is left as it was. | restauração | Trazer uma cópia de segurança de volta como uma obra numa pasta nova e vazia. Cada arquivo é conferido com a cópia antes, e a pasta onde a obra estava é deixada como estava. |
 
 ## The lenses
 
@@ -81,7 +82,7 @@ A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a 
 with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
 The sentence never changes with the lens, and nothing about a work is stored per lens.
 
-9 of the 58 terms change with the lens.
+9 of the 59 terms change with the lens.
 
 | Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
 | --- | --- | --- | --- | --- | --- | --- |

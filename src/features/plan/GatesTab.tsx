@@ -1,11 +1,12 @@
 import {
   Add20Regular,
   ArrowCounterclockwise20Regular,
+  Camera20Regular,
   Dismiss16Regular,
   LockClosed20Regular,
   Play20Regular,
 } from '@fluentui/react-icons';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 
 import { LIMITS, type Answer } from '@/data/commands';
 import { useAnswerCheck, useCloseStage, useReopenStage, useStartStage } from '@/data/queries';
@@ -31,6 +32,8 @@ import { Input } from '@/ui/Input';
 import { Modal } from '@/ui/Modal';
 import { TextArea } from '@/ui/TextArea';
 
+import { photoAsked } from './photoAsked';
+
 const ANSWER_KEYS: Record<Answer, MessageKey> = {
   yes: 'gates.yes',
   no: 'gates.no',
@@ -44,7 +47,8 @@ const ANSWER_KEYS: Record<Answer, MessageKey> = {
  * Every answer is a fact kept for good — answering again appends, and the latest counts. Not
  * applicable always carries its reason, asked in a small dialog. An answer may bring a photo (the
  * inspection is a check with a photo), chosen as a path and sent with the next answer pressed on
- * that item; the host copies it in exactly as it copies the diary's. A gate that holds says which
+ * that item — its field behind **Add a photo**, open from the start where the check asks for one
+ * (F11, decision 8b); the host copies it in exactly as it copies the diary's. A gate that holds says which
  * items hold it beside the button it disables — never just "no" (DESIGN_SYSTEM §8). Starting cannot
  * be undone, and the question says so; a closed stage can be reopened.
  */
@@ -284,6 +288,9 @@ function GateItemLine({
   const [pending, setPending] = useState<string | null>(null);
   const [naOpen, setNaOpen] = useState(false);
   const check: Check = item.check;
+  const [photoOpen, setPhotoOpen] = useState(() => photoAsked(check.name));
+  const photoField = useId();
+  const photoInput = useRef<HTMLInputElement>(null);
   const latest = item.latest;
 
   const send = (value: Answer, reason: string | null, after?: () => void) =>
@@ -373,26 +380,44 @@ function GateItemLine({
               </Button>
             ))}
           </div>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1">
-            <Input
-              data-testid="check-answer-photo-path"
-              aria-label={t('gates.photo.path', { name: check.name })}
-              placeholder={t('diary.photos.path')}
-              className="font-mono"
-              spellCheck={false}
-              value={pathField}
-              onChange={(event) => setPathField(event.target.value)}
-            />
+          <div>
             <Button
-              icon={<Add20Regular />}
-              data-testid="check-answer-photo-add"
-              onClick={() => {
-                if (pathField.trim() !== '') setPending(pathField.trim());
-                setPathField('');
-              }}
+              appearance="subtle"
+              icon={<Camera20Regular />}
+              data-testid="answer-photo-toggle"
+              aria-expanded={photoOpen}
+              aria-controls={photoField}
+              aria-label={t('gates.photo.toggle', { name: check.name })}
+              onClick={() => setPhotoOpen((now) => !now)}
             >
-              {t('diary.photos.add')}
+              {t('gates.photo.add')}
             </Button>
+          </div>
+          {/* `hidden` sits on a wrapper that sets no display of its own, so no utility can win
+              over it and show a closed field. */}
+          <div id={photoField} hidden={!photoOpen}>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1">
+              <Input
+                ref={photoInput}
+                data-testid="check-answer-photo-path"
+                aria-label={t('gates.photo.path', { name: check.name })}
+                placeholder={t('diary.photos.path')}
+                className="font-mono"
+                spellCheck={false}
+                value={pathField}
+                onChange={(event) => setPathField(event.target.value)}
+              />
+              <Button
+                icon={<Add20Regular />}
+                data-testid="check-answer-photo-add"
+                onClick={() => {
+                  if (pathField.trim() !== '') setPending(pathField.trim());
+                  setPathField('');
+                }}
+              >
+                {t('diary.photos.add')}
+              </Button>
+            </div>
           </div>
           {pending !== null && (
             <div
@@ -408,7 +433,12 @@ function GateItemLine({
                   name: pending.split(/[\\/]/).pop() ?? pending,
                 })}
                 title={t('diary.photos.remove', { name: pending.split(/[\\/]/).pop() ?? pending })}
-                onClick={() => setPending(null)}
+                onClick={() => {
+                  // The button removes itself: the focus goes to the photo field, open again.
+                  setPending(null);
+                  setPhotoOpen(true);
+                  window.requestAnimationFrame(() => photoInput.current?.focus());
+                }}
                 className="grid size-6 place-items-center rounded-sm hover:bg-card-hover"
               >
                 <Dismiss16Regular aria-hidden="true" />

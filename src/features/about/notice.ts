@@ -28,3 +28,22 @@ export function thirdParty(text: string): Notice {
   }
   return { found: true, credits };
 }
+
+/** One third-party package the product ships, as `scripts/notices.mjs` lists it. */
+export interface ShippedPackage {
+  name: string;
+  version: string;
+  /** The licence the package declares; `null` when it declares none (the script refuses those). */
+  license: string | null;
+}
+
+/**
+ * `src/features/about/notices.json`, written by `scripts/notices.mjs` from the two lockfiles and held
+ * current by a gate: every crate compiled into the binary (`rust`) and every package in the
+ * interface's production tree (`npm`), each with its licence.
+ */
+export interface ShippedNotices {
+  generated: string;
+  rust: ShippedPackage[];
+  npm: ShippedPackage[];
+}

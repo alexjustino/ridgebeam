@@ -17,10 +17,12 @@ import {
   READINESS_MESSAGE_KEYS,
   RULE_EXPLANATION_KEYS,
   RULE_LABEL_KEYS,
+  RULE_UNCOUNTED_KEY,
 } from '@/domain/readiness';
 import { DIARY_ROW_STATUS_KEYS } from '@/domain/reports/diary';
 import { SCHEDULE_BLOCKED_KEYS } from '@/domain/reports/schedule';
 import { WEEKLY_LABEL_KEYS, WEEKLY_PROBLEM_KEYS } from '@/domain/reports/weekly';
+import { QUESTION_MESSAGE_KEYS } from '@/domain/questions';
 import { SLIP_LABEL_KEY } from '@/domain/schedule/slip';
 import { WHAT_IF_LABEL_KEY, WHAT_IF_PROBLEM_KEYS } from '@/domain/schedule/whatIf';
 import { LANGUAGES as LANGUAGE_CHOICES } from '@/domain/settings';
@@ -198,6 +200,8 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         ...Object.values(DIARY_ROW_STATUS_KEYS),
         ...Object.values(SCHEDULE_BLOCKED_KEYS),
         STAGES_READY_LABEL_KEY,
+        RULE_UNCOUNTED_KEY,
+        ...Object.values(QUESTION_MESSAGE_KEYS),
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }

@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 
 import { LIMITS } from '@/data/commands';
 import { useI18n } from '@/i18n/useI18n';
@@ -14,6 +14,8 @@ export function AddForm({
   icon,
   pending,
   onAdd,
+  focus = false,
+  onFocused,
 }: {
   label: string;
   inputTestId: string;
@@ -22,11 +24,22 @@ export function AddForm({
   icon: ReactNode;
   pending: boolean;
   onAdd: (name: string, done: () => void) => void;
+  /** Asked to take the focus — from a link on another screen that sent the person here. */
+  focus?: boolean;
+  onFocused?: (() => void) | undefined;
 }) {
   const { t } = useI18n();
   const hint = useId();
   const [name, setName] = useState('');
   const [empty, setEmpty] = useState(false);
+  const field = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!focus) return;
+    field.current?.focus();
+    field.current?.scrollIntoView({ block: 'center' });
+    onFocused?.();
+  }, [focus, onFocused]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -42,6 +55,7 @@ export function AddForm({
     <form onSubmit={submit} className="flex flex-col gap-1" noValidate>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
         <Input
+          ref={field}
           data-testid={inputTestId}
           aria-label={label}
           placeholder={label}

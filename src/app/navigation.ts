@@ -11,11 +11,17 @@ import type { DocumentLink } from '@/domain/plan';
 export interface Navigation {
   openDocuments: (target: DocumentLink) => void;
   openDiary: (seq: number) => void;
+  /**
+   * Open the Plan's breakdown with the focus on a row (an activity's or a decision's id) or on the
+   * People card's field that adds a person (F11: the Next question card's "Add a person").
+   */
+  openPlan: (focus: string) => void;
 }
 
 export const NavigationContext = createContext<Navigation>({
   openDocuments: () => undefined,
   openDiary: () => undefined,
+  openPlan: () => undefined,
 });
 
 export function useNavigation(): Navigation {

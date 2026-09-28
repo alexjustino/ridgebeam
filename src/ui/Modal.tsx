@@ -17,6 +17,7 @@ export function Modal({
   onClose,
   children,
   width = 'md',
+  height = 'content',
 }: {
   open: boolean;
   /** The accessible name. A dialog with no name is a dialog nobody can use. */
@@ -24,6 +25,13 @@ export function Modal({
   onClose: () => void;
   children: ReactNode;
   width?: 'md' | 'lg';
+  /**
+   * `content` grows with what the dialog holds, up to 70 % of the window. `fixed` is always that
+   * tall: for a dialog whose content changes while a person is about to press its buttons (a
+   * preview read when a field loses focus), so the footer never moves out from under the pointer
+   * between the press and the release (F11: a click on Restore missed its button that way).
+   */
+  height?: 'content' | 'fixed';
 }) {
   const panel = useRef<HTMLDivElement>(null);
 
@@ -56,7 +64,8 @@ export function Modal({
         aria-label={label}
         tabIndex={-1}
         className={[
-          'relative flex max-h-[70vh] w-full flex-col overflow-hidden rounded-xl border border-stroke',
+          'relative flex w-full flex-col overflow-hidden rounded-xl border border-stroke',
+          height === 'fixed' ? 'h-[70vh]' : 'max-h-[70vh]',
           'bg-flyout shadow-dialog backdrop-blur-xl focus:outline-none',
           width === 'lg' ? 'max-w-3xl' : 'max-w-xl',
         ].join(' ')}

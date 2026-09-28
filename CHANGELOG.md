@@ -554,3 +554,92 @@ tool. A CSV never carries a formula, and a second PDF reader parses every report
 No migration: F10 adds no table and no column. Not in 1.0, by decision: photos inside a PDF; a
 character outside WinAnsi and the three stand-ins on paper; non-working days shaded on the printed
 schedule.
+
+### Added in F11 — backup, restore and polish
+
+The whole work as one file, restored into a new folder and proven byte for byte; a plan started
+from a template that asks what it does not yet know, one question at a time; Diagnostics that can
+be copied into a bug report; About that lists the licence of every package the product ships; and
+the polish owed by F0 to F10.
+
+- **Back up this work** (ADR-033), in a new **This work** section of Settings, shown while a work
+  is open. One `.ridgebeam` file, saved where the save dialog says: a plain ZIP that Windows opens
+  by itself, holding `manifest.json` first, then `work.sqlite3` — a snapshot taken with
+  `VACUUM INTO` while the work stays open, deflated — then every file of `documents/` and
+  `thumbnails/`, stored, and last `manifest.sha256`, the manifest's own hash. The manifest lists
+  every file with its size and SHA-256, the work's id, name and schema version, and the build that
+  wrote it. The answer names the path, the size and how many files it holds; a file in the work
+  folder whose name a backup never holds is left out and counted. A backup is never written inside
+  the work's own folder, and replaces a file only when the save dialog chose it. The day of the last
+  backup is kept per work in the application's database — "Last backed up on this machine on {day}", or not yet — in
+  Settings and in Diagnostics. **A backup is not encrypted**, and the product says so.
+- **Restore a backup…** on the Start screen. The file, then a folder that is new or empty; a
+  preview of what the manifest says — the work, when it was backed up, by which build, how many
+  files — before anything is written. The file is treated as hostile: the shape the host writes and
+  no other, 4 GiB at most, every name from a closed allow-list and none twice, the manifest's own
+  hash first, every size checked against the manifest and capped **while it inflates** (2 GiB the
+  database, 25 MiB a document or a thumbnail), every SHA-256 checked, and the database opened
+  read-only and found to be this work at a schema this build knows. It is written into a temporary
+  folder beside the target, opened there — an older schema migrates forward — and renamed into place
+  only when every check has passed; on a refusal a sentence says why and nothing is left. Then the
+  work opens, and the Start screen says "Restored: N entries, chain verified, N documents as
+  recorded". A work the recent list knew at another folder moves to the restored one, and the
+  sentence says the old folder was left as it was.
+- **Byte for byte, in `cargo test`.** A full work — stages, activities, links, baselines 1 and 2
+  with a replanning, decisions, checks with answers and a photo, a diary with a correction and
+  photos, documents with a PDF, cost lines, commitments, payments with a reversal, a template's
+  provenance — backed up and restored: the database byte-identical to the snapshot the archive
+  holds, every document and thumbnail byte-identical, every table's rows equal (read through `PRAGMA
+table_info`, so a column added later cannot be missed), the chain verifying, every document as
+  recorded. Windows' own `tar.exe` reads what the host wrote. A hostile corpus of thirty-two
+  archives, generated in the test — `..`, a full path, a drive letter, a name not on the list, a
+  duplicate, a size that lies, a zip bomb, a wrong hash, a changed manifest, no manifest, another
+  product's database, another work's, a newer schema, an archive cut short — is refused, each with a
+  sentence and nothing written.
+- **The ZIP is written and read by the host itself** (`files::archive`): store and deflate, no
+  ZIP64, no encryption, no extra fields. The `zip` crate was measured and not taken; deflate and
+  CRC-32 come from `flate2`, already in the binary. **No crate is added.**
+- **Next question** (ADR-034, SPEC R3). While a work's plan has open questions, the dashboard's
+  first card, in every lens, asks one — in this order: how many working days an activity with a
+  range will take ("Most take 1 to 2."), who answers for an activity with nobody responsible, how
+  much a cost line not priced yet is, and what was decided about a decision overdue or due within
+  14 calendar days. One control answers it, through the same command the breakdown uses; **Skip for
+  now** moves on for this session and records nothing, and **Ask the skipped ones again** brings
+  them back; the card says "3 of 22 answered". Nothing is asked
+  while the plan is approved and locked, nor of a closed stage. The breakdown is unchanged.
+- **Diagnostics lists schema, chain and folder health.** Each database's schema version and every
+  migration it has been through, by number and name; the diary's chain, verified on demand, with
+  the last result; folder health; and the last backup. **Copy the diagnostics** puts the whole of
+  it on the clipboard as plain text for a bug report — the chain verified as it is copied — and its
+  first lines say that it holds this computer's folders as they are, so the person reads it before
+  sending it.
+- **About lists the third-party notices**: the text of [`NOTICE`](NOTICE), bundled at build time,
+  in a scrollable region, and the licence of every crate compiled into the binary and every npm
+  package of the production tree, from `src/features/about/notices.json`. That file is written by
+  `scripts/notices.mjs` from `cargo metadata` (offline, normal dependencies of the Windows target,
+  no dev or build dependencies) and `package-lock.json` (production dependencies for Windows x64),
+  sorted and with no timestamp; its check is a new gate in `npm run gates`, so a dependency changed
+  without the list fails CI.
+- **Polish owed by F0–F10.** A readiness rule that counts nothing reads "nothing to count yet", in
+  a muted tone, and is listed last — never "0 of 0". On the Gates tab each item's photo field sits
+  behind **Add a photo**, open when the answer needs one. A closed stage's move buttons follow the
+  host's rule exactly. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §10 says why a value refused with
+  `plan_approved` goes back to what the plan holds, where every other refusal keeps what was typed;
+  §8 gains _the plan asks one question at a time_.
+- **Large works, measured.** A benchmark in vitest over a work of 2 000 activities (40 stages, 3 000
+  links), 2 000 payments and 3 000 diary entries holds every computation the screens make to a
+  budget of five times its first median: the schedule 35 ms (6.3 measured), readiness 40 ms (7.4),
+  the weekly report 85 ms (16.4), the money of the work 25 ms (1.3), by stage 260 ms (51.4), by
+  trade 25 ms (4.3), paid over committed 225 ms (45.0), the S-curve 135 ms (26.8), the diary report
+  25 ms (3.9) and the open questions 30 ms (5.6). Its first run found two computations that grew
+  with the square of the work, fixed before the budgets were set: money searched its lists once per
+  row (By stage took 657 ms), and the working days to a deadline were walked day by day (the weekly
+  report took 279 ms) — now indexed once per snapshot, and counted by whole weeks. The host reads
+  the same work in `cargo test` (not ignored: under two seconds): `work_get` in 4.2 ms and the whole
+  diary in 12.8 ms in a release build (8.3 ms and 23.4 ms in debug), each held to five times that.
+- **The glossary** gains _restore_; _backup_ says it is not encrypted; _baseline_ is taken at
+  approval **and at every replanning**; _weekly report_ is a PDF of as many pages as the week needs,
+  not one page; _range_ is for durations and lead times — a cost has no range in 1.0.
+
+Migration: the application database gains `003_backups` (the `backup` table, one row per work).
+The work's schema does not change.

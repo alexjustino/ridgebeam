@@ -2,6 +2,9 @@ name: CI
 
 # Every pull request runs the same script a developer runs locally
 # (`npm run gates`), so "green on my machine" and "green in CI" cannot drift.
+# That includes the generated-file gates — the glossary page and the About
+# screen's third-party licence list (`scripts/notices.mjs --check`, offline:
+# it reads the crates the cargo gates fetched before it).
 
 on:
   push:

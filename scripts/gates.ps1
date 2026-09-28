@@ -63,6 +63,10 @@ Invoke-Gate 'glossary'     { node scripts/glossary.mjs --check }
 Invoke-Gate 'cargo fmt'    { cargo fmt --all -- --check } $tauri
 Invoke-Gate 'cargo clippy' { cargo clippy --all-targets -- -D warnings } $tauri
 Invoke-Gate 'cargo test'   { cargo test } $tauri
+# After the cargo gates on purpose: `notices` runs `cargo metadata --offline`, which reads the
+# crates those gates have already fetched. It fails when the About screen's licence list
+# (src/features/about/notices.json) no longer matches the two lockfiles.
+Invoke-Gate 'notices'      { node scripts/notices.mjs --check }
 Invoke-Gate 'tsc'          { npm run --silent typecheck }
 Invoke-Gate 'eslint'       { npm run --silent lint }
 Invoke-Gate 'prettier'     { npm run --silent format:check }

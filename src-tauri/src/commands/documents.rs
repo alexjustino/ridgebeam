@@ -448,7 +448,7 @@ fn size_of(folder: &Path) -> i64 {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use crate::commands::plan::stage_add_with;
     use crate::commands::work::tests::{host, host_with_a_work};

@@ -1,5 +1,5 @@
 import type { SettingKey, Settings } from '@/data/commands';
-import { useSetSetting, useSettings } from '@/data/queries';
+import { useSetSetting, useSettings, useWork } from '@/data/queries';
 import {
   LANGUAGES,
   LENSES,
@@ -17,6 +17,8 @@ import { Card } from '@/ui/Card';
 import { ChoiceGroup } from '@/ui/ChoiceGroup';
 import { InfoBar } from '@/ui/InfoBar';
 
+import { BackupCard } from './BackupCard';
+
 const THEME_KEYS: Record<ThemeChoice, MessageKey> = {
   system: 'settings.theme.system',
   light: 'settings.theme.light',
@@ -25,7 +27,7 @@ const THEME_KEYS: Record<ThemeChoice, MessageKey> = {
 
 /**
  * Settings: how the application looks, which language it speaks, and which lens it will show a
- * work through.
+ * work through — and, while a work is open, **This work**: its backup (F11, decision 4).
  *
  * Each choice is one press, kept at once in the application's own database — there is no Save
  * button to forget. The choice shows before the host has answered (the theme changes, the words
@@ -35,6 +37,8 @@ const THEME_KEYS: Record<ThemeChoice, MessageKey> = {
 export function SettingsPage({ settings }: { settings: Settings }) {
   const { t, describeError } = useI18n();
   const read = useSettings();
+  const work = useWork();
+  const snapshot = work.isError ? null : (work.data ?? null);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
@@ -54,6 +58,7 @@ export function SettingsPage({ settings }: { settings: Settings }) {
       <AppearanceCard theme={settings.theme} />
       <LanguageCard language={settings.language} />
       <LensCard lens={settings.lens} />
+      {snapshot !== null && <BackupCard snapshot={snapshot} />}
     </div>
   );
 }

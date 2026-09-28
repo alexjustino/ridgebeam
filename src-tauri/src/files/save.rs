@@ -1,7 +1,7 @@
 //! A file written whole, or not at all, to a path a person chose.
 //!
 //! One path for every file the host writes outside the work folder: a
-//! template (F9) and every report and export (F10). The rules are the same for
+//! template (F9), every report and export (F10), and a backup (F11). The rules are the same for
 //! all of them, and live here once:
 //!
 //! - the path is a full one, and the name ends in the one extension the kind
@@ -21,6 +21,9 @@
 //!
 //! - F10: taken out of `files::templates` (F9), where it was written for a
 //!   template alone, so that a report is written by the same code.
+//! - F11: `write_streamed`, the same rules for a file written in pieces — a
+//!   backup, which can be larger than memory; `write` is now that, with the
+//!   bytes in hand.
 
 use std::io::Write;
 use std::path::Path;
@@ -110,35 +113,67 @@ pub fn write(path: &Path, bytes: &[u8], overwrite: bool, kind: &Kind) -> Result<
     if !path.is_absolute() {
         return Err(Error::InvalidInput(kind.full_path.into()));
     }
-    let refuse = refusal(path);
-    if !has_extension(path, kind.extension) {
-        return Err(refuse(kind.not_this_kind));
+    if has_extension(path, kind.extension) && bytes.len() as u64 > kind.max_bytes {
+        return Err(refusal(path)(kind.too_large));
     }
-    if bytes.len() as u64 > kind.max_bytes {
-        return Err(refuse(kind.too_large));
-    }
+    write_streamed(path, overwrite, kind, |file| {
+        file.write_all(bytes)?;
+        Ok(bytes.len() as u64)
+    })
+}
+
+/// A temporary name beside `path`, in the same folder, that no other call
+/// will choose: `.<name>.<uuid>.<suffix>`.
+pub fn temporary_beside(path: &Path, suffix: &str) -> Option<std::path::PathBuf> {
+    path.parent().map(|folder| {
+        folder.join(format!(
+            ".{}.{}.{suffix}",
+            display_name(path),
+            crate::db::new_id()
+        ))
+    })
+}
+
+/// [`write`], for a file too large to hold in memory: `fill` writes the bytes
+/// into the temporary file and says how many it wrote; the file is flushed to
+/// the disk and renamed to `path` only when `fill` succeeds and the count is
+/// within the kind's cap. A backup (F11) is written this way.
+///
+/// # Errors
+///
+/// As [`write`]; and whatever `fill` returns — after which no temporary file
+/// is left behind.
+pub fn write_streamed(
+    path: &Path,
+    overwrite: bool,
+    kind: &Kind,
+    fill: impl FnOnce(&mut std::fs::File) -> Result<u64>,
+) -> Result<()> {
     check_target(path, overwrite, kind)?;
-    let folder = path
-        .parent()
+    let refuse = refusal(path);
+    let temporary = temporary_beside(path, "tmp")
         .ok_or_else(|| refuse("the folder it would go in is not there"))?;
 
-    let temporary = folder.join(format!(
-        ".{}.{}.tmp",
-        display_name(path),
-        crate::db::new_id()
-    ));
-    let written = std::fs::OpenOptions::new()
+    let mut file = match std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&temporary)
-        .and_then(|mut file| {
-            file.write_all(bytes)?;
-            file.sync_all()
-        })
-        .and_then(|()| std::fs::rename(&temporary, path));
+    {
+        Ok(file) => file,
+        Err(error) => return Err(Error::Io(error)),
+    };
+    let filled = fill(&mut file).and_then(|count| {
+        if count > kind.max_bytes {
+            Err(refuse(kind.too_large))
+        } else {
+            file.sync_all().map_err(Error::Io)
+        }
+    });
+    drop(file);
+    let written = filled.and_then(|()| std::fs::rename(&temporary, path).map_err(Error::Io));
     if let Err(error) = written {
         let _ = std::fs::remove_file(&temporary);
-        return Err(Error::Io(error));
+        return Err(error);
     }
     log::info!("{} was saved", kind.logged_as);
     Ok(())

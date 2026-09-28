@@ -179,6 +179,31 @@ describe('planned, committed and paid', () => {
     // An activity that is not in the plan leaves the line on the stage it names.
     expect(stageOfLine(odd, line('y', 'other', 5, 'gone'))).toBe('other');
   });
+
+  it('reads the first row with an id, as a search from the start would (F11: indexed)', () => {
+    // The host never stores two rows with one id; were it to, the answer is what `find` gave.
+    const twice: WorkSnapshot = {
+      ...BASE,
+      stages: [...BASE.stages, stage('other', 2)],
+      activities: [...BASE.activities, activity('tile', 'other', 1, 2)],
+      commitments: [...BASE.commitments, commitment('quote', 'other', 1, null)],
+      payments: [FIRST, { ...SECOND, stageId: 'other' }, { ...SECOND, seq: 2 }, REVERSAL],
+    };
+    expect(stageOfLine(twice, line('t', 'other', 5, 'tile'))).toBe('tiling');
+    const reversal = paidOf(twice, WORK).rows.find((row) => row.key === 'payment:3');
+    expect(reversal).toMatchObject({ stageId: 'other', personId: 'tiler' });
+  });
+
+  it('answers each snapshot for itself: a new snapshot is read afresh', () => {
+    const moved: WorkSnapshot = {
+      ...BASE,
+      stages: [...BASE.stages, stage('other', 2)],
+      activities: [{ ...BASE.activities[0]!, stageId: 'other' }],
+    };
+    expect(stageOfLine(BASE, BASE.costLines[0]!)).toBe('tiling');
+    expect(stageOfLine(moved, BASE.costLines[0]!)).toBe('other');
+    expect(stageOfLine(BASE, BASE.costLines[0]!)).toBe('tiling');
+  });
 });
 
 describe('the stages add up to the work', () => {

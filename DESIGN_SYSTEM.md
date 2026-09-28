@@ -495,6 +495,20 @@ breaks one is not merged.
   photos are counted and said to be in the work's folder, a note shortened in a row is whole in the
   diary's PDF — and each card on **Reports** says in one line what its file holds **and what it
   does not**, and after writing names the path and offers **Open**.
+- **The plan asks one question at a time.** While a work's plan still has open questions — an
+  activity with a range and no duration, an activity with nobody responsible, a cost line not priced
+  yet, a decision not made that is overdue or due within 14 calendar days — the dashboard's first
+  card, in every lens, is **Next question**: one question, in plain words, with the one control that
+  answers it and nothing else — _"How many working days will Remove the tiles take? Most take 1 to
+  2."_ and a number. **Keep** sends the answer through the same command the breakdown uses, so it is
+  refused or locked exactly as an edit there would be; **Skip for now** moves to the next question
+  for this session and records nothing; when every question left was skipped, the card says so and
+  offers **Ask the skipped ones again**. The card says how many are answered of how many — _"3 of 22
+  answered"_ — and when none are left, or the plan is approved and locked, it is not shown. Nothing
+  is asked of a closed stage, which the host would refuse to change. The order is the domain's
+  (`nextQuestion`), never the screen's. The breakdown stays where it is: the card is a way in for
+  the person who does not know where to start, never the only way to answer, and never a second
+  editor with rules of its own (ADR-034).
 - **An empty week is printed, and says it is empty.** A week with no diary entry still makes a
   weekly report: its **first line**, in strong type, says that nothing was written and how many
   working days are over with nothing written — _"No diary entry this week: 3 working days are over
@@ -616,7 +630,12 @@ A native capability that is unavailable must be _seen_ to be unavailable.
 - **An activity that cannot be scheduled** → shown as _not scheduled_, with the reason ("no
   duration"), never as a blank cell or a date of zero.
 - **A value the host refuses** → the host's own sentence under the control that sent it, and the
-  control keeps what was typed so the person can correct it rather than watch it revert.
+  control keeps what was typed so the person can correct it rather than watch it revert. **One
+  refusal is the exception: `plan_approved`.** Typing into a locked plan is not a draft — the
+  value is not wrong, the plan is closed to it — so the control goes back to the value the plan
+  holds and the sentence under it says why and how to open it ("The plan is approved. To change
+  it, replan it with a reason first."). Keeping the typed value there would show a plan that says
+  one thing on screen and another in the work (ADR-027).
 
 Silence is the bug. A disabled button with no reason is a defect report somebody else has to
 write.

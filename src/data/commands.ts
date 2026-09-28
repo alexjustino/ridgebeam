@@ -122,13 +122,21 @@ export interface BaselineRowDraft {
   finish: string | null;
 }
 
+/** One migration a database has been through: its number and its file's name (`003_backups`). */
+export interface MigrationApplied {
+  number: number;
+  name: string;
+}
+
 /** The files and pragmas Diagnostics shows, read back from the connections. */
 export interface Diagnostics {
-  app: { databasePath: string; schemaVersion: number };
+  app: { databasePath: string; schemaVersion: number; migrations: MigrationApplied[] };
   work: null | {
     folder: string;
     databasePath: string;
     schemaVersion: number;
+    /** Every migration this work's database has been through, in order (F11). */
+    migrations: MigrationApplied[];
     /** `wal`. */
     journalMode: string;
     /** `off`, `normal`, `full` or `extra`. */
@@ -913,4 +921,86 @@ export function workExportJson(path: string, overwrite: boolean): Promise<Writte
 /** Open a file a report command wrote in this session — that file only — in the system's viewer. */
 export async function reportOpen(path: string): Promise<void> {
   await invoke<unknown>('report_open', { path });
+}
+
+// ── Backup, restore and the diagnostics summary (F11) ────────────────────────
+//
+// A backup is one `.ridgebeam` file — a ZIP holding the work's database, its documents and
+// thumbnails, and a manifest with every file's size and hash (ADR-033). Writing one follows the
+// report commands' rule: an absolute path, whole or not at all, an existing file replaced only with
+// `overwrite`, which the interface sends only when the save dialog chose that exact path. Restoring
+// one never overwrites anything: it makes a new work folder, and the host treats the file as
+// hostile until every entry has been checked against the manifest.
+
+/** What the host says it wrote: the file, its size, and how many files it holds. */
+export interface BackupWritten {
+  path: string;
+  bytes: number;
+  files: number;
+  /** Files in `documents/` or `thumbnails/` a backup never holds by their names; usually none. */
+  leftOut: string[];
+}
+
+/** A backup's manifest, read without restoring it — the Restore dialog's preview. */
+export interface BackupSummary {
+  workId: string;
+  workName: string;
+  /** UTC, as the manifest records it. */
+  createdAt: string;
+  /** `Ridgebeam <version>`: the build that wrote it. */
+  app: string;
+  schemaVersion: number;
+  files: number;
+  bytes: number;
+  /** The backup file's own size. */
+  archiveBytes: number;
+  /** Where the recent list knows this work now, or `null`: restoring moves that row, never the folder. */
+  recentFolder: string | null;
+}
+
+/** What restoring found, once the work is open from its new folder. */
+export interface RestoreReport {
+  workId: string;
+  folder: string;
+  /** Diary entries read back. */
+  entries: number;
+  /** The diary's chain verified after the restore. */
+  chainOk: boolean;
+  /** Documents re-hashed after the restore. */
+  documents: number;
+  /** Documents whose bytes do not match their row (none, when the backup was whole). */
+  mismatched: Array<{ id: string; fileName: string; expected: string; found: string }>;
+  /** Documents whose file the backup did not hold. */
+  missing: Array<{ id: string; fileName: string; fileHash: string }>;
+  /** The folder the recent list knew this work at before, when it knew it somewhere else. */
+  movedRecentFrom: string | null;
+}
+
+/** When the open work was last backed up, by this machine. */
+export interface LastBackup {
+  /** `YYYY-MM-DD`. */
+  day: string;
+}
+
+export function backupWrite(path: string, overwrite: boolean): Promise<BackupWritten> {
+  return invoke<BackupWritten>('backup_write', { path, overwrite });
+}
+
+export function backupInspect(path: string): Promise<BackupSummary> {
+  return invoke<BackupSummary>('backup_inspect', { path });
+}
+
+/** Restore into `folder` (empty or new); the restored work is open afterwards, as `work_open`. */
+export function backupRestore(path: string, folder: string): Promise<RestoreReport> {
+  return invoke<RestoreReport>('backup_restore', { path, folder });
+}
+
+/** The day the open work was last backed up here, or `null` when it never was. */
+export function backupLast(): Promise<LastBackup | null> {
+  return invoke<LastBackup | null>('backup_last');
+}
+
+/** Diagnostics as plain text, for a bug report: what the screen shows, paths included. */
+export function diagnosticsSummary(): Promise<string> {
+  return invoke<string>('diagnostics_summary');
 }

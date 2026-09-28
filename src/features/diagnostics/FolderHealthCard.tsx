@@ -1,6 +1,7 @@
 import { DocumentSearch20Regular } from '@fluentui/react-icons';
 
-import { useFolderHealth, useVerifyDocuments } from '@/data/queries';
+import { useBackupLast, useFolderHealth, useVerifyDocuments } from '@/data/queries';
+import { sizeText } from '@/features/documents/size';
 import { useI18n } from '@/i18n/useI18n';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
@@ -10,10 +11,13 @@ import { InfoBar } from '@/ui/InfoBar';
  * The work folder's health (slice F7): its size, the files in `documents/` and `thumbnails/`, and —
  * on a press — every document read again and hashed against its row, because the diary's chain
  * checks the rows and not the bytes. Files no row names are listed and kept; Ridgebeam never
- * deletes them. Rows whose file is missing are listed with the file they expect.
+ * deletes them. Rows whose file is missing are listed with the file they expect. And the day the
+ * work was last backed up on this machine (F11), or that it never was.
  */
 export function FolderHealthCard() {
-  const { t, tp, number, describeError } = useI18n();
+  const i18n = useI18n();
+  const { t, tp, number, day, describeError } = i18n;
+  const last = useBackupLast(true);
   const health = useFolderHealth(true);
   const verify = useVerifyDocuments();
   const report = verify.data ?? null;
@@ -41,21 +45,21 @@ export function FolderHealthCard() {
           health.data !== undefined && (
             <dl className="mb-3 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-body">
               <dt className="text-fg-tertiary">{t('diagnostics.folder.size')}</dt>
-              <dd className="text-fg tabular-nums">
-                {size === null
-                  ? ''
-                  : size >= 1024 * 1024
-                    ? t('documents.size.mb', {
-                        value: number(Math.round((size / 1024 / 1024) * 10) / 10),
-                      })
-                    : t('documents.size.kb', {
-                        value: number(Math.max(1, Math.round(size / 1024))),
-                      })}
-              </dd>
+              <dd className="text-fg tabular-nums">{size === null ? '' : sizeText(i18n, size)}</dd>
               <dt className="text-fg-tertiary">{t('diagnostics.folder.documents')}</dt>
               <dd className="text-fg tabular-nums">{number(health.data.documentFiles)}</dd>
               <dt className="text-fg-tertiary">{t('diagnostics.folder.thumbnails')}</dt>
               <dd className="text-fg tabular-nums">{number(health.data.thumbnailFiles)}</dd>
+              <dt className="text-fg-tertiary">{t('diagnostics.folder.lastBackup')}</dt>
+              <dd data-testid="diagnostics-last-backup" className="text-fg">
+                {last.isError
+                  ? describeError(last.error)
+                  : last.data === undefined
+                    ? ''
+                    : last.data === null
+                      ? t('diagnostics.folder.lastBackupNever')
+                      : day(last.data.day)}
+              </dd>
             </dl>
           )
         )}

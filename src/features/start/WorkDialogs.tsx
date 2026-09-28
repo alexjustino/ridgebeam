@@ -36,7 +36,7 @@ const WEEKDAYS_ONLY = [true, true, true, true, true, false, false];
  * The frame both dialogs share: the heading that names the dialog, a body that scrolls when the
  * window is short, and the row of actions that never scrolls away from it.
  */
-function DialogFrame({
+export function DialogFrame({
   title,
   lead,
   onSubmit,
@@ -54,10 +54,12 @@ function DialogFrame({
     <form
       onSubmit={onSubmit}
       aria-labelledby={heading}
-      className="flex min-h-0 flex-col"
+      className="flex min-h-0 flex-1 flex-col"
       noValidate
     >
-      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto p-5">
+      {/* flex-1 twice: in a dialog of fixed height the body takes the room and the actions stay
+          at the bottom; in one that grows with its content, it changes nothing. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
         <div>
           <h2 id={heading} className="text-subtitle font-semibold text-fg">
             {title}

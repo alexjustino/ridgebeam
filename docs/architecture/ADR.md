@@ -19,7 +19,9 @@ baseline carrying that reason, and any two baselines compare ([ADR-027](#adr-027
 ([ADR-017](#adr-017)). Slice F4 completes the first: progress is derived from the diary
 ([ADR-020](#adr-020)), which is append-only with a hash chain ([ADR-019](#adr-019)). Slice F9
 makes the sixth true: templates are plans, applied once as the work's own, with ranges and no
-prices ([ADR-029](#adr-029)), and a work goes back out as a template ([ADR-030](#adr-030)).
+prices ([ADR-029](#adr-029)), and a work goes back out as a template ([ADR-030](#adr-030)). Slice
+F11 gives the template its voice: a plan started from one asks what it does not yet know, one
+question at a time ([ADR-034](#adr-034)).
 
 | #               | Decision                                                                                                             | Status                         |
 | --------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -55,6 +57,8 @@ prices ([ADR-029](#adr-029)), and a work goes back out as a template ([ADR-030](
 | [030](#adr-030) | A work exports as a template with its numbers stripped or kept                                                       | Accepted — 2026-09-28          |
 | [031](#adr-031) | A report is a document the interface composes and the host renders, in standard fonts, and a second reader checks it | Accepted — 2026-09-28          |
 | [032](#adr-032) | The diary export verifies the chain when it is written, and a CSV never carries a formula                            | Accepted — 2026-09-28          |
+| [033](#adr-033) | A backup is one ZIP with a manifest; restore makes a new folder and proves it byte for byte                          | Accepted — 2026-09-28          |
+| [034](#adr-034) | The plan asks one question at a time                                                                                 | Accepted — 2026-09-28          |
 
 ---
 
@@ -1692,3 +1696,174 @@ import it by hand. Names in the CSV are the plan's names today, not the ones it 
 Photos travel as their hashes, not as pictures. And the chain proves what [ADR-019](#adr-019) says
 it proves, no more: somebody who rewrites every entry and recomputes every hash gets an export that
 says the chain is verified.
+
+## ADR-033 — A backup is one ZIP with a manifest; restore makes a new folder and proves it byte for byte {#adr-033}
+
+**Status.** Accepted — 2026-09-28.
+
+**Context.** The specification's first risk is critical: a diary entry lost, or a baseline
+overwritten (R1). Append-only tables and a chain ([ADR-016](#adr-016), [ADR-019](#adr-019)) keep the
+record from being rewritten inside the product; they do nothing for a disk that fails, a laptop that
+is stolen, or a folder deleted by mistake. A work is a folder ([ADR-004](#adr-004)), so a person can
+copy it — but only while it is closed, and only if they know that the database, `documents/` and
+`thumbnails/` travel together, and a copy made while the work is open can catch the database between
+its file and its write-ahead log. The specification asks for more: **the whole work as one file,
+restored byte for byte** (SPEC §7, F11), proven in `cargo test` rather than claimed. Three shapes
+were weighed. **A copy of the folder** is not one file, and says nothing about whether it is whole.
+**A format of the product's own** could be opened by nobody but the product. **A ZIP** is one file
+that Windows opens by itself — a person can see what their backup holds without Ridgebeam — and the
+product can still refuse any ZIP that is not exactly the one it wrote.
+
+**Decision.**
+
+- **One file, `<name>.ridgebeam`, a plain ZIP**, holding in this order and nothing else:
+  `manifest.json`; `work.sqlite3`; every file of `documents/` and then of `thumbnails/`, by name;
+  and last, `manifest.sha256`. The format is in [`DATA_MODEL.md`](../DATA_MODEL.md).
+- **The manifest says what the backup holds** — the format's version (`"ridgebeamBackup": 1`), when
+  it was written, the build that wrote it, the work's id, name and schema version, and every file
+  with its size and SHA-256 — and **its own hash is the last entry**, in the form `sha256sum -c`
+  reads, so a manifest changed after it was written is found before a word of it is believed.
+- **The database is a snapshot, not a copy.** `VACUUM INTO`, on the connection the work is open on,
+  in one read transaction: every committed row, the write-ahead log folded in, taken while the work
+  stays open. It is rebuilt page by page, so the free pages of the live file — where the bytes of a
+  deleted row may linger — do not travel in a file a person hands to somebody else; SQLite's online
+  backup API copies pages as they are, free ones included. The snapshot is put in WAL mode, as
+  every closed work is, so that opening the restored work changes none of its bytes. It is
+  deflated; documents and thumbnails are stored as they are, already compressed (a BMP, the one
+  kept format that is not, is deflated).
+- **The ZIP is written and read by hand** (`src-tauri/src/files/archive.rs`): local headers with
+  their sizes and CRC in place, stored or deflated, a central directory, the end record — no
+  ZIP64, no encryption, no extra field, no data descriptor, no comment, no directory entry, ASCII
+  names. The `zip` crate was measured and not taken: its reader parses what this product must
+  refuse anyway, its writer refuses a duplicate name — so the hostile corpus would need a hand
+  writer regardless — and the guarantee that matters, sizes enforced while inflating, would be
+  this product's code either way. Deflate and CRC-32 are `flate2`, already in the binary. **No
+  crate is added.** The second reader is Windows' own `tar.exe`, which reads every backup a test
+  writes.
+- **Where it lives.** **Back up this work** in a new **This work** section of Settings, shown only
+  while a work is open: a path chosen in the save dialog, written whole or not at all through the
+  same path every report takes ([ADR-031](#adr-031)), an existing file replaced only when the
+  dialog chose it, and never inside the work's own folder, where it would be lost with the work.
+  The answer names the path, the size and how many files it holds. **The day of the last backup**
+  is kept in the application's database, per work — not in the work, which cannot hold the moment
+  it was itself copied — and shown in Settings and in Diagnostics' folder health — the day, or
+  that it was never backed up on this machine.
+- **Restore makes a new folder; it never overwrites one.** **Restore a backup…** on the Start
+  screen: the file, then a folder that does not exist yet or is empty; a folder that holds
+  anything is refused. Before restoring, the dialog shows what the manifest says — the work, when
+  it was backed up, by which build, how many files. The file is **hostile input**
+  ([`SECURITY.md`](../../SECURITY.md)): the shape this product writes and no other, 4 GiB at most,
+  every name from a closed allow-list and none twice, the manifest's hash checked first, every
+  file's size equal to the manifest's and under its cap **while it inflates**, every SHA-256
+  checked, and the database opened read-only and found to be a Ridgebeam work — the work the
+  manifest names, at a schema this build knows. Everything is written into a temporary folder
+  beside the target, opened there — **an older schema migrates forward** as any old work does —
+  and renamed into place only when every check has passed. On any refusal, a sentence says why,
+  and nothing is left.
+- **Then it proves itself.** The restored work is opened, its diary's chain is verified and every
+  document re-hashed, and the Start screen says so: "Restored: N entries, chain verified, N
+  documents as recorded". If the recent list already knew that work at another folder, the row
+  moves to the restored folder and the sentence says **the old folder was left as it was**.
+- **"Byte for byte" is a test, not a claim.** `cargo test` builds a full work — stages, activities,
+  links, baselines 1 and 2 with a replanning between them, decisions, checks with answers and a
+  photo, a diary with a correction and photos, documents including a PDF, cost lines, commitments,
+  payments with a reversal, a template's provenance — backs it up, restores it into a new folder,
+  and holds that the restored `work.sqlite3` is byte-identical to the snapshot the archive holds,
+  every document and thumbnail byte-identical to the original, **every table's rows equal to the
+  original's**, compared table by table through `PRAGMA table_info` so a column added later cannot
+  be forgotten, the chain verifying and every document as recorded. A corpus of thirty-two hostile
+  archives, generated in the test and committed nowhere, is refused one by one with nothing written.
+
+**Why.** One file is something a person can copy to a USB stick, a second disk or a cloud folder
+of their own choosing without understanding what a work folder holds. A ZIP is the one archive
+Windows opens by itself, so a backup is never a black box — and writing the ZIP by hand keeps the
+reader as narrow as the writer: the only archive it accepts is the one it would have written. A
+manifest with its own hash turns "the backup is whole" into something checked before anything is
+written. Restoring into a new folder means a restore can never destroy the work it was meant to
+save, and staging it beside the target means a refused restore leaves no half-work for somebody
+to open by mistake. Proving the round trip table by table is what lets R1's mitigation say "backup
+round-trip proven in Rust" and mean it.
+
+**Cost accepted.** **A backup is not encrypted.** It holds everything the work holds — the diary,
+the payments, people's phone numbers and e-mail addresses, every photo and document, the Windows
+account name on each entry — in a ZIP anybody can open; it must be kept as carefully as the work
+folder, and the product says so. **A restore makes a new folder and leaves the old one**: the
+person has two copies of the work until they remove one, and the product never removes either;
+the recent list follows the restored one. **A full copy every time**: no incremental backup, so a
+work with a gigabyte of photos makes a backup of about a gigabyte each time, and nothing is kept
+of which backups were made or where — only the day of the last one, on this machine. The product
+never backs up on its own and never reminds; "never" in Settings is the only nudge. A backup made
+on another machine, or restored here from one, reads "never" until one is written here. The plain
+ZIP format caps a backup at 4 GiB and 65 535 files, and a document at the intake's own 25 MiB; a
+work past a cap is refused with a sentence, not split. A file in `documents/` or `thumbnails/`
+whose name a backup never holds — something put there by hand — is left out and named. And the
+backup proves only what it holds: a work whose chain was already broken is backed up as it is, and
+restoring it says the chain does not verify.
+
+## ADR-034 — The plan asks one question at a time {#adr-034}
+
+**Status.** Accepted — 2026-09-28.
+
+**Context.** The specification names the risk that decides whether the product is used at all: the
+person building once finds it too much and leaves on the first screen (R3). Its answer is three
+things — the owner's lens by default ([ADR-014](#adr-014)), readiness saying the next thing to do in
+a sentence ([ADR-018](#adr-018)), and **a template that asks questions instead of showing a
+Gantt**. The first two were true from F1 and F3. The third was not: a work started from a template
+([ADR-029](#adr-029)) opened on a plan with every duration a range, nobody responsible, every cost
+line a label and the decisions unanswered — all counted by readiness, all listed, and all to be
+found and filled in on a breakdown of twenty or thirty rows by somebody who does not know what a
+breakdown is. Three shapes were weighed. A **wizard** that runs when the work is created asks
+everything before the person has seen their plan, cannot be left halfway without losing its
+place, and is a second editor with rules of its own. A **list of every open question** is the
+readiness list again, in a different order — the same wall of rows. **One question at a time**, on
+the screen the person already lands on, asks the next thing and nothing else.
+
+**Decision.**
+
+- **The domain chooses the question** — `src/domain/questions.ts`, pure, with `today` passed in:
+  `openQuestions` returns every open question in the order it is asked, with the count, and
+  `nextQuestion` the first one not skipped this session. Four kinds, in this order: an activity with
+  a **range and no duration** ("How many working days will _Remove the tiles_ take? Most take 1 to
+  2."); an activity with **nobody responsible**, or somebody no longer in the plan; a **cost line
+  not priced yet**; and a **decision not made that is overdue, or due within 14 calendar days**,
+  most urgent first. Inside a kind, plan order — stage by stage, by position. Each question carries
+  a stable key (`duration:<activity id>` …), the message key and parameters of its sentence, and
+  **what its answer writes**: the existing command (`activity_update`, `cost_line_update`,
+  `decision_make`), the row and the one field — so the screen never works it out again.
+- **On the dashboard, first, in every lens.** While there is a question, the dashboard's first card
+  is **Next question**: the sentence, the one control that answers it — a number of working days,
+  a person (with a link to add one on the Plan), an amount, what was decided — and **Keep** and
+  **Skip for now**. It says how many of the plan's questions are answered — "3 of 22 answered".
+- **An answer is an edit like any other.** It goes through the command the breakdown uses, and is
+  refused, with the host's sentence, exactly where an edit there would be. **Nothing is asked
+  while the plan is locked** — approved, with no replanning open ([ADR-027](#adr-027)) — and
+  nothing of an activity or a cost line of a **closed stage** ([ADR-022](#adr-022)): the host would
+  refuse the answer, so the card does not ask.
+- **Skip is for this session and records nothing.** A skipped question stays open and stays in the
+  count; the card moves to the next, and when every question left was skipped it says so and
+  offers **Ask the skipped ones again**. Nothing about questions is stored — not asked, not skipped,
+  not answered: an answered question is simply one whose row now holds the fact.
+- **The count is over the plan as it is**: every activity with a range, every activity's
+  responsible and every cost line, of the stages still open; every decision made, and every open
+  one being asked now. A decision whose deadline is further away is not asked yet, so it is neither
+  answered nor open.
+- **The breakdown stays.** The card is a way in, not the only way: every question it asks can be
+  answered where it always could be, and the engineer who would rather type thirty durations into
+  the breakdown does.
+
+**Why.** One question with one control is something a person who has never planned a build can
+answer, and each answer moves readiness in front of them. Choosing the question in the domain keeps
+it pure and tested, and keeps the order a fact rather than a screen's opinion. Sending the answer
+through the existing commands means the card cannot write what the breakdown could not — there is
+one set of rules for changing a plan, and a locked plan is locked here too. Storing nothing keeps
+the work's data what it was: a question is a view over the rows, as a lens is.
+
+**Cost accepted.** **One question at a time can feel slow** to an engineer who knows the plan and
+would rather fill in the breakdown in one pass — which is why the breakdown stays, unchanged, and
+the card is only the dashboard's first card. **A skip is forgotten on restart**: the skipped
+question comes back the next session, by design, because a question nobody answered is still
+open. The order is fixed — durations before people before prices before decisions — and a person
+cannot reorder it; a decision falling due tomorrow waits behind every unanswered duration, though
+readiness and the Decisions list show it as overdue or due all the same. A decision is asked only
+within 14 calendar days of its deadline, so the count grows as deadlines come near. And the card
+asks what readiness already counts; it adds no rule and no figure of its own.
