@@ -191,7 +191,8 @@ mod tests {
             wire,
             serde_json::json!({
                 "id": tile, "stageId": stage, "position": 1, "name": "Which tile",
-                "leadTimeDays": 10, "madeAt": null, "answer": null
+                "leadTimeDays": 10, "leadMinDays": null, "leadMaxDays": null,
+                "madeAt": null, "answer": null
             })
         );
 

@@ -22,12 +22,16 @@
 //! - F8: `work_update` that moves the start date of an approved plan is
 //!   refused with `plan_approved` unless a replanning is open; its name, place
 //!   and currency stay free.
+//! - F9: `work_create` may carry a plan (`plan: { draft, provenance }`),
+//!   checked before the folder is touched and applied in the same step; a plan
+//!   refused leaves no folder the call created, no file, and no recent row.
 
 use std::path::Path;
 
 use tauri::State;
 
-use crate::contract::{RecentWork, WorkDraft, WorkPatch, WorkSnapshot, WorkSummary};
+use crate::commands::templates;
+use crate::contract::{PlanStart, RecentWork, WorkDraft, WorkPatch, WorkSnapshot, WorkSummary};
 use crate::db::{self, lock, recent, Db};
 use crate::error::{Error, Result};
 use crate::folder::{self, OpenWork, WorkState};
@@ -44,20 +48,25 @@ pub fn recent_works(db: State<'_, Db>) -> Result<Vec<RecentWork>> {
     recent_works_with(&db)
 }
 
-/// Create a work in a folder that does not exist yet or is empty, and open it.
+/// Create a work in a folder that does not exist yet or is empty, and open it
+/// — with a template's plan, when `plan` carries one, applied in the same
+/// step.
 ///
 /// # Errors
 ///
 /// [`Error::InvalidInput`], [`Error::WorkFolderNotEmpty`], [`Error::Io`] or
-/// [`Error::Database`] — see [`folder::create`].
+/// [`Error::Database`] — see [`folder::create`]; for a plan, the refusals of
+/// `plan_apply`, after which nothing is left: not the folder the call created,
+/// not a file, not a recent row.
 #[tauri::command(rename_all = "snake_case")]
 pub fn work_create(
     db: State<'_, Db>,
     open: State<'_, OpenWork>,
     folder: String,
     draft: WorkDraft,
+    plan: Option<PlanStart>,
 ) -> Result<WorkSummary> {
-    work_create_with(&db, &open, &folder, &draft)
+    work_create_from(&db, &open, &folder, &draft, plan.as_ref())
 }
 
 /// Open the work in a folder.
@@ -206,8 +215,33 @@ pub fn work_create_with(
     folder: &str,
     draft: &WorkDraft,
 ) -> Result<WorkSummary> {
+    work_create_from(db, open, folder, draft, None)
+}
+
+/// What [`work_create`] does once the state is in hand, with or without a
+/// plan. The plan is checked before the disk is touched; what only the file
+/// can refuse — a loop in its links — is refused after, and the new work is
+/// removed again before anything records it.
+pub fn work_create_from(
+    db: &Db,
+    open: &OpenWork,
+    folder: &str,
+    draft: &WorkDraft,
+    plan: Option<&PlanStart>,
+) -> Result<WorkSummary> {
     let path = folder::folder_path(folder)?;
-    let state = folder::create(&path, draft)?;
+    let checked = plan
+        .map(|plan| {
+            Ok::<_, Error>((
+                templates::check_plan(&plan.draft)?,
+                templates::check_provenance(&plan.provenance)?,
+            ))
+        })
+        .transpose()?;
+    let state = folder::create_then(&path, draft, |conn| match &checked {
+        Some((plan, provenance)) => db::templates::apply(conn, plan, provenance),
+        None => Ok(()),
+    })?;
     install(db, open, state)
 }
 

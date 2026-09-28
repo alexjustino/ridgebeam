@@ -11,7 +11,10 @@
 //! - F7: `photos` becomes `intake`, the general pipeline: images and PDFs by
 //!   their bytes, everything else refused; `hostile`, the corpus it is held
 //!   to, generated in `cargo test` against a committed manifest.
+//! - F9: `templates` — a template file read as text and written whole, under
+//!   a cap, `.json` only, never parsed by the host.
 
 #[cfg(test)]
 pub mod hostile;
 pub mod intake;
+pub mod templates;

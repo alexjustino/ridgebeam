@@ -47,6 +47,14 @@
 //!   `Baseline.stages`, `Baseline.plannedCents`, `BaselineRow.plannedCents`).
 //!   Money a baseline did not record — one taken before F8 — is `null`, never
 //!   0. `BaselineRowDraft` is unchanged: the host reads the money from the file.
+//! - F9: templates. An activity's range (`Activity.durationMinDays`,
+//!   `.durationMaxDays`) and a decision's (`Decision.leadMinDays`,
+//!   `.leadMaxDays`), both or neither; a cost line not priced yet
+//!   (`CostLine.amountCents: null`, and `null` accepted by `cost_line_add` and
+//!   `CostLinePatch.amountCents`); where the plan came from
+//!   (`Work.templateId`, `.templateVersion`, `.templateTitle`). A plan applied
+//!   whole (`PlanDraft` and its parts, keyed locally; `Provenance`;
+//!   `PlanStart`, what `work_create` may carry).
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -147,6 +155,13 @@ pub struct Work {
     /// When the plan was first approved — baseline 1 taken — UTC; `null` until
     /// it is. Never changes once set.
     pub approved_at: Option<String>,
+    /// The template the plan was started from, by id; `null` for a plan
+    /// started empty. Provenance, not a tie: nothing links back to it.
+    pub template_id: Option<String>,
+    /// That template's version; `null` with the id.
+    pub template_version: Option<i64>,
+    /// Its title, in the language the work was started in; `null` with the id.
+    pub template_title: Option<String>,
 }
 
 /// The working calendar durations are counted on.
@@ -264,6 +279,11 @@ pub struct Activity {
     pub name: String,
     /// Working days; `null` until somebody knows.
     pub duration_days: Option<i64>,
+    /// The lower end of the range a template gave, in working days; `null`
+    /// when there is none. Set with `durationMaxDays`, or neither.
+    pub duration_min_days: Option<i64>,
+    /// The upper end of that range, never below the lower; `null` with it.
+    pub duration_max_days: Option<i64>,
     /// The person responsible; `null` until somebody is.
     pub responsible_id: Option<String>,
     /// The rooms it touches, in the rooms' order; empty when none.
@@ -488,8 +508,9 @@ pub struct CostLine {
     pub activity_id: Option<String>,
     /// What it is for.
     pub label: String,
-    /// How much, in the currency's minor unit; 0 or more.
-    pub amount_cents: i64,
+    /// How much, in the currency's minor unit; 0 or more — or `null`: not
+    /// priced yet, which is not 0.
+    pub amount_cents: Option<i64>,
 }
 
 /// A change to a cost line. A field left out is left alone.
@@ -499,9 +520,10 @@ pub struct CostLinePatch {
     /// A new label.
     #[serde(default)]
     pub label: Option<String>,
-    /// A new amount, whole minor units, 0 or more.
-    #[serde(default)]
-    pub amount_cents: Option<f64>,
+    /// Absent: unchanged. `null`: not priced yet. A number: a new amount,
+    /// whole minor units, 0 or more.
+    #[serde(default, deserialize_with = "present")]
+    pub amount_cents: Option<Option<f64>>,
 }
 
 /// Committed money: a quote or contract accepted.
@@ -667,6 +689,12 @@ pub struct Decision {
     pub name: String,
     /// Working days between deciding and having, 0 to 3650.
     pub lead_time_days: i64,
+    /// The lower end of the lead range a template gave; `null` when there is
+    /// none. Set with `leadMaxDays`, or neither. For display: the lead time
+    /// is the one above.
+    pub lead_min_days: Option<i64>,
+    /// The upper end of that range — what the lead time started as.
+    pub lead_max_days: Option<i64>,
     /// When it was made, UTC; `null` while it is open.
     pub made_at: Option<String>,
     /// What was decided, if the person wrote it; `null` while it is open, and
@@ -1018,6 +1046,173 @@ pub struct ChainReport {
     pub reason: Option<String>,
 }
 
+/// A plan to apply whole to a work that has none: what a template becomes
+/// once the domain has read it in one language (`applyTemplate`). Rows name
+/// one another by local keys, never by ids; the host gives every row a new id
+/// and resolves every key, or refuses the whole plan. A list left out is
+/// empty.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanDraft {
+    /// Rooms, in order.
+    #[serde(default)]
+    pub rooms: Vec<RoomDraft>,
+    /// Stages, in order, each with what belongs to it.
+    #[serde(default)]
+    pub stages: Vec<StageDraft>,
+    /// Dependencies, by keys.
+    #[serde(default)]
+    pub links: Vec<LinkDraft>,
+}
+
+/// A room of a [`PlanDraft`].
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RoomDraft {
+    /// Unique among the draft's rooms, 1 to 64 characters.
+    pub key: String,
+    /// Its name.
+    pub name: String,
+}
+
+/// A stage of a [`PlanDraft`].
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StageDraft {
+    /// Unique among the draft's stages, 1 to 64 characters.
+    pub key: String,
+    /// Its name.
+    pub name: String,
+    /// Its activities, in order.
+    #[serde(default)]
+    pub activities: Vec<ActivityDraft>,
+    /// Its checks, in order within each gate.
+    #[serde(default)]
+    pub checks: Vec<CheckDraft>,
+    /// Its cost lines, in order.
+    #[serde(default)]
+    pub cost_lines: Vec<CostLineDraft>,
+    /// Its decisions, in order.
+    #[serde(default)]
+    pub decisions: Vec<DecisionDraft>,
+}
+
+/// An activity of a [`StageDraft`].
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivityDraft {
+    /// Unique inside its stage, 1 to 64 characters.
+    pub key: String,
+    /// Its name.
+    pub name: String,
+    /// Working days, 1 to 3650; `null` while the range is a range.
+    #[serde(default)]
+    pub duration_days: Option<f64>,
+    /// The lower end of its range, 1 to 3650; with the upper, or neither.
+    #[serde(default)]
+    pub duration_min_days: Option<f64>,
+    /// The upper end, not below the lower.
+    #[serde(default)]
+    pub duration_max_days: Option<f64>,
+    /// The rooms it touches, by the draft's room keys.
+    #[serde(default)]
+    pub rooms: Vec<String>,
+}
+
+/// A check of a [`StageDraft`].
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckDraft {
+    /// `start` or `close`.
+    pub gate: String,
+    /// The question, at most 200 characters.
+    pub name: String,
+}
+
+/// A cost line of a [`StageDraft`].
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CostLineDraft {
+    /// What it is for.
+    pub label: String,
+    /// An activity of the same stage, by key; `null` for the stage itself.
+    #[serde(default)]
+    pub activity_key: Option<String>,
+    /// Whole minor units, 0 or more; `null`: not priced yet.
+    #[serde(default)]
+    pub amount_cents: Option<f64>,
+}
+
+/// A decision of a [`StageDraft`].
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DecisionDraft {
+    /// What is to be decided.
+    pub name: String,
+    /// Working days, 0 to 3650 — the upper end of the range, when there is one.
+    #[serde(default)]
+    pub lead_time_days: f64,
+    /// The lower end of its lead range; with the upper, or neither.
+    #[serde(default)]
+    pub lead_min_days: Option<f64>,
+    /// The upper end, not below the lower.
+    #[serde(default)]
+    pub lead_max_days: Option<f64>,
+    /// The activity of the same stage that needs it, by key; `null` for the
+    /// stage's first. Resolved — a key that is not there refuses the plan —
+    /// and not stored: in 1.0 a decision is needed by its whole stage.
+    #[serde(default)]
+    pub needs_key: Option<String>,
+}
+
+/// One end of a [`LinkDraft`]: a stage, or an activity of a stage, by keys.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EndpointDraft {
+    /// `activity` or `stage`.
+    pub kind: String,
+    /// The stage, or the activity's stage.
+    pub stage_key: String,
+    /// The activity, for `activity`; `null` for `stage`.
+    #[serde(default)]
+    pub activity_key: Option<String>,
+}
+
+/// A dependency of a [`PlanDraft`], by keys.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkDraft {
+    /// What has to finish first.
+    pub blocker: EndpointDraft,
+    /// What waits for it.
+    pub blocked: EndpointDraft,
+    /// Working days between the two, 0 to 3650.
+    #[serde(default)]
+    pub lag_days: f64,
+}
+
+/// Where a plan came from: recorded on the work, never linked back.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Provenance {
+    /// The template's id: kebab-case, at most 64 characters.
+    pub template_id: String,
+    /// Its version, a whole number from 1.
+    pub template_version: f64,
+    /// Its title in the language the work starts in, at most 120 characters.
+    pub template_title: String,
+}
+
+/// What `work_create` may carry: a plan to apply in the same step.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanStart {
+    /// The plan.
+    pub draft: PlanDraft,
+    /// Where it came from.
+    pub provenance: Provenance,
+}
+
 /// What Diagnostics shows.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1123,6 +1318,8 @@ mod tests {
             position: 1,
             name: "Tiling".into(),
             duration_days: None,
+            duration_min_days: Some(3),
+            duration_max_days: Some(5),
             responsible_id: None,
             room_ids: vec![],
             quantity: Some(12.0),
@@ -1132,7 +1329,8 @@ mod tests {
             serde_json::to_value(activity).unwrap(),
             json!({
                 "id": "a", "stageId": "s", "position": 1, "name": "Tiling",
-                "durationDays": null, "responsibleId": null,
+                "durationDays": null, "durationMinDays": 3, "durationMaxDays": 5,
+                "responsibleId": null,
                 "roomIds": [], "quantity": 12.0, "unit": "m²"
             })
         );

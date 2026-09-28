@@ -36,6 +36,10 @@
 //! - F8: `replanning` (an approved plan locked until somebody says why; the
 //!   next baseline closes it), and baselines that record stages and money;
 //!   work migration 009, with its backfill of old baselines' stages.
+//! - F9: `templates` (a plan applied whole onto an empty work, in one
+//!   transaction; ranges taken); work migration 010 — an activity's and a
+//!   decision's range, where the plan came from, and `cost_line` rebuilt so a
+//!   line may be not priced yet.
 
 #[cfg(test)]
 mod append_only_tests;
@@ -56,6 +60,7 @@ pub mod recent;
 pub mod replanning;
 pub mod rooms;
 pub mod settings;
+pub mod templates;
 pub mod work;
 
 use std::path::{Path, PathBuf};
