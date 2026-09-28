@@ -6,7 +6,15 @@
  */
 
 import type { DiaryEntry, DoneLine } from '../diary';
-import type { Activity, Decision, Dependency, Endpoint, Stage, WorkSnapshot } from '../plan';
+import type {
+  Activity,
+  Decision,
+  Dependency,
+  Endpoint,
+  Person,
+  Stage,
+  WorkSnapshot,
+} from '../plan';
 
 /** A work starting on Tuesday 1 September 2026, Monday to Friday, with nothing in it. */
 export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
@@ -34,6 +42,7 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     costLines: [],
     commitments: [],
     payments: [],
+    documents: [],
     ...parts,
   };
 }
@@ -170,5 +179,20 @@ export function withStageRules(plan: WorkSnapshot): WorkSnapshot {
       label: 'Sample cost',
       amountCents: 100_00,
     })),
+  };
+}
+
+/** A person with a name and nothing else said yet. */
+export function person(id: string, name = `Person ${id}`, parts: Partial<Person> = {}): Person {
+  return {
+    id,
+    name,
+    trade: null,
+    phone: null,
+    email: null,
+    note: null,
+    availability: null,
+    stageIds: [],
+    ...parts,
   };
 }

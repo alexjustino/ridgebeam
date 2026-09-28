@@ -15,7 +15,18 @@ const at = (plan: WorkSnapshot, today: string) => {
   return readiness(checked, { schedule: schedule(checked), today });
 };
 
-const PEOPLE = [{ id: 'p', name: 'Sample person', trade: null }];
+const PEOPLE = [
+  {
+    id: 'p',
+    name: 'Sample person',
+    trade: null,
+    phone: null,
+    email: null,
+    note: null,
+    availability: null,
+    stageIds: [],
+  },
+];
 
 /**
  * F2's plan, everything known but responsibles: four activities, all linked.

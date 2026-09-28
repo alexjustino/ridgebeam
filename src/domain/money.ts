@@ -129,11 +129,15 @@ function paymentRow(snapshot: WorkSnapshot, payment: Payment, sign: 1 | -1): Mon
 
 // ── Scopes ───────────────────────────────────────────────────────────────────
 
-/** What a figure is about: the whole work, one stage, or one trade (`null`: no trade yet). */
+/**
+ * What a figure is about: the whole work, one stage, one trade (`null`: no trade yet), or one
+ * person. A cost line has no trade and no person, so neither of those counts it.
+ */
 export type MoneyScope =
   | { readonly kind: 'work' }
   | { readonly kind: 'stage'; readonly stageId: string }
-  | { readonly kind: 'trade'; readonly trade: string | null };
+  | { readonly kind: 'trade'; readonly trade: string | null }
+  | { readonly kind: 'person'; readonly personId: string };
 
 /** A trade as written, trimmed; empty is no trade. */
 function normalTrade(trade: string | null | undefined): string | null {
@@ -150,13 +154,17 @@ export function tradeOf(snapshot: WorkSnapshot, personId: string | null): string
 function inScope(snapshot: WorkSnapshot, row: MoneyRow, scope: MoneyScope): boolean {
   if (scope.kind === 'work') return true;
   if (scope.kind === 'stage') return row.stageId === scope.stageId;
-  // A cost line has no trade: it belongs to no trade's figures, not to "no trade yet".
-  return row.source !== 'cost-line' && tradeOf(snapshot, row.personId) === scope.trade;
+  // A cost line has no trade and no person: it belongs to no trade's or person's figures, and not to
+  // "no trade yet" either.
+  if (row.source === 'cost-line') return false;
+  if (scope.kind === 'person') return row.personId === scope.personId;
+  return tradeOf(snapshot, row.personId) === scope.trade;
 }
 
 function scopeId(scope: MoneyScope): string {
   if (scope.kind === 'work') return 'work';
   if (scope.kind === 'stage') return `stage:${scope.stageId}`;
+  if (scope.kind === 'person') return `person:${scope.personId}`;
   return `trade:${scope.trade ?? ''}`;
 }
 
