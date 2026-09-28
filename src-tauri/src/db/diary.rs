@@ -58,6 +58,9 @@
 //! # Changelog of this repository
 //!
 //! - F4: `append`, `list`, `get`, `verify`, `photo_by_hash`, `canonical`.
+//! - F10: `all` (every entry in the chain's order) and `check_chain` (the
+//!   verification over rows already read), so an export verifies the very rows
+//!   it writes. `verify` is the two together; reads only.
 
 use std::collections::{BTreeSet, HashMap};
 
@@ -357,7 +360,22 @@ pub fn get(conn: &Connection, seq: i64) -> Result<Option<DiaryEntry>> {
 ///
 /// [`Error::Database`] when a table cannot be read.
 pub fn verify(conn: &Connection) -> Result<ChainReport> {
-    let entries = read(conn, "1 = 1", &[], "seq ASC")?;
+    Ok(check_chain(&all(conn)?))
+}
+
+/// Every entry, in the chain's order: by `seq`, from 1.
+///
+/// # Errors
+///
+/// [`Error::Database`] when a table cannot be read.
+pub fn all(conn: &Connection) -> Result<Vec<DiaryEntry>> {
+    read(conn, "1 = 1", &[], "seq ASC")
+}
+
+/// Recompute every hash and every link of `entries`, which are the whole
+/// diary in the chain's order ([`all`]). An export checks the very rows it
+/// writes with this, rather than reading the diary twice.
+pub fn check_chain(entries: &[DiaryEntry]) -> ChainReport {
     let count = entries.len() as i64;
     let broken = |at: i64, problem: &'static str, reason: String| ChainReport {
         entries: count,
@@ -368,7 +386,7 @@ pub fn verify(conn: &Connection) -> Result<ChainReport> {
     };
 
     let mut previous = String::new();
-    for (expected, entry) in (1i64..).zip(&entries) {
+    for (expected, entry) in (1i64..).zip(entries) {
         if entry.seq != expected {
             let reason = if expected == 1 {
                 "Entry #1 is missing: the diary does not start at the beginning.".to_string()
@@ -379,37 +397,37 @@ pub fn verify(conn: &Connection) -> Result<ChainReport> {
                     entry.seq
                 )
             };
-            return Ok(broken(expected, "missing", reason));
+            return broken(expected, "missing", reason);
         }
         if entry.prev_hash != previous {
-            return Ok(broken(
+            return broken(
                 entry.seq,
                 "link",
                 format!(
                     "Entry #{} does not point at the entry before it: that entry was changed, or this one was.",
                     entry.seq
                 ),
-            ));
+            );
         }
         if hash_of(entry) != entry.hash {
-            return Ok(broken(
+            return broken(
                 entry.seq,
                 "contents",
                 format!(
                     "Entry #{} does not match its hash: something in it was changed after it was written.",
                     entry.seq
                 ),
-            ));
+            );
         }
         previous = entry.hash.clone();
     }
-    Ok(ChainReport {
+    ChainReport {
         entries: count,
         intact: true,
         broken_at: None,
         problem: None,
         reason: None,
-    })
+    }
 }
 
 /// A photo already in the work, as an earlier entry recorded it — what a

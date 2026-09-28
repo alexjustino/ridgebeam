@@ -45,12 +45,22 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 # Rust library only (`open_path`): the plugin is not registered, so it adds no
 # command the webview could call and no capability.
 tauri-plugin-opener = "2"
+# Reports (F10): the host lays a document out and writes it as a PDF in the
+# standard Helvetica faces, WinAnsi, nothing embedded (`report::pdf`). The same
+# writer as the sibling product's export; it writes, it never reads a PDF.
+pdf-writer = "0.15"
+# A report's page streams are deflated (`/FlateDecode`). Already in the tree
+# through `png` (F4, where it was a dev-dependency for the hostile corpus);
+# naming it here makes the host a direct user and adds no crate to the binary.
+flate2 = "1"
 
 [dev-dependencies]
-# The hostile corpus's zip bomb is deflated by the test that generates it.
-# Already in the tree through `png`; a dev-dependency adds nothing to the
-# binary.
-flate2 = "1"
+# The second reader (F10, ADR-031): every PDF a test writes is parsed by a
+# library of another lineage than the writer, and its text, pages and metadata
+# read back. Tests only — the product never parses a PDF (F7: a PDF is kept by
+# its bytes). No default features: `chrono-clock` and `rayon` add nothing to
+# reading one small file. 0.45 declares rust-version 1.88, as this crate does.
+lopdf = { version = "0.45", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
 # The accent colour the desktop uses, read from the system (`os::accent`).
@@ -104,6 +114,19 @@ strip = true
 #     (bmp needs no crate of its own)
 #   tauri-plugin-opener           Apache-2.0 OR MIT
 #     └ open                      MIT
+#
+# F10 (reports) adds two crates to the binary — pdf-writer and, through it
+# alone, ryu — and makes one it already carried a direct dependency (read from
+# `cargo tree -e normal`). None is copyleft:
+#   pdf-writer                    MIT OR Apache-2.0
+#     └ ryu                       Apache-2.0 OR BSL-1.0   (new with pdf-writer)
+#     └ bitflags, itoa, memchr    (already in the tree)
+#   flate2                        MIT OR Apache-2.0       (already in the tree)
+# and one for tests only, never in the binary:
+#   lopdf (dev)                   MIT
+# The widths of Helvetica and Helvetica-Bold (`report::winansi`) are numbers
+# from Adobe's Core14 AFM files, whose notice is carried in that module and in
+# NOTICE. No font file is embedded or shipped.
 #
 # There is no HTTP client, no filesystem plugin and no shell plugin in this
 # list, on purpose: the product makes no network request and runs no program

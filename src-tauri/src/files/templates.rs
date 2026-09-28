@@ -19,11 +19,14 @@
 //! # Changelog of this module
 //!
 //! - F9: `read` and `write`.
+//! - F10: `write` goes through `files::save`, the one path every file the host
+//!   saves takes; its sentences are unchanged.
 
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::Path;
 
 use crate::error::{Error, Result};
+use crate::files::save::{self, display_name};
 
 /// The largest template read or written: 1 MiB — far past any plan a person
 /// could read, and small enough that a hostile file is refused before it is
@@ -33,18 +36,9 @@ pub const MAX_TEMPLATE_BYTES: u64 = 1024 * 1024;
 /// The sentence for a template chosen by a path that is not a full one.
 pub const FULL_PATH: &str = "A template file is chosen by its full path.";
 
-/// The name a sentence gives the file: its own, never the folders above it.
-fn display_name(path: &Path) -> String {
-    path.file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .filter(|name| !name.is_empty())
-        .unwrap_or_else(|| "That file".into())
-}
-
 /// Whether the name ends in `.json`, in any case.
 fn is_json(path: &Path) -> bool {
-    path.extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("json"))
+    save::has_extension(path, "json")
 }
 
 /// The text of a template file, for the domain to parse.
@@ -94,7 +88,18 @@ pub fn read(path: &Path) -> Result<String> {
         .unwrap_or(text))
 }
 
-/// Write a template file, whole or not at all: a temporary file in the same
+/// A template as a file to save: `.json`, at most [`MAX_TEMPLATE_BYTES`].
+pub const TEMPLATE_FILE: save::Kind = save::Kind {
+    extension: "json",
+    not_this_kind: "a template is a .json file",
+    max_bytes: MAX_TEMPLATE_BYTES,
+    too_large: "it would be larger than 1 MiB",
+    full_path: FULL_PATH,
+    logged_as: "a template",
+};
+
+/// Write a template file, whole or not at all, through the one path every
+/// file the host saves takes ([`save::write`]): a temporary file in the same
 /// folder, flushed to the disk, then renamed to `path`. An existing file is
 /// replaced only when `overwrite` says the person chose it in the save dialog.
 ///
@@ -106,46 +111,7 @@ pub fn read(path: &Path) -> Result<String> {
 /// `overwrite`; [`Error::Io`] when the disk refuses the write — and then no
 /// temporary file is left behind.
 pub fn write(path: &Path, text: &str, overwrite: bool) -> Result<()> {
-    if !path.is_absolute() {
-        return Err(Error::InvalidInput(FULL_PATH.into()));
-    }
-    let name = display_name(path);
-    let refuse = |reason: &str| Error::InvalidInput(format!("“{name}” was not saved: {reason}."));
-    if !is_json(path) {
-        return Err(refuse("a template is a .json file"));
-    }
-    if text.len() as u64 > MAX_TEMPLATE_BYTES {
-        return Err(refuse("it would be larger than 1 MiB"));
-    }
-    let folder = match path.parent() {
-        Some(folder) if folder.is_dir() => folder,
-        _ => return Err(refuse("the folder it would go in is not there")),
-    };
-    if path.is_dir() {
-        return Err(refuse("a folder of that name is already there"));
-    }
-    if path.exists() && !overwrite {
-        return Err(refuse(
-            "a file of that name is already there; choose it in the save dialog to replace it",
-        ));
-    }
-
-    let temporary = folder.join(format!(".{name}.{}.tmp", crate::db::new_id()));
-    let written = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&temporary)
-        .and_then(|mut file| {
-            file.write_all(text.as_bytes())?;
-            file.sync_all()
-        })
-        .and_then(|()| std::fs::rename(&temporary, path));
-    if let Err(error) = written {
-        let _ = std::fs::remove_file(&temporary);
-        return Err(Error::Io(error));
-    }
-    log::info!("a template was saved");
-    Ok(())
+    save::write(path, text.as_bytes(), overwrite, &TEMPLATE_FILE)
 }
 
 #[cfg(test)]
