@@ -1005,4 +1005,136 @@ export const ptBR: Dictionary = {
   'dashboard.replanned.one': 'replanejado {count} vez',
   'dashboard.replanned.other': 'replanejado {count} vezes',
   'dashboard.replanned.never': 'ainda não replanejado',
+  // ── Modelos (F9) ──────────────────────────────────────────────────────────
+  'common.close': 'Fechar',
+  'templates.field': 'Começar de',
+  'templates.empty': 'Um plano vazio',
+  'templates.library': 'A biblioteca',
+  'templates.fromFile': 'De um arquivo…',
+  'templates.file.path': 'Arquivo do modelo',
+  'templates.file.choose': 'Escolher arquivo…',
+  'templates.file.hint':
+    'Um arquivo .json — exportado do Ridgebeam, ou um que alguém lhe deu. Ele é lido e conferido como dado, nunca executado.',
+  'templates.file.reading': 'Lendo o arquivo…',
+  'templates.file.filter': 'Modelo do Ridgebeam',
+  'templates.file.pathMissing': 'Escolha o arquivo, ou digite ou cole o caminho dele.',
+  'templates.preview.empty':
+    'A obra começa sem nenhuma etapa: você escreve o plano, ou o começa de um modelo depois.',
+  'templates.preview.notQuote':
+    'Um ponto de partida, com faixas — não um orçamento. Cada duração fica uma faixa até você escolher, e nenhuma linha de custo tem preço.',
+  'templates.count.stages.one': '{count} etapa',
+  'templates.count.stages.other': '{count} etapas',
+  'templates.count.activities.one': '{count} atividade',
+  'templates.count.activities.other': '{count} atividades',
+  'templates.count.decisions.one': '{count} decisão',
+  'templates.count.decisions.other': '{count} decisões',
+  'templates.count.checks.one': '{count} verificação',
+  'templates.count.checks.other': '{count} verificações',
+  'templates.problem.title': 'Este modelo não pode ser usado',
+  'templates.problem.more.one': 'e mais {count} problema',
+  'templates.problem.more.other': 'e mais {count} problemas',
+  'templates.notes.title': 'Começou de {title}: vale saber',
+  'templates.notes.dismiss': 'Dispensar',
+  'templates.start': 'Começar de um {template}…',
+  'templates.start.title': 'Começar de um {template}',
+  'templates.start.lead':
+    'As etapas, atividades, verificações, decisões e linhas de custo dele são escritas nesta obra como o plano dela, uma vez. Nada liga de volta a ele depois: desde a primeira linha, o plano é da obra.',
+  'templates.apply': 'Começar o plano',
+  'templates.applied': 'O plano agora começa de {title}: {counts}.',
+  'templates.export': 'Exportar como {template}…',
+  'templates.export.title': 'Exportar como {template}',
+  'templates.export.lead':
+    'A forma do plano é escrita num arquivo de onde outra obra pode começar: as etapas, atividades, cômodos, dependências, verificações, decisões e linhas de custo, no idioma da tela. O diário, as pessoas, os documentos e os pagamentos nunca vão nele.',
+  'templates.export.numbers': 'Números',
+  'templates.export.strip': 'Tirar',
+  'templates.export.keep': 'Manter',
+  'templates.export.strip.hint':
+    'Sem os números: nenhum valor, nenhum prazo de entrega, nenhuma espera, e as durações só como as faixas de onde o plano começou. Para compartilhar.',
+  'templates.export.keep.hint':
+    'Com os números: as durações, os prazos de entrega, as esperas e os valores desta obra, para começar outra obra sua como esta.',
+  'templates.export.path': 'Arquivo',
+  'templates.export.choose': 'Escolher onde…',
+  'templates.export.pathHint':
+    'Um arquivo .json. Um arquivo que já existe só é substituído quando você o escolhe na janela, que pergunta antes.',
+  'templates.export.confirm': 'Exportar',
+  'templates.export.done': 'O modelo foi escrito em {path}',
+  'templates.export.doneTitle': 'O modelo foi escrito neste arquivo',
+  'templates.export.problem': 'O modelo não foi escrito',
+  'templates.export.invalid.path':
+    'Escolha o arquivo, ou digite o caminho dele, terminando em .json.',
+  'plan.range': '{min}–{max}',
+  'plan.range.hint': 'Faixa {range}',
+  'plan.checklist.range': '{range} dias úteis, uma faixa',
+  'plan.stages.emptyTemplate':
+    'Uma etapa é um capítulo da obra — demolição, instalações, revestimento. Adicione a primeira acima, ou comece de um {template}: um ponto de partida com faixas, não um orçamento.',
+  'ranges.title': 'Faixas, ainda não durações',
+  'ranges.body.one':
+    '{count} atividade tem uma faixa de dias úteis e ainda não tem duração. Digite-a na linha dela, ou use um dos extremos de todas as faixas de uma vez.',
+  'ranges.body.other':
+    '{count} atividades têm uma faixa de dias úteis e ainda não têm duração. Digite cada uma na linha dela, ou use um dos extremos de todas as faixas de uma vez.',
+  'ranges.takeHigh': 'Usar o maior valor de cada faixa',
+  'ranges.takeLow': 'Usar o menor valor',
+  'ranges.taken.high.one': '{count} duração definida pelo maior valor da sua faixa.',
+  'ranges.taken.high.other': '{count} durações definidas pelo maior valor das suas faixas.',
+  'ranges.taken.low.one': '{count} duração definida pelo menor valor da sua faixa.',
+  'ranges.taken.low.other': '{count} durações definidas pelo menor valor das suas faixas.',
+  'money.notPriced': 'ainda sem preço',
+  'money.notPriced.hint': 'Ainda sem preço: não conta nada até um valor ser digitado.',
+  'money.costLines.sumUnpriced.one': '{amount} · {count} linha ainda sem preço',
+  'money.costLines.sumUnpriced.other': '{amount} · {count} linhas ainda sem preço',
+  'money.row.notPriced': 'ainda sem preço — contada como nada',
+  'readiness.row.activity.durationRange': 'uma faixa de {range} dias úteis, ainda sem duração',
+  'dashboard.calendar.template': 'Começou de',
+  'dashboard.calendar.templateVersion': '{title}, v{version}',
+  'template.problem.json': 'O arquivo não é JSON, então não é um modelo.',
+  'template.problem.type': 'Este não é o tipo de valor que um modelo tem aqui.',
+  'template.problem.format':
+    'Este não é um formato de modelo que esta versão lê: ela lê o formato {expected}.',
+  'template.problem.unknownField':
+    '“{field}” não é um campo de modelo. Um modelo é dado, e nada além disso é aceito.',
+  'template.problem.required': 'Falta “{field}”.',
+  'template.problem.key':
+    '“{value}” não é uma chave: letras minúsculas e dígitos unidos por hífens, no máximo {limit} caracteres.',
+  'template.problem.duplicate': '“{key}” aparece duas vezes onde deve ser único.',
+  'template.problem.textEmpty':
+    'Um texto está vazio: precisa de inglês ou de português, ou dos dois.',
+  'template.problem.textTooLong': 'Um texto passa de {limit} caracteres.',
+  'template.problem.languageMissing':
+    'Um texto não tem {language}: a biblioteca traz os dois idiomas.',
+  'template.problem.contact':
+    'Um texto parece um endereço da web, um e-mail ou um telefone: a biblioteca não traz nada real.',
+  'template.problem.number': 'Não é um número inteiro de {min} a {max}.',
+  'template.problem.rangeOrder': 'Uma faixa de {min} a {max}: o menor valor está acima do maior.',
+  'template.problem.point':
+    'Um número só, {days}, onde deveria haver uma faixa: um modelo traz faixas, não promessas.',
+  'template.problem.rangeRequired':
+    '“{field}” não foi dado: a biblioteca dá toda duração e todo prazo de entrega como uma faixa.',
+  'template.problem.price':
+    'Um valor numa linha de custo: a biblioteca não traz preços, só rótulos.',
+  'template.problem.empty': 'O modelo não traz nenhuma etapa.',
+  'template.problem.unknownRoom': '“{key}” não é nenhum cômodo do modelo.',
+  'template.problem.unknownActivity': '“{key}” não é nenhuma atividade da sua etapa.',
+  'template.problem.unknownStage': '“{key}” não é nenhuma etapa que o modelo alcança.',
+  'template.problem.ambiguousStage':
+    '“{key}” é etapa de mais de um modelo incluído: diga qual, como id-do-modelo:chave-da-etapa.',
+  'template.problem.endpoint':
+    '“{value}” não é uma etapa, nem uma etapa e uma das suas atividades (chave-da-etapa/chave-da-atividade).',
+  'template.problem.unknownInclude': '“{id}” não é um modelo da biblioteca.',
+  'template.problem.selfInclude': 'O modelo inclui a si mesmo.',
+  'template.problem.includeCycle': 'As inclusões andam em círculo: {chain}.',
+  'template.problem.cycle':
+    'As dependências formam um ciclo — {chain}. Um plano com um ciclo nunca poderia entrar no cronograma.',
+  'template.problem.selfLink': 'Uma dependência faz algo esperar por si mesmo.',
+  'template.problem.duplicateLink': 'A mesma dependência aparece duas vezes.',
+  'template.problem.fileName': 'O id “{id}” não é o nome do arquivo, “{file}”.',
+  'template.note.pointDurations.one':
+    '{count} atividade tinha um número só de dias, não uma faixa: ele foi usado como a duração dela.',
+  'template.note.pointDurations.other':
+    '{count} atividades tinham um número só de dias, não uma faixa: cada um foi usado como a duração.',
+  'template.note.languageFallback.one':
+    '{count} texto não estava no idioma da tela e foi usado em {language}.',
+  'template.note.languageFallback.other':
+    '{count} textos não estavam no idioma da tela e foram usados em {language}.',
+  'template.note.includes.one': 'Ele trouxe antes {count} outro modelo: {titles}.',
+  'template.note.includes.other': 'Ele trouxe antes {count} outros modelos: {titles}.',
 };

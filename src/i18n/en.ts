@@ -999,6 +999,136 @@ export const en = {
   'dashboard.replanned.one': 'replanned {count} time',
   'dashboard.replanned.other': 'replanned {count} times',
   'dashboard.replanned.never': 'not replanned yet',
+  // ── Templates (F9) ────────────────────────────────────────────────────────
+  'common.close': 'Close',
+  'templates.field': 'Start from',
+  'templates.empty': 'An empty plan',
+  'templates.library': 'The library',
+  'templates.fromFile': 'From a file…',
+  'templates.file.path': 'Template file',
+  'templates.file.choose': 'Choose file…',
+  'templates.file.hint':
+    'A .json file — one exported from Ridgebeam, or one somebody gave you. It is read and checked as data, never run.',
+  'templates.file.reading': 'Reading the file…',
+  'templates.file.filter': 'Ridgebeam template',
+  'templates.file.pathMissing': 'Choose the file, or type or paste its path.',
+  'templates.preview.empty':
+    'The work starts with no stage: you write the plan, or start it from a template later.',
+  'templates.preview.notQuote':
+    'A starting point, with ranges — not a quote. Every duration stays a range until you pick, and no cost line has a price.',
+  'templates.count.stages.one': '{count} stage',
+  'templates.count.stages.other': '{count} stages',
+  'templates.count.activities.one': '{count} activity',
+  'templates.count.activities.other': '{count} activities',
+  'templates.count.decisions.one': '{count} decision',
+  'templates.count.decisions.other': '{count} decisions',
+  'templates.count.checks.one': '{count} check',
+  'templates.count.checks.other': '{count} checks',
+  'templates.problem.title': 'This template cannot be used',
+  'templates.problem.more.one': 'and {count} more problem',
+  'templates.problem.more.other': 'and {count} more problems',
+  'templates.notes.title': 'Started from {title}: worth knowing',
+  'templates.notes.dismiss': 'Dismiss',
+  'templates.start': 'Start from a {template}…',
+  'templates.start.title': 'Start from a {template}',
+  'templates.start.lead':
+    'Its stages, activities, checks, decisions and cost lines are written into this work as its own plan, once. Nothing links back to it afterwards: from the first row, the plan is the work’s.',
+  'templates.apply': 'Start the plan',
+  'templates.applied': 'The plan now starts from {title}: {counts}.',
+  'templates.export': 'Export as a {template}…',
+  'templates.export.title': 'Export as a {template}',
+  'templates.export.lead':
+    'The plan’s shape is written to a file another work can start from: its stages, activities, rooms, links, checks, decisions and cost lines, in the language on screen. The diary, the people, the documents and the payments are never in it.',
+  'templates.export.numbers': 'Numbers',
+  'templates.export.strip': 'Strip them',
+  'templates.export.keep': 'Keep them',
+  'templates.export.strip.hint':
+    'Stripped: no amounts, no lead times and no waits, and durations only as the ranges the plan started from. For sharing.',
+  'templates.export.keep.hint':
+    'Kept: this work’s durations, lead times, waits and amounts, to start another work of your own like it.',
+  'templates.export.path': 'File',
+  'templates.export.choose': 'Choose where…',
+  'templates.export.pathHint':
+    'A .json file. A file that exists is replaced only when you chose it in the dialog, which asks first.',
+  'templates.export.confirm': 'Export',
+  'templates.export.done': 'The template was written to {path}',
+  'templates.export.doneTitle': 'The template was written to this file',
+  'templates.export.problem': 'The template was not written',
+  'templates.export.invalid.path': 'Choose the file, or type its path, ending in .json.',
+  'plan.range': '{min}–{max}',
+  'plan.range.hint': 'Range {range}',
+  'plan.checklist.range': '{range} working days, a range',
+  'plan.stages.emptyTemplate':
+    'A stage is a chapter of the work — demolition, rough-in, tiling. Add the first one above, or start from a {template}: a starting point with ranges, not a quote.',
+  'ranges.title': 'Ranges, not durations yet',
+  'ranges.body.one':
+    '{count} activity has a range of working days and no duration yet. Type it in its row, or take one end of every range at once.',
+  'ranges.body.other':
+    '{count} activities have a range of working days and no duration yet. Type each in its row, or take one end of every range at once.',
+  'ranges.takeHigh': 'Use the upper end of each range',
+  'ranges.takeLow': 'Use the lower end',
+  'ranges.taken.high.one': '{count} duration set to the upper end of its range.',
+  'ranges.taken.high.other': '{count} durations set to the upper end of their ranges.',
+  'ranges.taken.low.one': '{count} duration set to the lower end of its range.',
+  'ranges.taken.low.other': '{count} durations set to the lower end of their ranges.',
+  'money.notPriced': 'not priced yet',
+  'money.notPriced.hint': 'Not priced yet: it counts for nothing until an amount is typed.',
+  'money.costLines.sumUnpriced.one': '{amount} · {count} line not priced yet',
+  'money.costLines.sumUnpriced.other': '{amount} · {count} lines not priced yet',
+  'money.row.notPriced': 'not priced yet — counted as nothing',
+  'readiness.row.activity.durationRange': 'a range of {range} working days, no duration yet',
+  'dashboard.calendar.template': 'Started from',
+  'dashboard.calendar.templateVersion': '{title}, v{version}',
+  'template.problem.json': 'The file is not JSON, so it is not a template.',
+  'template.problem.type': 'This is not the kind of value a template has here.',
+  'template.problem.format':
+    'This is not a template format this version reads: it reads format {expected}.',
+  'template.problem.unknownField':
+    '“{field}” is not a field a template has. A template is data, and nothing else is accepted.',
+  'template.problem.required': '“{field}” is missing.',
+  'template.problem.key':
+    '“{value}” is not a key: lowercase letters and digits joined by hyphens, at most {limit} characters.',
+  'template.problem.duplicate': '“{key}” is used twice where it must be unique.',
+  'template.problem.textEmpty': 'A text is empty: it needs English or Portuguese, or both.',
+  'template.problem.textTooLong': 'A text is longer than {limit} characters.',
+  'template.problem.languageMissing':
+    'A text has no {language}: the library carries both languages.',
+  'template.problem.contact':
+    'A text looks like a web address, an e-mail address or a phone number: the library carries nothing real.',
+  'template.problem.number': 'Not a whole number from {min} to {max}.',
+  'template.problem.rangeOrder':
+    'A range from {min} to {max}: its lower end is above its upper end.',
+  'template.problem.point':
+    'A single number, {days}, where a range belongs: a template carries ranges, not promises.',
+  'template.problem.rangeRequired':
+    '“{field}” is not given: the library gives every duration and lead time as a range.',
+  'template.problem.price': 'An amount on a cost line: the library carries no prices, only labels.',
+  'template.problem.empty': 'The template brings no stage at all.',
+  'template.problem.unknownRoom': '“{key}” names no room of the template.',
+  'template.problem.unknownActivity': '“{key}” names no activity of its stage.',
+  'template.problem.unknownStage': '“{key}” names no stage the template reaches.',
+  'template.problem.ambiguousStage':
+    '“{key}” is a stage of more than one included template: say which, as template-id:stage-key.',
+  'template.problem.endpoint':
+    '“{value}” is not a stage, or a stage and one of its activities (stage-key/activity-key).',
+  'template.problem.unknownInclude': '“{id}” is not a template of the library.',
+  'template.problem.selfInclude': 'The template includes itself.',
+  'template.problem.includeCycle': 'The includes go round in a circle: {chain}.',
+  'template.problem.cycle':
+    'The links make a loop — {chain}. A plan with a loop could never be scheduled.',
+  'template.problem.selfLink': 'A link makes something wait on itself.',
+  'template.problem.duplicateLink': 'The same link is given twice.',
+  'template.problem.fileName': 'The id “{id}” is not the file’s name, “{file}”.',
+  'template.note.pointDurations.one':
+    '{count} activity had a single number of days, not a range: it was taken as its duration.',
+  'template.note.pointDurations.other':
+    '{count} activities had a single number of days, not a range: each was taken as its duration.',
+  'template.note.languageFallback.one':
+    '{count} text was not in the language on screen and was taken in {language}.',
+  'template.note.languageFallback.other':
+    '{count} texts were not in the language on screen and were taken in {language}.',
+  'template.note.includes.one': 'It brought in {count} other template first: {titles}.',
+  'template.note.includes.other': 'It brought in {count} other templates first: {titles}.',
 } as const;
 
 /** Every key the interface may ask for. */

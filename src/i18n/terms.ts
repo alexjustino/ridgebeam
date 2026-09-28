@@ -58,6 +58,8 @@ export const TERM_KEYS = [
   'trade',
   'document',
   'entry',
+  'template',
+  'range',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];

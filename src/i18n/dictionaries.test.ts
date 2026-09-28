@@ -5,7 +5,7 @@ import { DEFAULT_CHECK_KEYS, GATES_HELD_LABEL_KEY, STAGES_LABEL_KEYS } from '@/d
 import { DECISIONS_DUE_LABEL_KEY } from '@/domain/decisions';
 import { DONE_LABEL_KEYS } from '@/domain/diary';
 import { DOCUMENTS_LABEL_KEYS, TARGET_KINDS } from '@/domain/documents';
-import { MONEY_LABEL_KEYS, OVER_COMMITTED_LABEL_KEY } from '@/domain/money';
+import { MONEY_LABEL_KEYS, NOT_PRICED_KEY, OVER_COMMITTED_LABEL_KEY } from '@/domain/money';
 import {
   READINESS_LABEL_KEY,
   READINESS_MESSAGE_KEYS,
@@ -15,6 +15,8 @@ import {
 import { SLIP_LABEL_KEY } from '@/domain/schedule/slip';
 import { WHAT_IF_LABEL_KEY, WHAT_IF_PROBLEM_KEYS } from '@/domain/schedule/whatIf';
 import { LANGUAGES as LANGUAGE_CHOICES } from '@/domain/settings';
+import { TEMPLATE_NOTE_KEYS } from '@/domain/templates/apply';
+import { TEMPLATE_PROBLEM_KEYS } from '@/domain/templates/validate';
 
 import { en } from './en';
 import {
@@ -178,8 +180,24 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         ...Object.values(COMPARISON_PROBLEM_KEYS),
         WHAT_IF_LABEL_KEY,
         ...Object.values(WHAT_IF_PROBLEM_KEYS),
+        NOT_PRICED_KEY,
+        ...Object.values(TEMPLATE_PROBLEM_KEYS),
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
+      }
+    },
+  );
+});
+
+describe('what a template says, in both languages (F9)', () => {
+  it.each(LANGUAGES)(
+    '%s carries every note applying a template can leave, with both plural forms',
+    (language) => {
+      const dictionary = DICTIONARIES[language] as Record<string, string>;
+      // Every note counts something, so each is said by the language's own plural rule.
+      for (const key of Object.values(TEMPLATE_NOTE_KEYS)) {
+        expect(dictionary[`${key}.one`], `${language} ${key}.one`).toBeTruthy();
+        expect(dictionary[`${key}.other`], `${language} ${key}.other`).toBeTruthy();
       }
     },
   );
