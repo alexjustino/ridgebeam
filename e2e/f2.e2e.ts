@@ -207,6 +207,12 @@ describe('F2 — the schedule: lags on the calendar, the critical path, baseline
     const { driver } = session;
     await go(session, 'schedule');
     const before = await text(session, t('schedule-finish'));
+    // Since F8 an approved plan changes only after somebody says why; the slip is still measured
+    // against baseline 1 while the replanning is open.
+    await click(session, t('replan-open'));
+    await setValue(session, t('replan-reason'), 'The walls need a second coat of render.');
+    await click(session, t('replan-confirm'));
+    await driver.waitForElement(t('replanning-open'));
     await breakdown(session);
     await setValue(session, `[data-activity-id="${id['B']}"] ${t('activity-duration')}`, '4');
     await go(session, 'schedule');
