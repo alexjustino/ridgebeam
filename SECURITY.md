@@ -22,6 +22,10 @@ site), the **baselines** (every approved version of the plan and the reason for 
 and the **payments ledger**. The diary, the baselines and the ledger are the record; the plan
 is intent.
 
+A **backup** (F11) is that whole folder in one `.ridgebeam` file, written wherever the person
+saves it: the database, every document and thumbnail, and a manifest. It holds everything the
+work holds, and **it is not encrypted** (below, _A backup is the whole work_).
+
 ## The threat model
 
 | Asset                                                              | Threat                                                                                                                                                                                            | Control                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Slice                           |
@@ -36,7 +40,7 @@ is intent.
 | The person's machine                                               | a command injected through a name, a path or a file; a file written or opened that the person did not choose                                                                                      | Tauri capabilities declared one by one; no shell, file-system, HTTP or asset-protocol permission; the opener used only from Rust, for a document the person clicked or a file a report command wrote in this session; every path the host writes is inside the work folder, but for a template exported to the `.json` path, and a report or an export to the `.pdf`, `.csv` or `.json` path, the person chose in the save dialog — written whole or not at all, over an existing file only when the dialog asked                                                   | **F0**, **F4**, **F9**, **F10** |
 | Exports read by other tools                                        | a spreadsheet formula injected through a diary text or a name                                                                                                                                     | the diary CSV is written by the host from the database; every cell whose first character is `=`, `+`, `-`, `@`, a tab or a carriage return is written with a `'` before it, in every column; RFC 4180 quoting                                                                                                                                                                                                                                                                                                                                                       | **F10**                         |
 | The exported record                                                | a diary exported from a chain that does not hold; an export that claims a verification nobody made; an export read as a signature or as legal proof                                               | the host runs `diary_verify` before it writes either diary export and writes nothing when the chain does not hold, naming the entry; the host, not the interface, writes the PDF's first block — the day, the count and the head of the chain, and that this is tamper-evidence, not a signature and not legal proof                                                                                                                                                                                                                                                | **F10**                         |
-| Backups                                                            | a restore that brings back less than was saved, or something else                                                                                                                                 | one file with a manifest and a hash; restore round-trips a full work byte for byte, proven in `cargo test`                                                                                                                                                                                                                                                                                                                                                                                                                                                          | F11                             |
+| Backups                                                            | a restore that brings back less than was saved, or something else; a crafted backup that writes outside its folder, inflates without end or overwrites a work; a backup read by somebody else     | one ZIP of the shape the host writes, read by its own reader: allow-listed names, the manifest's own hash first, every size capped while it inflates, every SHA-256 checked, the database opened read-only and checked; staged beside a new or empty folder and renamed only when whole; round-trip byte for byte in `cargo test`; not encrypted, and said so                                                                                                                                                                                                       | **F11**                         |
 | The public repository                                              | a real address, person, contractor, price or e-mail committed; a secret                                                                                                                           | fixtures are synthetic and say so; `.gitignore` refuses `.env`, keys and certificates; review refuses the rest                                                                                                                                                                                                                                                                                                                                                                                                                                                      | **F0**                          |
 | The template library                                               | a wrong or hostile template accepted into the library; a real brand, supplier, price, place or contact published as advice                                                                        | templates are JSON data with a closed list of fields and no code; the library test in CI validates every file at the strict level — both languages, ranges never points, no amounts, no text that looks like a web address, an e-mail address or a phone number, no cycle — and applies it to an empty work; a maintainer reviews every template before merge; the loader drops, and logs, a file that fails                                                                                                                                                        | **F9**                          |
 | A template from a file                                             | a crafted template: huge, not JSON, not UTF-8, with fields the product does not know, a link cycle or an include cycle, text past every limit, or a plan written into a work that already has one | `.json` only, 1 MiB, UTF-8, read by the host as text and never parsed there; parsed by the domain as JSON and validated field by field, every unknown field refused and every problem named; includes resolve only against the library; applied in one transaction, every row re-checked by the host with its own limits, only into an empty work that is not approved; nothing in a template is ever run                                                                                                                                                           | **F9**                          |
@@ -309,9 +313,90 @@ for the backup, which is F11's.
   outside the product.
 - **A template export** is written whole or not at all, `.json` only, and carries no person,
   contact, payment, diary entry or document (ADR-030).
-- **A backup** (F11) will be one file holding the database, the documents and a manifest with a
-  hash of each part. Restore will check the manifest before it writes anything, and round-trip a
-  full work byte for byte in `cargo test`.
+- **A backup** is written through the same path, and read back as hostile input: the next
+  section.
+
+## A backup is the whole work, and comes back as hostile input
+
+**Shipped in F11** (ADR-033). The format is in [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md).
+
+**What a backup holds.** Everything in the work, as it is: the plan, the diary with every entry's
+author (the Windows account name), the baselines and their reasons, the payments, the people with
+their phone numbers and e-mail addresses, every photo, receipt, quote, drawing and contract, and
+their thumbnails. **It is not encrypted** — it is a ZIP, and anybody who has the file can open it
+with Windows and read all of that. Keep it as carefully as the work folder: on a disk or in a place
+only you can reach. Settings says so beside **Back up this work**, the glossary says so, and the
+product does not pretend otherwise. It holds **no path** from the machine and nothing of the
+application's own database — no settings, no recent list.
+
+**Writing one.** `backup_write` takes a full path ending in `.ridgebeam`, written whole or not at
+all through `files::save` — a temporary file beside it, flushed and renamed — replacing an existing
+file only with `overwrite`, which the interface sends only when the save dialog chose that path.
+A path inside the work's own folder is refused: a backup there would be lost with the work. The
+database is a snapshot taken with `VACUUM INTO` on the open connection, so the free pages of the
+live file, where the bytes of a deleted row may linger, are not copied into a file a person hands
+on. A file in `documents/` or `thumbnails/` whose name the allow-list below does not take is left
+out, and the answer names it. A file that changes while it is read refuses the backup.
+
+**Restoring one.** The file is hostile: it may have been cut short in a copy, changed by another
+program, or built to attack the machine that opens it. `backup_inspect` (the Restore dialog's
+preview) and `backup_restore` check all of this, and refuse with a sentence that names the file
+and the first thing that does not hold:
+
+- **The shape the host writes, and no other.** A ZIP read by the product's own reader
+  (`src-tauri/src/files/archive.rs`), not a general library: at most **4 GiB** (one byte under,
+  what the plain format's offsets reach), at most **65 535** entries, the end record in the last
+  22 bytes with no comment, a central directory of at most **16 MiB** ending exactly where the end
+  record begins; each entry stored or deflated only — no encryption, no data descriptor, no extra
+  field, no comment, no ZIP64 — with a name of 1 to 255 bytes; every local header repeating its
+  directory record exactly; and the entries lying one after another with no gap and no overlap, so
+  no two names share bytes and nothing is hidden between them.
+- **Names from a closed allow-list**, lowercase, none twice, no directory entry:
+
+  | Name                                                                                               | Cap    |
+  | -------------------------------------------------------------------------------------------------- | ------ |
+  | `manifest.json` — the first entry                                                                  | 16 MiB |
+  | `work.sqlite3`                                                                                     | 2 GiB  |
+  | `documents/<64 hex>.<ext>`, the extension one of `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `pdf` | 25 MiB |
+  | `thumbnails/<64 hex>.jpg`                                                                          | 25 MiB |
+  | `manifest.sha256` — the last entry                                                                 | 256 B  |
+
+  A name with `..`, a full path (`/` or `\` first) or a drive letter is refused, each with its own
+  sentence; so is any other name. A hostile name is shown in the sentence with its control
+  characters replaced and cut at 80 characters.
+
+- **The manifest's own hash first.** `manifest.sha256` must be exactly the SHA-256 of
+  `manifest.json` in the form `sha256sum -c` reads; only then is the manifest parsed — a closed
+  shape, an unknown field refused, the format's version `1` (a later one: "written by a newer
+  version of Ridgebeam"), a work id of 36 characters, a name of 1 to 120.
+- **The archive holds exactly what the manifest lists**, in its order, the database once; every
+  entry's declared size equal to the manifest's and under its cap.
+- **Sizes are enforced while inflating, never trusted from a header.** A size over its cap is
+  refused before a byte is inflated; inflating stops one byte past the declared size, so a size
+  that lies, or a zip bomb, is found without ever holding what it hid; the CRC is checked at the
+  end, and then **every file's SHA-256 against the manifest**.
+- **The database is checked before it is used.** Its first 16 bytes are SQLite's; it is opened
+  **read-only and immutable** — no lock, no journal, exactly the bytes on disk — and must pass
+  `PRAGMA quick_check`, have the tables of a work, hold the work id the manifest names, and be at a
+  schema this build knows and the manifest records. A database of another product, of another
+  work, or from a newer build is refused.
+- **Staged, then renamed; never over anything.** The target is a folder that does not exist yet or
+  is empty; one that holds anything is refused. Every file is written with `create_new` into a
+  temporary folder beside it (`.<name>.<id>.restoring`), the work opened there — an older schema
+  migrating forward, as any old work does — and the folder renamed into place only when all of
+  that has passed. On any refusal, every file and folder the restore made is removed, one by one —
+  never a recursive delete — and nothing is left.
+- **Then verified.** The restored work is opened, its chain verified and every document
+  re-hashed, and the answer says how many entries and documents, and whether each held.
+
+`cargo test` round-trips a full work byte for byte and row for row, reads what the host wrote with
+Windows' own `tar.exe`, and generates a corpus of thirty-two hostile archives — in the test, each
+derived from a backup written moments before and committed nowhere, so there is no manifest of
+their hashes as F7's corpus has — among them a name that climbs out with
+`..`, a full path, a drive letter, a name not on the list, a duplicate entry, a size that lies, a
+zip bomb, a wrong SHA-256, a changed manifest, no manifest, a database of another product, a
+database of another work, a schema newer than the build, an archive cut short — each refused with a
+sentence and nothing written.
 
 ## Public repository hygiene
 
@@ -326,25 +411,27 @@ says whether it may.
 
 ## Minimum capabilities
 
-Tauri capabilities are declared one by one in `src-tauri/capabilities/`. The shell plugin is
-not used. There is no file-system permission, no HTTP permission and no asset protocol: the
-webview cannot read a path. The dialog plugin returns a path the person chose — a work folder,
-a document to attach, the new place of a moved work, a template to read, where to save one, where to
-save a report or an export — and only the host's own commands read or write there. The opener is a
-Rust dependency with no JavaScript permission: the host opens a document with the operating
-system's handler when the person clicks it, and a report or an export it wrote in this session
-when the person presses **Open** — and nothing else. The window is a single window with no
-remote content.
+Tauri capabilities are declared one by one in `src-tauri/capabilities/`. The shell plugin is not
+used. There is no file-system permission, no HTTP permission and no asset protocol: the webview
+cannot read a path. The dialog plugin returns a path the person chose — a work folder, a document to
+attach, the new place of a moved work, a template to read, where to save one, where to save a
+report, an export or a backup, a backup to restore and the folder to restore it into — and only the
+host's own commands read or write there. The opener is a Rust dependency with no JavaScript
+permission: the host opens a document with the operating system's handler when the person clicks it,
+and a report or an export it wrote in this session when the person presses **Open** — and nothing
+else. The window is a single window with no remote content.
 
 ## Out of the threat model, stated plainly
 
-An attacker with write access to the person's account can edit the database file with any
-SQLite tool, and the triggers do not stop them — they can be dropped by whoever owns the file.
-The chain would show an alteration of the diary; it would not prevent it — and somebody who
-rewrites every entry and recomputes every hash leaves a chain that verifies. The database is **not encrypted
-at rest**; the folder's access control is the operating system's. A person who needs the record
-protected from somebody with their password needs full-disk encryption and a backup kept
-elsewhere, and the product does not claim otherwise.
+An attacker with write access to the person's account can edit the database file with any SQLite
+tool, and the triggers do not stop them — they can be dropped by whoever owns the file. The chain
+would show an alteration of the diary; it would not prevent it — and somebody who rewrites every
+entry and recomputes every hash leaves a chain that verifies. The database is **not encrypted at
+rest**; the folder's access control is the operating system's. A person who needs the record
+protected from somebody with their password needs full-disk encryption and a backup kept elsewhere,
+and the product does not claim otherwise. A backup is not encrypted either: whoever holds the file
+can read the whole work, and a restore checks that the file is the one the product wrote — not who
+is restoring it.
 
 The host cannot tell that the path a template, a report or an export is written to came from the
 save dialog: it trusts the interface, which sends only the path the dialog returned, and it limits

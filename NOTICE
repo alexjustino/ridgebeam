@@ -41,6 +41,12 @@ checked by the dependency audit in CI (npm audit, cargo audit). The
 authoritative list is the one generated from the dependency manifests and their
 lockfiles, and a dependency added without a line here is an incomplete one.
 
+That generated list is src/features/about/notices.json, written by
+scripts/notices.mjs from Cargo.lock and package-lock.json: every crate compiled
+into the Windows binary and every npm package of the production tree, each with
+the licence its package declares. The About screen shows it beside this file,
+and a gate fails when it no longer matches the lockfiles.
+
 The interface (package.json):
 
   Tauri .......................... Apache-2.0 OR MIT
