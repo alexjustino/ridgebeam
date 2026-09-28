@@ -320,3 +320,55 @@ figure opens onto its rows; paid over committed is flagged; the S-curve of plann
 
 Not yet, said plainly: a receipt is an image or nothing until F7; one currency per work;
 payments are not chained.
+
+### Added in F7 — people and documents
+
+Trades and contacts; who is on site from the diary; files copied into the work folder with
+thumbnails, hashes and caps; the hostile file corpus refused with a sentence; a moved work folder
+found again from a dialog.
+
+- **People are contacts** (ADR-026): a trade, a phone, an e-mail, a note, their availability and
+  the stages they are expected on, edited in the breakdown's People card. The phone and e-mail
+  are text somebody typed — the product never dials, sends or looks anything up. A **People** tab
+  on the Plan lists everyone with their stages, **the days they were on site and the last one,
+  from the diary**, and what they are owed, from the ledger.
+- **Documents are files the work owns** (ADR-025): quotes, drawings, permits, receipts,
+  contracts, photos and others, each with an editable title and kind, copied into
+  `documents/<hash>.<ext>` and attached to the work, a stage, an activity, a decision, a diary
+  entry, a commitment or a payment — any number of each.
+- **Typed by their bytes.** JPEG, PNG, WebP, GIF and BMP are images, measured and thumbnailed as
+  in F4; a PDF is recognised by its first bytes and is **never parsed or rendered** — it shows as
+  a mark and opens in the system's viewer. Everything else is refused with a sentence naming the
+  file: Word, spreadsheets, archives, executables, HEIC — and SVG, which can carry scripts. Every
+  file is capped at 25 MiB.
+- **Deduplicated by hash.** The same file attached twice is one file. Removing a document deletes
+  its file only when nothing else names it — another document, a diary photo, an answer's photo,
+  a receipt or a commitment — and otherwise says the file stays.
+- **One file, one transaction**: adding ten files where one is refused keeps the nine and names
+  the one with its reason.
+- **Photos, receipts and quotes are documents too**: every file copied in is recorded in the
+  library, and migration 008 records the ones earlier slices copied, linked to where they came
+  from. Receipts may now be PDFs.
+- **The Documents destination**, between Money and Settings: the library with filters by kind
+  and by attachment, Open, Attach to…, Detach and Remove. Elsewhere — a stage, an activity, a
+  decision, an entry, a commitment, a payment — a count that links to it, never a second editor.
+  The dashboard counts the documents by kind.
+- **The hostile corpus is the gate.** `cargo test` generates a text file named `.jpg`, a PNG
+  claiming 100 000 pixels, a truncated JPEG, an empty file, a 26 MiB image and a 26 MiB PDF, an
+  executable named `.pdf`, a zero-width PNG, a WebP with a lying size, a HEIC, an SVG and a zip
+  bomb named `.pdf`, and proves each is refused with a sentence and nothing is written — and that a PNG named `.pdf` is kept, as the PNG it is. The files
+  are not committed; their SHA-256 manifest is, in `fixtures/hostile/MANIFEST.json`, and a test
+  fails when the generator drifts from it.
+- **Folder health** in Diagnostics: the folder's size and file counts; **Re-hash the documents**,
+  which reads every file and compares it with its recorded hash — closing the gap F4 stated, that
+  the diary's chain checks the rows and not the files; rows whose file is missing; and files no
+  row names, **listed and never deleted**.
+- **A moved work folder is found again.** A recent work whose folder is gone offers _Find it…_;
+  the chosen folder opens only if it holds the same work, and a folder holding another work is
+  refused, naming both.
+- **Work migration 008** (`008_documents.sql`) adds the person's contact columns,
+  `person_stage`, `document` and `document_link`, and records every file already in the folder.
+  A work from F6 is migrated when it is opened, without loss, and its diary's chain still
+  verifies.
+
+Readiness is unchanged: the specification names no rule for contacts or documents.
