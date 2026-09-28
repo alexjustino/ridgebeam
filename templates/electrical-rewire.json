@@ -1,0 +1,630 @@
+{
+  "ridgebeamTemplate": 1,
+  "id": "electrical-rewire",
+  "version": 1,
+  "title": {
+    "en": "Electrical rewire",
+    "pt-BR": "Troca da instalação elétrica"
+  },
+  "summary": {
+    "en": "The wiring of a small house or flat replaced: a circuit plan, chases and conduits, a new board, new cables, outlets, switches and lights, every circuit tested. A starting point, not a quote: ranges of working days to confirm with a qualified electrician, and cost lines with no prices.",
+    "pt-BR": "A fiação de uma casa ou apartamento pequeno trocada: projeto dos circuitos, rasgos e eletrodutos, quadro novo, cabos novos, tomadas, interruptores e luminárias, cada circuito testado. Um ponto de partida, não um orçamento: faixas de dias úteis para confirmar com um eletricista habilitado, e linhas de custo sem preço."
+  },
+  "rooms": [
+    {
+      "key": "kitchen",
+      "name": {
+        "en": "Kitchen",
+        "pt-BR": "Cozinha"
+      }
+    },
+    {
+      "key": "laundry",
+      "name": {
+        "en": "Laundry",
+        "pt-BR": "Área de serviço"
+      }
+    },
+    {
+      "key": "bathroom",
+      "name": {
+        "en": "Bathroom",
+        "pt-BR": "Banheiro"
+      }
+    },
+    {
+      "key": "living-room",
+      "name": {
+        "en": "Living room",
+        "pt-BR": "Sala"
+      }
+    },
+    {
+      "key": "bedrooms",
+      "name": {
+        "en": "Bedrooms",
+        "pt-BR": "Quartos"
+      }
+    }
+  ],
+  "stages": [
+    {
+      "key": "rewire-plan",
+      "name": {
+        "en": "Survey and circuit plan",
+        "pt-BR": "Levantamento e projeto dos circuitos"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is there a drawing of the rooms, even a sketch, to mark the points on?",
+            "pt-BR": "Há uma planta dos cômodos, mesmo um croqui, para marcar os pontos?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Is the list of circuits agreed, with each large appliance on a circuit of its own?",
+            "pt-BR": "A lista de circuitos está combinada, com cada eletrodoméstico de maior potência num circuito próprio?"
+          },
+          {
+            "en": "Did the owner walk every room and agree where each outlet and switch goes?",
+            "pt-BR": "O proprietário percorreu cada cômodo e aprovou onde fica cada tomada e interruptor?"
+          },
+          {
+            "en": "If the load grows, was the supply checked with the utility?",
+            "pt-BR": "Se a carga aumentar, o fornecimento foi verificado com a concessionária?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Survey and circuit plan",
+            "pt-BR": "Levantamento e projeto"
+          },
+          "activity": "circuit-plan"
+        }
+      ],
+      "decisions": [
+        {
+          "key": "points",
+          "name": {
+            "en": "Where each outlet, switch and light point goes",
+            "pt-BR": "Onde fica cada tomada, interruptor e ponto de luz"
+          },
+          "leadDays": {
+            "min": 2,
+            "max": 7
+          },
+          "needs": "circuit-plan"
+        }
+      ],
+      "activities": [
+        {
+          "key": "survey",
+          "name": {
+            "en": "Survey the installation as it is",
+            "pt-BR": "Levantar a instalação existente"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "key": "circuit-plan",
+          "name": {
+            "en": "Draw the circuits and the points",
+            "pt-BR": "Desenhar os circuitos e os pontos"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 5
+          }
+        }
+      ]
+    },
+    {
+      "key": "rewire-chases",
+      "name": {
+        "en": "Chases and conduits",
+        "pt-BR": "Rasgos e eletrodutos"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the power to the work area off at the board, locked and marked?",
+            "pt-BR": "A energia da área de trabalho está desligada no quadro, travada e sinalizada?"
+          },
+          {
+            "en": "Is there a temporary supply for the tools and the lights?",
+            "pt-BR": "Há uma alimentação provisória para as ferramentas e a iluminação?"
+          },
+          {
+            "en": "Are the furniture and the floors covered against dust?",
+            "pt-BR": "Os móveis e o piso estão cobertos contra o pó?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Does every conduit run from its box to the board with no crushed section?",
+            "pt-BR": "Cada eletroduto vai da caixa ao quadro sem nenhum trecho amassado?"
+          },
+          {
+            "en": "Were photos taken of the conduit runs before the walls were closed?",
+            "pt-BR": "Foram tiradas fotos do caminho dos eletrodutos antes de fechar as paredes?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Conduits and boxes",
+            "pt-BR": "Eletrodutos e caixas"
+          }
+        },
+        {
+          "label": {
+            "en": "Chasing and making good",
+            "pt-BR": "Abertura e fechamento de rasgos"
+          }
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "remove-old",
+          "name": {
+            "en": "Remove the old wiring and fittings",
+            "pt-BR": "Retirar a fiação e os acabamentos antigos"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          }
+        },
+        {
+          "key": "chases",
+          "name": {
+            "en": "Cut the chases",
+            "pt-BR": "Abrir os rasgos"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          }
+        },
+        {
+          "key": "conduits",
+          "name": {
+            "en": "Fix the conduits and the boxes",
+            "pt-BR": "Fixar os eletrodutos e as caixas"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          }
+        },
+        {
+          "key": "close-chases",
+          "name": {
+            "en": "Close the chases",
+            "pt-BR": "Fechar os rasgos"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          }
+        }
+      ]
+    },
+    {
+      "key": "rewire-board",
+      "name": {
+        "en": "Distribution board",
+        "pt-BR": "Quadro de distribuição"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the place for the board agreed, dry and easy to reach?",
+            "pt-BR": "O lugar do quadro está combinado, seco e de fácil acesso?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Is every breaker labelled with its circuit?",
+            "pt-BR": "Cada disjuntor está identificado com o seu circuito?"
+          },
+          {
+            "en": "Does the residual-current protection trip on its test button?",
+            "pt-BR": "O dispositivo diferencial residual desarma no botão de teste?"
+          },
+          {
+            "en": "Is the earthing connected and checked?",
+            "pt-BR": "O aterramento está ligado e conferido?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Board, breakers and residual-current protection",
+            "pt-BR": "Quadro, disjuntores e DR"
+          }
+        },
+        {
+          "label": {
+            "en": "Earthing",
+            "pt-BR": "Aterramento"
+          },
+          "activity": "earthing"
+        }
+      ],
+      "decisions": [
+        {
+          "key": "board",
+          "name": {
+            "en": "The size of the board, with room for new circuits",
+            "pt-BR": "O tamanho do quadro, com espaço para novos circuitos"
+          },
+          "leadDays": {
+            "min": 3,
+            "max": 10
+          },
+          "needs": "board"
+        }
+      ],
+      "activities": [
+        {
+          "key": "board",
+          "name": {
+            "en": "Install the new board with its breakers and residual-current protection",
+            "pt-BR": "Instalar o novo quadro com disjuntores e DR"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "key": "earthing",
+          "name": {
+            "en": "Check or install the earthing",
+            "pt-BR": "Verificar ou executar o aterramento"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      ]
+    },
+    {
+      "key": "rewire-wiring",
+      "name": {
+        "en": "Wiring",
+        "pt-BR": "Fiação"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the chases closed and every conduit clear?",
+            "pt-BR": "Os rasgos estão fechados e cada eletroduto desobstruído?"
+          },
+          {
+            "en": "Is the cable on site in the sizes the circuit plan asks for?",
+            "pt-BR": "Os cabos estão na obra nas bitolas que o projeto pede?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Does every circuit follow the same colour code in every room?",
+            "pt-BR": "Cada circuito segue o mesmo código de cores em todos os cômodos?"
+          },
+          {
+            "en": "Is every cable end in a box, with none joined inside a conduit?",
+            "pt-BR": "Cada ponta de cabo está numa caixa, sem emenda dentro do eletroduto?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Cables",
+            "pt-BR": "Cabos"
+          }
+        },
+        {
+          "label": {
+            "en": "Wiring labour",
+            "pt-BR": "Mão de obra de fiação"
+          }
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "wire-kitchen",
+          "name": {
+            "en": "Wire the kitchen and the laundry",
+            "pt-BR": "Passar a fiação da cozinha e da área de serviço"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["kitchen", "laundry"]
+        },
+        {
+          "key": "wire-bathroom",
+          "name": {
+            "en": "Wire the bathroom",
+            "pt-BR": "Passar a fiação do banheiro"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "wire-living",
+          "name": {
+            "en": "Wire the living room and the bedrooms",
+            "pt-BR": "Passar a fiação da sala e dos quartos"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          },
+          "rooms": ["living-room", "bedrooms"]
+        }
+      ]
+    },
+    {
+      "key": "rewire-fittings",
+      "name": {
+        "en": "Outlets, switches and lights",
+        "pt-BR": "Tomadas, interruptores e luminárias"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the boxes clean, with no plaster or dust inside?",
+            "pt-BR": "As caixas estão limpas, sem reboco nem pó dentro?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Does every switch work its own light?",
+            "pt-BR": "Cada interruptor acende a sua luz?"
+          },
+          {
+            "en": "Did every outlet show the right voltage and an earth?",
+            "pt-BR": "Cada tomada mostrou a tensão certa e o terra?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Outlets and switches",
+            "pt-BR": "Tomadas e interruptores"
+          },
+          "activity": "outlets-switches"
+        },
+        {
+          "label": {
+            "en": "Light fittings",
+            "pt-BR": "Luminárias"
+          },
+          "activity": "lights"
+        }
+      ],
+      "decisions": [
+        {
+          "key": "fittings-finish",
+          "name": {
+            "en": "The outlets and switches: range and finish",
+            "pt-BR": "Tomadas e interruptores: linha e acabamento"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 15
+          },
+          "needs": "outlets-switches"
+        },
+        {
+          "key": "lights",
+          "name": {
+            "en": "The light fittings",
+            "pt-BR": "As luminárias"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 20
+          },
+          "needs": "lights"
+        }
+      ],
+      "activities": [
+        {
+          "key": "outlets-switches",
+          "name": {
+            "en": "Fit the outlets and the switches",
+            "pt-BR": "Instalar as tomadas e os interruptores"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          }
+        },
+        {
+          "key": "lights",
+          "name": {
+            "en": "Fit the lights",
+            "pt-BR": "Instalar as luminárias"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      ]
+    },
+    {
+      "key": "rewire-testing",
+      "name": {
+        "en": "Testing and making good",
+        "pt-BR": "Testes e acabamento"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is every circuit connected at the board and labelled?",
+            "pt-BR": "Cada circuito está ligado no quadro e identificado?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Was every circuit tested — continuity, insulation and residual-current trip — and the results written down?",
+            "pt-BR": "Cada circuito foi testado — continuidade, isolamento e disparo do DR — e os resultados anotados?"
+          },
+          {
+            "en": "Is the list of circuits fixed inside the door of the board?",
+            "pt-BR": "A lista de circuitos está fixada na porta do quadro?"
+          },
+          {
+            "en": "Are the walls patched and painted where the chases were?",
+            "pt-BR": "As paredes estão recompostas e pintadas onde houve rasgos?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Testing",
+            "pt-BR": "Testes"
+          },
+          "activity": "test"
+        },
+        {
+          "label": {
+            "en": "Patching and painting",
+            "pt-BR": "Recomposição e pintura"
+          },
+          "activity": "make-good"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "test",
+          "name": {
+            "en": "Test every circuit",
+            "pt-BR": "Testar todos os circuitos"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "key": "make-good",
+          "name": {
+            "en": "Patch and paint the walls",
+            "pt-BR": "Recompor e pintar as paredes"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 5
+          }
+        },
+        {
+          "key": "hand-over",
+          "name": {
+            "en": "Hand over the list of circuits and the test results",
+            "pt-BR": "Entregar a lista de circuitos e os resultados dos testes"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "blocker": "rewire-plan",
+      "blocked": "rewire-chases",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-chases",
+      "blocked": "rewire-board",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-chases",
+      "blocked": "rewire-wiring",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-board",
+      "blocked": "rewire-fittings",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-wiring",
+      "blocked": "rewire-fittings",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-fittings",
+      "blocked": "rewire-testing",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-plan/survey",
+      "blocked": "rewire-plan/circuit-plan",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-chases/remove-old",
+      "blocked": "rewire-chases/chases",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-chases/chases",
+      "blocked": "rewire-chases/conduits",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-chases/conduits",
+      "blocked": "rewire-chases/close-chases",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-board/earthing",
+      "blocked": "rewire-board/board",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-fittings/outlets-switches",
+      "blocked": "rewire-fittings/lights",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-testing/test",
+      "blocked": "rewire-testing/make-good",
+      "lagDays": 0
+    },
+    {
+      "blocker": "rewire-testing/make-good",
+      "blocked": "rewire-testing/hand-over",
+      "lagDays": 0
+    }
+  ]
+}
