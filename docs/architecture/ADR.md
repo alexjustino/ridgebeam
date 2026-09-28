@@ -17,8 +17,9 @@ completes it: an approved plan changes only after somebody says why, every chang
 baseline carrying that reason, and any two baselines compare ([ADR-027](#adr-027),
 [ADR-028](#adr-028)). Slice F3 makes a fifth true: a decision's deadline is computed
 ([ADR-017](#adr-017)). Slice F4 completes the first: progress is derived from the diary
-([ADR-020](#adr-020)), which is append-only with a hash chain ([ADR-019](#adr-019)). The
-sixth, templates are plans, waits for F9.
+([ADR-020](#adr-020)), which is append-only with a hash chain ([ADR-019](#adr-019)). Slice F9
+makes the sixth true: templates are plans, applied once as the work's own, with ranges and no
+prices ([ADR-029](#adr-029)), and a work goes back out as a template ([ADR-030](#adr-030)).
 
 | #               | Decision                                                                                                      | Status                         |
 | --------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -50,6 +51,8 @@ sixth, templates are plans, waits for F9.
 | [026](#adr-026) | A person is a contact with stages, and presence comes from the diary                                          | Accepted — 2026-09-27          |
 | [027](#adr-027) | An approved plan is locked until somebody says why: a replanning is a row, closed only by the next baseline   | Accepted — 2026-09-28          |
 | [028](#adr-028) | Any two baselines compare in the domain; a what-if is never written                                           | Accepted — 2026-09-28          |
+| [029](#adr-029) | A template is data, applied once as the work's own plan, with ranges and no prices                            | Accepted — 2026-09-28          |
+| [030](#adr-030) | A work exports as a template with its numbers stripped or kept                                                | Accepted — 2026-09-28          |
 
 ---
 
@@ -1334,3 +1337,155 @@ counts in them. Every baseline now copies every stage as well as every activity.
 diary says happened is not in this comparison: it is plan against plan. [ADR-020](#adr-020)
 expected actuals against the baseline from F8 and F10; F8 does not do it, and it is left to
 F10's reports.
+
+## ADR-029 — A template is data, applied once as the work's own plan, with ranges and no prices {#adr-029}
+
+**Status.** Accepted — 2026-09-28.
+
+**Context.** The last of the six product decisions still open is that templates are plans, not
+to-do lists (SPEC §2.12, §4): stages with their typical activities, the links between them,
+duration ranges, the decisions each stage needs with their lead times, the checks it must pass
+and its cost lines — shipped as a library in this public repository, edited by anybody who
+contributes, and applied to start a work that is then the person's own. Two risks the
+specification names pull the same way: a template's durations and costs are taken as promises
+(R5), and a public library accepts a template that is wrong or hostile (R10). Three shapes were
+weighed. A template as **code** — a module that builds a plan — could do anything, including what
+a reviewer does not see. A work **linked** to its template, so that a correction to the library
+reaches every work started from it, would rewrite somebody's plan without asking, which is what
+[ADR-027](#adr-027) exists to prevent. And a template with **point values** — "tiling: 4 days,
+R$ 3.000,00" — reads as a quote the day it is applied, and is wrong for every site but one.
+
+**Decision.**
+
+- **A template is a JSON file and nothing else.** The library is `templates/<id>.json` at the root
+  of the repository, one file per template, its `id` in kebab-case and equal to the file's name.
+  Its fields are a closed list — the format version (`"ridgebeamTemplate": 1`), `id`, `version`,
+  `title`, `summary`, `includes`, `rooms`, `stages` (each with `checks`, `costLines`, `decisions`
+  and `activities`) and `links` — and **a field the validator does not name is refused**. Every
+  text is `{ "en": …, "pt-BR": … }`. Nothing in a template is ever run.
+- **One validator, two levels** — `validateTemplate(raw, origin, library)` in
+  `src/domain/templates/validate.ts`, which returns every problem with its JSON path and a
+  sentence. For **every** template: the structure; kebab-case keys unique in their scope; rooms,
+  activities and link endpoints that resolve; includes that name library templates, never the
+  template itself and never a cycle; links that close no loop once stage endpoints are expanded,
+  judged by the schedule's own graph as the host will judge them; and the host's limits (names and
+  labels 120 characters, checks 200, the summary 400, durations 1–3 650 working days, lead times
+  and lags 0–3 650). For the **library** only: both languages in every text; a summary; **every
+  duration and every lead time given, as a range with `min < max`** — a point is refused, because
+  a template carries ranges, not promises; **no `amountCents`**, because the library has no
+  prices; and no text that looks like a web address, an e-mail address or a phone number. A
+  template **from a file** — somebody's own, or a work's export ([ADR-030](#adr-030)) — may carry a
+  point (`min = max`), applied as that activity's duration with a note that says so, and amounts,
+  which are that work's own numbers.
+- **The library test is the gate.** `src/domain/templates/library.test.ts` reads every file in
+  `templates/`, validates it as `library`, checks that its id is its file name, and applies it to
+  an empty work; it names the file and the path that failed. It runs in `vitest`, so in
+  `npm run gates` and in CI. A maintainer reviews every template before it merges (R10);
+  [`CONTRIBUTING.md`](../../CONTRIBUTING.md) is the procedure.
+- **Applied once, as the work's own plan.** `applyTemplate(template, library, language)` turns a
+  validated template into a `PlanDraft` in one language — its includes first, depth first and each
+  once, their stages keyed `template-id:stage-key` so that two included templates may both have a
+  `strip-out`, their rooms merged by key — with notes of what it did: points applied as
+  durations, texts taken in the other language, templates included. The host's `plan_apply`
+  writes the whole draft in **one transaction**, every row checked with the same limits as the
+  command that adds one of its kind, **only into a work with no stage that is not approved** ("A
+  template starts a plan: this work already has one."), and refuses a cycle with the F2 sentence.
+  `work_create` may carry the plan and applies it in the same step; if the plan is refused, the
+  folder the call created is removed again and nothing is left in the recent list. Every row gets
+  a new id: from its first row the plan is the work's.
+- **Provenance, not a tie.** The work records `template_id`, `template_version` and
+  `template_title` — the title in the language it was started in — and nothing else. Nothing is
+  ever read from the template again; the Dashboard says where the plan was started from.
+- **Applying never invents a number.** An activity takes the range (`duration_min_days`,
+  `duration_max_days`) and **no duration**: `duration_days` stays empty until a person types one,
+  or presses **Use the upper end of each range** or **Use the lower end** (`ranges_take`), which
+  write the duration of every activity with a range and no duration outside a closed stage — an
+  explicit act, locked after approval like any duration edit ([ADR-027](#adr-027)). Readiness's
+  `activity.duration` row names the range. A decision's lead time is the **upper** end of its
+  range — the earlier deadline, the careful reading — and the range is kept beside it
+  (`lead_min_days`, `lead_max_days`). A decision's `needs` is checked (it must name an activity of
+  its stage) and not stored: in 1.0 a decision is needed by its whole stage ([ADR-017](#adr-017)).
+- **A cost line from the library is a label.** `cost_line.amount_cents` becomes nullable
+  (migration 010): a line with no amount is **not priced yet**, which is not 0. Planned money sums
+  the priced lines and lists the unpriced ones as rows marked so, contributing nothing and saying
+  it; the S-curve draws only priced lines. Readiness's `stage.money` now needs a **priced** line.
+  Every line written before F9 has an amount, so no existing total and no existing readiness
+  figure moves. Checks and rooms are copied as they are, and links with their lag.
+
+**Why.** Data with a closed list of fields and a validator in pure code is something a reviewer
+can read whole and a test can refuse; a file that could run could not be reviewed that way. A plan
+copied once is a plan the person owns: the library can be corrected without anybody's work
+changing under them, and an approved plan changes only through a replanning with its reason. A
+range left as a range keeps the product honest about what a template cannot know — the site, the
+crew, the weather — and readiness then says, in a sentence, that the plan does not yet know its
+durations, which is the truth. A library with no prices cannot be read as a quote, and cannot be
+out of date in a currency or a region it never named.
+
+**Cost accepted.** Nothing links a work back to its template: a mistake found in the library later
+is corrected there and **never reaches the works already started from it** — each person corrects
+their own plan, and the provenance only says which version they started from. **Ranges must be
+turned into durations by a person**: a work started from a template opens with every activity's
+duration missing and readiness low, on purpose; the two buttons are blunt — every range at once,
+at one end — and the alternative is typing each duration. **The library has no prices**: every
+stage of a new work has `stage.money` unmet until somebody writes an amount, and there is no price
+table to fall back on, by decision (price databases are not in 1.0). A lead range collapses to its
+upper end, which may put a deadline earlier than the person would. A decision's `needs` is
+validated and then dropped, because a decision belongs to its whole stage. Included templates'
+stages come **first** in the breakdown, in the order of `includes`, so an apartment refit lists its
+bathroom and kitchen stages before its own protection stage even though its links schedule that
+stage first. The library speaks two languages, and a template in only one cannot enter it. And
+the text checks are a heuristic: they catch a web address, an e-mail address or seven digits in a
+row, not a brand, a supplier or a real place — a maintainer's review is what catches those.
+
+## ADR-030 — A work exports as a template with its numbers stripped or kept {#adr-030}
+
+**Status.** Accepted — 2026-09-28.
+
+**Context.** A person who has planned a work well has made something worth starting the next one
+from, and something another person could use (SPEC §2.12: "any work exports as a template with its
+numbers stripped or kept"). The numbers are the problem. A plan's durations, lead times, lags and
+amounts are that site's: shared, they read as promises for somebody else's (R5); kept, they are
+exactly what the same person wants for the next work like it. One export with no choice would be
+wrong for one of the two.
+
+**Decision.**
+
+- **One pure function, one choice** — `exportTemplate(snapshot, { numbers, language, id, title })`
+  in `src/domain/templates/export.ts`, with `numbers` either `strip` or `keep`. It always exports
+  the rooms, the stages and their activities in plan order, the links, both gates' checks, the
+  decisions and the cost lines' labels, **in the work's language only**. Keys are made from the
+  names — kebab-case, accents folded, unique in their scope — so the same plan exported twice is
+  the same file. A work's includes are not recorded: an export is flat.
+- **Strip** is the default — something to share. An activity carries the range it took from its
+  template, if any, and otherwise no duration at all; no lead time, no lag, no amount.
+- **Keep** is the work's own numbers, to start the next one like it. An activity with a
+  duration exports it as a point (`min` = `max`), and one still waiting for a person to pick keeps
+  its range; a decision exports its lead time as a point; every lag; the amount of every priced
+  line. A point applies as that number, so the next work starts where this one settled.
+- **Never exported, whichever the choice:** people and who is responsible, quantities, the
+  diary, gate answers, commitments, payments, documents, baselines, replannings, and whether a
+  decision was made. A template is a plan's shape, not its record.
+- **It validates as a file by construction.** An export passes `validateTemplate` with origin
+  `file`, and a test holds that export → validate → apply → export gives the same template back.
+  It is **not** a library template: one language, no summary, and — kept — points and amounts. To
+  enter the library it goes through [`CONTRIBUTING.md`](../../CONTRIBUTING.md) like any other.
+- **The host writes it whole or not at all.** `template_write(path, text)` takes `.json` only and
+  1 MiB at most, writes a temporary file in the same folder, flushes it and renames it over the
+  name, and replaces an existing file only when the person chose it in the save dialog, which
+  asked. The Plan's header offers **Export as a template…**; its dialog asks strip or keep (strip
+  first) and where, and announces the path it wrote.
+
+**Why.** Two honest defaults for two honest purposes, chosen by the person at the moment they know
+which one they mean. Stripping back to the template's own ranges gives back what the library gave
+and nothing the site taught; keeping carries the numbers this work settled on, so the next work does
+not have to pick them again. A pure function with a round-trip test is what makes "the
+same plan gives the same file" a fact rather than a hope.
+
+**Cost accepted.** A stripped export of a plan that did not come from a template has **no
+durations at all**: the durations a person typed are the site's numbers, and strip drops them. A
+kept export of a work's own durations is a file of points — valid as a file, refused by the
+library — and anybody who applies it gets that work's numbers as durations, with a note saying so
+and nothing more. The export is in one language, so a library template made from a work needs its
+second language written by hand. Keys made from names change when a name changes, so two exports
+of a plan renamed in between do not line up key for key. And nothing records that a file was
+exported, or from which baseline: it is a snapshot of the plan as it stood.
