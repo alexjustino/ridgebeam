@@ -15,6 +15,7 @@ export type Destination =
   | 'decisions'
   | 'diary'
   | 'money'
+  | 'documents'
   | 'settings'
   | 'diagnostics'
   | 'about';
@@ -27,6 +28,7 @@ export const DESTINATIONS: readonly Destination[] = [
   'decisions',
   'diary',
   'money',
+  'documents',
   'settings',
   'diagnostics',
   'about',
@@ -47,6 +49,7 @@ export const NEEDS_WORK: ReadonlySet<Destination> = new Set<Destination>([
   'decisions',
   'diary',
   'money',
+  'documents',
 ]);
 
 export const DESTINATION_LABELS: Record<Destination, MessageKey> = {
@@ -56,6 +59,7 @@ export const DESTINATION_LABELS: Record<Destination, MessageKey> = {
   decisions: 'nav.decisions',
   diary: 'nav.diary',
   money: 'nav.money',
+  documents: 'nav.documents',
   settings: 'nav.settings',
   diagnostics: 'nav.diagnostics',
   about: 'nav.about',

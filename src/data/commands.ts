@@ -161,6 +161,11 @@ export const LIMITS = {
   checkName: 200,
   answerReason: 500,
   trade: 60,
+  phone: 40,
+  email: 120,
+  personNote: 500,
+  availability: 200,
+  documentTitle: 200,
   costLabel: 120,
   whatFor: 200,
   durationDays: 3650,
@@ -258,6 +263,11 @@ export interface PersonPatch {
   name?: string;
   /** `null` or empty clears it. */
   trade?: string | null;
+  /** Stored as typed and never used to reach anybody: the product has no network (F7). */
+  phone?: string | null;
+  email?: string | null;
+  note?: string | null;
+  availability?: string | null;
 }
 
 export function personUpdate(id: string, patch: PersonPatch): Promise<WorkSnapshot> {
@@ -604,4 +614,111 @@ export function paymentAdd(draft: PaymentDraftWire): Promise<WorkSnapshot> {
 /** Reverse a payment: a new, negative payment naming it, with the reason. Once per payment. */
 export function paymentReverse(seq: number, note: string): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('payment_reverse', { seq, note });
+}
+
+// ── People as contacts, documents and the folder (F7) ────────────────────────
+
+/** The stages a person is expected on — replaced whole. */
+export function personSetStages(id: string, stageIds: readonly string[]): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('person_set_stages', { id, stage_ids: stageIds });
+}
+
+export type DocumentKind =
+  'photo' | 'quote' | 'drawing' | 'permit' | 'receipt' | 'contract' | 'other';
+export type TargetKind =
+  'work' | 'stage' | 'activity' | 'decision' | 'entry' | 'commitment' | 'payment';
+
+/** What a document is attached to. */
+export interface DocumentTarget {
+  targetKind: TargetKind;
+  targetId: string;
+}
+
+/** A file the host would not keep, and why — in the host's words, naming the file. */
+export interface RefusedFile {
+  fileName: string;
+  reason: string;
+}
+
+/**
+ * Copy files into the work, each on its own: a batch with one file the product does not keep keeps
+ * the others and names the one. A file whose bytes the work already holds is linked, not copied
+ * twice. `target` attaches every kept file there; `null` attaches them to the work.
+ */
+export function documentAdd(
+  paths: readonly string[],
+  kind: DocumentKind,
+  target: DocumentTarget | null,
+): Promise<{ snapshot: WorkSnapshot; refused: RefusedFile[] }> {
+  return invoke<{ snapshot: WorkSnapshot; refused: RefusedFile[] }>('document_add', {
+    paths,
+    kind,
+    target,
+  });
+}
+
+export interface DocumentPatch {
+  title?: string;
+  kind?: DocumentKind;
+}
+
+export function documentUpdate(id: string, patch: DocumentPatch): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('document_update', { id, patch });
+}
+
+export function documentLink(id: string, target: DocumentTarget): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('document_link', { id, target });
+}
+
+export function documentUnlink(id: string, target: DocumentTarget): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('document_unlink', { id, target });
+}
+
+/**
+ * Remove a document from the library. The file itself stays while anything else names its bytes —
+ * a diary photo, an answer, a receipt — and the host says so.
+ */
+export function documentRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('document_remove', { id });
+}
+
+/** Open the file with the operating system's own handler — on a press, never on its own. */
+export async function documentOpen(id: string): Promise<void> {
+  await invoke<null>('document_open', { id });
+}
+
+/** An image document's thumbnail as a `data:` URL; `null` for a PDF, which is never rendered. */
+export function documentThumbnail(id: string): Promise<string | null> {
+  return invoke<string | null>('document_thumbnail', { id });
+}
+
+/** What re-reading every document's bytes found against the hashes the rows recorded. */
+export interface DocumentsReport {
+  checked: number;
+  mismatched: Array<{ id: string; fileName: string; expected: string; found: string }>;
+  missing: Array<{ id: string; fileName: string; fileHash: string }>;
+  orphans: string[];
+}
+
+export function documentsVerify(): Promise<DocumentsReport> {
+  return invoke<DocumentsReport>('documents_verify');
+}
+
+/** The work folder, measured: its size, and the files in `documents/` and `thumbnails/`. */
+export interface FolderHealth {
+  folderBytes: number;
+  documentFiles: number;
+  thumbnailFiles: number;
+}
+
+export function folderHealth(): Promise<FolderHealth> {
+  return invoke<FolderHealth>('folder_health');
+}
+
+/**
+ * A recent work found again where it now is: the host checks that the folder holds the same work
+ * (by its id) and only then updates the recent list; another work's folder is refused, naming both.
+ */
+export async function recentRelocate(workId: string, folder: string): Promise<void> {
+  await invoke<unknown>('recent_relocate', { work_id: workId, folder });
 }
