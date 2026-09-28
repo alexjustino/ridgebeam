@@ -1,33 +1,49 @@
-//! Photos: hostile files, copied in by the host under caps, and shown small.
+//! What comes into the work folder: hostile files, copied in by the host
+//! under caps, typed by their bytes, named by their hash, and — for images —
+//! shown small.
 //!
-//! Every photo arrived from somebody else — a phone, a messaging app, a
+//! Every file arrived from somebody else — a phone, a messaging app, a
 //! contractor's e-mail — and is treated as hostile (SECURITY.md, "Files are
 //! hostile"). The webview never reads one: it hands the host a path the person
 //! chose, and gets back a hash, a thumbnail as a `data:` URL, and the promise
 //! that the original opens with the system's own handler on a click.
 //!
+//! What the product keeps, by the bytes and never the name:
+//!
+//! | type                          | kept as   | thumbnail | parsed               |
+//! | ----------------------------- | --------- | --------- | -------------------- |
+//! | JPEG, PNG, GIF, WebP, BMP     | an image  | yes       | header, then decoded under limits for the thumbnail |
+//! | PDF (`%PDF-`)                 | a document| no — a mark | **never**: not parsed, not rendered; the system opens it |
+//! | HEIC                          | refused   |           | named: this version does not decode it |
+//! | SVG                           | refused   |           | named: an SVG can carry scripts |
+//! | anything else                 | refused   |           | "photos and PDFs, and this is neither" |
+//!
+//! A diary photo and an answer's photo take images only ([`Accept::Images`]);
+//! the Documents page, receipts and quotes take images and PDFs
+//! ([`Accept::Documents`]).
+//!
 //! What happens to one file, in order, each step refusing with a sentence that
 //! names the file:
 //!
 //! 1. **Measured before it is read.** Empty, or larger than [`MAX_PHOTO_BYTES`]
-//!    (25 MiB), is refused from the file's metadata; the read itself stops one
-//!    byte past the cap, so a file that grows in between is refused too.
-//! 2. **Identified by its bytes, never its name.** JPEG, PNG, GIF, WebP or BMP,
-//!    by magic bytes. HEIC is named and refused — this version does not decode
-//!    it. Anything else — a text file called `.jpg` — is refused.
-//! 3. **Measured from its header, before any pixel is decoded.** Width and
-//!    height over [`MAX_PHOTO_SIDE`] (12 000) are refused; so is a header that
-//!    cannot be read.
+//!    (25 MiB, images and PDFs alike), is refused from the file's metadata;
+//!    the read itself stops one byte past the cap, so a file that grows in
+//!    between is refused too.
+//! 2. **Identified by its bytes, never its name.** The type table above, by
+//!    magic bytes. A PNG called `.pdf` is kept — as the PNG it is.
+//! 3. **An image is measured from its header, before any pixel is decoded.**
+//!    Width and height over [`MAX_PHOTO_SIDE`] (12 000) are refused; so is a
+//!    header that cannot be read, or one that says there are no pixels.
 //! 4. **Named by what it is.** The SHA-256 of the bytes names the copy:
-//!    `<work>/documents/<hash>.<ext>`, the extension from the detected format.
-//!    A photo already in the work is not copied again.
-//! 5. **Drawn small under limits.** A 320-pixel JPEG thumbnail is rendered to
-//!    `<work>/thumbnails/<hash>.jpg` by the `image` crate under
+//!    `<work>/documents/<hash>.<ext>`, the extension from the detected type.
+//!    A file already in the work is not copied again.
+//! 5. **An image is drawn small under limits.** A 320-pixel JPEG thumbnail is
+//!    rendered to `<work>/thumbnails/<hash>.jpg` by the `image` crate under
 //!    [`image::Limits`] (the side cap, and 256 MiB of allocation), turned the
-//!    way the camera said. A photo that cannot be drawn is kept, and says so
-//!    (`thumbnail = false`) — it is the person's photo, not the thumbnail's.
+//!    way the camera said. An image that cannot be drawn is kept, and says so
+//!    (`thumbnail = false`) — it is the person's file, not the thumbnail's.
 //!
-//! The folders `documents/` and `thumbnails/` are created by the first photo,
+//! The folders `documents/` and `thumbnails/` are created by the first file,
 //! not before. A [`CopyIn`] is a transaction on the folder: dropped without
 //! [`CopyIn::keep`], it removes every file it wrote and every folder it
 //! created, so an entry refused for its third photo leaves no trace of the
@@ -35,7 +51,11 @@
 //!
 //! # Changelog of this module
 //!
-//! - F4: copy-in, thumbnails, the data URL, opening with the system's handler.
+//! - F4: copy-in of photos, thumbnails, the data URL, opening with the
+//!   system's handler (as `files::photos`).
+//! - F7: the general intake. PDFs kept by magic bytes and never parsed; SVG
+//!   named and refused; what a path may bring chosen by the caller
+//!   ([`Accept`]).
 
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
@@ -67,7 +87,7 @@ pub const THUMBNAILS: &str = "thumbnails";
 /// The longest file name a diary row keeps.
 const MAX_NAME_CHARS: usize = 255;
 
-/// The formats a photo may arrive as.
+/// The types the product keeps.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {
     /// JPEG.
@@ -80,16 +100,19 @@ pub enum Format {
     WebP,
     /// BMP.
     Bmp,
+    /// PDF — kept, never parsed, never rendered.
+    Pdf,
 }
 
 impl Format {
-    /// Every format, in the order a copy is looked for.
-    pub const ALL: [Format; 5] = [
+    /// Every type, in the order a copy is looked for.
+    pub const ALL: [Format; 6] = [
         Format::Jpeg,
         Format::Png,
         Format::WebP,
         Format::Gif,
         Format::Bmp,
+        Format::Pdf,
     ];
 
     /// The extension the copy is named with — from the bytes, never the name.
@@ -100,27 +123,57 @@ impl Format {
             Format::Gif => "gif",
             Format::WebP => "webp",
             Format::Bmp => "bmp",
+            Format::Pdf => "pdf",
         }
     }
 
-    fn image_format(self) -> ImageFormat {
+    /// The media type the document row records.
+    pub fn media_type(self) -> &'static str {
         match self {
-            Format::Jpeg => ImageFormat::Jpeg,
-            Format::Png => ImageFormat::Png,
-            Format::Gif => ImageFormat::Gif,
-            Format::WebP => ImageFormat::WebP,
-            Format::Bmp => ImageFormat::Bmp,
+            Format::Jpeg => "image/jpeg",
+            Format::Png => "image/png",
+            Format::Gif => "image/gif",
+            Format::WebP => "image/webp",
+            Format::Bmp => "image/bmp",
+            Format::Pdf => "application/pdf",
         }
     }
+
+    /// Whether it is an image — with a size and a thumbnail.
+    pub fn is_image(self) -> bool {
+        self != Format::Pdf
+    }
+
+    fn image_format(self) -> Option<ImageFormat> {
+        match self {
+            Format::Jpeg => Some(ImageFormat::Jpeg),
+            Format::Png => Some(ImageFormat::Png),
+            Format::Gif => Some(ImageFormat::Gif),
+            Format::WebP => Some(ImageFormat::WebP),
+            Format::Bmp => Some(ImageFormat::Bmp),
+            Format::Pdf => None,
+        }
+    }
+}
+
+/// What a path may bring in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Accept {
+    /// Images only: a diary photo, an answer's photo.
+    Images,
+    /// Images and PDFs: the Documents page, a receipt, a quote.
+    Documents,
 }
 
 /// What the magic bytes say.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Sniffed {
-    /// A format this product reads.
-    Photo(Format),
+    /// A type this product keeps.
+    Known(Format),
     /// A HEIC or HEIF photo, which this version does not decode.
     Heic,
+    /// An SVG drawing, which can carry scripts.
+    Svg,
     /// Something else.
     Unknown,
 }
@@ -128,15 +181,19 @@ pub enum Sniffed {
 /// Identify a file by its first bytes.
 pub fn sniff(bytes: &[u8]) -> Sniffed {
     if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
-        Sniffed::Photo(Format::Jpeg)
+        Sniffed::Known(Format::Jpeg)
     } else if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]) {
-        Sniffed::Photo(Format::Png)
+        Sniffed::Known(Format::Png)
     } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
-        Sniffed::Photo(Format::Gif)
+        Sniffed::Known(Format::Gif)
     } else if bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
-        Sniffed::Photo(Format::WebP)
+        Sniffed::Known(Format::WebP)
     } else if bytes.starts_with(b"BM") && bytes.len() >= 26 {
-        Sniffed::Photo(Format::Bmp)
+        Sniffed::Known(Format::Bmp)
+    } else if bytes.starts_with(b"%PDF-") {
+        Sniffed::Known(Format::Pdf)
+    } else if is_svg(bytes) {
+        Sniffed::Svg
     } else if bytes.len() >= 12
         && &bytes[4..8] == b"ftyp"
         && matches!(
@@ -148,6 +205,23 @@ pub fn sniff(bytes: &[u8]) -> Sniffed {
     } else {
         Sniffed::Unknown
     }
+}
+
+/// Whether the bytes begin like an SVG drawing: after an optional byte-order
+/// mark and white space, `<svg`, or an XML declaration with `<svg` in the
+/// first kilobyte.
+fn is_svg(bytes: &[u8]) -> bool {
+    let start = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes);
+    let first = start
+        .iter()
+        .position(|b| !b.is_ascii_whitespace())
+        .unwrap_or(start.len());
+    let text = &start[first..];
+    let head = &text[..text.len().min(1024)];
+    let lower: Vec<u8> = head.iter().map(u8::to_ascii_lowercase).collect();
+    lower.starts_with(b"<svg")
+        || ((lower.starts_with(b"<?xml") || lower.starts_with(b"<!doctype svg"))
+            && lower.windows(4).any(|w| w == b"<svg"))
 }
 
 /// Whether a string is a photo's name in this work: 64 lowercase hex digits.
@@ -164,20 +238,22 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
-/// One photo, copied in.
+/// One file, copied in.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Copied {
     /// SHA-256 of its bytes.
     pub hash: String,
     /// The name it had, as chosen — never used as a path.
     pub file_name: String,
+    /// What its bytes are.
+    pub format: Format,
     /// Its size.
     pub bytes: i64,
-    /// Its width, from its header.
+    /// Its width, from its header; 0 for a PDF.
     pub width: i64,
-    /// Its height, from its header.
+    /// Its height, from its header; 0 for a PDF.
     pub height: i64,
-    /// Whether its thumbnail exists.
+    /// Whether its thumbnail exists; never for a PDF.
     pub thumbnail: bool,
 }
 
@@ -208,14 +284,14 @@ impl CopyIn {
         self.kept = true;
     }
 
-    /// Copy one photo in, or refuse it with a sentence that names it.
+    /// Copy one file in, or refuse it with a sentence that names it.
     ///
     /// # Errors
     ///
     /// [`Error::PhotoRefused`] for a file that is not there, empty, over the
-    /// caps, not a photo this product reads, or whose header cannot be read;
+    /// caps, of a type `accept` does not take, or whose header cannot be read;
     /// [`Error::Io`] when the work folder cannot be written.
-    pub fn copy(&mut self, source: &Path) -> Result<Copied> {
+    pub fn copy(&mut self, source: &Path, accept: Accept) -> Result<Copied> {
         let file_name = display_name(source);
         let refuse =
             |reason: &str| Error::PhotoRefused(format!("“{file_name}” was not added: {reason}."));
@@ -241,34 +317,57 @@ impl CopyIn {
             return Err(refuse("it is larger than 25 MiB"));
         }
 
-        let format =
-            match sniff(&bytes) {
-                Sniffed::Photo(format) => format,
-                Sniffed::Heic => return Err(refuse(
+        let format = match (sniff(&bytes), accept) {
+            (Sniffed::Known(Format::Pdf), Accept::Images) => {
+                return Err(refuse(
+                    "it is a PDF, not a photo — add it on the Documents page",
+                ))
+            }
+            (Sniffed::Known(format), _) => format,
+            (Sniffed::Heic, _) => {
+                return Err(refuse(
                     "it is a HEIC photo, which this version cannot read — save it as JPEG first",
-                )),
-                Sniffed::Unknown => {
-                    return Err(refuse("it is not a JPEG, PNG, WebP, GIF or BMP image"));
-                }
-            };
+                ))
+            }
+            (Sniffed::Svg, _) => {
+                return Err(refuse(
+                    "it is an SVG drawing, which can carry scripts, and Ridgebeam does not keep SVG files — save it as PNG or PDF",
+                ))
+            }
+            (Sniffed::Unknown, Accept::Images) => {
+                return Err(refuse("it is not a JPEG, PNG, WebP, GIF or BMP image"));
+            }
+            (Sniffed::Unknown, Accept::Documents) => {
+                return Err(refuse(
+                    "Ridgebeam keeps photos and PDFs, and this is neither",
+                ));
+            }
+        };
 
-        // The header only: no pixel is allocated here, so the decoder's own
-        // allocation limits are lifted for this read — they would refuse a
-        // lying size with the wrong sentence — and the product's cap below is
-        // what decides. Decoding, for the thumbnail, runs under limits.
-        let mut header = ImageReader::with_format(Cursor::new(&bytes), format.image_format());
-        header.no_limits();
-        let (width, height) = header
-            .into_dimensions()
-            .map_err(|_| refuse("its header could not be read — the file may be damaged"))?;
-        if width == 0 || height == 0 {
-            return Err(refuse(
-                "its header could not be read — the file may be damaged",
-            ));
-        }
-        if width > MAX_PHOTO_SIDE || height > MAX_PHOTO_SIDE {
-            return Err(refuse("it is larger than 12 000 × 12 000 pixels"));
-        }
+        let (width, height) = match format.image_format() {
+            // A PDF is never parsed: its header is its magic bytes, and that is
+            // all this product reads of it.
+            None => (0, 0),
+            Some(image_format) => {
+                // The header only: no pixel is allocated here, so the decoder's
+                // own allocation limits are lifted for this read — they would
+                // refuse a lying size with the wrong sentence — and the
+                // product's cap below is what decides. Decoding, for the
+                // thumbnail, runs under limits.
+                let mut header = ImageReader::with_format(Cursor::new(&bytes), image_format);
+                header.no_limits();
+                let (width, height) = header.into_dimensions().map_err(|_| {
+                    refuse("its header could not be read — the file may be damaged")
+                })?;
+                if width == 0 || height == 0 {
+                    return Err(refuse("its header says it has no pixels"));
+                }
+                if width > MAX_PHOTO_SIDE || height > MAX_PHOTO_SIDE {
+                    return Err(refuse("it is larger than 12 000 × 12 000 pixels"));
+                }
+                (width, height)
+            }
+        };
 
         let hash = sha256_hex(&bytes);
         let documents = self.folder_for(DOCUMENTS)?;
@@ -277,19 +376,24 @@ impl CopyIn {
             self.write(&copy, &bytes)?;
         }
 
-        let thumbnails = self.folder_for(THUMBNAILS)?;
-        let small = thumbnails.join(format!("{hash}.jpg"));
-        let thumbnail = if small.exists() {
-            true
-        } else {
-            match render_thumbnail(&bytes, format) {
-                Ok(jpeg) => {
-                    self.write(&small, &jpeg)?;
+        let thumbnail = match format.image_format() {
+            None => false,
+            Some(image_format) => {
+                let thumbnails = self.folder_for(THUMBNAILS)?;
+                let small = thumbnails.join(format!("{hash}.jpg"));
+                if small.exists() {
                     true
-                }
-                Err(reason) => {
-                    log::warn!("a photo was kept without a thumbnail: {reason}");
-                    false
+                } else {
+                    match render_thumbnail(&bytes, image_format) {
+                        Ok(jpeg) => {
+                            self.write(&small, &jpeg)?;
+                            true
+                        }
+                        Err(reason) => {
+                            log::warn!("an image was kept without a thumbnail: {reason}");
+                            false
+                        }
+                    }
                 }
             }
         };
@@ -297,6 +401,7 @@ impl CopyIn {
         Ok(Copied {
             hash,
             file_name,
+            format,
             bytes: bytes.len() as i64,
             width: i64::from(width),
             height: i64::from(height),
@@ -363,8 +468,8 @@ fn display_name(source: &Path) -> String {
 
 /// Decode under limits, turn as the camera said, shrink to 320 pixels on the
 /// longest side, encode as JPEG.
-fn render_thumbnail(bytes: &[u8], format: Format) -> std::result::Result<Vec<u8>, String> {
-    let mut reader = ImageReader::with_format(Cursor::new(bytes), format.image_format());
+fn render_thumbnail(bytes: &[u8], format: ImageFormat) -> std::result::Result<Vec<u8>, String> {
+    let mut reader = ImageReader::with_format(Cursor::new(bytes), format);
     let mut limits = Limits::default();
     limits.max_image_width = Some(MAX_PHOTO_SIDE);
     limits.max_image_height = Some(MAX_PHOTO_SIDE);
@@ -382,7 +487,39 @@ fn render_thumbnail(bytes: &[u8], format: Format) -> std::result::Result<Vec<u8>
     Ok(jpeg)
 }
 
-/// The original of a photo in this work, if it is there.
+/// What a file already in the work is, read from its bytes: its type and,
+/// for an image, its size from the header (no pixel decoded). `None` for bytes
+/// this product would not keep.
+pub fn describe(bytes: &[u8]) -> Option<(Format, Option<(u32, u32)>)> {
+    let Sniffed::Known(format) = sniff(bytes) else {
+        return None;
+    };
+    let size = format.image_format().and_then(|image_format| {
+        let mut header = ImageReader::with_format(Cursor::new(bytes), image_format);
+        header.no_limits();
+        header
+            .into_dimensions()
+            .ok()
+            .filter(|(w, h)| *w > 0 && *h > 0)
+    });
+    Some((format, size))
+}
+
+/// Remove a file's copy and its thumbnail from the work folder. Called only
+/// when nothing in the work names the hash any more.
+pub fn remove_files(folder: &Path, hash: &str) {
+    if !is_hash(hash) {
+        return;
+    }
+    while let Some(path) = original(folder, hash) {
+        if std::fs::remove_file(&path).is_err() {
+            break;
+        }
+    }
+    let _ = std::fs::remove_file(folder.join(THUMBNAILS).join(format!("{hash}.jpg")));
+}
+
+/// The original of a file in this work, if it is there.
 pub fn original(folder: &Path, hash: &str) -> Option<PathBuf> {
     if !is_hash(hash) {
         return None;
@@ -567,7 +704,7 @@ pub mod tests {
             std::fs::write(&path, &bytes).unwrap();
 
             let mut copy = CopyIn::new(work.path());
-            let refused = copy.copy(&path).expect_err(name);
+            let refused = copy.copy(&path, Accept::Images).expect_err(name);
             drop(copy);
 
             assert_eq!(refused.kind(), "photo_refused", "{name}");
@@ -594,7 +731,9 @@ pub mod tests {
         heic.extend_from_slice(&[0; 32]);
         std::fs::write(&path, heic).unwrap();
 
-        let refused = CopyIn::new(work.path()).copy(&path).unwrap_err();
+        let refused = CopyIn::new(work.path())
+            .copy(&path, Accept::Images)
+            .unwrap_err();
 
         assert!(refused.to_string().contains("HEIC"), "{refused}");
     }
@@ -609,7 +748,7 @@ pub mod tests {
         std::fs::write(&path, &bytes).unwrap();
 
         let mut copy = CopyIn::new(work.path());
-        let copied = copy.copy(&path).unwrap();
+        let copied = copy.copy(&path, Accept::Images).unwrap();
         copy.keep();
 
         let hash = sha256_hex(&bytes);
@@ -664,8 +803,12 @@ pub mod tests {
         }
 
         let mut copy = CopyIn::new(work.path());
-        let first = copy.copy(&source.path().join("a.jpg")).unwrap();
-        let second = copy.copy(&source.path().join("b.jpg")).unwrap();
+        let first = copy
+            .copy(&source.path().join("a.jpg"), Accept::Images)
+            .unwrap();
+        let second = copy
+            .copy(&source.path().join("b.jpg"), Accept::Images)
+            .unwrap();
         copy.keep();
 
         assert_eq!(first.hash, second.hash);
@@ -683,7 +826,8 @@ pub mod tests {
         std::fs::write(source.path().join("a.png"), png(40, 30)).unwrap();
 
         let mut copy = CopyIn::new(work.path());
-        copy.copy(&source.path().join("a.png")).unwrap();
+        copy.copy(&source.path().join("a.png"), Accept::Images)
+            .unwrap();
         assert_eq!(files_under(work.path()).len(), 4);
         drop(copy);
 
@@ -708,18 +852,29 @@ pub mod tests {
 
     #[test]
     fn the_magic_bytes_decide_the_format_and_a_name_decides_nothing() {
-        assert_eq!(sniff(&jpeg(8, 8)), Sniffed::Photo(Format::Jpeg));
-        assert_eq!(sniff(&png(8, 8)), Sniffed::Photo(Format::Png));
+        assert_eq!(sniff(&jpeg(8, 8)), Sniffed::Known(Format::Jpeg));
+        assert_eq!(sniff(&png(8, 8)), Sniffed::Known(Format::Png));
         assert_eq!(
             sniff(b"GIF89a\x01\x00\x01\x00"),
-            Sniffed::Photo(Format::Gif)
+            Sniffed::Known(Format::Gif)
         );
         assert_eq!(
             sniff(b"RIFF\x00\x00\x00\x00WEBPVP8 "),
-            Sniffed::Photo(Format::WebP)
+            Sniffed::Known(Format::WebP)
         );
         assert_eq!(sniff(b"hello"), Sniffed::Unknown);
         assert_eq!(sniff(b""), Sniffed::Unknown);
-        assert_eq!(sniff(b"%PDF-1.7\n"), Sniffed::Unknown);
+        assert_eq!(sniff(b"%PDF-1.7\n"), Sniffed::Known(Format::Pdf));
+        assert_eq!(
+            sniff(b"<svg xmlns=\"http://www.w3.org/2000/svg\"/>"),
+            Sniffed::Svg
+        );
+        assert_eq!(
+            sniff(b"\xEF\xBB\xBF  <?xml version=\"1.0\"?><svg/>"),
+            Sniffed::Svg
+        );
+        assert_eq!(sniff(b"<?xml version=\"1.0\"?><note/>"), Sniffed::Unknown);
+        assert_eq!(sniff(b"PK\x03\x04"), Sniffed::Unknown);
+        assert_eq!(sniff(b"MZ\x90\x00"), Sniffed::Unknown);
     }
 }

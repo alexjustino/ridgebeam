@@ -8,5 +8,10 @@
 //! # Changelog of this module
 //!
 //! - F4: `photos` — the diary's photos, copied in under caps.
+//! - F7: `photos` becomes `intake`, the general pipeline: images and PDFs by
+//!   their bytes, everything else refused; `hostile`, the corpus it is held
+//!   to, generated in `cargo test` against a committed manifest.
 
-pub mod photos;
+#[cfg(test)]
+pub mod hostile;
+pub mod intake;

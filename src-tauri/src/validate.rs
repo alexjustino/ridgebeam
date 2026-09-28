@@ -191,6 +191,40 @@ pub fn trade(value: Option<&str>) -> Result<Option<String>> {
     Ok(Some(value.to_string()))
 }
 
+/// The longest phone number a person keeps.
+pub const MAX_PHONE_CHARS: usize = 40;
+/// The longest e-mail address a person keeps.
+pub const MAX_EMAIL_CHARS: usize = 120;
+/// The longest note about a person.
+pub const MAX_PERSON_NOTE_CHARS: usize = 500;
+/// The longest availability, in the person's words.
+pub const MAX_AVAILABILITY_CHARS: usize = 200;
+
+/// A contact field as the person typed it: trimmed, empty is none, bounded,
+/// no control characters. Its shape is not checked — a phone number or an
+/// e-mail address is text the person typed, stored and shown, never used.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is too long or holds a control character.
+pub fn contact(what: &str, value: Option<&str>, max: usize) -> Result<Option<String>> {
+    let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
+        return Ok(None);
+    };
+    if value.chars().count() > max {
+        return Err(invalid(format!("{what} is at most {max} characters.")));
+    }
+    if value
+        .chars()
+        .any(|c| c.is_control() && !matches!(c, '\n' | '\r' | '\t'))
+    {
+        return Err(invalid(format!(
+            "{what} holds a control character that cannot be kept."
+        )));
+    }
+    Ok(Some(value.to_string()))
+}
+
 /// An optional date: `null`, or a date written `YYYY-MM-DD` that exists.
 ///
 /// # Errors

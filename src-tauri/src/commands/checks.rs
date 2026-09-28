@@ -18,14 +18,15 @@ use std::path::PathBuf;
 use rusqlite::Connection;
 use tauri::State;
 
+use crate::commands::documents::file_it;
 use crate::commands::work::{change_work, with_work};
-use crate::contract::WorkSnapshot;
+use crate::contract::{DocumentTarget, WorkSnapshot};
 use crate::db::check_answers::{self, NewAnswer, CHECK_NOT_FOUND};
 use crate::db::checks::{self, Gate};
 use crate::db::order::CHECKS;
 use crate::db::work::{self as repo, exists};
 use crate::error::{Error, Result};
-use crate::files::photos::{self, CopyIn, NOT_A_PHOTO};
+use crate::files::intake::{self, Accept, CopyIn, NOT_A_PHOTO};
 use crate::folder::OpenWork;
 use crate::os::account;
 use crate::validate;
@@ -335,7 +336,7 @@ pub fn check_answer_with(
         None => None,
     };
     if let Some(hash) = draft.photo_hash {
-        if !photos::is_hash(hash) {
+        if !intake::is_hash(hash) {
             return Err(invalid(NOT_A_PHOTO));
         }
     }
@@ -352,10 +353,16 @@ pub fn check_answer_with(
         }
         // Dropped without `keep`, the copy-in removes every file it wrote.
         let mut copy = CopyIn::new(&state.folder);
+        let mut brought = None;
         let photo_hash = match (&path, draft.photo_hash) {
-            (Some(path), _) => Some(copy.copy(path)?.hash),
+            (Some(path), _) => {
+                let copied = copy.copy(path, Accept::Images)?;
+                let hash = copied.hash.clone();
+                brought = Some(copied);
+                Some(hash)
+            }
             (None, Some(hash)) => {
-                if photos::original(&state.folder, hash).is_none() {
+                if intake::original(&state.folder, hash).is_none() {
                     return Err(invalid(NOT_A_PHOTO));
                 }
                 Some(hash.to_string())
@@ -368,11 +375,36 @@ pub fn check_answer_with(
                 check_id: draft.check_id.to_string(),
                 answer: draft.answer.to_string(),
                 reason: reason.clone(),
-                photo_hash,
+                photo_hash: photo_hash.clone(),
                 author_name: author.to_string(),
             },
         )?;
         copy.keep();
+        // The inspection's photo is a document of the work, linked to the
+        // check's stage (F7).
+        if let Some(hash) = &photo_hash {
+            let stage: String = conn.query_row(
+                "SELECT stage_id FROM stage_check WHERE id = ?1",
+                [draft.check_id],
+                |row| row.get(0),
+            )?;
+            let today = chrono::Local::now()
+                .date_naive()
+                .format("%Y-%m-%d")
+                .to_string();
+            file_it(
+                conn,
+                hash,
+                brought.as_ref(),
+                "photo",
+                &today,
+                author,
+                &DocumentTarget {
+                    target_kind: "stage".into(),
+                    target_id: stage,
+                },
+            );
+        }
         repo::snapshot(conn)
     })
 }
@@ -387,7 +419,7 @@ mod tests {
     use crate::contract::Endpoint;
     use crate::db::lock;
     use crate::db::testing::Scratch;
-    use crate::files::photos::tests::{hostile_corpus, png};
+    use crate::files::intake::tests::{hostile_corpus, png};
 
     const AUTHOR: &str = "A. Inspector (synthetic)";
 
@@ -535,14 +567,14 @@ mod tests {
         )
         .unwrap();
 
-        let hash = photos::sha256_hex(&png_bytes);
+        let hash = intake::sha256_hex(&png_bytes);
         assert_eq!(
             plan.check_answers[0].photo_hash.as_deref(),
             Some(hash.as_str())
         );
         assert_eq!(folder_entries(&open), vec!["documents", "thumbnails"]);
         let url = with_work(&open, |state| {
-            photos::thumbnail_data_url(&state.folder, &hash)
+            intake::thumbnail_data_url(&state.folder, &hash)
         })
         .unwrap();
         assert!(url.starts_with("data:image/jpeg;base64,"));

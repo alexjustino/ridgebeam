@@ -226,6 +226,9 @@ pub fn open(folder: &Path) -> Result<WorkState> {
     }
     migrations::WORK.apply(&conn)?;
 
+    // What migration 008's backfill could not know is read from the files.
+    db::documents::complete(&conn, folder)?;
+
     let work_id = db::work::work(&conn)?.work_id;
     log::info!("a work was opened");
     Ok(WorkState {
@@ -233,6 +236,34 @@ pub fn open(folder: &Path) -> Result<WorkState> {
         conn,
         work_id,
     })
+}
+
+/// Which work a folder holds — its `workId` and its name — read without
+/// migrating or completing anything, and closed again at once. Used to find a
+/// moved work again before the recent list is told where it is.
+///
+/// # Errors
+///
+/// [`Error::WorkNotFound`] when the folder holds no work this product wrote.
+pub fn identify(folder: &Path) -> Result<(String, String)> {
+    let path = folder.join(WORK_FILE);
+    if !path.is_file() {
+        return Err(Error::WorkNotFound(NO_WORK_FILE));
+    }
+    let conn = Connection::open_with_flags(
+        &path,
+        OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .map_err(not_a_work)?;
+    let found = conn
+        .query_row("SELECT work_id, name FROM work WHERE id = 1", [], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|_| Error::WorkNotFound(NOT_A_WORK))?;
+    if let Err((_, error)) = conn.close() {
+        log::warn!("a work read to identify it did not close cleanly: {error}");
+    }
+    Ok(found)
 }
 
 /// A file SQLite will not read as a database is a folder with no work in it,
@@ -523,5 +554,194 @@ mod tests {
         assert!(plan.rooms.is_empty());
         close(state);
         assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
+    }
+
+    /// The upgrade a person makes from F6: a work folder at schema 7 with a
+    /// diary photo, an answer's photo, a receipt and a quote document. Opened
+    /// by F7, every one becomes a document linked where it came from — the
+    /// entry and the payment by their seq, the answer's photo to its check's
+    /// stage, the quote to its commitment — completed from its file, except the
+    /// one whose file is gone; and the diary chain still verifies.
+    #[test]
+    fn a_work_folder_at_schema_seven_is_backfilled_with_its_documents_and_the_chain_still_verifies()
+    {
+        use crate::db::{check_answers, checks, diary, money, payments};
+        use crate::files::intake;
+
+        let scratch = Scratch::create();
+        let documents = scratch.path().join(intake::DOCUMENTS);
+        std::fs::create_dir(&documents).unwrap();
+        let file = |bytes: Vec<u8>, extension: &str| -> (String, Vec<u8>) {
+            let hash = intake::sha256_hex(&bytes);
+            std::fs::write(documents.join(format!("{hash}.{extension}")), &bytes).unwrap();
+            (hash, bytes)
+        };
+        let (photo, photo_bytes) = file(intake::tests::png(64, 48), "png");
+        let (inspection, _) = file(intake::tests::jpeg(40, 30), "jpg");
+        let (receipt, receipt_bytes) = file(intake::tests::png(20, 30), "png");
+        let quote_gone = "ab".repeat(32);
+
+        let stage = "00000000-0000-7000-8000-00000000000b";
+        let commitment;
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 7).unwrap();
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    day: "2026-10-05".into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Tiles laid.".into()),
+                    weather: None,
+                    lost_day: false,
+                    hours: None,
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: Vec::new(),
+                    present: Vec::new(),
+                    photos: vec![crate::contract::Photo {
+                        file_hash: photo.clone(),
+                        file_name: "wall.png".into(),
+                        bytes: photo_bytes.len() as i64,
+                        width: 64,
+                        height: 48,
+                        thumbnail: false,
+                    }],
+                },
+            )
+            .unwrap();
+            let check = checks::add(&conn, stage, checks::Gate::Close, "Inspected").unwrap();
+            check_answers::append(
+                &conn,
+                &check_answers::NewAnswer {
+                    check_id: check,
+                    answer: "yes".into(),
+                    reason: None,
+                    photo_hash: Some(inspection.clone()),
+                    author_name: "Synthetic inspector".into(),
+                },
+            )
+            .unwrap();
+            payments::append(
+                &conn,
+                &payments::NewPayment {
+                    day: "2026-10-06".into(),
+                    person_id: None,
+                    stage_id: stage.into(),
+                    commitment_id: None,
+                    amount_cents: 100_000,
+                    what_for: None,
+                    receipt_hash: Some(receipt.clone()),
+                    author_name: "Synthetic owner".into(),
+                },
+            )
+            .unwrap();
+            commitment = money::add_commitment(
+                &conn,
+                stage,
+                &money::CommitmentFields {
+                    person_id: None,
+                    label: "Tiler's quote".into(),
+                    amount_cents: 150_000,
+                    agreed_on: "2026-10-01".into(),
+                    document_hash: Some(quote_gone.clone()),
+                },
+            )
+            .unwrap();
+            assert_eq!(migrations::WORK.current_version(&conn), 7);
+        }
+
+        let state = open(scratch.path()).expect("an F6 work opens in F7");
+
+        assert_eq!(
+            migrations::WORK.current_version(&state.conn),
+            migrations::WORK.target_version()
+        );
+        let report = diary::verify(&state.conn).unwrap();
+        assert_eq!(
+            (report.entries, report.intact),
+            (1, true),
+            "the chain still holds"
+        );
+
+        let plan = db::work::snapshot(&state.conn).unwrap();
+        assert_eq!(plan.documents.len(), 4);
+        let of = |hash: &str| plan.documents.iter().find(|d| d.file_hash == hash).unwrap();
+        let link = |kind: &str, id: &str| crate::contract::DocumentTarget {
+            target_kind: kind.into(),
+            target_id: id.into(),
+        };
+
+        let d = of(&photo);
+        assert_eq!(
+            d.id,
+            format!(
+                "{}-{}-{}-{}-{}",
+                &photo[..8],
+                &photo[8..12],
+                &photo[12..16],
+                &photo[16..20],
+                &photo[20..32]
+            )
+        );
+        assert_eq!(
+            (d.kind.as_str(), d.file_name.as_str(), d.title.as_str()),
+            ("photo", "wall.png", "wall.png")
+        );
+        assert_eq!(
+            (d.media_type.as_str(), d.bytes),
+            ("image/png", photo_bytes.len() as i64)
+        );
+        assert_eq!((d.width, d.height), (Some(64), Some(48)));
+        assert_eq!(
+            (d.added_on.as_str(), d.author_name.as_str()),
+            ("2026-10-05", "Synthetic author")
+        );
+        assert_eq!(d.links, vec![link("entry", "1")]);
+
+        let d = of(&inspection);
+        assert_eq!(
+            (d.kind.as_str(), d.title.as_str()),
+            ("photo", "Photo: Inspected")
+        );
+        assert_eq!(
+            (d.media_type.as_str(), d.width, d.height),
+            ("image/jpeg", Some(40), Some(30)),
+            "completed from the file"
+        );
+        assert_eq!(d.links, vec![link("stage", stage)]);
+
+        let d = of(&receipt);
+        assert_eq!(
+            (d.kind.as_str(), d.title.as_str()),
+            ("receipt", "Receipt of payment #1")
+        );
+        assert_eq!(
+            (d.media_type.as_str(), d.bytes),
+            ("image/png", receipt_bytes.len() as i64)
+        );
+        assert_eq!(d.links, vec![link("payment", "1")]);
+
+        let d = of(&quote_gone);
+        assert_eq!(
+            (d.kind.as_str(), d.title.as_str()),
+            ("quote", "Quote: Tiler's quote")
+        );
+        assert_eq!(
+            (d.media_type.as_str(), d.bytes, d.width),
+            ("application/octet-stream", 0, None),
+            "its file was never in the folder: it stays incomplete, and says so"
+        );
+        assert_eq!(d.links, vec![link("commitment", &commitment)]);
+
+        close(state);
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        assert_eq!(db::work::snapshot(&again.conn).unwrap().documents.len(), 4);
+        close(again);
     }
 }

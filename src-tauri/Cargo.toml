@@ -46,6 +46,12 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 # command the webview could call and no capability.
 tauri-plugin-opener = "2"
 
+[dev-dependencies]
+# The hostile corpus's zip bomb is deflated by the test that generates it.
+# Already in the tree through `png`; a dev-dependency adds nothing to the
+# binary.
+flate2 = "1"
+
 [target.'cfg(windows)'.dependencies]
 # The accent colour the desktop uses, read from the system (`os::accent`).
 # The accent colour (`os::accent`), and the account's display name, which signs

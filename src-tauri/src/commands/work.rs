@@ -17,6 +17,8 @@
 //!
 //! - F0: `recent_works`, `work_create`, `work_open`, `work_close`,
 //!   `work_current`, `work_get`, `work_update`.
+//! - F7: `recent_relocate` — a recent work found again where it now is, after
+//!   the folder was moved while the work was closed.
 
 use std::path::Path;
 
@@ -110,6 +112,43 @@ pub fn work_update(
     patch: WorkPatch,
 ) -> Result<WorkSnapshot> {
     work_update_with(&db, &open, &patch)
+}
+
+/// Find a recent work again in the folder it was moved to: the folder must hold
+/// the same work — the same `workId` — and only then does the recent list
+/// learn the new place. The work is not opened: the interface opens it next,
+/// as it opens any recent work. Returns the recent list.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a path that is not a full one, a work not in
+/// the recent list, or a folder that holds another work (the sentence names
+/// both); [`Error::WorkNotFound`] for a folder with no work in it.
+#[tauri::command(rename_all = "snake_case")]
+pub fn recent_relocate(
+    db: State<'_, Db>,
+    work_id: String,
+    folder: String,
+) -> Result<Vec<RecentWork>> {
+    recent_relocate_with(&db, &work_id, &folder)
+}
+
+/// What [`recent_relocate`] does once the state is in hand.
+pub fn recent_relocate_with(db: &Db, work_id: &str, folder: &str) -> Result<Vec<RecentWork>> {
+    let path = folder::folder_path(folder)?;
+    let expected = recent::list(&db.conn())?
+        .into_iter()
+        .find(|row| row.work_id == work_id)
+        .ok_or_else(|| Error::InvalidInput("That work is not in the recent list.".into()))?;
+    let (found_id, found_name) = folder::identify(&path)?;
+    if found_id != work_id {
+        return Err(Error::InvalidInput(format!(
+            "That folder holds “{found_name}”, not “{}”.",
+            expected.name
+        )));
+    }
+    recent::record(&db.conn(), work_id, &found_name, &path.to_string_lossy())?;
+    recent_works_with(db)
 }
 
 /// Run `action` against the open work, after checking it is still there.
@@ -451,6 +490,70 @@ pub mod tests {
         .unwrap();
         assert_eq!(first.name, "Synthetic bathroom");
         assert_eq!(recent_works_with(&db).unwrap().len(), 2);
+        work_close_with(&open);
+    }
+
+    /// A folder moved while the work was closed is found again — only when it
+    /// holds the same work; another work's folder is refused, naming both.
+    #[test]
+    fn a_moved_work_is_found_again_and_another_works_folder_is_refused() {
+        let (db, open, scratch) = host_with_a_work();
+        let bathroom = work_current_with(&open).unwrap().unwrap();
+        work_create_with(
+            &db,
+            &open,
+            &scratch.path().join("Kitchen").to_string_lossy(),
+            &draft("Synthetic kitchen"),
+        )
+        .unwrap();
+        work_close_with(&open);
+        let moved = scratch.path().join("Bathroom, moved");
+        std::fs::rename(scratch.path().join("Bathroom"), &moved).unwrap();
+        assert!(
+            !recent_works_with(&db)
+                .unwrap()
+                .iter()
+                .find(|r| r.work_id == bathroom.work_id)
+                .unwrap()
+                .present
+        );
+
+        let refused = recent_relocate_with(
+            &db,
+            &bathroom.work_id,
+            &scratch.path().join("Kitchen").to_string_lossy(),
+        )
+        .unwrap_err();
+        assert_eq!(refused.kind(), "invalid_input");
+        assert_eq!(
+            refused.to_string(),
+            "That folder holds “Synthetic kitchen”, not “Synthetic bathroom”."
+        );
+        assert_eq!(
+            recent_relocate_with(&db, &bathroom.work_id, &scratch.path().to_string_lossy())
+                .unwrap_err()
+                .kind(),
+            "work_not_found"
+        );
+
+        let recent =
+            recent_relocate_with(&db, &bathroom.work_id, &moved.to_string_lossy()).unwrap();
+        let row = recent
+            .iter()
+            .find(|r| r.work_id == bathroom.work_id)
+            .unwrap();
+        assert!(row.present);
+        assert_eq!(row.folder, moved.to_string_lossy());
+        let names: Vec<String> = std::fs::read_dir(&moved)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            names,
+            vec![folder::WORK_FILE],
+            "identified, and closed again cleanly"
+        );
+        work_open_with(&db, &open, &moved.to_string_lossy()).expect("and it opens");
         work_close_with(&open);
     }
 
