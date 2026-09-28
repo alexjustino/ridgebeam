@@ -72,6 +72,10 @@ import {
   costLineUpdate,
   paymentAdd,
   paymentReverse,
+  planApply,
+  rangesTake,
+  templateRead,
+  templateWrite,
   roomAdd,
   roomMove,
   roomRemove,
@@ -109,6 +113,8 @@ import {
   type Gate,
   type PaymentDraftWire,
   type PersonPatch,
+  type PlanToApply,
+  type Provenance,
   type DocumentKind,
   type DocumentPatch,
   type DocumentTarget,
@@ -215,9 +221,18 @@ async function reread(client: QueryClient): Promise<void> {
 export function useCreateWork() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: ({ folder, draft }: { folder: string; draft: WorkDraft }) =>
-      workCreate(folder, draft),
+    mutationFn: ({
+      folder,
+      draft,
+      plan,
+    }: {
+      folder: string;
+      draft: WorkDraft;
+      plan?: PlanToApply;
+    }) => workCreate(folder, draft, plan),
     onSuccess: () => reread(client),
+    // A refused plan leaves no recent row behind; the list is read again so it shows exactly that.
+    onError: () => client.invalidateQueries({ queryKey: keys.recent }),
   });
 }
 
@@ -405,6 +420,32 @@ export function useReopenDecision() {
   return useWorkCommand((id: string) => decisionReopen(id));
 }
 
+// ── Templates (F9) ───────────────────────────────────────────────────────────
+
+/** Write a template's plan into the open, empty work. */
+export function useApplyPlan() {
+  return useWorkCommand(({ draft, provenance }: PlanToApply) => planApply(draft, provenance));
+}
+
+/** The lower or upper end of every range, as the duration of each activity that has none. */
+export function useTakeRanges() {
+  return useWorkCommand((which: 'low' | 'high') => rangesTake(which));
+}
+
+/** Read a template file's text. A question asked at a moment, of a file that may change: not cached. */
+export function useReadTemplate() {
+  return useMutation({ mutationFn: (path: string) => templateRead(path) });
+}
+
+export function useWriteTemplate() {
+  return useMutation({
+    mutationFn: ({ path, text, overwrite }: { path: string; text: string; overwrite: boolean }) =>
+      templateWrite(path, text, overwrite),
+  });
+}
+
+export type { Provenance };
+
 // ── The diary (F4) ───────────────────────────────────────────────────────────
 
 /** The whole diary, newest first. Closing or opening a work re-reads it. */
@@ -510,7 +551,7 @@ export function useAddCostLine() {
       stageId: string;
       activityId: string | null;
       label: string;
-      amountCents: number;
+      amountCents: number | null;
     }) => costLineAdd(stageId, activityId, label, amountCents),
   );
 }
