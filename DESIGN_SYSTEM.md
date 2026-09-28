@@ -347,6 +347,33 @@ breaks one is not merged.
   the finish, so the figure is not the largest row: each row also says how far its finish now
   lies past the baseline's finish, and a positive slip is the largest of those. Days are working days, and the figure says "early" in
   words when the plan is ahead, not with a minus sign alone.
+- **A locked plan says why and offers the way out — never a disabled control without a
+  sentence.** Once the plan is approved, the rows a baseline records are locked until a
+  replanning is opened with a reason (ADR-027) — and the screen says so where a person would try:
+  the breakdown carries an `InfoBar` with the sentence, _"The plan is approved. To change it,
+  replan it with a reason first."_, and a **Replan…** button beside it that opens the reason
+  dialog. No field is disabled for the lock: the rows stay the controls they were, and an edit
+  tried anyway shows the host's own sentence in that row's problem line, where the edit was
+  tried — the pattern of a closed stage. While a replanning is open, its day and its reason are
+  shown on the Plan, the Schedule and the Dashboard, so nobody edits an approved plan without seeing
+  why it is open. The reason is required: a blank one is refused inside the dialog, with a
+  sentence, and nothing is opened.
+- **A comparison is counted figures with rows.** Two baselines compare as counts in words — _"3
+  dates moved · 1 activity added · 1 stage removed · money +R$ 1.200,00"_ — and each count opens
+  onto its rows: the activity and its stage, both dates and the working days between them, said
+  in words as the slip says them — _"3 days"_, _"2 days early"_ — never by a sign or a colour
+  alone. The pair is read from the earlier
+  baseline to the later whichever way it was chosen, and the screen says so; the reasons between
+  them are listed in order, each with its baseline's number. Money a baseline did not record
+  reads _not recorded_, never 0 and never a dash. The same baseline chosen twice is a sentence
+  where the result would be, and no result is drawn — never an empty comparison that looks like
+  "nothing changed" (ADR-028).
+- **A what-if says it is not saved.** Whatever a person tries on the What if card is computed in
+  memory and never written, and the card says so in a sentence that is always there — _"A
+  what-if is not saved: nothing here changes the plan. To keep it, replan with a reason."_ Its finish date and its days are
+  labelled as the what-if's and shown beside the plan's, never in place of them: the Gantt, the
+  slip and the dashboard keep showing the plan. There is no **Apply**; **Clear** drops the
+  what-if, and so does leaving the Schedule or a restart.
 - **A cycle is refused with its chain, by name.** A dependency that would close a loop is refused
   before anything is saved, and the refusal names the loop the way a person would read it —
   _"Plaster → Foundations → Walls → Plaster"_, or _"Walls → Walls"_ for a stage made to wait
