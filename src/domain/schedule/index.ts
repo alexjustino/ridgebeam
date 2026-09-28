@@ -181,13 +181,19 @@ export function schedule(snapshot: WorkSnapshot): Schedule {
 }
 
 /**
+ * A row of a baseline being taken: what the schedule says now. The money is not here: the host reads
+ * it from the file when the baseline is taken, as it reads the names.
+ */
+export type BaselineDraftRow = Omit<BaselineRow, 'plannedCents'>;
+
+/**
  * The rows of a new baseline: every activity of the plan exactly once, in plan order, as the
  * schedule places it now, with the finish date. What the interface sends to `baseline_take`.
  */
 export function baselineDraft(
   snapshot: WorkSnapshot,
   scheduled: Schedule,
-): { rows: BaselineRow[]; finishDate: string | null } {
+): { rows: BaselineDraftRow[]; finishDate: string | null } {
   const stageNames = new Map(snapshot.stages.map((stage) => [stage.id, stage.name]));
   return {
     rows: scheduled.activities.map((activity) => {

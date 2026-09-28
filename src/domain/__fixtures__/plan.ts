@@ -8,6 +8,7 @@
 import type { DiaryEntry, DoneLine } from '../diary';
 import type {
   Activity,
+  Baseline,
   Decision,
   Dependency,
   Endpoint,
@@ -15,6 +16,7 @@ import type {
   Stage,
   WorkSnapshot,
 } from '../plan';
+import { baselineDraft, schedule } from '../schedule';
 
 /** A work starting on Tuesday 1 September 2026, Monday to Friday, with nothing in it. */
 export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
@@ -36,6 +38,7 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     activities: [],
     dependencies: [],
     baselines: [],
+    replanning: null,
     decisions: [],
     checks: [],
     checkAnswers: [],
@@ -193,6 +196,41 @@ export function person(id: string, name = `Person ${id}`, parts: Partial<Person>
     note: null,
     availability: null,
     stageIds: [],
+    ...parts,
+  };
+}
+
+/**
+ * A baseline of the plan as it is scheduled now, the way the host takes one: the draft's rows with
+ * the names and the money read from the plan (a cost line counts on its activity when it has one,
+ * and always on its stage and the work). `parts` overrides anything, e.g. `plannedCents: null` for a
+ * baseline taken before money was recorded.
+ */
+export function takeBaseline(
+  plan: WorkSnapshot,
+  number: number,
+  parts: Partial<Baseline> = {},
+): Baseline {
+  const draft = baselineDraft(plan, schedule(plan));
+  const sum = (keep: (line: WorkSnapshot['costLines'][number]) => boolean) =>
+    plan.costLines.filter(keep).reduce((total, line) => total + line.amountCents, 0);
+  return {
+    id: `baseline-${number}`,
+    number,
+    takenAt: '2026-08-31T12:00:00.000Z',
+    reason: number === 1 ? null : `Reason ${number}`,
+    finishDate: draft.finishDate,
+    plannedCents: sum(() => true),
+    stages: plan.stages.map((each) => ({
+      stageId: each.id,
+      position: each.position,
+      name: each.name,
+      plannedCents: sum((line) => line.stageId === each.id),
+    })),
+    rows: draft.rows.map((row) => ({
+      ...row,
+      plannedCents: sum((line) => line.activityId === row.activityId),
+    })),
     ...parts,
   };
 }

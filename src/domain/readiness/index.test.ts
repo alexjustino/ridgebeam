@@ -35,6 +35,7 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     activities: [],
     dependencies: [],
     baselines: [],
+    replanning: null,
     decisions: [],
     checks: [],
     checkAnswers: [],
