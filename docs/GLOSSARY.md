@@ -12,7 +12,7 @@ language, a term or a sentence, or names a lens that does not exist.
 
 A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-56 terms.
+57 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
@@ -61,6 +61,7 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `room` | room | A room or an area of the work — kitchen, bathroom, roof, garden — that activities touch. The architect's and the owner's map of the work. | cômodo | Um cômodo ou uma área da obra — cozinha, banheiro, telhado, quintal — que as atividades tocam. O mapa da obra para o arquiteto e para o dono. |
 | `quantity` | quantity | How much of something an activity covers — square metres of tile, metres of pipe — with its unit. | quantidade | Quanto de algo uma atividade abrange — metros quadrados de piso, metros de tubo — com a sua unidade. |
 | `replanning` | replanning | Changing an approved plan. It asks for a reason and keeps the old baseline, so the change is never silent. | replanejamento | Mudar um plano aprovado. Pede um motivo e guarda a linha de base antiga, para a mudança nunca ser silenciosa. |
+| `whatIf` | what-if | The schedule worked out again with a duration or a wait changed, to see when the work would finish. It is never saved: to keep it, replan with a reason. | simulação | O cronograma calculado de novo com uma duração ou uma espera trocada, para ver quando a obra terminaria. Nunca é salva: para mantê-la, replaneje com um motivo. |
 | `reason` | reason | The sentence that explains why an approved plan changed. Required, and kept with the baseline it produced. | motivo | A frase que explica por que um plano aprovado mudou. Obrigatória, e guardada com a linha de base que gerou. |
 | `template` | template | A plan to start from — stages, typical activities, dependencies, duration ranges, the decisions and checks each stage needs. A starting point, not a promise. | modelo | Um plano para começar — etapas, atividades típicas, dependências, faixas de duração, as decisões e verificações de cada etapa. Um ponto de partida, não uma promessa. |
 | `range` | range | A duration or a cost given as a low and a high, never a single number, because a template cannot know your site. | faixa | Uma duração ou um custo dado como um mínimo e um máximo, nunca um número só, porque um modelo não conhece a sua obra. |
@@ -79,7 +80,7 @@ A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a 
 with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
 The sentence never changes with the lens, and nothing about a work is stored per lens.
 
-9 of the 56 terms change with the lens.
+9 of the 57 terms change with the lens.
 
 | Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
 | --- | --- | --- | --- | --- | --- | --- |

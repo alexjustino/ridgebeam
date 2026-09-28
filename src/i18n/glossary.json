@@ -588,6 +588,17 @@
       }
     },
     {
+      "key": "whatIf",
+      "en": {
+        "term": "what-if",
+        "sentence": "The schedule worked out again with a duration or a wait changed, to see when the work would finish. It is never saved: to keep it, replan with a reason."
+      },
+      "pt-BR": {
+        "term": "simulação",
+        "sentence": "O cronograma calculado de novo com uma duração ou uma espera trocada, para ver quando a obra terminaria. Nunca é salva: para mantê-la, replaneje com um motivo."
+      }
+    },
+    {
       "key": "reason",
       "en": {
         "term": "reason",
