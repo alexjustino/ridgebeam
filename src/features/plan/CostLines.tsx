@@ -4,7 +4,7 @@ import { useId, useState, type FormEvent } from 'react';
 import { LIMITS } from '@/data/commands';
 import { errorKind } from '@/data/errors';
 import { useAddCostLine, useRemoveCostLine, useUpdateCostLine } from '@/data/queries';
-import type { CostLine, WorkSnapshot } from '@/domain/plan';
+import { isPriced, type CostLine, type WorkSnapshot } from '@/domain/plan';
 import { fromCents, toCents } from '@/i18n/format';
 import { useI18n } from '@/i18n/useI18n';
 import { Button } from '@/ui/Button';
@@ -27,6 +27,10 @@ import type { Outcome } from './outcome';
  * A change the host refuses — an approved plan's money is locked until it is replanned (ADR-027) —
  * is said on the line that tried it (`cost-line-problem`), and an amount the file did not take is
  * read back from the file, so the screen never shows money the plan does not hold.
+ *
+ * A line may have no amount (F9): a template's lines arrive as labels, and a person may add one
+ * before the price is known. Such a line is marked `data-unpriced` and says "not priced yet" — an
+ * empty amount field is that, never zero — and it counts for nothing until it is priced.
  */
 export function CostLines({
   snapshot,
@@ -42,10 +46,12 @@ export function CostLines({
   outcome: Outcome;
   readOnly: boolean;
 }) {
-  const { t, money } = useI18n();
+  const { t, tp, money } = useI18n();
   const lines = snapshot.costLines.filter(
     (line) => line.stageId === stageId && line.activityId === activityId,
   );
+  const priced = lines.filter(isPriced).reduce((sum, line) => sum + line.amountCents, 0);
+  const unpriced = lines.filter((line) => !isPriced(line)).length;
   const prefix = activityId === null ? 'stage-cost-line' : 'cost-line';
   const currency = snapshot.work.currency;
 
@@ -72,10 +78,9 @@ export function CostLines({
       )}
       {lines.length > 1 && (
         <span className="text-caption text-fg-secondary">
-          {money(
-            lines.reduce((sum, line) => sum + line.amountCents, 0),
-            currency,
-          )}
+          {unpriced === 0
+            ? money(priced, currency)
+            : tp('money.costLines.sumUnpriced', unpriced, { amount: money(priced, currency) })}
         </span>
       )}
       {!readOnly && (
@@ -106,7 +111,7 @@ function CostLineRow({
   const update = useUpdateCostLine();
   const remove = useRemoveCostLine();
   const hint = useId();
-  const [amount, setAmount] = useState(fromCents(line.amountCents));
+  const [amount, setAmount] = useState(amountText(line.amountCents));
   const [invalid, setInvalid] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
   // Bumped when the file refused an edit: the label field is put back to what the file holds.
@@ -119,7 +124,7 @@ function CostLineRow({
   const refused = (error: unknown) => {
     setRefusal(describeError(error));
     if (errorKind(error) === 'plan_approved') {
-      setAmount(fromCents(line.amountCents));
+      setAmount(amountText(line.amountCents));
       setInvalid(false);
       setGeneration((now) => now + 1);
     }
@@ -127,6 +132,17 @@ function CostLineRow({
 
   const editAmount = (next: string) => {
     setAmount(next);
+    if (next.trim() === '') {
+      // An empty amount is a line not priced yet — the price is taken away, never set to zero.
+      setInvalid(false);
+      if (line.amountCents !== null) {
+        update.mutate(
+          { id: line.id, patch: { amountCents: null } },
+          { onSuccess: kept, onError: refused },
+        );
+      }
+      return;
+    }
     const cents = toCents(next);
     if (cents === null) {
       setInvalid(true);
@@ -141,17 +157,31 @@ function CostLineRow({
     }
   };
 
+  const unpriced = line.amountCents === null;
+
   if (readOnly) {
     return (
-      <li data-cost-line-id={line.id} className="flex gap-3 text-body text-fg">
+      <li
+        data-cost-line-id={line.id}
+        data-unpriced={unpriced ? '' : undefined}
+        className="flex gap-3 text-body text-fg"
+      >
         <span className="min-w-0 flex-1 truncate">{line.label}</span>
-        <span className="tabular-nums">{money(line.amountCents, currency)}</span>
+        {line.amountCents === null ? (
+          <span className="text-fg-secondary">{t('money.notPriced')}</span>
+        ) : (
+          <span className="tabular-nums">{money(line.amountCents, currency)}</span>
+        )}
       </li>
     );
   }
 
   return (
-    <li data-cost-line-id={line.id} className="flex flex-col gap-0.5">
+    <li
+      data-cost-line-id={line.id}
+      data-unpriced={unpriced ? '' : undefined}
+      className="flex flex-col gap-0.5"
+    >
       <div className="grid grid-cols-[minmax(0,1fr)_9rem_auto] items-start gap-2">
         <NameField
           key={`${line.label}:${generation}`}
@@ -169,7 +199,8 @@ function CostLineRow({
           data-testid="cost-line-amount"
           aria-label={t('money.costLine.amountOf', { name: line.label })}
           aria-invalid={invalid}
-          aria-describedby={invalid ? hint : undefined}
+          aria-describedby={invalid || unpriced ? hint : undefined}
+          placeholder={t('money.notPriced')}
           value={amount}
           onChange={(event) => editAmount(event.target.value)}
         />
@@ -181,10 +212,16 @@ function CostLineRow({
           onClick={() => remove.mutate(line.id, { onSuccess: kept, onError: refused })}
         />
       </div>
-      {invalid && (
+      {invalid ? (
         <span id={hint} className="text-caption text-fg-secondary">
           {t('money.invalid.amount')}
         </span>
+      ) : (
+        unpriced && (
+          <span id={hint} className="text-caption text-fg-secondary">
+            {t('money.notPriced.hint')}
+          </span>
+        )
       )}
       {refusal !== null && (
         <div data-testid="cost-line-problem">
@@ -220,12 +257,13 @@ function AddCostLine({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const cents = toCents(amount);
+    // An empty amount adds the line not priced yet; anything else must be an amount.
+    const cents = amount.trim() === '' ? null : toCents(amount);
     if (label.trim() === '') {
       setProblem(t('plan.invalid.name'));
       return;
     }
-    if (cents === null) {
+    if (amount.trim() !== '' && cents === null) {
       setProblem(t('money.invalid.amount'));
       return;
     }
@@ -291,4 +329,9 @@ function AddCostLine({
       )}
     </form>
   );
+}
+
+/** What the amount field holds for a line: its price in major units, or nothing when unpriced. */
+function amountText(cents: number | null): string {
+  return cents === null ? '' : fromCents(cents);
 }

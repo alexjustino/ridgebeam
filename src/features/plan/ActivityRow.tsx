@@ -5,7 +5,13 @@ import { LIMITS } from '@/data/commands';
 import { errorKind } from '@/data/errors';
 import { useSetActivityRooms, useUpdateActivity } from '@/data/queries';
 import type { Direction } from '@/domain/ordering';
-import type { Activity, Person, Room, WorkSnapshot } from '@/domain/plan';
+import {
+  durationRangeOf,
+  type Activity,
+  type Person,
+  type Room,
+  type WorkSnapshot,
+} from '@/domain/plan';
 import { DocumentsCount } from '@/features/documents/DocumentsCount';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
@@ -36,6 +42,10 @@ export const ACTIVITY_COLUMNS =
  * corrected. Beside the quantity, the amount the host kept is read back in words.
  *
  * Alt+ArrowUp/Down from any control in the row moves it inside its stage; the buttons do the same.
+ *
+ * An activity started from a template may carry a range of working days instead of a duration (F9):
+ * the range is the duration field's placeholder and its hint — "3–5" — and the field stays empty,
+ * because a range is shown as a range until a person picks (DESIGN_SYSTEM §8). Nothing is invented.
  *
  * A refusal the host gives for this row is said on the row (`activity-problem`), in its words. When
  * the refusal is that the plan is approved and locked (ADR-027), the name and the duration are read
@@ -186,6 +196,17 @@ export function ActivityRow({
     );
   };
 
+  const days = durationRangeOf(activity);
+  const range =
+    days === null
+      ? null
+      : t('plan.range', { min: formatNumber(days.min), max: formatNumber(days.max) });
+  const durationHint = durationInvalid
+    ? `${hint}-duration`
+    : range === null
+      ? undefined
+      : `${hint}-range`;
+
   const kept =
     activity.quantity === null
       ? null
@@ -230,14 +251,25 @@ export function ActivityRow({
               name: activity.name,
             })}
             aria-invalid={durationInvalid}
-            aria-describedby={durationInvalid ? `${hint}-duration` : undefined}
+            aria-describedby={durationHint}
+            placeholder={range ?? undefined}
             value={duration}
             onChange={(event) => editDuration(event.target.value)}
           />
-          {durationInvalid && (
+          {durationInvalid ? (
             <span id={`${hint}-duration`} className="mt-1 text-caption text-fg-secondary">
               {t('plan.invalid.duration', { max: formatNumber(LIMITS.durationDays) })}
             </span>
+          ) : (
+            range !== null && (
+              <span
+                id={`${hint}-range`}
+                data-testid="activity-range"
+                className="mt-1 text-caption text-fg-tertiary"
+              >
+                {t('plan.range.hint', { range })}
+              </span>
+            )
           )}
         </span>
         <Select

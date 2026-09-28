@@ -3,7 +3,7 @@ import { Checkmark12Filled, Edit20Regular } from '@fluentui/react-icons';
 import { useDiary } from '@/data/queries';
 import { checklist, type ChecklistMissing } from '@/domain/arrangements';
 import { progress, type ProgressState } from '@/domain/diary';
-import type { WorkSnapshot } from '@/domain/plan';
+import { durationRangeOf, type WorkSnapshot } from '@/domain/plan';
 import { schedule } from '@/domain/schedule';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n } from '@/i18n/useI18n';
@@ -80,10 +80,18 @@ export function Checklist({
               : state === 'started'
                 ? t('state.started', { day: day(known?.startedOn ?? '') })
                 : t('state.notStarted');
+          // A template's range, until a person picks a duration (F9): said as a range, never a number.
+          const range = durationRangeOf(activity);
           const parts = [
             stageNames.get(line.stageId) ?? '',
             responsible ?? '',
-            activity.durationDays === null ? '' : tp('plan.checklist.days', activity.durationDays),
+            activity.durationDays !== null
+              ? tp('plan.checklist.days', activity.durationDays)
+              : range === null
+                ? ''
+                : t('plan.checklist.range', {
+                    range: t('plan.range', { min: number(range.min), max: number(range.max) }),
+                  }),
             activity.quantity === null
               ? ''
               : [number(activity.quantity), activity.unit ?? ''].join(' ').trim(),
