@@ -137,7 +137,8 @@ export function LinksLine({
           setLag('0');
         },
         onError: (error) => {
-          if (errorKind(error) === 'dependency_cycle' || errorKind(error) === 'invalid_input') {
+          const kind = errorKind(error);
+          if (kind === 'dependency_cycle' || kind === 'invalid_input' || kind === 'plan_approved') {
             setProblem(describeError(error));
           } else {
             outcome.refused(error);

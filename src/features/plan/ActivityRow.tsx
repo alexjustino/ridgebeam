@@ -2,6 +2,7 @@ import { ArrowDown20Regular, ArrowUp20Regular, Delete20Regular } from '@fluentui
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 import { LIMITS } from '@/data/commands';
+import { errorKind } from '@/data/errors';
 import { useSetActivityRooms, useUpdateActivity } from '@/data/queries';
 import type { Direction } from '@/domain/ordering';
 import type { Activity, Person, Room, WorkSnapshot } from '@/domain/plan';
@@ -11,6 +12,7 @@ import { useTerms } from '@/i18n/useTerm';
 import { Button } from '@/ui/Button';
 import { Checkbox } from '@/ui/Checkbox';
 import { IconButton } from '@/ui/IconButton';
+import { InfoBar } from '@/ui/InfoBar';
 import { Input } from '@/ui/Input';
 import { Select } from '@/ui/Select';
 
@@ -34,6 +36,11 @@ export const ACTIVITY_COLUMNS =
  * corrected. Beside the quantity, the amount the host kept is read back in words.
  *
  * Alt+ArrowUp/Down from any control in the row moves it inside its stage; the buttons do the same.
+ *
+ * A refusal the host gives for this row is said on the row (`activity-problem`), in its words. When
+ * the refusal is that the plan is approved and locked (ADR-027), the name and the duration are read
+ * back from the file: nothing typed could be kept until somebody replans, and a number the plan
+ * does not hold must not sit on screen looking like it does.
  */
 export function ActivityRow({
   activity,
@@ -47,6 +54,7 @@ export function ActivityRow({
   onRemove,
   children,
   snapshot,
+  problem = null,
 }: {
   activity: Activity;
   number: string | null;
@@ -62,6 +70,8 @@ export function ActivityRow({
   children?: ReactNode;
   /** The plan, for the row's document count. */
   snapshot: WorkSnapshot;
+  /** The host's refusal of an edit to this row, in its words; `null` when there is none. */
+  problem?: string | null;
 }) {
   const { t, number: formatNumber } = useI18n();
   const term = useTerms();
@@ -81,6 +91,8 @@ export function ActivityRow({
   const [quantityInvalid, setQuantityInvalid] = useState(false);
   const [unit, setUnit] = useState(activity.unit ?? '');
   const [unitWaits, setUnitWaits] = useState(false);
+  // Bumped when a locked plan refused an edit: the name field is put back to what the file holds.
+  const [generation, setGeneration] = useState(0);
 
   useEffect(() => {
     if (!focus) return;
@@ -92,7 +104,17 @@ export function ActivityRow({
   const keep = (patch: Parameters<typeof update.mutate>[0]['patch']) =>
     update.mutate(
       { id: activity.id, patch },
-      { onSuccess: outcome.kept, onError: outcome.refused },
+      {
+        onSuccess: outcome.kept,
+        onError: (error) => {
+          outcome.refused(error);
+          if (errorKind(error) === 'plan_approved') {
+            setDuration(activity.durationDays === null ? '' : String(activity.durationDays));
+            setDurationInvalid(false);
+            setGeneration((now) => now + 1);
+          }
+        },
+      },
     );
 
   const editDuration = (next: string) => {
@@ -186,6 +208,7 @@ export function ActivityRow({
           {number ?? '—'}
         </span>
         <NameField
+          key={generation}
           ref={nameRef}
           value={activity.name}
           label={t('plan.fieldOf', {
@@ -266,6 +289,17 @@ export function ActivityRow({
           </Button>
         </span>
       </div>
+
+      {problem !== null && (
+        <div className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-2">
+          <span aria-hidden="true" />
+          <div data-testid="activity-problem">
+            <InfoBar severity="caution" title={t('plan.refused')}>
+              {problem}
+            </InfoBar>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-2">
         <span aria-hidden="true" />
