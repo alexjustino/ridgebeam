@@ -274,3 +274,34 @@ export function gatesHeldFigure(snapshot: WorkSnapshot): Figure<GateHeldRow> {
   });
   return counted('gates-held', GATES_HELD_LABEL_KEY, rows);
 }
+
+export const STAGES_READY_LABEL_KEY = 'checks.figure.ready';
+
+/**
+ * Stages ready to start (the spec's "ready"): planned, with every item of the start gate passed,
+ * while the stage before them is closed or there is none — the mirror of `gatesHeldFigure`'s
+ * planned stages, so a planned stage whose turn has come is either ready or held, never both. A
+ * counted figure opening onto each stage, in plan order.
+ */
+export function stagesReadyFigure(snapshot: WorkSnapshot): Figure<StageRow> {
+  const rows: StageRow[] = [];
+  const ordered = stagesInOrder(snapshot);
+  ordered.forEach((stage, index) => {
+    if (stageState(stage) !== 'planned') return;
+    const previous = ordered[index - 1];
+    if (previous !== undefined && stageState(previous) !== 'closed') return;
+    if (!gateStatus(stage, snapshot.checks, snapshot.checkAnswers, 'start').passed) return;
+    rows.push({
+      key: `stage:${stage.id}`,
+      itemId: stage.id,
+      title: stage.name,
+      day: null,
+      minutes: 0,
+      stageId: stage.id,
+      state: 'planned',
+      startedAt: null,
+      closedAt: null,
+    });
+  });
+  return counted('stages:ready', STAGES_READY_LABEL_KEY, rows);
+}

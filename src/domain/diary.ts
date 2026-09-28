@@ -116,9 +116,9 @@ function bySeq(entries: readonly DiaryEntry[]): DiaryEntry[] {
 /**
  * The original an entry belongs to: follow `correctsSeq` back to an entry that corrects nothing.
  * A correction that names a seq that is not there, or not earlier than itself, is its own
- * original: it is kept, never dropped.
+ * original: it is kept, never dropped. Keyed by seq, valued by the original's seq.
  */
-function rootsOf(entries: readonly DiaryEntry[]): Map<number, number> {
+export function rootsOf(entries: readonly DiaryEntry[]): Map<number, number> {
   const bySeqMap = new Map(entries.map((entry) => [entry.seq, entry]));
   const root = new Map<number, number>();
   for (const entry of bySeq(entries)) {
