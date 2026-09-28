@@ -44,6 +44,8 @@ sixth, templates are plans, waits for F9.
 | [022](#adr-022) | A stage's gates are answered facts, and a closed stage is closed                                              | Accepted — 2026-09-27          |
 | [023](#adr-023) | Money is three facts with three sources, in minor units, and the ledger is append-only                        | Accepted — 2026-09-27          |
 | [024](#adr-024) | Every money figure carries its rows, and paid over committed is flagged, not refused                          | Accepted — 2026-09-27          |
+| [025](#adr-025) | A document is a file the work owns, typed by its bytes, deduplicated by its hash, and never parsed            | Accepted — 2026-09-27          |
+| [026](#adr-026) | A person is a contact with stages, and presence comes from the diary                                          | Accepted — 2026-09-27          |
 
 ---
 
@@ -1083,3 +1085,104 @@ ledger would stop being the record; a flag keeps it in, and says what it means.
 pays twice by mistake is told, not prevented; the reversal is the way back. The S-curve's
 planned line is only as good as the schedule under it, and an unscheduled plan front-loads its
 money at the start, visibly.
+
+## ADR-025 — A document is a file the work owns, typed by its bytes, deduplicated by its hash, and never parsed {#adr-025}
+
+**Status.** Accepted — 2026-09-27.
+
+**Context.** A build runs on paper: the quote, the drawing, the permit, the receipt, the
+contract, and a phone full of photos (SPEC §2.10). F4 made photos safe to keep ([ADR-021](#adr-021));
+F7's proof is that any file attached to the work is copied in with its hash and caps, that **the
+hostile file corpus is refused with a sentence**, and that a moved work folder is found again.
+The formats a person will try to attach are endless, and every one the product decodes is code
+that reads somebody else's bytes. And F4 stated a gap plainly: `diary_verify` checks the rows,
+not the files on disk.
+
+**Decision.**
+
+- **A document is a file the work owns.** It is copied by the host into
+  `documents/<sha-256>.<ext>` inside the work folder, and recorded as a row — its hash, the name it
+  arrived with, its type, its size, its dimensions if it is an image, a **kind** (_photo_, _quote_,
+  _drawing_, _permit_, _receipt_, _contract_, _other_), an editable title, the day, the account's
+  name. It is **attached** to the work, a stage, an activity, a decision, a diary entry, a
+  commitment or a payment by links, any number of each. The original location is never kept.
+- **Typed by its bytes, never by its name.** The type table is short on purpose: **JPEG, PNG,
+  WebP, GIF and BMP** are images, measured and thumbnailed exactly as in F4; **PDF**, recognised
+  by `%PDF-` at the start, is a document. **Everything else is refused** with a sentence naming
+  the file — a Word file, a spreadsheet, an archive, an executable, HEIC. The extension on disk
+  comes from the type the bytes are; a PNG named `.pdf` is kept, as the PNG it is, under its own
+  name. The cap is 25 MiB for every file.
+- **A PDF is never parsed and never rendered** in 1.0. The product reads its first bytes, its
+  size and its hash, and nothing else; on screen it is a mark and a name, and it opens in the
+  system's own viewer on the person's click. A PDF parser is a large attack surface, and the
+  product has no need to look inside a quote to keep it.
+- **SVG is refused.** An SVG is a document that can carry scripts and references to other files;
+  the product does not keep one in 1.0, and says why.
+- **Deduplicated by hash.** A file already in the folder is linked again, never copied twice.
+  Removing a document removes its row and its links; **the file is deleted only when nothing else
+  names its hash** — no other document, diary photo, answer photo, receipt or commitment — and
+  otherwise stays, with a sentence that says so. The diary's rows are never touched.
+- **Photos are documents.** From F7 on, every photo, receipt and quote copied in is also a
+  `document` row; migration 008 creates one for every file an earlier slice copied, linked to where
+  it came from. Diary and answer photos still accept images only: a PDF is not a photo.
+- **Each file is its own transaction.** Adding ten files where one is refused keeps the nine and
+  names the one, with its reason. A batch of documents is not a diary entry
+  ([ADR-019](#adr-019)), which is refused whole.
+- **The corpus is the gate.** A generator in `cargo test` builds the hostile files — a text file
+  named `.jpg`, a PNG that claims 100 000 pixels, a truncated JPEG, an empty file, a 26 MiB image,
+  a 26 MiB PDF, an executable named `.pdf`, a zero-width PNG, a WebP with a lying size, a HEIC, an
+  SVG, a zip bomb named `.pdf` — and every one must be refused with a sentence and nothing
+  written; a thirteenth, a PNG named `.pdf`, must be kept as the PNG it is. The files are never committed; their SHA-256 manifest is, under
+  `fixtures/hostile/MANIFEST.json`, and a test fails when the generator drifts from it (an ignored
+  _bless_ test rewrites it deliberately).
+- **The bytes are verified too.** Diagnostics' _Folder health_ reads every file in `documents/`
+  and compares it with its row's hash (`documents_verify`), lists rows whose file is missing, and
+  lists files no row names — **orphans, listed and never deleted by the product**. This closes the
+  gap F4 stated: the chain vouches for the diary's rows, and now the bytes they name are checked.
+- **A moved folder is found again.** A recent work whose folder is gone offers _Find it…_; the
+  host opens the chosen folder, checks that its `work.sqlite3` carries the same work identity, and
+  updates the recent list — a folder holding a different work is refused, naming both.
+
+**Why.** Every format the product decodes is a decoder an attacker can reach with a file. Keeping
+two families — images, which the product must show, and PDFs, which it never opens — keeps that
+surface to the image decoders F4 already bounded. Deduplication by hash makes a file one fact
+however many places it is attached; keeping orphans rather than deleting them means the product
+never destroys a file it cannot account for.
+
+**Cost accepted.** No Word, spreadsheet, CAD or DWG file, no SVG and no HEIC: a person converts to
+PDF or JPEG first, and the sentence says so. A PDF shows as a mark, not a preview. Orphan files
+stay until a person removes them by hand. A document kept for another link stays on disk after
+it is removed from the library, which surprises somebody who expected it gone — the sentence is
+the answer.
+
+## ADR-026 — A person is a contact with stages, and presence comes from the diary {#adr-026}
+
+**Status.** Accepted — 2026-09-27.
+
+**Context.** People are the tiler, the electrician, the architect, the inspector (SPEC §2.9):
+somebody to call, on the stages they are expected on, with what they are owed. The spec is
+explicit that there are no accounts and no logins — a person is a row, not a user — and that who
+was on site comes from the diary.
+
+**Decision.**
+
+- **A person is a contact**: a name, a trade (F6), a phone, an e-mail, a note and their
+  availability as the person writes it ("mornings only", "from October"), and the **stages** they
+  are expected on. A phone and an e-mail are text somebody typed: the product never dials, sends
+  or looks anything up — it has no network ([ADR-006](#adr-006)) — and checks only their length.
+- **Presence comes from the diary.** The days a person was on site, and the last one, are derived
+  from the effective diary entries that name them ([ADR-019](#adr-019), [ADR-020](#adr-020)) —
+  never typed on the person. What they are owed comes from money ([ADR-023](#adr-023)).
+- **Where people live.** No new destination: the breakdown's People card is where they are
+  edited, and a **People** tab on the Plan lists everyone with their stages, their days on site,
+  their last day and what they are owed.
+- **Readiness is unchanged.** The specification names no readiness rule for contacts or
+  documents, and none is invented.
+
+**Why.** A contact list that knows the stages and the diary answers the questions a site asks —
+who is due, who came, who is owed — without a second record to keep in step.
+
+**Cost accepted.** A person's days on site are only as good as the diary: somebody who came and
+was not written down did not come, as far as the product knows. There are no accounts, so a
+person cannot see or confirm their own record. And contact details are stored in the work file
+like everything else — not encrypted at rest ([`SECURITY.md`](../../SECURITY.md)).
