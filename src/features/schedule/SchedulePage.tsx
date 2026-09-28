@@ -1,25 +1,25 @@
-import { CheckmarkCircle20Regular } from '@fluentui/react-icons';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
-import { useDiary, useTakeBaseline } from '@/data/queries';
+import { useDiary } from '@/data/queries';
 import { progress } from '@/domain/diary';
 import { breakdown } from '@/domain/arrangements';
 import { latestBaseline, type WorkSnapshot } from '@/domain/plan';
-import { baselineDraft, schedule, type UnplacedReason } from '@/domain/schedule';
+import { schedule, type UnplacedReason } from '@/domain/schedule';
 import { ganttLayout } from '@/domain/schedule/gantt';
 import { slip } from '@/domain/schedule/slip';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
-import { announce } from '@/ui/announce';
-import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { EmptyState } from '@/ui/EmptyState';
 import { InfoBar } from '@/ui/InfoBar';
 
+import { BaselineCard } from './BaselineCard';
+import { BaselinesCard } from './BaselinesCard';
 import { Gantt } from './Gantt';
 import { toGanttView } from './ganttView';
 import { SlipFigure } from './SlipFigure';
+import { WhatIfCard } from './WhatIfCard';
 
 const UNPLACED: Record<UnplacedReason, MessageKey> = {
   'no-duration': 'schedule.unplaced.noDuration',
@@ -37,12 +37,15 @@ const UNPLACED: Record<UnplacedReason, MessageKey> = {
  * words and one act: approving the plan, which keeps today's schedule as baseline 1, for good. A
  * plan whose links make a loop is not drawn: the page says so, and where to fix it. An activity
  * the calendar cannot place is listed with its reason, never dropped.
+ *
+ * Slice F8 adds the rest of a baseline's life (ADR-027, ADR-028): the baseline card becomes the
+ * way to replan an approved plan, with a reason; **Baselines** lists every one and compares any
+ * two; **What if** recomputes the schedule in memory with durations or lags that are not the
+ * plan's, and says it is not saved — nothing it shows is written, and the Gantt stays the plan's.
  */
 export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
-  const { t, tp, day, describeError } = useI18n();
+  const { t, tp, day } = useI18n();
   const term = useTerms();
-  const take = useTakeBaseline();
-  const [refusal, setRefusal] = useState<string | null>(null);
 
   const scheduled = useMemo(() => schedule(snapshot), [snapshot]);
   const baseline = latestBaseline(snapshot);
@@ -86,33 +89,6 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
   const slipped = baseline === null ? null : slip(scheduled, baseline);
   const hasBars = view !== null && view.rows.some((row) => row.kind === 'bar');
 
-  const approve = () => {
-    const draft = baselineDraft(snapshot, scheduled);
-    take.mutate(
-      {
-        rows: draft.rows.map((row) => ({
-          activityId: row.activityId,
-          start: row.start,
-          finish: row.finish,
-        })),
-        finishDate: draft.finishDate,
-      },
-      {
-        onSuccess: (next) => {
-          setRefusal(null);
-          const taken = latestBaseline(next);
-          if (taken !== null) {
-            announce(
-              t('schedule.approvedOn', { day: day(taken.takenAt.slice(0, 10)) }) +
-                ` · ${term('baseline', { capital: true })} ${taken.number}`,
-            );
-          }
-        },
-        onError: (error) => setRefusal(describeError(error)),
-      },
-    );
-  };
-
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-6">
       <header>
@@ -150,41 +126,7 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
           <p className="mt-2 text-caption text-fg-tertiary">{t('dashboard.finish.scheduled')}</p>
         </Card>
 
-        <Card title={term('baseline', { capital: true })}>
-          {snapshot.work.approvedAt === null || baseline === null ? (
-            <div className="flex flex-col items-start gap-2">
-              <p className="text-body text-fg-secondary">
-                {scheduled.cyclic ? t('schedule.approve.cannot') : t('schedule.approve.note')}
-              </p>
-              <Button
-                appearance="accent"
-                icon={<CheckmarkCircle20Regular />}
-                data-testid="plan-approve"
-                disabled={take.isPending || scheduled.cyclic}
-                onClick={approve}
-              >
-                {take.isPending ? t('common.working') : t('schedule.approve')}
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <p className="text-body-lg font-semibold text-fg">
-                {t('schedule.approvedOn', { day: day(snapshot.work.approvedAt.slice(0, 10)) })}
-                <span aria-hidden="true"> · </span>
-                {term('baseline', { capital: true })}{' '}
-                <span data-testid="baseline-number">{baseline.number}</span>
-              </p>
-              <p className="text-caption text-fg-tertiary">{t('schedule.approved.note')}</p>
-            </div>
-          )}
-          {refusal !== null && (
-            <div className="mt-3">
-              <InfoBar severity="danger" title={t('schedule.approveRefused')}>
-                {refusal}
-              </InfoBar>
-            </div>
-          )}
-        </Card>
+        <BaselineCard snapshot={snapshot} scheduled={scheduled} />
       </div>
 
       {slipped !== null && (
@@ -304,6 +246,10 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
           </ol>
         )}
       </Card>
+
+      <WhatIfCard snapshot={snapshot} scheduled={scheduled} />
+
+      <BaselinesCard snapshot={snapshot} />
 
       {scheduled.unplaced.length > 0 && (
         <Card title={t('schedule.unplaced.title')}>
