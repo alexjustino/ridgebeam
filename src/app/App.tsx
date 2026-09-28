@@ -14,6 +14,7 @@ import { DiaryPage } from '@/features/diary/DiaryPage';
 import { MoneyPage } from '@/features/money/MoneyPage';
 import { DocumentsPage } from '@/features/documents/DocumentsPage';
 import { PlanPage } from '@/features/plan/PlanPage';
+import { ReportsPage } from '@/features/reports/ReportsPage';
 import { SchedulePage } from '@/features/schedule/SchedulePage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { DESTINATION_LABELS, NEEDS_WORK, type Destination } from '@/features/shell/destinations';
@@ -51,11 +52,19 @@ export function App({ settings }: { settings: Settings }) {
   // The row a count asked the Documents page to open filtered on (F7): one editing place, and a
   // count elsewhere that links to it already filtered.
   const [documentsFilter, setDocumentsFilter] = useState<string | null>(null);
+  // The entry the dashboard asked the diary to open at (F10): held until the diary has put the focus
+  // on it, then let go, so the next visit opens at the top as usual.
+  const [diaryFocus, setDiaryFocus] = useState<number | null>(null);
+  const releaseDiaryFocus = useCallback(() => setDiaryFocus(null), []);
   const navigation: Navigation = useMemo(
     () => ({
       openDocuments: (target) => {
         setDocumentsFilter(targetKey(target));
         setDestination('documents');
+      },
+      openDiary: (seq) => {
+        setDiaryFocus(seq);
+        setDestination('diary');
       },
     }),
     [],
@@ -106,6 +115,7 @@ export function App({ settings }: { settings: Settings }) {
             hasWork={hasWork}
             onNavigate={(next) => {
               if (next === 'documents') setDocumentsFilter(null);
+              if (next === 'diary') setDiaryFocus(null);
               setDestination(next);
             }}
           />
@@ -164,7 +174,11 @@ export function App({ settings }: { settings: Settings }) {
                   <DecisionsPage snapshot={snapshot} onEdit={editInPlan} />
                 )}
                 {!showsStart && destination === 'diary' && snapshot !== null && (
-                  <DiaryPage snapshot={snapshot} />
+                  <DiaryPage
+                    snapshot={snapshot}
+                    initialEntry={diaryFocus}
+                    onFocusTaken={releaseDiaryFocus}
+                  />
                 )}
                 {!showsStart && destination === 'money' && snapshot !== null && (
                   <MoneyPage snapshot={snapshot} />
@@ -175,6 +189,9 @@ export function App({ settings }: { settings: Settings }) {
                     snapshot={snapshot}
                     initialTarget={documentsFilter}
                   />
+                )}
+                {!showsStart && destination === 'reports' && snapshot !== null && (
+                  <ReportsPage snapshot={snapshot} />
                 )}
                 {destination === 'settings' && <SettingsPage settings={settings} />}
                 {destination === 'diagnostics' && <DiagnosticsPage />}

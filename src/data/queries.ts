@@ -40,6 +40,11 @@ import {
   diaryEntryAdd,
   diaryList,
   diaryVerify,
+  diaryExportCsv,
+  diaryExportPdf,
+  reportOpen,
+  reportPdfWrite,
+  workExportJson,
   photoOpen,
   photoThumbnail,
   dependencyRemove,
@@ -114,6 +119,7 @@ import {
   type PaymentDraftWire,
   type PersonPatch,
   type PlanToApply,
+  type ReportDocument,
   type Provenance,
   type DocumentKind,
   type DocumentPatch,
@@ -682,4 +688,67 @@ export function useFindWork() {
     onSettled: () => client.invalidateQueries({ queryKey: keys.recent }),
     onSuccess: () => reread(client),
   });
+}
+
+// ── Reports and exports (F10) ────────────────────────────────────────────────
+//
+// Each writes one file and changes nothing in the work, so none touches the cache. A question asked
+// at a moment of a file that may change: nothing here is cached either.
+
+/** A composed document, written as a PDF: the weekly report or the schedule. */
+export function useWriteReport() {
+  return useMutation({
+    mutationFn: ({
+      path,
+      document,
+      overwrite,
+    }: {
+      path: string;
+      document: ReportDocument;
+      overwrite: boolean;
+    }) => reportPdfWrite(path, document, overwrite, new Date().toISOString()),
+  });
+}
+
+/** The diary as a PDF, its chain verified by the host at the moment of writing. */
+export function useExportDiaryPdf() {
+  return useMutation({
+    mutationFn: ({
+      path,
+      document,
+      overwrite,
+    }: {
+      path: string;
+      document: ReportDocument;
+      overwrite: boolean;
+    }) => diaryExportPdf(path, document, overwrite, new Date().toISOString()),
+  });
+}
+
+/** The diary as CSV, from the database itself, its chain verified first. */
+export function useExportDiaryCsv() {
+  return useMutation({
+    mutationFn: ({
+      path,
+      separator,
+      overwrite,
+    }: {
+      path: string;
+      separator: ',' | ';';
+      overwrite: boolean;
+    }) => diaryExportCsv(path, separator, overwrite),
+  });
+}
+
+/** The whole work as JSON. */
+export function useExportWorkJson() {
+  return useMutation({
+    mutationFn: ({ path, overwrite }: { path: string; overwrite: boolean }) =>
+      workExportJson(path, overwrite),
+  });
+}
+
+/** Open a file a report command wrote in this session. */
+export function useOpenReport() {
+  return useMutation({ mutationFn: (path: string) => reportOpen(path) });
 }
