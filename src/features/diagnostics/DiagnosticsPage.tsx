@@ -4,6 +4,8 @@ import { useAccentRamp, useDiagnostics, useSystemInfo, useVerifyDiary } from '@/
 import { useI18n } from '@/i18n/useI18n';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
+
+import { FolderHealthCard } from './FolderHealthCard';
 import { InfoBar } from '@/ui/InfoBar';
 
 /**
@@ -101,6 +103,7 @@ export function DiagnosticsPage() {
         </Card>
       )}
       {report !== null && report.work !== null && <DiaryCard />}
+      {report !== null && report.work !== null && <FolderHealthCard />}
     </div>
   );
 }

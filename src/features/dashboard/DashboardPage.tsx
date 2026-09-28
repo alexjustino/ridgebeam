@@ -33,6 +33,7 @@ import { Card } from '@/ui/Card';
 import { FigureRow } from '@/ui/FigureRow';
 import { InfoBar } from '@/ui/InfoBar';
 
+import { DocumentsCard } from './DocumentsCard';
 import { MoneyCard } from './MoneyCard';
 import { SiteCard } from './SiteCard';
 import { StagesCard } from './StagesCard';
@@ -160,6 +161,8 @@ export function DashboardPage({
       <StagesCard snapshot={snapshot} />
 
       <MoneyCard snapshot={snapshot} />
+
+      <DocumentsCard snapshot={snapshot} />
 
       <SiteCard snapshot={snapshot} today={today} />
     </div>
