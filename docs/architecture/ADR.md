@@ -12,8 +12,10 @@ measure, for the two rules F0 has ([ADR-008](#adr-008)), and the plan has no pro
 ([ADR-009](#adr-009)) — the half of "the plan is intent and the diary is fact" that can be true
 before there is a diary. Slice F1 makes a third true: three lenses over one model
 ([ADR-014](#adr-014)). Slice F2 makes part of a fourth true: the first baseline is taken when
-the plan is approved and no baseline is ever overwritten ([ADR-016](#adr-016)); the reason asked
-on every later change is F8's. Slice F3 makes a fifth true: a decision's deadline is computed
+the plan is approved and no baseline is ever overwritten ([ADR-016](#adr-016)); slice F8
+completes it: an approved plan changes only after somebody says why, every change ends in a new
+baseline carrying that reason, and any two baselines compare ([ADR-027](#adr-027),
+[ADR-028](#adr-028)). Slice F3 makes a fifth true: a decision's deadline is computed
 ([ADR-017](#adr-017)). Slice F4 completes the first: progress is derived from the diary
 ([ADR-020](#adr-020)), which is append-only with a hash chain ([ADR-019](#adr-019)). The
 sixth, templates are plans, waits for F9.
@@ -46,6 +48,8 @@ sixth, templates are plans, waits for F9.
 | [024](#adr-024) | Every money figure carries its rows, and paid over committed is flagged, not refused                          | Accepted — 2026-09-27          |
 | [025](#adr-025) | A document is a file the work owns, typed by its bytes, deduplicated by its hash, and never parsed            | Accepted — 2026-09-27          |
 | [026](#adr-026) | A person is a contact with stages, and presence comes from the diary                                          | Accepted — 2026-09-27          |
+| [027](#adr-027) | An approved plan is locked until somebody says why: a replanning is a row, closed only by the next baseline   | Accepted — 2026-09-28          |
+| [028](#adr-028) | Any two baselines compare in the domain; a what-if is never written                                           | Accepted — 2026-09-28          |
 
 ---
 
@@ -1186,3 +1190,147 @@ who is due, who came, who is owed — without a second record to keep in step.
 was not written down did not come, as far as the product knows. There are no accounts, so a
 person cannot see or confirm their own record. And contact details are stored in the work file
 like everything else — not encrypted at rest ([`SECURITY.md`](../../SECURITY.md)).
+
+## ADR-027 — An approved plan is locked until somebody says why: a replanning is a row, closed only by the next baseline {#adr-027}
+
+**Status.** Accepted — 2026-09-28.
+
+**Context.** "The plan is never rewritten in silence" is the half of requirement one still open
+(SPEC §2.11, §4). F2 made baselines insert-only and took the first one on approval
+([ADR-016](#adr-016)), and named its own cost plainly: from then until F8, an approved plan could
+be edited with no reason asked, and the slip showed that it moved, never why. Slice F8's proof is
+that editing an approved plan asks for a reason and makes baseline N+1. Three ways of asking were
+weighed. A reason at **every edit** turns one change of mind — the tiles arrive two weeks late,
+so three durations and a link move — into three prompts and three reasons, and people answer the
+third with "same". A reason asked only **when the next baseline is taken** leaves every edit
+before it silent, which is what F2 already had. A **replanning mode** in the interface is the
+interface's word, not the file's: it is gone at a restart, and the host could not refuse an edit
+it cannot see.
+
+**Decision.**
+
+- **An approved plan is locked.** Once `work.approved_at` is set, every command that changes what
+  a baseline records is refused by the host with a new error kind, `plan_approved` — "The plan is
+  approved. To change it, replan it with a reason first." — unless a replanning is open. The
+  locked commands are the stages (add, rename, remove, move), the activities (add, remove, move,
+  and a change of name or duration), the dependencies (add, change, remove), the calendar
+  (working days, hours, holidays), the work's start date, and the cost lines (add, change,
+  remove), because money is compared between baselines ([ADR-028](#adr-028)).
+- **Facts stay free.** The diary, gate answers, starting, closing and reopening a stage,
+  payments, commitments, decisions, people, rooms and documents are never locked, and neither is
+  what a baseline does not record: an activity's responsible, its rooms and its quantity, and the
+  work's name, place and currency. A lock on a fact would push the fact out of the product.
+- **A replanning is a row, not a mode.** `replanning` holds the reason (1–2 000 characters, not
+  blank), when it was opened, the account's name, and — once it is over — when it closed and the
+  number of the baseline that closed it. At most one is open, held by a unique index over the
+  open rows. `replan_open(reason)` requires an approved plan, no replanning already open and a
+  reason that is not blank, and refuses each with a sentence; it survives a restart because it is
+  in the file. The row is **written once**: triggers refuse its removal, a replacement, and every
+  change but its one closing, each with `replanning: written once`.
+- **Only the next baseline closes it.** `baseline_take` for baseline 2 and after **requires an
+  open replanning** — without one it is refused with `plan_approved`, "A second baseline needs the
+  reason the plan changed" — copies the replanning's reason into `baseline.reason`, and closes the
+  replanning, in one transaction. Baseline 1 is the approval and keeps `reason` empty. There is
+  **no abandon and no discard**: an edit made while a replanning is open is already in the file,
+  and the only honest way out of it is a baseline that records it.
+- **Refused by the host, said by the interface.** The domain knows the lock (`isLocked`: approved
+  and no replanning open) so the interface can say it before anything is tried: the breakdown
+  shows the sentence with a **Replan…** button, and the Schedule's baseline card becomes the
+  control — **Replan…** when none is open; "Replanning since …" with the reason and **Take
+  baseline N+1** when one is. No control is disabled for the lock: an edit tried anyway is
+  refused by the host, and its sentence appears where the edit was tried, as a closed stage's
+  does ([ADR-022](#adr-022)).
+
+**Why.** One reason per change of mind is what a person can actually give, and it lands where it
+is read later: on the baseline the change produced, next to what moved. A row that the host
+checks cannot be walked around by a screen, and a replanning that survives a restart is one
+nobody loses between the edit and the baseline.
+
+**Cost accepted.** There is no abandon: somebody who opens a replanning and regrets it takes the
+next baseline anyway — identical to the last if they put everything back — with a reason that
+says "reverted", and the record keeps that they thought about it. A typo in an activity's name
+after approval needs a replanning, because the name is in the baseline. The lock is exactly as
+wide as its list: a command added later that changes what a baseline records must join it, and
+the host's tests hold the list, not the principle. And `replanning` is not an append-only table:
+the baseline that closes it writes its end into the row, once. It is guarded as written once
+rather than as part of requirement one, because the record it exists for — the reason — is copied
+into the baseline, which is insert-only ([`SECURITY.md`](../../SECURITY.md)).
+
+## ADR-028 — Any two baselines compare in the domain; a what-if is never written {#adr-028}
+
+**Status.** Accepted — 2026-09-28.
+
+**Context.** Once a plan has more than one baseline, the question a dispute asks is not "what does
+the plan say" but "what changed between what we agreed then and what we agreed later, and why"
+(SPEC §2.11). F8's proof is that **any two baselines compare** with dates moved, stages added or
+removed, money changed and the reasons between them, and that a what-if that is not saved is not
+a baseline. F2's baselines copied each activity and nothing else: a stage with no activities, and
+the money planned, were not in them.
+
+**Decision.**
+
+- **Baselines learn stages and money** (migration 009, with migration 003's insert-only battery).
+  `baseline_stage` copies each stage — its id, position and name — with its planned money;
+  `baseline_activity` and `baseline` gain the planned money of the activity and of the whole
+  work, in cents. The host reads these from the file inside the baseline's transaction, as F2
+  does for names: the draft the interface sends still carries only the placements the domain
+  computed.
+- **Old baselines say what they did not record.** Migration 009 backfills `baseline_stage` for
+  every baseline taken before it, from the stage names its activity rows copied, in the order
+  they first appear: the id is the stage's own while one of its activities is still in the plan,
+  and otherwise an id derived from the name, the same in every baseline. Their money is `NULL`,
+  which means **not recorded then** — never back-filled from today's cost lines, and a comparison
+  that meets it says "not recorded", never 0.
+- **The comparison is the domain's.** `compareBaselines(baselines, a, b, calendar)` is a pure
+  function over two of the work's baselines, named by number: the work's finish moved and by how
+  many working days; each activity whose finish moved, with its stage, both dates and its signed
+  days — or placed, or unplaced, when it had no duration on one side; durations changed;
+  activities added and removed; stages added and removed; the money, from and to with its
+  difference, or _not recorded_; and the reasons of every baseline after the earlier one up to
+  the later one, with the number of any in that range that gave none. Rows are matched **by
+  id**: an activity or a stage renamed is the same row, never one removed and another added.
+  Days are counted on the work's calendar as it is now. The pair is **ordered by number**
+  whatever order it was chosen in, and the interface says so; a baseline compared with itself is
+  refused (`same-baseline`), and so is a number the work does not have — each a result with its
+  sentence, never an exception and never an empty comparison that would read as "nothing
+  changed".
+- **Counted figures with rows.** The result reads as counts — "3 dates moved · 1 activity added ·
+  1 stage removed · money +R$ 1.200,00" — and every count opens onto the rows it counted
+  ([ADR-008](#adr-008), [ADR-024](#adr-024)).
+- **A what-if is pure interface.** The Schedule's **What if** card takes an activity and a
+  duration, or a link and a lag, as many as wanted; the domain's `withOverrides` returns a new
+  snapshot with them applied — **nothing is written** — and the finish date is shown against
+  today's plan and against the latest baseline. A what-if respects what the host would refuse and
+  what has already happened: an override of an activity or a link the plan does not have, a
+  duration outside 1–3 650 working days or a lag outside 0–3 650, and a duration on an activity
+  of a closed stage are each refused with a sentence; a second override of the same thing
+  replaces the first.
+  **Clear** drops it, and so does leaving the Schedule; a sentence on the card says "A what-if is
+  not saved: nothing here changes the plan. To keep it, replan with a reason."
+- **No apply in 1.0.** Keeping a what-if is replanning by hand: open a replanning with its reason,
+  make the same edits, take the baseline.
+- **Readiness and the slip are unchanged.** The slip still measures the plan against the
+  **latest** baseline ([ADR-016](#adr-016)); comparing two baselines is a separate reading, and
+  the dashboard gains only how many times the plan was replanned and whether a replanning is
+  open.
+
+**Why.** A comparison computed from two insert-only records, in pure code with its negative
+cases, is one both sides of an argument can rerun and get the same answer from. Matching by id
+is what makes a renamed stage a rename and not a loss. A what-if that writes nothing cannot
+become a silent change; an "apply" button would be exactly the copy of a plan into the file with
+no reason asked that [ADR-027](#adr-027) exists to prevent — or it would have to open a
+replanning behind the person's back.
+
+**Cost accepted.** Nothing a person tried in a what-if is kept: Clear, leaving the Schedule or a
+restart loses it,
+and keeping it means typing it again inside a replanning. Baselines taken before F8 never gain
+their money — every comparison that reaches one says "not recorded" for as long as the work
+exists. A stage that had no activity when one of them was taken is not in it, because nothing
+recorded it; and a stage none of whose activities is left carries the id derived from its name,
+so if the stage itself is still in the plan, a comparison with a baseline taken after F8 reads it
+as one stage removed and another added. A baseline does not copy the calendar, so the days
+between two baselines' dates are counted on the calendar as it is now: a holiday added since
+counts in them. Every baseline now copies every stage as well as every activity. And what the
+diary says happened is not in this comparison: it is plan against plan. [ADR-020](#adr-020)
+expected actuals against the baseline from F8 and F10; F8 does not do it, and it is left to
+F10's reports.
