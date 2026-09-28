@@ -75,14 +75,45 @@ The host (src-tauri/Cargo.toml):
     gif, weezl ................... MIT OR Apache-2.0           (GIF)
     color_quant .................. MIT                         (GIF)
     image-webp, quick-error ...... MIT OR Apache-2.0           (WebP)
+  pdf-writer ..................... MIT OR Apache-2.0
+    writes the PDF reports; of its own dependencies, bitflags, itoa and
+    memchr were already in the binary through the crates above, and one
+    arrives with it:
+    ryu .......................... Apache-2.0 OR BSL-1.0
+  flate2 ......................... MIT OR Apache-2.0
+    deflates the reports' page streams; already in the binary through png
 
 SQLite is compiled into the binary from the amalgamation rusqlite bundles; its
 authors have dedicated it to the public domain.
 
 Vite, TypeScript and Tailwind CSS are listed because the distributed interface
-is their output. The test runners, linters, formatters, axe-core and the
-WebDriver harness are used only in development, are not distributed, and are
-not listed here.
+is their output. The test runners, linters, formatters, axe-core, the
+WebDriver harness and lopdf (the second PDF reader that parses every report in
+cargo test) are used only in development, are not distributed, and are not
+listed here.
 
 Full license texts of the above are retained in the dependency lockfiles and
 are reproduced in the distributed package.
+
+--------------------------------------------------------------------------------
+FONT METRICS
+
+The PDF reports are set in the standard PDF fonts Helvetica and Helvetica-Bold,
+which every PDF reader supplies. No font file is embedded in a report, shipped
+in the product or kept in this repository.
+
+To wrap text, the host carries the advance width of each character of the two
+faces (src-tauri/src/report/winansi.rs). Those numbers are the WX values of
+Adobe's Core 14 font metrics files Helvetica.afm and Helvetica-Bold.afm,
+version 002.000, placed at the WinAnsiEncoding codes of PDF 32000-1:2008,
+Annex D.2. The files carry this notice, retained here as their terms require:
+
+  Copyright (c) 1985, 1987, 1989, 1990, 1997 Adobe Systems Incorporated.
+  All Rights Reserved.
+  Helvetica is a trademark of Linotype-Hell AG and/or its subsidiaries.
+
+Adobe's terms for those metrics allow them to be used, copied and distributed
+for any purpose and without charge, with or without modification, provided the
+copyright notices are retained and modifications are noted. The widths are used
+unmodified; only their order was changed, from the files' glyph names to the
+encoding's codes.

@@ -21,38 +21,40 @@ baseline carrying that reason, and any two baselines compare ([ADR-027](#adr-027
 makes the sixth true: templates are plans, applied once as the work's own, with ranges and no
 prices ([ADR-029](#adr-029)), and a work goes back out as a template ([ADR-030](#adr-030)).
 
-| #               | Decision                                                                                                      | Status                         |
-| --------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| [001](#adr-001) | The product is named Ridgebeam                                                                                | Accepted — 2026-09-24, by Alex |
-| [002](#adr-002) | Tauri 2 with a deliberately thin Rust host                                                                    | Accepted — 2026-09-25          |
-| [003](#adr-003) | The domain layer is pure TypeScript                                                                           | Accepted — 2026-09-25          |
-| [004](#adr-004) | A work is a folder, and the application keeps a small database of its own                                     | Accepted — 2026-09-25          |
-| [005](#adr-005) | Fluent is the visual language, with one icon set                                                              | Accepted — 2026-09-25          |
-| [006](#adr-006) | No network, no telemetry                                                                                      | Accepted — 2026-09-25          |
-| [007](#adr-007) | Strings are data in two languages, and the glossary is data too                                               | Accepted — 2026-09-25          |
-| [008](#adr-008) | Readiness is a measure, not a feeling                                                                         | Accepted — 2026-09-25          |
-| [009](#adr-009) | The plan has no progress command                                                                              | Accepted — 2026-09-25          |
-| [010](#adr-010) | End-to-end tests drive the real binary                                                                        | Accepted — 2026-09-25          |
-| [011](#adr-011) | Accessibility is gated, not reviewed                                                                          | Accepted — 2026-09-25          |
-| [012](#adr-012) | Installers are not code-signed in 1.0.0                                                                       | Accepted — 2026-09-25          |
-| [013](#adr-013) | Settings are a closed list of keys the host owns                                                              | Accepted — 2026-09-25          |
-| [014](#adr-014) | A lens is a vocabulary table over the glossary, and an arrangement; nothing is stored per lens                | Accepted — 2026-09-25          |
-| [015](#adr-015) | One scheduling engine: Tessera's, copied literally and extended with the working calendar, lags and baselines | Accepted — 2026-09-25          |
-| [016](#adr-016) | Baselines are insert-only from the first one                                                                  | Accepted — 2026-09-25          |
-| [017](#adr-017) | A decision's deadline is computed, never stored                                                               | Accepted — 2026-09-25          |
-| [018](#adr-018) | Readiness is explained rule by rule, and the rules sum to the figure                                          | Accepted — 2026-09-25          |
-| [019](#adr-019) | The diary is append-only with a hash chain, and a correction is a new entry                                   | Accepted — 2026-09-25          |
-| [020](#adr-020) | Progress is derived from the diary, in states, never as an invented number                                    | Accepted — 2026-09-25          |
-| [021](#adr-021) | Photos are copied by the host under caps and shown as data URLs                                               | Accepted — 2026-09-25          |
-| [022](#adr-022) | A stage's gates are answered facts, and a closed stage is closed                                              | Accepted — 2026-09-27          |
-| [023](#adr-023) | Money is three facts with three sources, in minor units, and the ledger is append-only                        | Accepted — 2026-09-27          |
-| [024](#adr-024) | Every money figure carries its rows, and paid over committed is flagged, not refused                          | Accepted — 2026-09-27          |
-| [025](#adr-025) | A document is a file the work owns, typed by its bytes, deduplicated by its hash, and never parsed            | Accepted — 2026-09-27          |
-| [026](#adr-026) | A person is a contact with stages, and presence comes from the diary                                          | Accepted — 2026-09-27          |
-| [027](#adr-027) | An approved plan is locked until somebody says why: a replanning is a row, closed only by the next baseline   | Accepted — 2026-09-28          |
-| [028](#adr-028) | Any two baselines compare in the domain; a what-if is never written                                           | Accepted — 2026-09-28          |
-| [029](#adr-029) | A template is data, applied once as the work's own plan, with ranges and no prices                            | Accepted — 2026-09-28          |
-| [030](#adr-030) | A work exports as a template with its numbers stripped or kept                                                | Accepted — 2026-09-28          |
+| #               | Decision                                                                                                             | Status                         |
+| --------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| [001](#adr-001) | The product is named Ridgebeam                                                                                       | Accepted — 2026-09-24, by Alex |
+| [002](#adr-002) | Tauri 2 with a deliberately thin Rust host                                                                           | Accepted — 2026-09-25          |
+| [003](#adr-003) | The domain layer is pure TypeScript                                                                                  | Accepted — 2026-09-25          |
+| [004](#adr-004) | A work is a folder, and the application keeps a small database of its own                                            | Accepted — 2026-09-25          |
+| [005](#adr-005) | Fluent is the visual language, with one icon set                                                                     | Accepted — 2026-09-25          |
+| [006](#adr-006) | No network, no telemetry                                                                                             | Accepted — 2026-09-25          |
+| [007](#adr-007) | Strings are data in two languages, and the glossary is data too                                                      | Accepted — 2026-09-25          |
+| [008](#adr-008) | Readiness is a measure, not a feeling                                                                                | Accepted — 2026-09-25          |
+| [009](#adr-009) | The plan has no progress command                                                                                     | Accepted — 2026-09-25          |
+| [010](#adr-010) | End-to-end tests drive the real binary                                                                               | Accepted — 2026-09-25          |
+| [011](#adr-011) | Accessibility is gated, not reviewed                                                                                 | Accepted — 2026-09-25          |
+| [012](#adr-012) | Installers are not code-signed in 1.0.0                                                                              | Accepted — 2026-09-25          |
+| [013](#adr-013) | Settings are a closed list of keys the host owns                                                                     | Accepted — 2026-09-25          |
+| [014](#adr-014) | A lens is a vocabulary table over the glossary, and an arrangement; nothing is stored per lens                       | Accepted — 2026-09-25          |
+| [015](#adr-015) | One scheduling engine: Tessera's, copied literally and extended with the working calendar, lags and baselines        | Accepted — 2026-09-25          |
+| [016](#adr-016) | Baselines are insert-only from the first one                                                                         | Accepted — 2026-09-25          |
+| [017](#adr-017) | A decision's deadline is computed, never stored                                                                      | Accepted — 2026-09-25          |
+| [018](#adr-018) | Readiness is explained rule by rule, and the rules sum to the figure                                                 | Accepted — 2026-09-25          |
+| [019](#adr-019) | The diary is append-only with a hash chain, and a correction is a new entry                                          | Accepted — 2026-09-25          |
+| [020](#adr-020) | Progress is derived from the diary, in states, never as an invented number                                           | Accepted — 2026-09-25          |
+| [021](#adr-021) | Photos are copied by the host under caps and shown as data URLs                                                      | Accepted — 2026-09-25          |
+| [022](#adr-022) | A stage's gates are answered facts, and a closed stage is closed                                                     | Accepted — 2026-09-27          |
+| [023](#adr-023) | Money is three facts with three sources, in minor units, and the ledger is append-only                               | Accepted — 2026-09-27          |
+| [024](#adr-024) | Every money figure carries its rows, and paid over committed is flagged, not refused                                 | Accepted — 2026-09-27          |
+| [025](#adr-025) | A document is a file the work owns, typed by its bytes, deduplicated by its hash, and never parsed                   | Accepted — 2026-09-27          |
+| [026](#adr-026) | A person is a contact with stages, and presence comes from the diary                                                 | Accepted — 2026-09-27          |
+| [027](#adr-027) | An approved plan is locked until somebody says why: a replanning is a row, closed only by the next baseline          | Accepted — 2026-09-28          |
+| [028](#adr-028) | Any two baselines compare in the domain; a what-if is never written                                                  | Accepted — 2026-09-28          |
+| [029](#adr-029) | A template is data, applied once as the work's own plan, with ranges and no prices                                   | Accepted — 2026-09-28          |
+| [030](#adr-030) | A work exports as a template with its numbers stripped or kept                                                       | Accepted — 2026-09-28          |
+| [031](#adr-031) | A report is a document the interface composes and the host renders, in standard fonts, and a second reader checks it | Accepted — 2026-09-28          |
+| [032](#adr-032) | The diary export verifies the chain when it is written, and a CSV never carries a formula                            | Accepted — 2026-09-28          |
 
 ---
 
@@ -1489,3 +1491,204 @@ and nothing more. The export is in one language, so a library template made from
 second language written by hand. Keys made from names change when a name changes, so two exports
 of a plan renamed in between do not line up key for key. And nothing records that a file was
 exported, or from which baseline: it is a snapshot of the plan as it stood.
+
+## ADR-031 — A report is a document the interface composes and the host renders, in standard fonts, and a second reader checks it {#adr-031}
+
+**Status.** Accepted — 2026-09-28.
+
+**Context.** The specification asks for four files a person takes out of the product (SPEC §2.15):
+the weekly report in the owner's words, the diary for the record, the schedule on paper, and the
+whole work as JSON for anybody else's tool (R4). Every one of them must say what the screen says:
+a report whose numbers come from a second calculation will one day disagree with the dashboard,
+and a person holding the paper will believe the paper. Three ways of making a PDF were weighed.
+**Printing the webview** gives whatever the screen's layout and the machine's print engine make
+of it — different on every machine, impossible to hold in `cargo test`, and with the dark theme,
+the rail and the buttons to take out again. **A PDF library in the webview** would need to write
+files, which the webview cannot do by design ([ADR-002](#adr-002)), and would ship a large bundle
+to do what the host does in a few hundred lines. **A document the interface composes, rendered by
+the host** keeps the words where the words already are — the two dictionaries — and the writing
+of files where it already is, in Rust. Fonts were the second choice: embedding a font file is
+heavier, needs a subsetter and a licence for the font, and counts against the 10 MB installer
+(SPEC §4); the standard PDF fonts cost nothing, and every PDF reader has them.
+
+**Decision.**
+
+- **One document model.** A report is a `ReportDocument` —
+  `{ kind: 'weekly' | 'diary' | 'schedule', title, subtitle, pageSize: 'a4' | 'a4-landscape', language, blocks }`
+  — and a block is one of seven: a **heading** (level 1 or 2), a **paragraph** (normal, muted or
+  strong), a **figure** with its value and **the rows it counts listed under it**, a **table**
+  (up to 16 columns, each with its alignment and its share of the width), a **gantt**, a **rule**
+  and a **page break**. It is words, not data: the interface sends it already translated, and the
+  host adds nothing to what it says but the footer's "page N of M" and the diary's verification
+  block ([ADR-032](#adr-032)), both in the document's language.
+- **The interface composes it from the rows the screen shows.** The domain selects
+  (`src/domain/reports/` — `weekly`, `diary`, `schedule` — pure, keys and parameters and no
+  strings, and reading the very figures the dashboard shows from `src/domain/dashboard/`); pure
+  functions in `src/features/reports/compose/` turn a selection into blocks through the same `t()`
+  the screens use, in the language on screen. The weekly report is always in the **owner's** lens
+  vocabulary, whatever lens is on — it is the owner's report; the diary and the schedule are in the
+  lens on screen.
+- **The host lays it out and writes it** — `src-tauri/src/report/`: `model.rs` (the document, its
+  serde shape and its limits), `winansi.rs` (the encoder and the font widths), `layout.rs` (pure:
+  blocks in, positioned marks per page out, tested without a PDF), `pdf.rs` (the marks written).
+  A4 portrait or landscape, 20 mm margins, text wrapped by the real width of each glyph, a table
+  that runs past a page breaking there and repeating its header, and a footer on every page —
+  "Ridgebeam · {title} · page N of M", or "página N de M". The metadata carries the title, the
+  producer "Ridgebeam {version}" and the language; **no author and no e-mail address**; and the
+  creation date the interface passes in, so the same document gives the same file in a test. Page
+  streams are deflated. The writer is `pdf-writer` 0.15, the one a sibling product already ships;
+  it writes and cannot read.
+- **Standard fonts, WinAnsi, nothing embedded.** Helvetica and Helvetica-Bold with
+  `WinAnsiEncoding`, and their published metrics: a 256-entry width table per face, the `WX`
+  values of Adobe's Core 14 AFM files, with their notice carried beside them and in
+  [`NOTICE`](../../NOTICE). WinAnsi is the printable ASCII, the Latin-1 supplement and the 27
+  characters Windows-1252 adds — English and Portuguese as the product writes them (á ã â à ç é ê
+  í ó õ ô ú, – — … • ‘ ’ “ ” € ° ² º ª ×). **Three characters outside it are printed as documented
+  stand-ins** — → as `->`, ≥ as `>=`, ≤ as `<=` — the spaces and the minus sign `Intl` writes into
+  numbers and dates are folded onto the ones the faces have, and anything else prints as `?`. **A
+  test composes every report in both languages and fails on a character that would print as
+  `?`**, so what the screen says the page says.
+- **A second reader parses every PDF.** `cargo test` reads what `pdf-writer` wrote with `lopdf`
+  0.45, a development dependency of another lineage that is never shipped: every block type, both
+  page sizes, a table long enough to cross pages, the stand-ins, Portuguese text — extracting the
+  text and finding each block's words, counting the pages, reading the metadata. The end-to-end
+  suite checks the written file on disk as well: it starts with `%PDF-`, ends with `%%EOF`, and the
+  words it expects are in its inflated content streams.
+- **The weekly report**, for the Monday-to-Sunday week of the day chosen, this week by default; a
+  week that has not begun is refused. Its first lines are the diary's week: every day with what the
+  diary says of it, and **the working days that are over with nothing written, listed** — a week
+  with no entry says so on its first line, in strong type, and the rest is still printed (SPEC R2).
+  Then what was worked on and finished, who was on site, the weather days lost, readiness and the
+  first three things it lacks, the finish date against the latest baseline and the slip, the
+  decisions overdue or due in the next 14 calendar days, money planned, committed and paid and
+  paid this week, and the stages planned, ready, started, closed and held at a gate. Every figure
+  is printed with its rows. The decisions, the money and the stages are the work **as it stands
+  the day the report is written**, and the page says so; only the diary's part is about the week
+  asked for. A note in a row is shortened; the diary's own PDF prints it whole.
+- **The schedule** is landscape: the screen's Gantt, not a second geometry — one column per
+  calendar day, weekends and holidays included, from the first day anything is drawn; a bar per
+  activity, the critical ones filled dark and the others outlined, the latest baseline a thin bar
+  beneath — and then a table of **every** activity: number, name, stage, start, finish, duration,
+  float and responsible, an activity the schedule could not place listed with its reason. The day
+  grid always fits the page's width, however many days it runs over (up to 3 660): the longer the
+  plan, the narrower each day, and the day labels are thinned to every Nth so that none touch. A
+  plan with more activities than a page holds breaks across pages with its day header repeated.
+  When nothing can be drawn — a loop, a calendar that cannot be counted on, no duration — the page
+  says why and the table is still printed.
+- **One path writes every file** (`files::save`, which F9's template export now shares). The four
+  writing commands — `report_pdf_write`, `diary_export_pdf`, `diary_export_csv` and
+  `work_export_json` — take a full path ending in `.pdf`, `.csv` or `.json` by kind; write a
+  temporary file in the same folder, flush it and rename it over the name, so a file is whole or
+  absent; replace an existing file only with `overwrite`, which the interface sends only when the
+  save dialog chose the path and asked; and refuse a file over 256 MiB. A document is checked whole
+  before anything is laid out and refused with a sentence past a limit: 5 000 blocks, 20 000 rows
+  (tables, figures and Gantt bars together), 2 000 characters in any string. The work as JSON is
+  written by the host from the database, in the format [`DATA_MODEL.md`](../DATA_MODEL.md) fixes
+  (`"ridgebeamWork": 1`). After writing, **Open** hands the file to the operating system's own
+  viewer through `report_open`, which opens only a path a report command wrote in this session.
+- **Where it lives.** A new destination, **Reports**, after Documents: one card for each of the
+  four files, each saying in one line what the file holds and what it does not. The rail has
+  eleven destinations, eight of them needing a work.
+
+**Why.** A report composed from the rows the screen shows cannot disagree with the screen, and a
+report whose words come from the two dictionaries is in the product's language and vocabulary,
+held by the same literals and dictionaries tests. Rendering in the host keeps the webview without
+file access and the layout pure, so pagination, wrapping and the footer are facts `cargo test`
+holds rather than things a person checks by eye. A second reader of another lineage is what makes
+"the PDF is valid" a claim somebody other than its writer has checked. The standard fonts are the
+smallest thing that prints the two languages the product speaks.
+
+**Cost accepted.** **No glyph outside WinAnsi and the three stand-ins**: a name typed in Greek,
+Cyrillic, Chinese or with an emoji prints with `?` in its place, and an arrow prints as `->` — the
+screen and the page agree only for what the product's two languages write. The fonts are not
+embedded, so each reader draws them with its own Helvetica or the nearest it has, and the page
+looks a little different from one viewer to another; for the same reason the file is not PDF/A.
+**Photos are not in the PDF in 1.0**: the reports count an entry's photos and say they are in the
+work's folder. **The schedule PDF does not shade non-working days in 1.0**: the screen's Gantt
+does; on paper every day column looks alike, so a weekend is told from a working day only by its
+date. A long plan is drawn narrower, not across several pages side by side, and past a few
+hundred days its bars are thin. The weekly report of a past week reads the decisions, the money
+and the stages as they are today, not as they were that week, and it compares the plan with its
+latest baseline — it does not put actual dates beside baseline dates. A report is a snapshot of
+the moment it was written, and nothing in the work records that it was. And **Open** works only
+in the session that wrote the file: after a restart the file is still on disk, and the product
+will not open it.
+
+## ADR-032 — The diary export verifies the chain when it is written, and a CSV never carries a formula {#adr-032}
+
+**Status.** Accepted — 2026-09-28.
+
+**Context.** The diary is the record ([ADR-019](#adr-019)), and its export is the moment the record
+leaves the product — for the owner's files, for a contractor, for a dispute. Three things can go
+wrong there. A file can say the chain is intact when nobody checked, or when the interface did the
+checking and could be wrong. A file can be read as more than it is — a signature, legal proof —
+which the specification names as a risk (R6). And a CSV opened in a spreadsheet is a program's
+input: a note or a name typed as `=HYPERLINK(…)` or `@SUM(…)` becomes a formula on somebody else's
+machine — the injection OWASP calls CSV injection.
+
+**Decision.**
+
+- **The host verifies before it writes.** `diary_export_pdf` and `diary_export_csv` read every
+  entry and verify the chain over the very rows they are about to write, inside the host and while
+  the work is held, so no entry is appended in between. If it does not verify, **nothing is
+  written** — no temporary file, no file replaced — and the refusal names the entry where it broke:
+  "The diary was not exported, because its chain does not verify." and the reason. The Reports
+  page runs the same verification before offering to write, and says "N entries, chain verified
+  just now" or where it does not hold.
+- **The PDF's first block is the host's, not the interface's.** The interface composes the
+  entries — every one as it was written, in order, a correction beside what it corrects and marked
+  as what now counts for the day, with its author, weather, what was worked on and finished, who
+  was present, the note whole and how many photos. The host puts its own block **in front** of
+  them, in the document's language, which the interface can neither write nor change:
+
+  > Chain verified on {date}: {N} entries, head {the first 16 hex digits of the last entry's
+  > hash}.
+  > This is tamper-evidence: it shows whether the file was changed outside Ridgebeam.
+  > It is not a signature and not legal proof.
+
+  and in Portuguese, _"Cadeia verificada em {data}: {N} entradas, impressão digital da última
+  {hash}. Isto é evidência de adulteração: mostra se o arquivo foi alterado fora do Ridgebeam. Não
+  é uma assinatura e não é prova legal."_ An empty diary has no head, and the block says only the
+  count. The count and the head are what [ADR-019](#adr-019) said the export would record: a copy
+  kept elsewhere can show entries removed from the end, which the chain alone cannot. A document of
+  any other kind sent to the diary export is refused, and a diary document sent to the plain report
+  command is refused too — the diary is never printed without the verification.
+
+- **The CSV is written by the host from the database**, never from anything the interface sends,
+  so it is the record and not a rendering of it. One row per entry in the chain's order, thirteen
+  columns — `seq`, `day`, `created_at`, `author`, `weather`, `done`, `finished`, `present`, `note`,
+  `corrects_seq`, `photos`, `entry_hash`, `previous_hash`. `done`, `finished` and `present` name
+  the activities and people as the plan names them now, joined by `; `, an activity with the
+  quantity said (`Tiling (12 m²)`), and one since removed from the plan by its id; `weather` is the
+  stored word (`rain`, `sun` …); `photos` are the photos' SHA-256 hashes joined by a space. UTF-8
+  with a byte-order mark, lines ending in CR LF, quoted as RFC 4180 says, with `,` or `;` as the
+  separator — the interface passes `;` in Portuguese and `,` in English, what each language's
+  spreadsheet expects.
+- **A CSV never carries a formula.** Every cell whose first character is `=`, `+`, `-`, `@`, a tab
+  or a carriage return is written with a `'` before it (OWASP's advice), whichever column it is in
+  — notes, names, authors, what was done. A cell that starts with anything else is written as it
+  is. `cargo test` holds each of the six characters in a name and in a note, and a safe cell
+  untouched.
+
+**Why.** Verification belongs to whoever can be held to it: the host holds the database, runs the
+check and writes the file in one call, so the sentence at the top of the page is true of the diary
+under it. Writing the CSV from the database means a spreadsheet gets every entry as the chain
+covers it, hashes included. The block says what the chain is in the words the product uses
+everywhere else — Diagnostics, the glossary, this record — and says what it is not in the place a
+person reading the record away from the product will see it. Neutralising every risky cell costs a
+character and closes a whole class of attack on whoever opens the file.
+
+**Cost accepted.** **A CSV opened in a spreadsheet shows a leading apostrophe on a neutralised
+cell**: `'=HYPERLINK("x")` reads as that text, apostrophe included, and so does a note that simply
+began with a dash, as a list does — the spreadsheet cannot tell a list from a formula, and neither
+does the export. The verification is true of the work's diary when the file was written, not of the
+file afterwards: a PDF or a CSV can be edited like any other file, and only its head, compared with
+the work, says whether a copy still matches. The date in the block is the moment the interface says
+the report was made. A diary whose chain is broken **cannot be exported at all** until the cause is
+found — the product will not print a record it cannot vouch for, even to show the damage. The
+separator follows the product's language, not Windows' list separator, so a person using the
+product in English with a spreadsheet that expects `;` sees each row in one column until they
+import it by hand. Names in the CSV are the plan's names today, not the ones it had on the day.
+Photos travel as their hashes, not as pictures. And the chain proves what [ADR-019](#adr-019) says
+it proves, no more: somebody who rewrites every entry and recomputes every hash gets an export that
+says the chain is verified.
