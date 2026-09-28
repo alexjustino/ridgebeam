@@ -421,3 +421,62 @@ what-if that is not saved is not a baseline.
 Readiness is unchanged, and the slip still measures the plan against the latest baseline. Not in
 1.0, by decision: abandoning a replanning without a baseline, and applying a what-if with one
 button.
+
+### Added in F9 — templates and the library
+
+A work starts from a template as a **plan** with ranges; the library ships as data in the
+repository and is schema-tested; a work exports as a template with its numbers stripped or kept;
+[`CONTRIBUTING.md`](CONTRIBUTING.md) says how a template enters the library and the test says
+whether it may.
+
+- **The library** (ADR-029): six templates in `templates/`, one JSON file each, in English and
+  Portuguese — **Bathroom renovation**, **Kitchen renovation**, **Roof replacement**, **Electrical
+  rewire**, **Masonry house** and **Apartment refit**, which includes the bathroom and the kitchen
+  and adds its own stages. Each is a plan a small residential work follows: stages in order with
+  their typical activities, finish-to-start links, durations as **ranges of working days**, the
+  decisions each stage needs with their lead-time ranges, the questions each stage must answer
+  before it starts and before it closes, the rooms it touches, and cost lines as **labels with no
+  prices**. Each says it is a starting point, not a quote.
+- **Starting from a template.** New work offers an empty plan, the library by title in the
+  current language, or a template **from a file**, with a preview that counts its stages,
+  activities, decisions and checks and says it is a starting point with ranges, not a quote. An
+  empty work's breakdown offers **Start from a template…**. The plan is applied once, whole, in the
+  work's language, as the work's own: new rows, nothing linked back. The work records where it came
+  from — "Started from: Bathroom renovation, v1" on the Dashboard — and what applying did is said
+  there once: templates included, texts taken in the other language, single numbers applied as
+  durations.
+- **A range stays a range until a person picks.** An activity from a template has its range and no
+  duration: the breakdown shows the range as the duration's hint, readiness counts it as having no
+  duration and names the range, and **Use the upper end of each range** or **Use the lower end**
+  writes the duration of every activity that has a range and none — an explicit act, refused after
+  approval like any duration edit. A decision takes the upper end of its lead range as its lead
+  time — the earlier deadline — and keeps the range.
+- **A cost line may be not priced yet.** A template's cost lines are labels: planned money lists
+  them as rows marked _not priced yet_, counted as nothing and said so, and the S-curve draws only
+  priced lines. Readiness's _money planned_ rule now needs a **priced** line. Every cost line
+  written before F9 has an amount, so no existing total and no existing readiness figure moves. An
+  amount can be cleared again to unprice a line.
+- **Export as a template…** on the Plan (ADR-030): **strip** (the default) keeps the plan's shape
+  and the ranges it took from its template, with no durations of the site, no lead times, no lags
+  and no amounts; **keep** carries the work's own durations and lead times as single numbers (a
+  range stays a range only where nothing was picked yet), its lags and its priced amounts. Either way the file is in
+  the work's language and carries no person, contact, payment, diary entry or document. It is
+  written whole or not at all, and replaces a file only when the save dialog chose it.
+- **A template from a file is hostile input.** `.json` only, 1 MiB, UTF-8, read by the host as
+  text; parsed and validated by the domain, every unknown field refused and every problem named
+  with where it is in the file; includes resolve only against the library; applied in one
+  transaction only into a work with no stage that is not approved ("A template starts a plan:
+  this work already has one."); a link cycle or an include cycle refused with its chain. A new work
+  whose template is refused leaves no folder and no recent row behind.
+- **The library test** (`src/domain/templates/library.test.ts`, in `vitest`, so in the gates and
+  in CI) validates every library file at the strict level — both languages, a summary, ranges
+  with `min < max` and never a single number, no amounts, no text that looks like a web address,
+  an e-mail address or a phone number — checks that its id is its file name, and applies it to an
+  empty work. A maintainer reviews every template before it merges.
+- **Work migration 010** (`010_templates.sql`) adds an activity's range, a decision's lead range and
+  the work's `template_id`, `template_version` and `template_title`, and rebuilds `cost_line` so
+  that `amount_cents` may be empty, keeping every row, id and amount. A work from F8 is migrated
+  when it is opened, without loss, and its diary's chain still verifies.
+
+Not in 1.0, by decision: a work that follows its template when the library changes; prices of any
+kind in the library; a template in a third language.

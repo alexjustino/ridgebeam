@@ -18,9 +18,9 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F8.** The product was named on 2026-09-24
-> ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F8 — from the foundation to
-> replanning — run from source; there is no published installer yet. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for
+> **Status: pre-release — slices F0 to F9.** The product was named on 2026-09-24
+> ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F9 — from the foundation to
+> templates and the library — run from source; there is no published installer yet. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for
 > every slice; [What exists today](#what-exists-today) says exactly how far the code has got.
 
 ## Why
@@ -70,7 +70,7 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F8**, and nothing after them:
+Slices **F0** to **F9**, and nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -112,7 +112,7 @@ Slices **F0** to **F8**, and nothing after them:
   share only where quantities were recorded; the dashboard also counts days without an entry and
   weather days lost.
 - **Checks (F5).** Every stage has a start gate and a close gate — questions it must answer,
-  written in the breakdown, with the usual checks one button away until templates arrive. On the
+  written in the breakdown — brought by a template, or the usual checks one button away. On the
   Plan's **Gates** tab each is answered _yes_, _no_ or _not applicable_ (which always takes a
   reason), with a photo where it matters — the inspection. A stage **cannot start or close while
   an item is unanswered or answered no**, and the screen names the items holding it. Answers are
@@ -145,10 +145,24 @@ Slices **F0** to **F8**, and nothing after them:
   on the Schedule tries other durations and lags in memory and shows the finish it would give —
   and is never saved; to keep it, replan with a reason. The dashboard says how many times the
   plan was replanned, and whether a replanning is open.
+- **Templates and the library (F9).** A new work starts from an empty plan, from one of six
+  templates in the library — bathroom renovation, kitchen renovation, roof replacement, electrical
+  rewire, masonry house, and an apartment refit that includes the bathroom and the kitchen — or
+  from a template file, with a preview that says it is **a starting point with ranges, not a
+  quote**. A template is a **plan**: stages in order with their typical activities, the links
+  between them, durations as **ranges** of working days, the decisions each stage needs with
+  their lead times, the questions each gate asks, the rooms, and cost lines as labels with **no
+  prices**. It is applied once, as the work's own — nothing links back, and the Dashboard says
+  where the plan came from. A range stays a range until a person types a duration or chooses
+  **Use the upper end of each range** (or the lower); a line not priced yet says so and counts as
+  nothing. The library is JSON in [`templates/`](templates/), validated and applied to an empty
+  work by a test in CI, and reviewed by a maintainer; [`CONTRIBUTING.md`](CONTRIBUTING.md) is the
+  procedure. Any work **exports as a template**, its numbers stripped for sharing or kept for the
+  next work like it.
 - **Readiness.** A figure that says how much of what the plan must know it does know, from seven
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
-  gates and its money planned — that opens onto the rows it
+  gates and its money planned, with a priced line — that opens onto the rows it
   counts and says in a sentence what is missing, in English and in Portuguese. Rule by rule on
   the dashboard, each with why it matters; the rules add up to the figure.
 - **The shell.** Dashboard, Plan, Schedule, Decisions, Diary, Money, Documents, Settings
@@ -159,19 +173,19 @@ Slices **F0** to **F8**, and nothing after them:
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), twenty-eight binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **templates** and the library, from which checks will come (F9);
-**reports**, print and the diary's export (F10); **backup** (F11).
+Not yet, and not pretended: **reports**, print and the diary's export (F10); **backup** (F11).
 
 Not in 1.0, by decision rather than by schedule: files other than images and PDFs (no Word,
 spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a
 work; a decision tied to one activity rather than its whole stage; a replanning abandoned without
-a baseline; a what-if applied to the plan with one button.
+a baseline; a what-if applied to the plan with one button; a work that follows its template when
+the library changes; prices in the library.
 Each arrives with its slice, in the order the [specification](docs/SPEC.md) §7 lists.
 
 ## Run it from source
