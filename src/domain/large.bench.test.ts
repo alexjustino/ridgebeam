@@ -15,8 +15,9 @@ import { schedule } from './schedule';
  * and every computation the screens make of it on each change, each under a budget.
  *
  * Each budget is five times the median first measured on the development machine (`BUDGETS_MS`,
- * recorded in ADR/CHANGELOG), so a slower or busier CI runner passes and a change that makes a computation
- * several times slower does not. The medians are printed on every run, so the real number is on
+ * recorded in ADR/CHANGELOG), scaled by how much slower the machine running the test is
+ * (`SLOWER`), so a slower CI runner passes and a change that makes a computation several times
+ * slower does not. The medians are printed on every run, so the real number is on
  * record, not only the pass.
  *
  * The first run found two computations that grew with the square of the work, and they were fixed
@@ -46,6 +47,29 @@ const BUDGETS_MS = {
   diaryReport: 25, // measured 3.9
   openQuestions: 30, // measured 5.6
 } as const;
+/**
+ * How much slower this machine is than the one the budgets were measured on. A budget in
+ * milliseconds is a fact about one machine: the first CI run of release 1.0.0 measured the S-curve
+ * at 137 ms against a budget of 135 set from 26.8 here, on a runner several times slower. So the
+ * same process first times a fixed workload — sorting 200 000 seeded numbers — and every budget is
+ * scaled by how much longer that took than here (never scaled down). A slower machine gets a
+ * proportionally longer budget; a computation that grows with the square of the work is still
+ * caught, because it is ten or more times slower on the same machine, whatever the machine.
+ */
+const CALIBRATION_HERE_MS = 73; // the median here, 2026-09-28 (67 to 80 over five runs)
+
+function calibration(): number {
+  let x = 20260928;
+  const data = new Float64Array(200_000);
+  for (let i = 0; i < data.length; i += 1) {
+    x = (x * 1103515245 + 12345) % 2147483648;
+    data[i] = x / 2147483648;
+  }
+  return measure(() => Array.from(data).sort((a, b) => a - b));
+}
+
+const SLOWER = Math.max(1, calibration() / CALIBRATION_HERE_MS);
+
 /** Median of five runs, after one warm-up run, as a running app would have warmed the code. */
 function measure(run: () => unknown): number {
   run();
@@ -59,9 +83,11 @@ function measure(run: () => unknown): number {
 }
 
 function bench(name: keyof typeof BUDGETS_MS, run: () => unknown): void {
-  const budgetMs = BUDGETS_MS[name];
+  const budgetMs = BUDGETS_MS[name] * SLOWER;
   const ms = measure(run);
-  console.log(`[bench] ${name}: median ${ms.toFixed(1)} ms (budget ${budgetMs} ms)`);
+  console.log(
+    `[bench] ${name}: median ${ms.toFixed(1)} ms (budget ${budgetMs.toFixed(0)} ms, machine ×${SLOWER.toFixed(2)})`,
+  );
   expect(ms, name).toBeLessThan(budgetMs);
 }
 

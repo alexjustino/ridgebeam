@@ -657,7 +657,9 @@ table_info`, so a column added later cannot be missed), the chain verifying, eve
   §8 gains _the plan asks one question at a time_.
 - **Large works, measured.** A benchmark in vitest over a work of 2 000 activities (40 stages, 3 000
   links), 2 000 payments and 3 000 diary entries holds every computation the screens make to a
-  budget of five times its first median: the schedule 35 ms (6.3 measured), readiness 40 ms (7.4),
+  budget of five times its first median, scaled by how much slower the machine running it is (a
+  fixed sorting workload timed in the same run — release 1.0.0's first CI run showed a budget in
+  plain milliseconds is a fact about one machine): the schedule 35 ms (6.3 measured), readiness 40 ms (7.4),
   the weekly report 85 ms (16.4), the money of the work 25 ms (1.3), by stage 260 ms (51.4), by
   trade 25 ms (4.3), paid over committed 225 ms (45.0), the S-curve 135 ms (26.8), the diary report
   25 ms (3.9) and the open questions 30 ms (5.6). Its first run found two computations that grew
