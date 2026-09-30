@@ -474,6 +474,27 @@ breaks one is not merged.
   buttons under a sentence that counts the activities with a range and no duration; they write only
   those, and announce what they did. No screen averages, rounds or picks an end on its own; a
   number the product chose would read as the template's promise (ADR-029).
+- **A probability is said as N in 10, in words.** A chance the product computes — the finish by a
+  date, the plan's own date met, how often an activity is critical — is said as a natural frequency
+  in a sentence: _"8 in 10 chances of finishing by 14 November 2026"_, _"The plan's date, 2
+  October, has 3 in 10 chances."_, _"critical in 6 of 10 runs"_. The sentence is whole tenths, in
+  every lens, because "8 in 10" is what a person with no training in statistics reads correctly and
+  a bare "80 %" is read as a promise. **Tenths are floored, never rounded** — 0.79 is "7 in 10" — so
+  the words never promise more than the runs showed; "10 in 10" only when every run finished by
+  then, "fewer than 1 in 10" below a tenth, and "almost no chance" when no run did, never
+  "impossible". The engineer's lens adds the percentile — _(P80)_ — and the share of the runs in
+  percent, floored the same way, beside the sentence and never in place of it. The words come from
+  the domain (`naturalFrequency`), never from a component's own arithmetic, so a sentence and its
+  percentage cannot disagree (§2, _two readings of one fact agree_). A chance is never colour alone
+  and never a gauge that looks like a score. Where nothing gives a chance — no activity has a range
+  — the card shows the plan's date and says in words that _every activity is counted as certain_,
+  and how to give a range; it never shows "10 in 10" as though the plan were sure. The method is on
+  the page with the result: how many runs, from which ranges, seeded so the same plan gives the same
+  numbers, fewer runs on a large plan said as such, and what the runs leave out — _each activity is
+  drawn on its own_. The simulation's own guesses stay inside it: an activity with a range and no
+  duration is drawn around the middle of its range, and no screen shows that middle as a duration
+  (_a range is shown as a range until a person picks_, above). And a chance never moves the plan:
+  the Gantt's dates, the slip and the deadlines stay the plan's (ADR-035).
 - **A template is labelled a starting point, never a quote.** Wherever a template is offered — the
   Start screen's picker, **Start from a template…** on an empty breakdown — its preview says what
   it holds in counted words (stages, activities, decisions, checks) and says, in a sentence that is
@@ -508,7 +529,11 @@ breaks one is not merged.
   is asked of a closed stage, which the host would refuse to change. The order is the domain's
   (`nextQuestion`), never the screen's. The breakdown stays where it is: the card is a way in for
   the person who does not know where to start, never the only way to answer, and never a second
-  editor with rules of its own (ADR-034).
+  editor with rules of its own (ADR-034). After every other question, and only then, the card
+  may ask one that is **optional** — _"What is the most Rebuild could take, in working days? The plan says 4."_ — of an activity on the critical path with a duration and no range; it is marked
+  optional, it is not in the "3 of 22 answered" count, because the plan lacks nothing without it,
+  and its answer gives the activity a range from its duration to the answer, so no optimism is
+  invented (ADR-035).
 - **An empty week is printed, and says it is empty.** A week with no diary entry still makes a
   weekly report: its **first line**, in strong type, says that nothing was written and how many
   working days are over with nothing written — _"No diary entry this week: 3 working days are over
@@ -635,7 +660,11 @@ A native capability that is unavailable must be _seen_ to be unavailable.
   value is not wrong, the plan is closed to it — so the control goes back to the value the plan
   holds and the sentence under it says why and how to open it ("The plan is approved. To change
   it, replan it with a reason first."). Keeping the typed value there would show a plan that says
-  one thing on screen and another in the work (ADR-027).
+  one thing on screen and another in the work (ADR-027). **A refused range is the second (D1):**
+  an optimistic–pessimistic pair is two fields saved as one value, and a refusal leaves one end
+  typed against the other held — a pair the work never had. So both fields go back to the range
+  the work holds, and the host's sentence under the pair names the range and the duration it must
+  hold (ADR-035).
 
 Silence is the bug. A disabled button with no reason is a defect report somebody else has to
 write.
