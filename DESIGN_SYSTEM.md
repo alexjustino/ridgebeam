@@ -437,6 +437,41 @@ breaks one is not merged.
   sums money on its own: every money figure comes from the domain with its rows (ADR-024), and
   a negative amount — a reversal, a variance — reads with its sign **and** in words ("reversed",
   "under"), never by colour alone. _Over committed_ is a mark in words with the excess beside it.
+- **A warning comes before the act it warns about.** When the product can see that an act will put
+  the person somewhere they would not choose to be — a payment that runs ahead of the work — it says
+  so on the form, as the person types, before the button that does it is pressed, and never only in
+  a report afterwards. The form shows what the act would change, live, as figures from the domain —
+  on the Ledger, a panel under the fields (`payment-preview`) with what the commitment has earned so
+  far, what has been paid and what would be paid after this payment, and whether that leaves money
+  due, the two even, or money paid ahead. When the act crosses the line, a caution `InfoBar`
+  (`payment-ahead-warning`) titled _Ahead of the work_ says it in one sentence with the amount, the
+  commitment, what is earned and the next milestone with what it waits for — _"This payment puts you
+  R$ 500,00 ahead of the work on Tiler's quote: earned so far R$ 300,00 — Tiles laid (40 %) is not
+  earned yet: Lay the tiles is not finished yet."_ — and a second line that gives the decision back:
+  _"You can still record it: whether to pay is yours to decide."_ **A warning is not a refusal**:
+  the button stays enabled and keeps its label, **Record the payment**, because the act is the
+  person's to decide and, once done, a fact; the record keeps it and marks it afterwards, as _over
+  committed_ is marked. The sentence comes from the domain's preview (`paymentPreview`), never from
+  a component's own arithmetic. It never warns about undoing — a reversal is not warned about — and
+  a commitment with no payment plan is not warned about either: the panel says that whether the
+  payment is ahead cannot be said. It is never colour alone: the caution tone, the `InfoBar`'s icon
+  and the sentence, each enough on its own (ADR-037).
+- **A payment plan says what earns it, and since when.** A commitment's **Payment plan** is a
+  disclosure under it on Money → By stage, open by default while the commitment has none. A
+  milestone reads with its share and its amount, the fact that earns it in words — _when Tiling
+  starts_, _when Lay the tiles is finished_, _when Tiling closes_, _an advance, on agreeing — paid
+  before any work_ — and its state from the domain: _earned on 3 Oct_ or _not yet_. Nothing on the
+  screen marks a milestone earned; the diary and the gates do. An advance says plainly that it is
+  money ahead of the work, on purpose. A plan that does not reach 100 % says how much is in it and
+  how much is not — _"70 % in the plan; 30 % not in the plan yet."_ — never a total that pretends
+  the rest is covered; a commitment with no plan says it has none and is not evaluated, neither
+  ahead nor behind. **Add the usual plan** carries its sentence beside it: a common split, not
+  advice — change it to what you agreed. Once a payment names the commitment, the plan is shown as
+  it is, with the sentence that says why — a plan rewritten after paying would hide being ahead of
+  the work — and no control that would change it; a closed stage does not lock it, and the plan says
+  so. Paid ahead and money due are marks on the commitment in words with the amount — _"R$ 500,00
+  ahead of the work"_ in the danger tone with an error icon, _"R$ 300,00 earned and not paid"_ as
+  information with an info icon — never colour alone.
 - **A chart says what it left out.** A chart is a picture of rows the product also shows as a
   table. The S-curve of planned against paid draws two lines told apart by colour **and** by dash,
   with a legend in words; it is `role="img"` with a sentence naming both totals and the last day,
