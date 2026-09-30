@@ -349,6 +349,7 @@ mod tests {
         );
         assert_eq!(work.migrations[0].name, "001_init");
         assert_eq!(work.migrations[9].name, "010_templates");
+        assert_eq!(work.migrations[10].name, "011_payment_milestones");
         assert_eq!(
             applied(&migrations::WORK, 7).last().map(|m| m.number),
             Some(7),
@@ -388,7 +389,7 @@ mod tests {
             "  Schema: {0} of {0} — 001_init, 002_rooms_and_quantities,",
             migrations::WORK.target_version()
         )));
-        assert!(text.contains("010_templates\n"));
+        assert!(text.contains("010_templates, 011_payment_milestones\n"));
         assert!(text.contains("  Database: journal wal, synchronous full, foreign keys on\n"));
         assert!(text.contains("  Diary: 0 entries, chain verified\n"));
         assert!(text.contains("  Folder health: "));

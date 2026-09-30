@@ -30,6 +30,8 @@
 //!   duration edit that would fall outside the range is refused with a
 //!   sentence naming it; nothing widens it. The range is not locked after
 //!   approval: a baseline does not record it.
+//! - D2: `activity_remove` refuses an activity a payment milestone is earned
+//!   by, with a sentence: change or remove the milestone first.
 
 use std::collections::BTreeSet;
 
@@ -163,8 +165,8 @@ pub fn activity_update(
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] for an activity not in this work, and the errors of
-/// every work command.
+/// [`Error::InvalidInput`] for an activity not in this work, or one a payment
+/// milestone is earned by (D2), and the errors of every work command.
 ///
 /// [`Error::PlanApproved`] when the plan is approved and no replanning is
 /// open.

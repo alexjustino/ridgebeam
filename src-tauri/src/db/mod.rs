@@ -43,6 +43,9 @@
 //! - F11: `backups` — the day each work was last backed up, in the
 //!   application database (application migration 003). A work gains no
 //!   migration: a backup holds the work as it is.
+//! - D2: `milestones` — a commitment's payment plan, each milestone a share
+//!   earned by a fact of the work, fixed from the first payment against the
+//!   commitment; work migration 011.
 
 #[cfg(test)]
 mod append_only_tests;
@@ -57,6 +60,7 @@ pub mod diary;
 mod diary_tests;
 pub mod documents;
 pub mod migrations;
+pub mod milestones;
 pub mod money;
 pub mod order;
 pub mod payments;

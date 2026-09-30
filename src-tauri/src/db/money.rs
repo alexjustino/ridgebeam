@@ -21,10 +21,13 @@
 //!   is not removed).
 //! - F9: a cost line's amount may be `None` — added without one, or its price
 //!   taken away.
+//! - D2: each commitment carries its payment plan (`db::milestones`), by
+//!   position; a commitment removed while unpaid takes its plan with it.
 
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::contract::{Commitment, CostLine};
+use crate::db::milestones;
 use crate::db::payments::COMMITMENT_NOT_FOUND;
 use crate::db::work::{
     exists, refuse_if_stage_closed, ACTIVITY_NOT_FOUND, PERSON_NOT_FOUND, STAGE_NOT_FOUND,
@@ -76,12 +79,13 @@ pub fn cost_lines(conn: &Connection) -> Result<Vec<CostLine>> {
 }
 
 /// Every commitment, by stage position, then as agreed; each says whether a
-/// payment names it.
+/// payment names it, and carries its payment plan.
 ///
 /// # Errors
 ///
 /// [`Error::Database`] when the table cannot be read.
 pub fn commitments(conn: &Connection) -> Result<Vec<Commitment>> {
+    let mut plans = milestones::by_commitment(conn)?;
     let commitments = conn
         .prepare(
             "SELECT c.id, c.stage_id, c.person_id, c.label, c.amount_cents, c.agreed_on,
@@ -100,9 +104,16 @@ pub fn commitments(conn: &Connection) -> Result<Vec<Commitment>> {
                 agreed_on: row.get(5)?,
                 document_hash: row.get(6)?,
                 locked: row.get(7)?,
+                milestones: Vec::new(),
             })
         })?
-        .collect::<std::result::Result<Vec<_>, _>>()?;
+        .collect::<std::result::Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(|mut commitment: Commitment| {
+            commitment.milestones = plans.remove(&commitment.id).unwrap_or_default();
+            commitment
+        })
+        .collect();
     Ok(commitments)
 }
 

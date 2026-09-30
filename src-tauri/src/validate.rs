@@ -170,6 +170,50 @@ pub fn amount_cents(value: f64, positive: bool) -> Result<i64> {
     }
 }
 
+/// The sentence for a milestone's share that does not fit (D2).
+pub const SHARE_BP_RANGE: &str =
+    "A milestone's share is more than 0 % and at most 100 % of the commitment, in whole hundredths of a percent.";
+
+/// A payment milestone's share, in basis points (D2): a whole number from 1 to
+/// 10 000 — "30 %" is 3000. It arrives as a JSON number and is checked here to
+/// be whole, as money is.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a fraction, 0 or less, or more than 10 000.
+pub fn share_bp(value: f64) -> Result<i64> {
+    if value.is_finite() && value.fract() == 0.0 && (1.0..=10_000.0).contains(&value) {
+        Ok(value as i64)
+    } else {
+        Err(invalid(SHARE_BP_RANGE))
+    }
+}
+
+/// The facts that earn a payment milestone (D2) — the schema's closed list.
+pub const MILESTONE_TRIGGERS: [&str; 4] = [
+    "advance",
+    "stage_started",
+    "activity_finished",
+    "stage_closed",
+];
+
+/// The sentence for a trigger that is not on the list.
+pub const TRIGGER_UNKNOWN: &str =
+    "A milestone is earned by an advance, the stage started, an activity finished or the stage closed.";
+
+/// A payment milestone's trigger: one of [`MILESTONE_TRIGGERS`], exactly.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for anything else.
+pub fn milestone_trigger(value: &str) -> Result<String> {
+    if MILESTONE_TRIGGERS.contains(&value) {
+        Ok(value.to_string())
+    } else {
+        Err(invalid(TRIGGER_UNKNOWN))
+    }
+}
+
 /// The longest trade a person keeps.
 pub const MAX_TRADE_CHARS: usize = 60;
 
