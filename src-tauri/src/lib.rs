@@ -111,6 +111,16 @@
 //!   work's last backup (`backup_last`); `diagnostics` lists the migrations
 //!   applied and `diagnostics_summary` is Diagnostics as plain text. No new
 //!   error kind, no new capability.
+//! - D1: "When will it really finish?" The finish as a probability is the
+//!   domain's alone (a seeded simulation over each activity's range); the
+//!   host's part is the input. `activity_update` takes an activity's range on
+//!   any activity — the optimistic and the pessimistic duration, both or
+//!   neither, 1 to 3650, the optimistic not above the pessimistic, and a
+//!   change to the duration or the range that leaves the duration outside it
+//!   refused with a sentence naming the range. The range is not locked after
+//!   approval: a baseline does not record it. Nothing the simulation computes
+//!   is stored. No migration (F9's columns), no new command, no new error
+//!   kind, no new capability.
 
 pub mod commands;
 pub mod contract;

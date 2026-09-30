@@ -27,6 +27,8 @@ mod large_work_tests;
 pub mod money;
 pub mod plan;
 #[cfg(test)]
+mod range_tests;
+#[cfg(test)]
 mod replanning_tests;
 pub mod reports;
 #[cfg(test)]
