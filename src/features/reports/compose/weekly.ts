@@ -6,6 +6,12 @@
  *
  * The stages are the dashboard's five figures, in its order: planned, ready, started, closed, held.
  *
+ * **When will it really finish?** (D1) is printed after the finish and the slip, from the same
+ * seeded simulation the Schedule shows (`probability`, computed by the caller with the diary): the
+ * headline in natural frequencies, with the drivers and how many activities were counted as certain
+ * as its rows — what the screen's figure opens onto — and then the plan's and the baseline's chances
+ * and how it was computed. Never percentages: it is the owner's report.
+ *
  * Every number is printed as a figure with the rows it was counted from listed under it: a report
  * carries its rows too. A week with no entry says so on its **first line**, in strong type, and
  * everything else is still printed (SPEC R2).
@@ -22,6 +28,10 @@ import { NOT_PRICED_KEY } from '@/domain/money';
 import type { WorkSnapshot } from '@/domain/plan';
 import type { Schedule } from '@/domain/schedule';
 import {
+  PROBABILITY_MESSAGE_KEYS,
+  type FinishProbabilityResult,
+} from '@/domain/schedule/probability';
+import {
   WEEKLY_DECISION_WINDOW_DAYS,
   WEEKLY_LABEL_KEYS,
   type WeekActivityRow,
@@ -33,9 +43,14 @@ import type { I18n } from '@/i18n/useI18n';
 
 import { finished, shortened } from './document';
 import {
+  baselineChanceText,
+  criticalText,
   daysText,
   decisionStatusText,
+  driverRangeText,
   finishText,
+  headlineText,
+  planChanceText,
   readinessRowText,
   slipRowText,
   WEATHER_KEYS,
@@ -106,15 +121,62 @@ function stageRows(i18n: I18n, figureOf: Figure<ReportRow>): string[] {
   );
 }
 
+/** The finish as a probability, as the page prints it: one figure, then what it rests on. */
+function probabilityBlocks(i18n: I18n, probability: FinishProbabilityResult): ReportBlock[] {
+  const { t, number, day } = i18n;
+  const label = t(PROBABILITY_MESSAGE_KEYS.title);
+  if (!probability.ok) {
+    return [figure(label, t(probability.messageKey as MessageKey), [])];
+  }
+  if (probability.allCertain) {
+    return [figure(label, day(probability.p80), [t(PROBABILITY_MESSAGE_KEYS.allCertain)])];
+  }
+  const { counts } = probability;
+  const often = new Map(probability.criticality.map((each) => [each.activityId, each.frequency]));
+  const rows = [
+    ...probability.drivers.map((driver) => {
+      const frequency = often.get(driver.activityId);
+      return row(
+        driver.name,
+        driverRangeText(i18n, driver),
+        frequency === undefined ? null : criticalText(i18n, frequency),
+      );
+    }),
+    ...(counts.certain > 0
+      ? [
+          t(PROBABILITY_MESSAGE_KEYS.certainCount, {
+            certain: number(counts.certain),
+            total: number(counts.total),
+          }),
+        ]
+      : []),
+    ...(counts.unplaced > 0
+      ? [t(PROBABILITY_MESSAGE_KEYS.unplacedCount, { unplaced: number(counts.unplaced) })]
+      : []),
+  ];
+  const facts = [
+    probability.plan === null ? null : planChanceText(i18n, probability.plan),
+    probability.baseline === null ? null : baselineChanceText(i18n, probability.baseline),
+    t(PROBABILITY_MESSAGE_KEYS.method, { runs: number(probability.runs) }),
+    t(PROBABILITY_MESSAGE_KEYS.leftOut),
+  ].filter((each): each is string => each !== null);
+  return [
+    figure(label, headlineText(i18n, probability.headline), rows),
+    { type: 'paragraph', tone: 'muted', text: facts.join(' ') },
+  ];
+}
+
 /**
  * The weekly report for the selection `weekly`, in `i18n`'s language and the owner's words.
- * `scheduled` is the schedule the selection was made from, for why a finish is not known.
+ * `scheduled` is the schedule the selection was made from, for why a finish is not known;
+ * `probability` is `finishProbability` over the same plan, schedule and diary (D1).
  */
 export function composeWeekly(
   weekly: Weekly,
   snapshot: WorkSnapshot,
   scheduled: Pick<Schedule, 'finishDate' | 'cyclic' | 'unplaced'>,
   i18n: I18n,
+  probability: FinishProbabilityResult,
 ): ReportDocument {
   const { t, tp, day, number, money } = i18n;
   const term = termsFor(i18n.language, 'owner');
@@ -246,6 +308,7 @@ export function composeWeekly(
       ),
     );
   }
+  blocks.push(...probabilityBlocks(i18n, probability));
   blocks.push(
     figure(
       t(WEEKLY_LABEL_KEYS.decisions, { days: number(WEEKLY_DECISION_WINDOW_DAYS) }),

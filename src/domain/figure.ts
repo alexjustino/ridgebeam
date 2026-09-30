@@ -23,6 +23,13 @@
  * moved later the value is exactly the furthest row, and when it did not, no row lies beyond it.
  * With nothing moved, the value is 0.
  *
+ * **A chance figure is a share of simulated runs, and its rows are what it depends on, not parts of
+ * it** (slice D1). A probability is not a sum: the value is `hits / runs`, exactly, and each row is
+ * an activity with its role — one that moves the finish most (`driver`, with its rank correlation),
+ * one counted as certain (`certain`), or one with how often it was critical (`critical`, with that
+ * share). The rows say what the number is made of in the only way a probability can be: which
+ * inputs it came from.
+ *
  * What this module is not: a report. It builds no figure of its own; readiness, and later the
  * schedule, the diary and the money, build theirs with it.
  */
@@ -61,10 +68,13 @@ interface FigureBase<Row extends ReportRow> {
  * - `days` is a signed number of working days a date moved; its rows are `DaysRow`s.
  * - `money` is a sum of money in the currency's minor unit (cents), whole numbers only: the sum of
  *   its rows' signed `amountCents` (`AmountRow`).
+ * - `chance` is `hits / runs`, a share of simulated runs from 0 to 1, the day it is the chance of
+ *   finishing by in `date`; its rows are `ChanceRow`s, what the chance depends on.
  */
 export type Figure<Row extends ReportRow = ReportRow> =
   | (FigureBase<Row> & { unit: 'minutes' | 'count' | 'days' | 'money' })
-  | (FigureBase<Row> & { unit: 'percent'; known: number; mustKnow: number });
+  | (FigureBase<Row> & { unit: 'percent'; known: number; mustKnow: number })
+  | (FigureBase<Row> & { unit: 'chance'; hits: number; runs: number; date: string | null });
 
 /** A row of a `days` figure: something whose date moved. */
 export interface DaysRow extends ReportRow {
@@ -137,6 +147,50 @@ export interface AmountRow extends ReportRow {
   amountCents: number;
 }
 
+/** What a row is to a chance: never a part of it, always something it depends on. */
+export const CHANCE_ROLES = ['driver', 'certain', 'critical'] as const;
+export type ChanceRole = (typeof CHANCE_ROLES)[number];
+
+/** A row of a `chance` figure (or of a count of activities with their criticality). */
+export interface ChanceRow extends ReportRow {
+  readonly role: ChanceRole;
+  /**
+   * The row's own number: a driver's rank correlation with the finish (−1 to 1), a critical row's
+   * share of runs it was critical in (0 to 1); `null` for an activity counted as certain.
+   */
+  readonly share: number | null;
+}
+
+/** A figure of unit `chance`, with its counts and its date. */
+export type ChanceFigure<Row extends ReportRow = ReportRow> = Extract<
+  Figure<Row>,
+  { unit: 'chance' }
+>;
+
+/**
+ * A chance figure: `hits` of `runs` simulated runs, the value their share. `date` is the day it is
+ * the chance of finishing by, when it is one.
+ */
+export function chanceFigure<Row extends ChanceRow>(
+  id: string,
+  label: string,
+  hits: number,
+  runs: number,
+  date: string | null,
+  rows: readonly Row[],
+): ChanceFigure<Row> {
+  return { id, label, unit: 'chance', value: hits / runs, hits, runs, date, rows };
+}
+
+/** Is this row's share what its role allows? */
+function chanceRowHolds(row: ReportRow): boolean {
+  const { role, share } = row as Partial<ChanceRow>;
+  if (role === 'certain') return share === null;
+  if (typeof share !== 'number' || !Number.isFinite(share)) return false;
+  if (role === 'driver') return share >= -1 && share <= 1;
+  return role === 'critical' && share >= 0 && share <= 1;
+}
+
 /** A money figure: the sum of its rows' amounts, in minor units. */
 export function moneyFigure<Row extends AmountRow>(
   id: string,
@@ -179,7 +233,10 @@ function againstFinishOf(row: ReportRow): number | null {
  * that reads 100 with rows behind it, or below 100 with none, is broken whatever its counts.
  * `days` is a whole number; 0 with no rows; when positive, exactly the furthest `againstFinish`
  * among the rows; otherwise at least as far as every row's. `money` is a whole number of cents, the
- * sum of its rows' whole `amountCents`; a row without one breaks it.
+ * sum of its rows' whole `amountCents`; a row without one breaks it. `chance` has whole
+ * `0 ≤ hits ≤ runs` with at least one run, the value exactly `hits / runs`, and every row a
+ * `ChanceRow` whose share its role allows (a certain row has none; a driver's is from −1 to 1; a
+ * critical row's from 0 to 1).
  */
 export function traceable<Row extends ReportRow>(figure: Figure<Row>): boolean {
   const keys = new Set(figure.rows.map((row) => row.key));
@@ -194,6 +251,13 @@ export function traceable<Row extends ReportRow>(figure: Figure<Row>): boolean {
     if (known < 0 || known > mustKnow) return false;
     if (mustKnow === 0) return figure.value === 0 && figure.rows.length > 0;
     return figure.rows.length === mustKnow - known && figure.value === percentOf(known, mustKnow);
+  }
+
+  if (figure.unit === 'chance') {
+    const { hits, runs } = figure;
+    if (!Number.isInteger(hits) || !Number.isInteger(runs)) return false;
+    if (runs < 1 || hits < 0 || hits > runs) return false;
+    return figure.value === hits / runs && figure.rows.every(chanceRowHolds);
   }
 
   if (figure.unit === 'money') {

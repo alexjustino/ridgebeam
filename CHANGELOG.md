@@ -643,3 +643,91 @@ table_info`, so a column added later cannot be missed), the chain verifying, eve
 
 Migration: the application database gains `003_backups` (the `backup` table, one row per work).
 The work's schema does not change.
+
+### Added in D1 — when will it really finish
+
+The first of four differentiators the product's owner added to 1.0 before its first use
+(ADR-036): the plan's finish date is one number, and a site is not. From the optimistic and
+pessimistic durations a person gives, the finish is also a probability, said in natural frequencies
+— "8 in 10 chances of finishing by 14 November 2026" — seeded so that the same plan gives the same
+numbers, and never changing the plan's own dates (ADR-035).
+
+- **A range on any activity.** The breakdown gains **Optimistic** and **Pessimistic** working days
+  beside every activity's duration, not only on one a template brought. `activity_update` takes
+  `durationMinDays` and `durationMaxDays` together or not at all — both `null` clears the range —
+  each a whole number of working days from 1 to 3 650, the optimistic not above the pessimistic.
+  One end alone, a fraction, 0, a value past 3 650 and an upside-down range are refused, each with a
+  sentence; the row says "Give both ends, or clear both." while one end waits for the other. **A
+  change that would leave the duration outside the range is refused**, with a sentence naming the
+  range: the person widens the range, or sends both together; nothing widens or clears a range on
+  its own. A duration an activity already held outside its range from before D1 is not refused
+  when its name or its responsible changes.
+- **A range is not locked by approval.** A baseline records an activity's name and duration, never
+  its range, so an approved plan with no replanning open still takes a new range, while a new
+  duration is refused with `plan_approved` as before. An activity of a closed stage takes no change,
+  a range included. There is no migration: the columns are F9's.
+- **The simulation** (`src/domain/schedule/probability.ts`, pure). Each activity with a range is a
+  triangular distribution from its optimistic to its pessimistic end, peaking at its duration, or at
+  the middle of the range when it has none yet — inside the simulation only; nothing is written.
+  A duration outside its range, which only a plan from before D1 can hold, widens the range to take
+  it in, in the simulation only. An activity with a duration and no range, or a range of one number,
+  is **certain**, the same in every run; nothing adds a range the person did not give. With neither,
+  it is left out, and counted. Lags are certain; a drawn duration is rounded to the nearest whole
+  working day, a half up, never below one. The diary is respected: a finished activity is certain
+  at the working days it really took, an activity of a closed stage at its duration, and a started
+  one is drawn only from what is left of its range. The schedule's network — the same edges in the
+  same order, now extracted from the critical-path engine as `network()` and shared by both — is
+  passed forward and back once per run.
+- **Seeded.** `mulberry32`, seeded by an FNV-1a hash of the start date, the working days, the
+  holidays, every activity's model and every link with its lag: the same plan gives the same
+  numbers after a restart and on another machine, and any change to those gives new ones. There is
+  no "run again".
+- **2 000 runs**, or fewer on a plan of more than 10 000 activities and links together — as many as
+  fit in 40 million activity-and-link passes, rounded down to a hundred, never fewer than 200, and
+  said on the page. The large-work benchmark gains the simulation: 2 000 activities, 400 of them
+  ranged, 3 000 links, all 2 000 runs in a median of 116 ms, held to 580 ms.
+- **What it says.** The P50, P80 and P90 dates — the first days by which half, eight tenths and
+  nine tenths of the runs had finished; the chance of the plan's own finish date and of the latest
+  baseline's; the chance of finishing by any date; each activity's criticality index, the share of
+  runs in which it had no float; and up to five **drivers**, the ranged activities whose drawn
+  duration moves the finish most by Spearman's rank correlation, named only above 0.1 and above
+  three standard errors of no correlation at all. Nothing is simulated, and a sentence says why,
+  when the calendar or the start date cannot be counted on, the links make a loop, or no activity
+  has a duration or a range.
+- **Natural frequencies, floored.** A chance is said as "N in 10", whole tenths **floored** — 0.79
+  is "7 in 10" — so the words never promise more than the runs showed; "10 in 10" only when every
+  run finished by then, "fewer than 1 in 10" below a tenth, "almost no chance" when none did. The
+  engineer's lens adds "(P80)" and the share of the runs in percent, floored the same way.
+- **A chance is a figure with its rows.** The figure contract gains the unit `chance` — `hits` of
+  `runs`, the value exactly their share — whose rows are what it depends on, each with its role: the
+  drivers with their rank correlation, and the activities counted as certain. The criticality
+  figure's rows are every activity with its index. `traceable` holds both.
+- **When will it really finish?** A card on the Schedule, after the finish and the baseline: the
+  headline, a figure that opens onto its rows; the P50 and P90 sentences; the plan's date and the
+  baseline's with their chances; a chart of the chance of having finished by each day, with the
+  plan's date and the headline's marked and a table of weekly rows as its reading; the drivers, each
+  with its range and how often it was critical; how many activities were counted as certain and how
+  many were left out; and a method line — the runs, the seed, fewer runs on a large plan, and that
+  each activity is drawn on its own, so a rainy month that slows everything at once is not in the
+  runs. With no range anywhere, the card shows the plan's date and says that every activity is
+  counted as certain, and how to give a range. It writes nothing.
+- **Criticality on the Gantt.** **Shade each bar by how often it is critical**: each bar shaded by
+  its criticality index, the share beside its name, and its accessible name ending "critical in N of
+  10 runs".
+- **On the dashboard**, the finish card gains one line with the headline, from the same seeded
+  simulation, so the two pages agree; it is not shown while every activity is certain.
+- **In the weekly report**, one figure, _When will it really finish?_, with the headline and the
+  drivers, in the owner's words.
+- **An optional last question.** Once every other question is answered or skipped, **Next question**
+  asks of an activity on the critical path with a duration and no range: "What is the most Tiling could take, in working days? The plan says 4.". It is marked optional and is not in the "N of M answered" count; the answer sets the
+  range from the duration to that number, so the activity can only run late in the runs — no
+  optimism is invented.
+- **Documentation.** ADR-035 (the finish is also a probability) and ADR-036 (the owner widened 1.0
+  before first use), with their costs — the triangle is a choice, a range is a guess, activities are
+  drawn independently, runs are capped on a huge plan; a dated addendum in the specification;
+  [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a probability is said as N in 10, in words_ and
+  the optional question; [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) says the range columns are
+  editable on every activity and not locked by approval; the glossary's _range_ now covers the
+  optimistic and the pessimistic duration on any activity.
+
+No migration: neither database's schema changes.

@@ -1,5 +1,5 @@
 import { ArrowDown20Regular, ArrowUp20Regular, Delete20Regular } from '@fluentui/react-icons';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type FocusEvent, type ReactNode } from 'react';
 
 import { LIMITS } from '@/data/commands';
 import { errorKind } from '@/data/errors';
@@ -47,6 +47,13 @@ export const ACTIVITY_COLUMNS =
  * the range is the duration field's placeholder and its hint — "3–5" — and the field stays empty,
  * because a range is shown as a range until a person picks (DESIGN_SYSTEM §8). Nothing is invented.
  *
+ * Any activity can say how uncertain it is (D1, ADR-035): **Optimistic** and **Pessimistic** working
+ * days (`activity-range-min`, `activity-range-max`) on the row's second line. The pair is kept when
+ * the focus leaves it — or on Enter — both or neither: one end alone is waiting for the other, said
+ * under the pair and never sent; both emptied clears the range. Whether the pair holds the duration
+ * between its ends is the host's to say, in its own sentence on the row. A range is not locked by
+ * approval — it is an estimate of uncertainty, not the plan — so a locked plan still takes it.
+ *
  * A refusal the host gives for this row is said on the row (`activity-problem`), in its words. When
  * the refusal is that the plan is approved and locked (ADR-027), the name and the duration are read
  * back from the file: nothing typed could be kept until somebody replans, and a number the plan
@@ -93,6 +100,17 @@ export function ActivityRow({
     activity.durationDays === null ? '' : String(activity.durationDays),
   );
   const [durationInvalid, setDurationInvalid] = useState(false);
+  const [rangeMin, setRangeMin] = useState(
+    activity.durationMinDays === null ? '' : String(activity.durationMinDays),
+  );
+  const [rangeMax, setRangeMax] = useState(
+    activity.durationMaxDays === null ? '' : String(activity.durationMaxDays),
+  );
+  const [rangeNote, setRangeNote] = useState<'invalid' | 'both' | null>(null);
+  // What the pair holds as typed, kept in step with every keystroke: the focus can leave the pair in
+  // the same task as the last keystroke, before a render has handed the state back.
+  const typedRange = useRef({ min: rangeMin, max: rangeMax });
+  const typedDuration = useRef(duration);
   const [responsible, setResponsible] = useState(activity.responsibleId ?? '');
   const [roomIds, setRoomIds] = useState<readonly string[]>(activity.roomIds);
   const [quantity, setQuantity] = useState(
@@ -111,6 +129,16 @@ export function ActivityRow({
     onFocused();
   }, [focus, onFocused]);
 
+  /** The range fields, read back from the file: what the plan holds, not what was typed. */
+  const rangeFromFile = () => {
+    const min = activity.durationMinDays === null ? '' : String(activity.durationMinDays);
+    const max = activity.durationMaxDays === null ? '' : String(activity.durationMaxDays);
+    typedRange.current = { min, max };
+    setRangeMin(min);
+    setRangeMax(max);
+    setRangeNote(null);
+  };
+
   const keep = (patch: Parameters<typeof update.mutate>[0]['patch']) =>
     update.mutate(
       { id: activity.id, patch },
@@ -118,8 +146,13 @@ export function ActivityRow({
         onSuccess: outcome.kept,
         onError: (error) => {
           outcome.refused(error);
+          // A refused range is read back from the file: the host's sentence names the range and
+          // the duration it would not hold together, and the pair shows what the plan keeps.
+          if (patch.durationMinDays !== undefined) rangeFromFile();
           if (errorKind(error) === 'plan_approved') {
             setDuration(activity.durationDays === null ? '' : String(activity.durationDays));
+            typedDuration.current =
+              activity.durationDays === null ? '' : String(activity.durationDays);
             setDurationInvalid(false);
             setGeneration((now) => now + 1);
           }
@@ -127,8 +160,34 @@ export function ActivityRow({
       },
     );
 
+  /** A whole number of working days the host can keep, or `undefined`. */
+  const readDays = (text: string): number | undefined => {
+    const days = Number(text.trim());
+    return Number.isInteger(days) && days >= 1 && days <= LIMITS.durationDays ? days : undefined;
+  };
+
+  /**
+   * The range as typed, when it is one the host could keep and not the one the file holds — sent
+   * with a duration edit so the three move together (a duration outside the old range and inside
+   * the new one is kept in one patch); `null` otherwise.
+   */
+  const rangeTyped = (): { durationMinDays: number; durationMaxDays: number } | null => {
+    const min = readDays(typedRange.current.min);
+    const max = readDays(typedRange.current.max);
+    if (min === undefined || max === undefined) return null;
+    if (min === activity.durationMinDays && max === activity.durationMaxDays) return null;
+    return { durationMinDays: min, durationMaxDays: max };
+  };
+
+  /** The duration as typed, when it is a number the file does not hold yet; `null` otherwise. */
+  const durationTyped = (): number | null => {
+    const days = readDays(typedDuration.current);
+    return days === undefined || days === activity.durationDays ? null : days;
+  };
+
   const editDuration = (next: string) => {
     setDuration(next);
+    typedDuration.current = next;
     if (next.trim() === '') {
       setDurationInvalid(false);
       if (activity.durationDays !== null) keep({ durationDays: null });
@@ -140,7 +199,48 @@ export function ActivityRow({
       return;
     }
     setDurationInvalid(false);
-    if (days !== activity.durationDays) keep({ durationDays: days });
+    if (days !== activity.durationDays) keep({ durationDays: days, ...rangeTyped() });
+  };
+
+  /**
+   * The range, kept once the focus leaves the pair: both ends, or neither. Nothing is sent while
+   * one end waits for the other, or while an end is not a whole number of working days.
+   */
+  const keepRange = () => {
+    const low = typedRange.current.min.trim();
+    const high = typedRange.current.max.trim();
+    if (low === '' && high === '') {
+      setRangeNote(null);
+      if (activity.durationMinDays !== null || activity.durationMaxDays !== null) {
+        keep({ durationMinDays: null, durationMaxDays: null });
+      }
+      return;
+    }
+    if (low === '' || high === '') {
+      setRangeNote('both');
+      return;
+    }
+    const min = readDays(low);
+    const max = readDays(high);
+    if (min === undefined || max === undefined) {
+      setRangeNote('invalid');
+      return;
+    }
+    setRangeNote(null);
+    if (min === activity.durationMinDays && max === activity.durationMaxDays) return;
+    const days = durationTyped();
+    keep(
+      days === null
+        ? { durationMinDays: min, durationMaxDays: max }
+        : { durationDays: days, durationMinDays: min, durationMaxDays: max },
+    );
+  };
+
+  /** Leaving the pair — not moving from one end to the other — keeps it. */
+  const leaveRange = (event: FocusEvent<HTMLElement>) => {
+    const next = event.relatedTarget;
+    if (next instanceof Node && event.currentTarget.contains(next)) return;
+    keepRange();
   };
 
   /** A quantity the host can keep, or `null` for none, or `undefined` for not a number. */
@@ -333,7 +433,7 @@ export function ActivityRow({
         </div>
       )}
 
-      <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-2">
+      <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto_auto] items-start gap-x-4 gap-y-2">
         <span aria-hidden="true" />
         <fieldset data-testid="activity-rooms" className="flex min-w-0 flex-col gap-1">
           <legend className="mb-1 text-caption font-semibold text-fg-tertiary">
@@ -357,6 +457,70 @@ export function ActivityRow({
               ))}
             </span>
           )}
+        </fieldset>
+        <fieldset
+          data-testid="activity-range-pair"
+          className="flex flex-col gap-1"
+          onBlur={leaveRange}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') keepRange();
+          }}
+        >
+          <legend className="mb-1 text-caption font-semibold text-fg-tertiary">
+            {t('plan.range.legend', { range: term('range', { capital: true }) })}
+          </legend>
+          <span className="grid grid-cols-[5rem_5rem] gap-1">
+            <label className="flex flex-col gap-0.5">
+              <span className="text-caption text-fg-secondary">{t('plan.range.min')}</span>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={LIMITS.durationDays}
+                step={1}
+                data-testid="activity-range-min"
+                aria-label={t('plan.fieldOf', { field: t('plan.range.min'), name: activity.name })}
+                aria-invalid={rangeNote === 'invalid'}
+                aria-describedby={`${hint}-range-note`}
+                value={rangeMin}
+                onChange={(event) => {
+                  typedRange.current = { ...typedRange.current, min: event.target.value };
+                  setRangeMin(event.target.value);
+                  setRangeNote(null);
+                }}
+              />
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-caption text-fg-secondary">{t('plan.range.max')}</span>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={LIMITS.durationDays}
+                step={1}
+                data-testid="activity-range-max"
+                aria-label={t('plan.fieldOf', { field: t('plan.range.max'), name: activity.name })}
+                aria-invalid={rangeNote === 'invalid'}
+                aria-describedby={`${hint}-range-note`}
+                value={rangeMax}
+                onChange={(event) => {
+                  typedRange.current = { ...typedRange.current, max: event.target.value };
+                  setRangeMax(event.target.value);
+                  setRangeNote(null);
+                }}
+              />
+            </label>
+          </span>
+          <span
+            id={`${hint}-range-note`}
+            className="min-h-4 max-w-[10.25rem] text-caption text-fg-tertiary"
+          >
+            {rangeNote === 'invalid'
+              ? t('plan.invalid.range', { max: formatNumber(LIMITS.durationDays) })
+              : rangeNote === 'both'
+                ? t('plan.range.both')
+                : ''}
+          </span>
         </fieldset>
         <span className="flex flex-col gap-1">
           <span className="text-caption font-semibold text-fg-tertiary">

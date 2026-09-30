@@ -23,42 +23,49 @@ prices ([ADR-029](#adr-029)), and a work goes back out as a template ([ADR-030](
 F11 gives the template its voice: a plan started from one asks what it does not yet know, one
 question at a time ([ADR-034](#adr-034)).
 
-| #               | Decision                                                                                                             | Status                         |
-| --------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| [001](#adr-001) | The product is named Ridgebeam                                                                                       | Accepted — 2026-09-24, by Alex |
-| [002](#adr-002) | Tauri 2 with a deliberately thin Rust host                                                                           | Accepted — 2026-09-25          |
-| [003](#adr-003) | The domain layer is pure TypeScript                                                                                  | Accepted — 2026-09-25          |
-| [004](#adr-004) | A work is a folder, and the application keeps a small database of its own                                            | Accepted — 2026-09-25          |
-| [005](#adr-005) | Fluent is the visual language, with one icon set                                                                     | Accepted — 2026-09-25          |
-| [006](#adr-006) | No network, no telemetry                                                                                             | Accepted — 2026-09-25          |
-| [007](#adr-007) | Strings are data in two languages, and the glossary is data too                                                      | Accepted — 2026-09-25          |
-| [008](#adr-008) | Readiness is a measure, not a feeling                                                                                | Accepted — 2026-09-25          |
-| [009](#adr-009) | The plan has no progress command                                                                                     | Accepted — 2026-09-25          |
-| [010](#adr-010) | End-to-end tests drive the real binary                                                                               | Accepted — 2026-09-25          |
-| [011](#adr-011) | Accessibility is gated, not reviewed                                                                                 | Accepted — 2026-09-25          |
-| [012](#adr-012) | Installers are not code-signed in 1.0.0                                                                              | Accepted — 2026-09-25          |
-| [013](#adr-013) | Settings are a closed list of keys the host owns                                                                     | Accepted — 2026-09-25          |
-| [014](#adr-014) | A lens is a vocabulary table over the glossary, and an arrangement; nothing is stored per lens                       | Accepted — 2026-09-25          |
-| [015](#adr-015) | One scheduling engine: Tessera's, copied literally and extended with the working calendar, lags and baselines        | Accepted — 2026-09-25          |
-| [016](#adr-016) | Baselines are insert-only from the first one                                                                         | Accepted — 2026-09-25          |
-| [017](#adr-017) | A decision's deadline is computed, never stored                                                                      | Accepted — 2026-09-25          |
-| [018](#adr-018) | Readiness is explained rule by rule, and the rules sum to the figure                                                 | Accepted — 2026-09-25          |
-| [019](#adr-019) | The diary is append-only with a hash chain, and a correction is a new entry                                          | Accepted — 2026-09-25          |
-| [020](#adr-020) | Progress is derived from the diary, in states, never as an invented number                                           | Accepted — 2026-09-25          |
-| [021](#adr-021) | Photos are copied by the host under caps and shown as data URLs                                                      | Accepted — 2026-09-25          |
-| [022](#adr-022) | A stage's gates are answered facts, and a closed stage is closed                                                     | Accepted — 2026-09-27          |
-| [023](#adr-023) | Money is three facts with three sources, in minor units, and the ledger is append-only                               | Accepted — 2026-09-27          |
-| [024](#adr-024) | Every money figure carries its rows, and paid over committed is flagged, not refused                                 | Accepted — 2026-09-27          |
-| [025](#adr-025) | A document is a file the work owns, typed by its bytes, deduplicated by its hash, and never parsed                   | Accepted — 2026-09-27          |
-| [026](#adr-026) | A person is a contact with stages, and presence comes from the diary                                                 | Accepted — 2026-09-27          |
-| [027](#adr-027) | An approved plan is locked until somebody says why: a replanning is a row, closed only by the next baseline          | Accepted — 2026-09-28          |
-| [028](#adr-028) | Any two baselines compare in the domain; a what-if is never written                                                  | Accepted — 2026-09-28          |
-| [029](#adr-029) | A template is data, applied once as the work's own plan, with ranges and no prices                                   | Accepted — 2026-09-28          |
-| [030](#adr-030) | A work exports as a template with its numbers stripped or kept                                                       | Accepted — 2026-09-28          |
-| [031](#adr-031) | A report is a document the interface composes and the host renders, in standard fonts, and a second reader checks it | Accepted — 2026-09-28          |
-| [032](#adr-032) | The diary export verifies the chain when it is written, and a CSV never carries a formula                            | Accepted — 2026-09-28          |
-| [033](#adr-033) | A backup is one ZIP with a manifest; restore makes a new folder and proves it byte for byte                          | Accepted — 2026-09-28          |
-| [034](#adr-034) | The plan asks one question at a time                                                                                 | Accepted — 2026-09-28          |
+Before its first use, the product's owner widened 1.0 with four differentiators, set out with their
+cost in [ADR-036](#adr-036). The first, slice D1, gives the finish as a probability as well as a
+date, from the ranges a person gives and without touching the plan's own dates
+([ADR-035](#adr-035)).
+
+| #               | Decision                                                                                                              | Status                         |
+| --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| [001](#adr-001) | The product is named Ridgebeam                                                                                        | Accepted — 2026-09-24, by Alex |
+| [002](#adr-002) | Tauri 2 with a deliberately thin Rust host                                                                            | Accepted — 2026-09-25          |
+| [003](#adr-003) | The domain layer is pure TypeScript                                                                                   | Accepted — 2026-09-25          |
+| [004](#adr-004) | A work is a folder, and the application keeps a small database of its own                                             | Accepted — 2026-09-25          |
+| [005](#adr-005) | Fluent is the visual language, with one icon set                                                                      | Accepted — 2026-09-25          |
+| [006](#adr-006) | No network, no telemetry                                                                                              | Accepted — 2026-09-25          |
+| [007](#adr-007) | Strings are data in two languages, and the glossary is data too                                                       | Accepted — 2026-09-25          |
+| [008](#adr-008) | Readiness is a measure, not a feeling                                                                                 | Accepted — 2026-09-25          |
+| [009](#adr-009) | The plan has no progress command                                                                                      | Accepted — 2026-09-25          |
+| [010](#adr-010) | End-to-end tests drive the real binary                                                                                | Accepted — 2026-09-25          |
+| [011](#adr-011) | Accessibility is gated, not reviewed                                                                                  | Accepted — 2026-09-25          |
+| [012](#adr-012) | Installers are not code-signed in 1.0.0                                                                               | Accepted — 2026-09-25          |
+| [013](#adr-013) | Settings are a closed list of keys the host owns                                                                      | Accepted — 2026-09-25          |
+| [014](#adr-014) | A lens is a vocabulary table over the glossary, and an arrangement; nothing is stored per lens                        | Accepted — 2026-09-25          |
+| [015](#adr-015) | One scheduling engine: Tessera's, copied literally and extended with the working calendar, lags and baselines         | Accepted — 2026-09-25          |
+| [016](#adr-016) | Baselines are insert-only from the first one                                                                          | Accepted — 2026-09-25          |
+| [017](#adr-017) | A decision's deadline is computed, never stored                                                                       | Accepted — 2026-09-25          |
+| [018](#adr-018) | Readiness is explained rule by rule, and the rules sum to the figure                                                  | Accepted — 2026-09-25          |
+| [019](#adr-019) | The diary is append-only with a hash chain, and a correction is a new entry                                           | Accepted — 2026-09-25          |
+| [020](#adr-020) | Progress is derived from the diary, in states, never as an invented number                                            | Accepted — 2026-09-25          |
+| [021](#adr-021) | Photos are copied by the host under caps and shown as data URLs                                                       | Accepted — 2026-09-25          |
+| [022](#adr-022) | A stage's gates are answered facts, and a closed stage is closed                                                      | Accepted — 2026-09-27          |
+| [023](#adr-023) | Money is three facts with three sources, in minor units, and the ledger is append-only                                | Accepted — 2026-09-27          |
+| [024](#adr-024) | Every money figure carries its rows, and paid over committed is flagged, not refused                                  | Accepted — 2026-09-27          |
+| [025](#adr-025) | A document is a file the work owns, typed by its bytes, deduplicated by its hash, and never parsed                    | Accepted — 2026-09-27          |
+| [026](#adr-026) | A person is a contact with stages, and presence comes from the diary                                                  | Accepted — 2026-09-27          |
+| [027](#adr-027) | An approved plan is locked until somebody says why: a replanning is a row, closed only by the next baseline           | Accepted — 2026-09-28          |
+| [028](#adr-028) | Any two baselines compare in the domain; a what-if is never written                                                   | Accepted — 2026-09-28          |
+| [029](#adr-029) | A template is data, applied once as the work's own plan, with ranges and no prices                                    | Accepted — 2026-09-28          |
+| [030](#adr-030) | A work exports as a template with its numbers stripped or kept                                                        | Accepted — 2026-09-28          |
+| [031](#adr-031) | A report is a document the interface composes and the host renders, in standard fonts, and a second reader checks it  | Accepted — 2026-09-28          |
+| [032](#adr-032) | The diary export verifies the chain when it is written, and a CSV never carries a formula                             | Accepted — 2026-09-28          |
+| [033](#adr-033) | A backup is one ZIP with a manifest; restore makes a new folder and proves it byte for byte                           | Accepted — 2026-09-28          |
+| [034](#adr-034) | The plan asks one question at a time                                                                                  | Accepted — 2026-09-28          |
+| [035](#adr-035) | The finish is also a probability: ranges, a seeded simulation, natural frequencies, and the plan's own date untouched | Accepted — 2026-09-29          |
+| [036](#adr-036) | The owner widened 1.0 before first use                                                                                | Accepted — 2026-09-29, by Alex |
 
 ---
 
@@ -1867,3 +1874,169 @@ cannot reorder it; a decision falling due tomorrow waits behind every unanswered
 readiness and the Decisions list show it as overdue or due all the same. A decision is asked only
 within 14 calendar days of its deadline, so the count grows as deadlines come near. And the card
 asks what readiness already counts; it adds no rule and no figure of its own.
+
+## ADR-035 — The finish is also a probability: ranges, a seeded simulation, natural frequencies, and the plan's own date untouched {#adr-035}
+
+**Status.** Accepted — 2026-09-29.
+
+**Context.** The plan's finish date is one number, computed from one duration per activity
+([ADR-015](#adr-015)). A site is not one number: the tiler who says three days means two to five,
+and every person who has built once knows that the date on the plan is the date on which nothing
+goes wrong. The product already held the raw material of an honest answer — a template brings every
+duration as a **range** ([ADR-029](#adr-029)) — and set it aside the moment a person typed a
+number. The question an owner actually asks, "when will it really finish?", had no answer but the
+plan's date, and the question an engineer asks, "how sure is that?", had none at all. Three shapes
+were weighed. **PERT's three-point formula** gives a mean and a spread along one path, and is wrong
+exactly where it matters: when two paths are close, the finish is the later of the two, which the
+formula cannot see. **A buffer** added to the finish is a number the product would invent. **A
+simulation** of the same schedule, run many times with durations drawn from the ranges the person
+gave, sees every path, and can say what it assumed.
+
+**Decision.**
+
+- **Ranges are the input, and any activity can have one.** `duration_min_days` and
+  `duration_max_days` (F9's columns, [`DATA_MODEL.md`](../DATA_MODEL.md)) are edited on every
+  activity in the breakdown, as **Optimistic** and **Pessimistic** working days beside the duration,
+  through `activity_update`: both or neither, whole, 1 to 3 650, the optimistic not above the
+  pessimistic — both ends equal is a range of one number. A change that would leave the duration
+  outside the range — a duration typed outside it, or a range that does not hold it — is refused
+  with a sentence naming the range; nothing widens or clears a range on its own. **A range is not
+  locked by approval**: a baseline does not record it, and it is an estimate of how uncertain the
+  plan is, not the plan. The lock's list ([ADR-027](#adr-027)) is explicit and does not gain it; a
+  duration stays locked as before, and an activity of a closed stage takes no change at all.
+- **The model** (`activityModel`). An activity with a range and a duration is a triangular
+  distribution — the optimistic end, the duration as the most likely, the pessimistic end. With a
+  range and no duration, the most likely is the middle of the range, inside the simulation only:
+  nothing is written, and the breakdown still shows no duration
+  ([`DESIGN_SYSTEM.md`](../../DESIGN_SYSTEM.md) §8). A duration that lies outside its range — only a
+  plan from before D1 can hold one, a template's 2 to 4 with a 5 typed later — **widens the range to
+  take it in**, 2 to 5 peaking at 5, inside the simulation only: both are things somebody said, and
+  the file keeps them as they are. Everything else is **certain** — the same duration in every run:
+  a duration with no range, and a range of one number. With neither a duration nor a range,
+  an activity is not placed, as the schedule already does, and the result counts it. Lags are
+  certain. A drawn duration is rounded to the nearest whole working day, a half up, never below one.
+  **Nothing invents uncertainty**: no activity gains a range the person did not give, and the page
+  says how many activities are counted as certain.
+- **What has happened is not drawn.** An activity the diary says is finished is certain at the
+  working days it really took, its first entry to its finish, both counted. An activity of a closed
+  stage is certain at its duration. An activity the diary says is started keeps only what is left
+  of its range: it has already taken the working days from its first entry to its last, so the
+  triangle is cut there and no run gives it fewer; one already past its pessimistic end is certain
+  at what it has taken. The diary's own rules say what started and finished mean.
+- **The engine is the schedule's.** `src/domain/schedule/probability.ts`, pure, takes the network
+  the schedule computes over — the same edges and the same topological order, extracted from the
+  critical-path engine as `network()` and now used by both, so the two cannot disagree about what
+  comes first — and then, run by run, draws the durations, passes forward to the finish and
+  backward to the activities with no float in that run, exactly as the schedule's own passes do.
+  The working-day offsets become dates on the calendar once, at the end. The existing schedule
+  tests pass unchanged.
+- **Seeded, so the same plan gives the same numbers.** The draws come from `mulberry32`, a small
+  seeded generator in the domain, and the seed is an FNV-1a hash of what the runs depend on: the
+  start date, the working days, the holidays, every activity's model and every link with its lag.
+  Opening the work again, on any machine, gives the same numbers; changing any of those gives new
+  ones. There is no "run again" that would let a person shop for a better answer.
+- **Runs.** `PROBABILITY_RUNS`, 2 000. Each run passes over every activity and every link twice,
+  forward and back, and one simulation may pass over 40 million in all (`PROBABILITY_WORK_BUDGET`):
+  a plan of up to 10 000 activities and links together gets every run, and a larger one gets as many
+  as fit, rounded down to a hundred and never fewer than 200 (`runsFor`) — and the page says it was
+  capped. The budget was set from the benchmark's work of 2 000 activities, 400 of them ranged, and
+  3 000 links, which gets all 2 000 runs; the largest plan that still does stays near 300 ms on the
+  development machine. The number of runs is always on the page, with the method.
+- **What it answers.** The chance of finishing by any date (`chanceBy`); the first dates by which
+  half, eight tenths and nine tenths of the runs had finished (P50, P80, P90); the chance of the
+  plan's own finish date, and of the latest baseline's; each activity's **criticality index** — the
+  share of runs in which it had no float; and the **drivers** — the activities with a range whose
+  drawn duration moves the finish most, by Spearman's rank correlation over the runs, five at most,
+  and only those above 0.1 and above three standard errors of a correlation of nothing
+  (3 / √(runs − 1)), so that noise is never named. Nothing is simulated — and the page says why —
+  when the calendar or the start date cannot be counted on, the links hold a loop, or no activity
+  has a duration or a range.
+- **A chance is a figure with its rows, of a new kind.** The figure contract gains the unit
+  `chance`: `hits` of `runs`, its value exactly `hits / runs`. A probability is not a sum, so its
+  rows are not its parts: they are **what it depends on**, each with its role — the drivers, with
+  their rank correlation, then the activities counted as certain. The P80, the plan's date and the
+  baseline's date carry those rows; the criticality figure's rows are every activity simulated,
+  each with its index. `traceable` holds all of it.
+- **Said in natural frequencies, in words.** The headline is the P80 date and the chance of
+  finishing by it — "8 in 10 chances of finishing by 14 November 2026" — in whole tenths, in every
+  lens; the engineer also sees P80 and the percentage. **Tenths are floored, never rounded**: a
+  chance of 0.79 is "7 in 10", so the words never promise more than the runs showed, and "10 in 10"
+  is said only when every run finished by then. Below a tenth and above nothing is "fewer than 1 in
+  10"; no run at all is never "impossible", because runs cannot prove never. The percentage is
+  floored the same way, so the two never disagree. When nothing has a range, the card says that
+  every activity is counted as certain, so the finish is the plan's date, and how to give a range.
+  A method line is always there — how many runs, from which ranges, seeded — with what the runs
+  leave out.
+- **Where it shows, and what it never touches.** A card on the Schedule, **When will it really
+  finish?**, after the finish and the baseline: the headline, the P50 and P90, the plan's and the
+  baseline's chances, a chart of the chance of having finished by each day with a table of weekly
+  rows as its reading, the drivers, the counts and the method. On the Gantt, whenever a range makes
+  the runs differ, every bar's accessible name ends "critical in N of 10 runs", and **Shade each bar
+  by how often it is critical** shades it — a choice for the visit, stored nowhere. One line on the
+  dashboard's finish card; one figure in the weekly report, in the owner's words, with no
+  percentage. And, after every other question, an optional one: "What is the most it could take?"
+  of a critical activity with a duration and no range — outside the count, and answered as a range
+  from its duration to the answer, so it can only run late. **Nothing about the simulation is
+  stored** — not a run, not a seed, not a result — and it changes none of the plan's dates: the
+  Gantt's bars, the slip, the deadlines and the baselines are the plan's, as they were.
+
+**Why.** A range is what a person can honestly say about a duration, and a simulation is the one
+way to combine ranges over a network in which the finish is the latest of several paths. Seeding it
+makes the answer a fact about the plan rather than a roll of dice: two people looking at the same
+work see the same chance. Natural frequencies — "8 in 10" — are what a person with no training in
+statistics reads correctly; a bare "80 %" is read as a promise, and "P80" as jargon. Keeping the
+result out of the file keeps the plan the one thing a person changes on purpose.
+
+**Cost accepted.** **The triangle is a choice, not a truth**: real durations can run longer on the
+right than a triangle allows, and a person who chose another shape would get other numbers. **A
+range is a person's guess**, and the simulation is exactly as good as the guesses; it says so, and
+never makes one up. **Activities are drawn independently of each other**: a rainy month slows every
+outdoor activity at once, a late delivery holds three trades, and the simulation does not know it —
+when causes are shared, the real spread is wider than the one shown. **Runs are capped** on a
+plan of more than 10 000 activities and links, so the tails there are rougher. **Flooring says less
+than it could**: a chance of 0.79 reads "7 in 10", never "8 in 10" — a careful answer, and sometimes
+a pessimistic one. Ranges are not in the baseline, so the chance a plan had on the day it was
+approved cannot be read back later, and a range changed after approval is recorded nowhere. And the
+plan's own date keeps its place on every screen: a person who reads only the Gantt never learns
+that the date has a chance.
+
+## ADR-036 — The owner widened 1.0 before first use {#adr-036}
+
+**Status.** Accepted — 2026-09-29, by Alex.
+
+**Context.** The specification closes 1.0.0 with a rule: nothing enters it without something
+leaving it (SPEC §2). Slices F0 to F11 were built to that closed list, and the release, F12, was
+prepared on a branch of its own. Before using the product on a work of his own, its owner asked
+what would set it apart from every other small-works tool, and the squad proposed four answers to
+questions those tools leave to guesswork.
+
+**Decision.** The rule is set aside once, by the product's owner, on 2026-09-29. 1.0.0 gains four
+differentiators, each a slice gated as F0 to F11 were — gates green, the end-to-end suite on the
+real binary, both themes and both languages captured, the documentation and the decisions written,
+one pull request into `develop`:
+
+1. **D1 — "When will it really finish?"** The finish as a probability from each activity's range,
+   in natural frequencies ([ADR-035](#adr-035)).
+2. **D2 — "Am I paying ahead of the work?"** Payment plans with milestones earned only by facts — a
+   gate passed, an activity finished in the diary — and a flag when paid runs ahead of earned.
+3. **D3 — The handover book.** One PDF the owner keeps: what was done room by room, every decision,
+   photos of hidden work taken before it was closed, permits, warranties, receipts, who did what,
+   and the maintenance notes.
+4. **D4 — The owner's snapshot.** One self-contained HTML file, with no script, that opens on any
+   phone or browser — sent by the person; the product still sends nothing.
+
+The release branch is not merged: the four land in `develop` first, one slice at a time, and the
+release is cut again from there. Nothing else in the specification changes — no network, no
+account, no AI, one machine, every figure with its rows, the diary and the baselines append-only,
+two languages, three lenses.
+
+**Why.** The first real work is the proof the specification asks for (F12), and the owner is the
+one person who can say that the product is not yet the one worth proving on it. Each of the four
+answers a question an owner or an engineer asks on a real site, and that the tools they already
+know leave to guesswork.
+
+**Cost accepted.** **The first use comes later**: four slices now stand between the product and the
+real work F12 was waiting for. **A larger surface to prove**: every screen, figure and file the four
+add is one more thing to test, capture, translate and keep true, and the release checklist grows
+with them. The specification's own rule was the guard against exactly this (R9); it is the owner
+who set it aside, once and by name, and a fifth differentiator would need a record of its own.

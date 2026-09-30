@@ -1055,6 +1055,11 @@ export const en = {
   'templates.export.invalid.path': 'Choose the file, or type its path, ending in .json.',
   'plan.range': '{min}–{max}',
   'plan.range.hint': 'Range {range}',
+  'plan.range.legend': '{range} (working days)',
+  'plan.range.min': 'Optimistic',
+  'plan.range.max': 'Pessimistic',
+  'plan.range.both': 'Give both ends, or clear both.',
+  'plan.invalid.range': 'Each end is a whole number of working days, from 1 to {max}.',
   'plan.checklist.range': '{range} working days, a range',
   'plan.stages.emptyTemplate':
     'A stage is a chapter of the work — demolition, rough-in, tiling. Add the first one above, or start from a {template}: a starting point with ranges, not a quote.',
@@ -1157,7 +1162,7 @@ export const en = {
   'reports.file.schedule': '{work} schedule',
 
   'reports.weekly.holds':
-    'One PDF of a week in the owner’s words: the days written and the working days with nothing written, what was done, who was on site, how ready the plan is, when it ends, the decisions due, the money and the stages. It does not hold the photos, and long notes are shortened — the diary’s PDF has them whole.',
+    'One PDF of a week in the owner’s words: the days written and the working days with nothing written, what was done, who was on site, how ready the plan is, when it ends and the chance of finishing by then, the decisions due, the money and the stages. It does not hold the photos, and long notes are shortened — the diary’s PDF has them whole.',
   'reports.week': 'Week',
   'reports.weekly.write': 'Write the weekly report',
   'reports.weekly.waiting': 'Reading the diary…',
@@ -1397,6 +1402,87 @@ export const en = {
   'nextQuestion.allSkipped.one': 'The {count} question left was skipped for now.',
   'nextQuestion.allSkipped.other': 'The {count} questions left were skipped for now.',
   'nextQuestion.askAgain': 'Ask the skipped ones again',
+  'nextQuestion.ask.most':
+    'What is the most {name} could take, in working days? The plan says {days}.',
+  'nextQuestion.optional':
+    'Optional — the plan lacks nothing without it; it gives the finish a range to draw from.',
+  'nextQuestion.field.most': 'The most, in working days — the pessimistic end of its {range}',
+  'nextQuestion.hint.most':
+    'Its duration is kept as the optimistic end; only you know how late it could run.',
+  'nextQuestion.invalid.most': 'The most is a whole number of working days, from {min} to {max}.',
+
+  // ── D1: when will it really finish ────────────────────────────────────────
+  'schedule.probability.title': 'When will it really finish?',
+  'schedule.probability.lead':
+    'The plan’s date takes every duration as certain. Here each activity’s optimistic and pessimistic durations are taken as given, and the schedule is run again and again to say how likely each date is.',
+  'schedule.probability.frequency.none': 'almost no chance',
+  'schedule.probability.frequency.underOne': 'fewer than 1 in 10 chances',
+  'schedule.probability.frequency.inTen': '{n} in 10 chances',
+  'schedule.probability.frequency.every': '10 in 10 chances',
+  'schedule.probability.headline': '{chance} of finishing by {date}',
+  'schedule.probability.engineer': '{sentence} (P{percentile})',
+  'schedule.probability.sameDay.p50':
+    '{date} is also the day by which half the runs had finished: the runs cluster there.',
+  'schedule.probability.sameDay.p90':
+    '{date} is also the day by which 9 in 10 runs had finished: the runs cluster there.',
+  'schedule.probability.engineer.percentile': '{sentence} (P{percentile})',
+  'schedule.probability.engineer.percent': '{sentence} — {percent} of the runs',
+  'schedule.probability.engineer.after': '{sentence} That is {percent} of the runs.',
+  'schedule.probability.planChance': 'The plan’s date, {date}, has {chance}.',
+  'schedule.probability.baselineChance': 'The date of baseline {number}, {date}, has {chance}.',
+  'schedule.probability.allCertain':
+    'Every activity is counted as certain, so the finish is the plan’s date. Give activities an optimistic and a pessimistic duration to see the chance.',
+  'schedule.probability.certainCount':
+    'Activities counted as certain — the same number of days in every run: {certain} of {total}.',
+  'schedule.probability.unplacedCount':
+    'Activities with neither a duration nor a range, left out of the runs: {unplaced}.',
+  'schedule.probability.method':
+    '{runs} runs of this schedule with the ranges given; seeded, so the same plan gives the same numbers.',
+  'schedule.probability.capped': 'This plan is large, so {runs} runs were made instead of {max}.',
+  'schedule.probability.leftOut':
+    'Each activity is drawn on its own: a rainy month that slows everything at once is not in the runs.',
+  'schedule.probability.note': 'Nothing here is stored, and nothing here changes the plan’s dates.',
+  'schedule.probability.criticalIn': 'critical in {n} of 10 runs',
+  'schedule.probability.criticalNever': 'never critical in the runs',
+  'schedule.probability.criticalUnderOne': 'critical in fewer than 1 of 10 runs',
+  'schedule.probability.short': '{n} in 10',
+  'schedule.probability.short.underOne': 'under 1 in 10',
+  'schedule.probability.figure.p80': 'The finish, as a chance',
+  'schedule.probability.figure.plan': 'The plan’s date, as a chance',
+  'schedule.probability.figure.baseline': 'The baseline’s date, as a chance',
+  'schedule.probability.figure.criticality': 'How often each activity is critical',
+  'schedule.probability.problem.invalidCalendar':
+    'No chance can be given: the working calendar cannot be counted on.',
+  'schedule.probability.problem.invalidStart':
+    'No chance can be given: the start date is not a day.',
+  'schedule.probability.problem.cyclic': 'No chance can be given: the links make a loop.',
+  'schedule.probability.problem.nothingPlaced':
+    'No chance can be given yet: no activity has a duration or a range.',
+  'schedule.probability.rows': 'What the chance depends on',
+  'schedule.probability.row.driver': 'its range moves the finish',
+  'schedule.probability.row.certain': 'counted as certain',
+  'schedule.probability.row.correlation': 'rank correlation {value}',
+  'schedule.probability.dates': 'The chance of finishing by other dates',
+  'schedule.probability.chart.title': 'Chance of having finished, by date',
+  'schedule.probability.chart.description':
+    'No run finished before {earliest}; every run had finished by {latest}.',
+  'schedule.probability.legend.curve': 'The chance of having finished by each day: the solid line',
+  'schedule.probability.legend.plan': 'The plan’s date: the dashed line',
+  'schedule.probability.legend.headline': 'The date with {chance}: the dotted line',
+  'schedule.probability.table': 'Chance of having finished, week by week',
+  'schedule.probability.table.by': 'By',
+  'schedule.probability.table.chance': 'Chance',
+  'schedule.probability.table.percent': 'Share of the runs',
+  'schedule.probability.drivers': 'What moves the finish most',
+  'schedule.probability.drivers.lead':
+    'The activities whose range moves the finish date most, strongest first.',
+  'schedule.probability.drivers.none':
+    'No range moves the finish clearly: the ranges given are narrow, or away from the critical path.',
+  'schedule.probability.driver.range': '{range} working days, likeliest {mode}',
+  'schedule.criticality.toggle': 'Shade each bar by how often it is critical',
+  'schedule.legend.criticality':
+    'Red shade: how often it is critical in the runs — stronger is more often, and the share is beside its name',
+  'schedule.bar.criticality': '{sentence}, {critical}',
 } as const;
 
 /** Every key the interface may ask for. */

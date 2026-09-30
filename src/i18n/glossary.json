@@ -624,11 +624,11 @@
       "key": "range",
       "en": {
         "term": "range",
-        "sentence": "A duration or a lead time given as a low and a high, never a single number, because a template cannot know your site. Costs have no ranges in 1.0: a template's cost line has no amount."
+        "sentence": "A duration or a lead time given as a low and a high — the optimistic and the pessimistic — instead of a single number. A template brings its durations as ranges because it cannot know your site, and you can give any activity one; the chance of finishing by a date is computed from them. Costs have no ranges in 1.0: a template’s cost line has no amount."
       },
       "pt-BR": {
         "term": "faixa",
-        "sentence": "Uma duração ou um prazo de entrega dado como um mínimo e um máximo, nunca um número só, porque um modelo não conhece a sua obra. Custos não têm faixa na 1.0: a linha de custo de um modelo vem sem valor."
+        "sentence": "Uma duração ou um prazo de entrega dado como um mínimo e um máximo — o otimista e o pessimista — em vez de um número só. Um modelo traz as durações como faixas porque não conhece a sua obra, e você pode dar uma faixa a qualquer atividade; a chance de terminar até uma data é calculada a partir delas. Custos não têm faixa na 1.0: a linha de custo de um modelo vem sem valor."
       }
     },
     {

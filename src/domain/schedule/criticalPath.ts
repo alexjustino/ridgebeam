@@ -98,6 +98,35 @@ function durationOf(activity: Planned): number {
 }
 
 /**
+ * The graph a plan is computed over, indexed and ordered once: the part of `plan` that does not
+ * depend on any duration. `plan` builds it on every call; the finish probability (`probability.ts`,
+ * slice D1) builds it once and passes over it thousands of times with other durations, so both
+ * walk the same edges in the same order and the simulation cannot disagree with the schedule about
+ * what comes first.
+ */
+export interface Network {
+  /** The ids given, in the order given: the order that breaks ties. */
+  readonly ids: readonly string[];
+  /** Both directions, over the edges whose two ends are among the ids; the rest are ignored. */
+  readonly graph: Adjacency;
+  /** A topological order of the ids; ids a cycle swallowed come last, in their given order. */
+  readonly ordered: readonly string[];
+  /** The edges given close a loop among the ids: no timing over them can be trusted. */
+  readonly cyclic: boolean;
+}
+
+/** Index and order the graph over `ids`, ignoring edges that point outside them. */
+export function network(ids: readonly string[], edges: readonly Edge[]): Network {
+  const present = new Set(ids);
+  const relevant = edges.filter(
+    (edge) => present.has(edge.blockerId) && present.has(edge.blockedId),
+  );
+  const graph = adjacency(relevant);
+  const { ordered, cyclic } = order(ids, graph);
+  return { ids, graph, ordered, cyclic };
+}
+
+/**
  * Compute the plan.
  *
  * Activities arrive in whatever order (that order breaks ties); the passes run over a topological
@@ -107,12 +136,7 @@ function durationOf(activity: Planned): number {
  */
 export function plan(activities: readonly Planned[], edges: readonly Edge[]): Plan {
   const ids = activities.map((activity) => activity.id);
-  const present = new Set(ids);
-  const relevant = edges.filter(
-    (edge) => present.has(edge.blockerId) && present.has(edge.blockedId),
-  );
-  const graph = adjacency(relevant);
-  const { ordered, cyclic } = order(ids, graph);
+  const { graph, ordered, cyclic } = network(ids, edges);
 
   const duration = new Map(activities.map((activity) => [activity.id, durationOf(activity)]));
   const earliestStart = new Map<string, number>();

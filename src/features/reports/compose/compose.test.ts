@@ -21,6 +21,7 @@ import { scheduleReport } from '@/domain/reports/schedule';
 import { weekly, type Weekly } from '@/domain/reports/weekly';
 import { LENSES } from '@/domain/settings';
 import { schedule } from '@/domain/schedule';
+import { finishProbability } from '@/domain/schedule/probability';
 import { DICTIONARIES, LANGUAGES, type Language } from '@/i18n/index';
 import { TERM_KEYS, termsFor } from '@/i18n/terms';
 import { build, type I18n } from '@/i18n/useI18n';
@@ -129,12 +130,17 @@ function weeklyOf(plan: WorkSnapshot, entries: readonly DiaryEntry[], day: strin
   return result.weekly;
 }
 
+/** The finish as a probability, as the Reports page computes it: the plan, its schedule, the diary. */
+function chancesOf(plan: WorkSnapshot, entries: readonly DiaryEntry[] = ENTRIES) {
+  return finishProbability(plan, schedule(plan), { entries });
+}
+
 function composeAll(language: Language): Record<'weekly' | 'diary' | 'schedule', ReportDocument> {
   const i18n = i18nOf(language);
   const scheduled = schedule(PLAN);
   const screenTerms = termsFor(language, 'engineer');
   return {
-    weekly: composeWeekly(weeklyOf(PLAN, ENTRIES, null), PLAN, scheduled, i18n),
+    weekly: composeWeekly(weeklyOf(PLAN, ENTRIES, null), PLAN, scheduled, i18n, chancesOf(PLAN)),
     diary: composeDiary(diaryReport(PLAN, ENTRIES), PLAN, i18n, screenTerms),
     schedule: composeSchedule(scheduleReport(PLAN, scheduled), PLAN, i18n, screenTerms),
   };
@@ -289,6 +295,7 @@ describe('the weekly report', () => {
       PLAN,
       schedule(PLAN),
       i18nOf('en'),
+      chancesOf(PLAN),
     );
     expect(document.blocks[0]).toEqual({
       type: 'paragraph',
@@ -305,6 +312,7 @@ describe('the weekly report', () => {
       PLAN,
       schedule(PLAN),
       i18nOf('pt-BR'),
+      chancesOf(PLAN),
     );
     expect(pt.blocks[0]).toMatchObject({ type: 'paragraph', tone: 'strong' });
     expect((pt.blocks[0] as { text: string }).text).toMatch(/^Nenhuma entrada no diário/);
@@ -316,11 +324,61 @@ describe('the weekly report', () => {
       PLAN,
       schedule(PLAN),
       i18nOf('en'),
+      chancesOf(PLAN, []),
     );
     const first = document.blocks[0] as { text: string; tone: string };
     expect(first.tone).toBe('strong');
     // Monday and Tuesday are over, so two days are said missing; a Monday-morning report would say "yet".
     expect(first.text).toMatch(/^No diary entry this week/);
+  });
+});
+
+describe('the weekly report says when it will really finish (D1)', () => {
+  /** The same plan with ranges on its two scheduled activities, so the runs differ. */
+  const RANGED: WorkSnapshot = {
+    ...PLAN,
+    activities: PLAN.activities.map((each) =>
+      each.id === 'a1'
+        ? { ...each, durationMinDays: 15, durationMaxDays: 30 }
+        : each.id === 'a2'
+          ? { ...each, durationMinDays: 2, durationMaxDays: 6 }
+          : each,
+    ),
+  };
+  const compose = (plan: WorkSnapshot, language: Language) =>
+    composeWeekly(
+      weeklyOf(plan, ENTRIES, null),
+      plan,
+      schedule(plan),
+      i18nOf(language),
+      chancesOf(plan),
+    );
+
+  it('prints the headline in natural frequencies, with the drivers as its rows', () => {
+    const en = figureLabelled(compose(RANGED, 'en'), 'When will it really finish?');
+    expect(en.value).toMatch(/^\d+ in 10 chances of finishing by \w+ \d+, \d{4}$/);
+    expect(en.value).not.toMatch(/%|P80/);
+    expect(en.rows.some((row) => row.startsWith('Assentar azulejo — 2–6 working days'))).toBe(true);
+
+    const pt = figureLabelled(compose(RANGED, 'pt-BR'), 'Quando termina de verdade?');
+    expect(pt.value).toMatch(/^\d+ em 10 chances de terminar até /);
+  });
+
+  it('says every activity is counted as certain when nothing has a range', () => {
+    const certain = figureLabelled(compose(PLAN, 'en'), 'When will it really finish?');
+    expect(certain.rows).toEqual([
+      'Every activity is counted as certain, so the finish is the plan’s date. Give activities an optimistic and a pessimistic duration to see the chance.',
+    ]);
+  });
+
+  it.each(LANGUAGES)('writes nothing the page would print as "?", in %s', (language) => {
+    for (const each of stringsOf(compose(RANGED, language))) {
+      expect(unprintable(each), each).toEqual([]);
+    }
+  });
+
+  it('gives the same numbers for the same plan', () => {
+    expect(compose(RANGED, 'en')).toEqual(compose(RANGED, 'en'));
   });
 });
 

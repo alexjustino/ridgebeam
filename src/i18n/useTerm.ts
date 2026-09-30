@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import { useSettings } from '@/data/queries';
-import { DEFAULT_LENS } from '@/domain/settings';
+import { DEFAULT_LENS, type LensChoice } from '@/domain/settings';
 
 import { termsFor, type TermKey } from './terms';
 import { useI18n } from './useI18n';
@@ -27,4 +27,14 @@ export function useTerms(): (key: TermKey, options?: TermOptions) => string {
 
 export function useTerm(key: TermKey, options?: TermOptions): string {
   return useTerms()(key, options);
+}
+
+/**
+ * The lens on screen, for a sentence whose shape — not only its nouns — differs by lens: the finish
+ * as a probability is "8 in 10 chances" to everyone and adds "P80" and a percentage for the
+ * engineer (D1, decision 5). Read from the settings like the terms; nothing is stored in the work.
+ */
+export function useLens(): LensChoice {
+  const settings = useSettings();
+  return settings.data?.lens ?? DEFAULT_LENS;
 }

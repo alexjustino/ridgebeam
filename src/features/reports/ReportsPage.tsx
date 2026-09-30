@@ -16,6 +16,7 @@ import { diaryReport } from '@/domain/reports/diary';
 import { scheduleReport } from '@/domain/reports/schedule';
 import { weekly, type WeeklyProblem } from '@/domain/reports/weekly';
 import { schedule, type Schedule } from '@/domain/schedule';
+import { finishProbability } from '@/domain/schedule/probability';
 import { keyFrom } from '@/domain/templates/export';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n, type I18n } from '@/i18n/useI18n';
@@ -124,7 +125,13 @@ function WeeklyCard({ snapshot, scheduled }: { snapshot: WorkSnapshot; scheduled
     write.mutate(
       {
         path: where.path,
-        document: composeWeekly(selection.weekly, snapshot, scheduled, i18n),
+        document: composeWeekly(
+          selection.weekly,
+          snapshot,
+          scheduled,
+          i18n,
+          finishProbability(snapshot, scheduled, { entries: diary.data }),
+        ),
         overwrite: where.overwrite,
       },
       {

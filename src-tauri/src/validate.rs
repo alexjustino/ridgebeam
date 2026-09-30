@@ -416,6 +416,53 @@ pub fn duration_days(value: f64) -> Result<i64> {
     }
 }
 
+/// The sentence for a range sent with one end and not the other (D1).
+pub const RANGE_BOTH_OR_NEITHER: &str =
+    "A range needs both of its ends, the optimistic and the pessimistic duration, or neither.";
+
+/// The sentence for an end of a range that is not a duration (D1).
+pub const RANGE_END_NOT_A_DURATION: &str =
+    "An optimistic or a pessimistic duration is a whole number of working days, from 1 to 3650.";
+
+/// An activity's range as a patch sends it (D1): `durationMinDays` and
+/// `durationMaxDays`, each absent, `null` or a number. Both absent leaves the
+/// range alone (`None`); both `null` clears it (`Some(None)`); two numbers
+/// set it (`Some(Some((min, max)))`) — each a duration, the optimistic not
+/// above the pessimistic. A point (`min == max`) is a range.
+///
+/// Whether the duration lies inside the range is not asked here: that needs
+/// the duration the activity holds, which only the file knows
+/// (`db::work::update_activity`).
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] with [`RANGE_BOTH_OR_NEITHER`] for one end without
+/// the other (left out, or `null` beside a number); with
+/// [`RANGE_END_NOT_A_DURATION`] for an end that is 0, a fraction or past the
+/// bound; and a sentence naming both ends when the optimistic is above the
+/// pessimistic.
+pub fn duration_range(
+    min: Option<Option<f64>>,
+    max: Option<Option<f64>>,
+) -> Result<Option<Option<(i64, i64)>>> {
+    match (min, max) {
+        (None, None) => Ok(None),
+        (Some(None), Some(None)) => Ok(Some(None)),
+        (Some(Some(min)), Some(Some(max))) => {
+            let end =
+                |value: f64| duration_days(value).map_err(|_| invalid(RANGE_END_NOT_A_DURATION));
+            let (min, max) = (end(min)?, end(max)?);
+            if min > max {
+                return Err(invalid(format!(
+                    "The range runs from the optimistic duration to the pessimistic one: {min} is above {max}."
+                )));
+            }
+            Ok(Some(Some((min, max))))
+        }
+        _ => Err(invalid(RANGE_BOTH_OR_NEITHER)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -493,6 +540,66 @@ mod tests {
                 "`{refused}`"
             );
         }
+    }
+
+    #[test]
+    fn a_range_is_both_ends_or_neither_each_a_duration_the_optimistic_not_above() {
+        assert_eq!(duration_range(None, None).unwrap(), None, "left alone");
+        assert_eq!(
+            duration_range(Some(None), Some(None)).unwrap(),
+            Some(None),
+            "cleared"
+        );
+        assert_eq!(
+            duration_range(Some(Some(2.0)), Some(Some(4.0))).unwrap(),
+            Some(Some((2, 4)))
+        );
+        assert_eq!(
+            duration_range(Some(Some(3.0)), Some(Some(3.0))).unwrap(),
+            Some(Some((3, 3))),
+            "a point is a range"
+        );
+        assert_eq!(
+            duration_range(Some(Some(1.0)), Some(Some(3650.0))).unwrap(),
+            Some(Some((1, 3650)))
+        );
+
+        for (min, max) in [
+            (Some(Some(2.0)), None),
+            (None, Some(Some(4.0))),
+            (Some(None), None),
+            (None, Some(None)),
+            (Some(Some(2.0)), Some(None)),
+            (Some(None), Some(Some(4.0))),
+        ] {
+            assert_eq!(
+                duration_range(min, max).unwrap_err().to_string(),
+                RANGE_BOTH_OR_NEITHER,
+                "{min:?} {max:?}"
+            );
+        }
+        for (min, max) in [
+            (0.0, 4.0),
+            (2.0, 3651.0),
+            (1.5, 4.0),
+            (2.0, 4.5),
+            (-1.0, 4.0),
+            (f64::NAN, 4.0),
+        ] {
+            let refused = duration_range(Some(Some(min)), Some(Some(max))).unwrap_err();
+            assert_eq!(refused.kind(), "invalid_input");
+            assert_eq!(refused.to_string(), RANGE_END_NOT_A_DURATION, "{min} {max}");
+        }
+        assert!(
+            RANGE_END_NOT_A_DURATION.contains(&format!("from 1 to {MAX_DURATION_DAYS}")),
+            "the sentence names the bound the code keeps"
+        );
+        assert_eq!(
+            duration_range(Some(Some(6.0)), Some(Some(4.0)))
+                .unwrap_err()
+                .to_string(),
+            "The range runs from the optimistic duration to the pessimistic one: 6 is above 4."
+        );
     }
 
     #[test]

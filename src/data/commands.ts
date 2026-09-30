@@ -100,7 +100,9 @@ export interface CalendarDraft {
  * which is how a duration or a responsible is taken back. A duration is a JSON number — a whole
  * number of working days — never a string.
  */
-export interface ActivityPatch {
+export type ActivityPatch = ActivityFields & RangePatch;
+
+interface ActivityFields {
   name?: string;
   durationDays?: number | null;
   responsibleId?: string | null;
@@ -109,6 +111,18 @@ export interface ActivityPatch {
   /** Up to 16 characters; a unit needs a quantity, and empty is `null`. */
   unit?: string | null;
 }
+
+/**
+ * An activity's range — its optimistic and pessimistic working days (D1, ADR-035) — is sent **both
+ * or neither**: the host refuses one end alone. Whole numbers 1..3650, the optimistic no more than
+ * the pessimistic, and the duration, when there is one, between them; `null` for both clears the
+ * range. Unlike the duration, a range is not locked by approval: it is an estimate of uncertainty,
+ * not the plan, and no baseline records it.
+ */
+type RangePatch =
+  | { durationMinDays?: never; durationMaxDays?: never }
+  | { durationMinDays: number; durationMaxDays: number }
+  | { durationMinDays: null; durationMaxDays: null };
 
 /**
  * One activity as the schedule places it now — a row of the baseline being taken. The schedule is

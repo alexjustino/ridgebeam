@@ -109,19 +109,19 @@ on (F7).
 | `started_at` | TEXT    | UTC, when the person started it — the start gate passed; `NULL` while planned; never changed once set (F5) |
 | `closed_at`  | TEXT    | UTC, when the person closed it — the close gate passed; only on a started stage; cleared by a reopen (F5)  |
 
-| `activity`          | Type    | Meaning                                                                                                         |
-| ------------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
-| `id`                | TEXT    | UUID v7                                                                                                         |
-| `stage_id`          | TEXT    | `REFERENCES stage ON DELETE CASCADE`                                                                            |
-| `position`          | INTEGER | order inside the stage, unique per stage                                                                        |
-| `name`              | TEXT    | not empty                                                                                                       |
-| `duration_days`     | INTEGER | working days, `NULL` until known, `> 0` once set                                                                |
-| `responsible_id`    | TEXT    | `REFERENCES person ON DELETE SET NULL`, `NULL` until known                                                      |
-| `created_at`        | TEXT    | UTC                                                                                                             |
-| `quantity`          | REAL    | how much of the activity there is — 12 (m² of tile); `NULL` or `>= 0`, a number and never text (F1)             |
-| `unit`              | TEXT    | the quantity's unit as the person writes it — `m²`, `m`, `un`; 1–16 characters, and only beside a quantity (F1) |
-| `duration_min_days` | INTEGER | the lower end of the range of working days a template gave, 1–3650; `NULL` when none was given (F9)             |
-| `duration_max_days` | INTEGER | the upper end, from the lower end to 3650; set exactly when `duration_min_days` is (F9)                         |
+| `activity`          | Type    | Meaning                                                                                                                                                       |
+| ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                | TEXT    | UUID v7                                                                                                                                                       |
+| `stage_id`          | TEXT    | `REFERENCES stage ON DELETE CASCADE`                                                                                                                          |
+| `position`          | INTEGER | order inside the stage, unique per stage                                                                                                                      |
+| `name`              | TEXT    | not empty                                                                                                                                                     |
+| `duration_days`     | INTEGER | working days, `NULL` until known, `> 0` once set                                                                                                              |
+| `responsible_id`    | TEXT    | `REFERENCES person ON DELETE SET NULL`, `NULL` until known                                                                                                    |
+| `created_at`        | TEXT    | UTC                                                                                                                                                           |
+| `quantity`          | REAL    | how much of the activity there is — 12 (m² of tile); `NULL` or `>= 0`, a number and never text (F1)                                                           |
+| `unit`              | TEXT    | the quantity's unit as the person writes it — `m²`, `m`, `un`; 1–16 characters, and only beside a quantity (F1)                                               |
+| `duration_min_days` | INTEGER | the lower — optimistic — end of the activity's range of working days, 1–3650, as a template gave it (F9) or a person typed it (D1); `NULL` when there is none |
+| `duration_max_days` | INTEGER | the upper — pessimistic — end, from the lower end to 3650; set exactly when `duration_min_days` is (F9)                                                       |
 
 **Order is explicit.** `position` is 1, 2, 3 … with no gaps — among stages, and among the
 activities of one stage, and among rooms. The host renumbers them 1 … n in the same transaction as
@@ -143,10 +143,28 @@ template's range and **no duration**: `duration_days` stays `NULL` while the ran
 is written only by a person — typed, or taken from every range at once, its lower or its upper end
 (`ranges_take`, which writes only activities with a range and no duration, outside a closed
 stage, and is locked after approval like any duration edit). A range given as a point — which only
-a file may carry — is applied as the duration too. The range is not constrained to hold the
-duration: a person who knows better types what they know. The two ends are both set or both
-`NULL`, a `CHECK` on the second column, because a column's `CHECK` may name a column added before
-it and not one added after.
+a file may carry — is applied as the duration too. The two ends are both set or both `NULL`, a
+`CHECK` on the second column, because a column's `CHECK` may name a column added before it and not
+one added after.
+
+**Any activity can have a range, and approval does not lock it** (D1, ADR-035). From D1 the range
+is the activity's **optimistic** and **pessimistic** duration, edited in the breakdown on every
+activity — not only one a template brought — through `activity_update`, whose patch carries
+`durationMinDays` and `durationMaxDays` together or not at all: both left out leaves the range
+alone, both `null` clears it, two numbers set it, each a whole number of working days from 1 to
+3650 and the optimistic not above the pessimistic (a point, both ends equal, is a range). The host
+refuses one end on its own, a fraction, 0, a value past 3650 and an upside-down range, each with a
+sentence. **A change that would leave the duration outside the range is refused** — a duration
+typed outside it, or a range sent that does not hold the duration — with a sentence naming the
+range; nothing widens or clears a range on its own, and the fix is one patch, the range or both
+together. Only a change is asked: a duration an activity already held outside its range before D1
+(F9 allowed it) is not refused when its name or its responsible changes. **The range is not in the
+lock's list** ([ADR-027](architecture/ADR.md#adr-027)): a baseline records an activity's name and
+duration, never its range, so an approved plan with no replanning open still takes a new range,
+while a new duration is refused as before. An activity of a closed stage takes no change at all, a
+range included. The range feeds the finish's probability, which the domain computes and nothing
+stores ([ADR-035](architecture/ADR.md#adr-035)); there is no migration — the columns and their
+`CHECK`s are F9's (migration 010).
 
 **There is no progress column, and there never will be.** Progress is derived from the diary
 (slice F4).
@@ -739,7 +757,7 @@ inserted. A failure anywhere rolls the whole migration back and the file stays a
 
 The migrations live in `src-tauri/work_migrations/`.
 
-## A comparison and a what-if are computed, not stored
+## A comparison, a what-if and a chance are computed, not stored
 
 Nothing in the schema records the comparison of two baselines: the domain computes it from their
 rows every time (`compareBaselines`, ADR-028) — dates moved, durations changed, activities and
@@ -747,6 +765,12 @@ stages added and removed by id, the money, and the reasons of the baselines betw
 what-if is never written at all: the domain applies its durations and lags to a copy of the
 snapshot in memory (`withOverrides`), and **Clear**, leaving the Schedule or a restart forgets
 it.
+
+The finish as a probability (D1) is not stored either: the domain simulates it from the snapshot —
+the durations, the ranges, the links, the calendar and the diary's actuals — every time a screen
+asks, seeded by a hash of those inputs so the same plan gives the same numbers
+([ADR-035](architecture/ADR.md#adr-035)). No table holds a run, a seed or a chance, and the plan's
+own dates are the schedule's, untouched.
 
 ## Not yet in the schema
 

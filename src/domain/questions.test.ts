@@ -11,12 +11,16 @@ import {
 } from './__fixtures__/plan';
 import type { Activity, CostLine, WorkSnapshot } from './plan';
 import {
+  OPTIONAL_QUESTION_KINDS,
+  OPTIONAL_QUESTION_MESSAGE_KEYS,
   QUESTION_DECISION_WINDOW_DAYS,
   QUESTION_KINDS,
   QUESTION_MESSAGE_KEYS,
   nextQuestion,
+  nextQuestionWithOptional,
   openQuestions,
-  type Question,
+  openQuestionsWithOptional,
+  type AnyQuestion,
 } from './questions';
 import { readiness } from './readiness';
 import { schedule } from './schedule';
@@ -43,7 +47,7 @@ const ask = (plan: WorkSnapshot, today = TODAY, skipped: ReadonlySet<string> = n
   openQuestions(plan, schedule(plan), today, skipped);
 const next = (plan: WorkSnapshot, today = TODAY, skipped: ReadonlySet<string> = new Set()) =>
   nextQuestion(plan, schedule(plan), today, skipped);
-const keys = (questions: readonly Question[]) => questions.map((question) => question.key);
+const keys = (questions: readonly AnyQuestion[]) => questions.map((question) => question.key);
 
 /**
  * A plan with one of every kind of question, Tuesday 1 September 2026 on. `a1` (5 days, s1) runs
@@ -425,5 +429,93 @@ describe('the message keys', () => {
     const values = Object.values(QUESTION_MESSAGE_KEYS);
     expect(new Set(values).size).toBe(values.length);
     for (const key of values) expect(key.startsWith('nextQuestion.')).toBe(true);
+  });
+});
+
+describe('the optional question, asked last (slice D1)', () => {
+  const askAll = (plan: WorkSnapshot, skipped: ReadonlySet<string> = new Set()) =>
+    openQuestionsWithOptional(plan, schedule(plan), TODAY, skipped);
+
+  it('asks the most a critical activity with a duration and no range could take, after the rest', () => {
+    const plan = templatePlan();
+    const all = askAll(plan);
+    // a1 → a2 → a3 is the critical path; r1 and r2 have no duration and are not asked it.
+    expect(keys(all.questions)).toEqual([
+      ...keys(ask(plan).questions),
+      'most:a1',
+      'most:a2',
+      'most:a3',
+    ]);
+    expect(all.questions.at(-3)).toEqual({
+      kind: 'most',
+      optional: true,
+      key: 'most:a1',
+      messageKey: 'nextQuestion.ask.most',
+      params: { name: 'Activity a1', days: 5 },
+      stageId: 's1',
+      stageName: 'Demolition',
+      activityId: 'a1',
+      durationDays: 5,
+      answer: {
+        command: 'activity_update',
+        targetId: 'a1',
+        field: 'durationMaxDays',
+        with: { durationMinDays: 5 },
+      },
+    });
+    expect(OPTIONAL_QUESTION_KINDS).toEqual(['most']);
+    expect(OPTIONAL_QUESTION_MESSAGE_KEYS.most).toBe('nextQuestion.ask.most');
+    // Not in the count; asked, so skipped and remaining know them.
+    expect(all).toMatchObject({ answered: 6, total: 15, optional: 3, skipped: 0, remaining: 12 });
+  });
+
+  it('comes only once nothing else is left to ask, and can be skipped like any other', () => {
+    const plan = templatePlan();
+    const required = new Set(keys(ask(plan).questions));
+    expect(nextQuestionWithOptional(plan, schedule(plan), TODAY)?.key).toBe('duration:r1');
+    expect(nextQuestionWithOptional(plan, schedule(plan), TODAY, required)?.key).toBe('most:a1');
+    const skipped = new Set([...required, 'most:a1']);
+    expect(nextQuestionWithOptional(plan, schedule(plan), TODAY, skipped)?.key).toBe('most:a2');
+    expect(askAll(plan, skipped)).toMatchObject({ skipped: 10, remaining: 2 });
+    const everything = new Set([...skipped, 'most:a2', 'most:a3']);
+    expect(nextQuestionWithOptional(plan, schedule(plan), TODAY, everything)).toBeNull();
+    // The questions without the optional ones never change.
+    expect(nextQuestion(plan, schedule(plan), TODAY, required)?.key).toBeUndefined();
+  });
+
+  it('is not asked of an activity that has a range, is not critical, or is in a closed stage', () => {
+    const plan = snapshot({
+      stages: [stage('s1', 1), { ...stage('s2', 2), closedAt: '2026-09-01T17:00:00.000Z' }],
+      activities: [
+        { ...ranged('r', 's1', 1, 2, 5), durationDays: 3 },
+        activity('long', 's1', 2, 10),
+        activity('short', 's1', 3, 1),
+        activity('shut', 's2', 1, 20),
+      ],
+      // r → long → shut is the critical path; short runs beside it.
+      dependencies: [link('l1', 'r', 'long'), link('l2', 'long', 'shut')],
+    });
+    expect(schedule(plan).critical).toEqual(new Set(['r', 'long', 'shut']));
+    expect(keys(askAll(plan).questions).filter((key) => key.startsWith('most:'))).toEqual([
+      'most:long',
+    ]);
+  });
+
+  it('is not asked while the plan is locked', () => {
+    const plan = templatePlan();
+    const approved: WorkSnapshot = {
+      ...plan,
+      work: { ...plan.work, approvedAt: '2026-08-31T12:00:00.000Z' },
+      baselines: [takeBaseline(plan, 1)],
+    };
+    expect(askAll(approved)).toEqual({
+      locked: true,
+      questions: [],
+      answered: 0,
+      total: 0,
+      skipped: 0,
+      remaining: 0,
+      optional: 0,
+    });
   });
 });

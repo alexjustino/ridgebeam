@@ -1062,6 +1062,11 @@ export const ptBR: Dictionary = {
     'Escolha o arquivo, ou digite o caminho dele, terminando em .json.',
   'plan.range': '{min}–{max}',
   'plan.range.hint': 'Faixa {range}',
+  'plan.range.legend': '{range} (dias úteis)',
+  'plan.range.min': 'Otimista',
+  'plan.range.max': 'Pessimista',
+  'plan.range.both': 'Dê as duas pontas, ou apague as duas.',
+  'plan.invalid.range': 'Cada ponta é um número inteiro de dias úteis, de 1 a {max}.',
   'plan.checklist.range': '{range} dias úteis, uma faixa',
   'plan.stages.emptyTemplate':
     'Uma etapa é um capítulo da obra — demolição, instalações, revestimento. Adicione a primeira acima, ou comece de um {template}: um ponto de partida com faixas, não um orçamento.',
@@ -1165,7 +1170,7 @@ export const ptBR: Dictionary = {
   'reports.file.schedule': '{work} cronograma',
 
   'reports.weekly.holds':
-    'Um PDF de uma semana nas palavras do dono: os dias escritos e os dias úteis sem nada escrito, o que foi feito, quem esteve na obra, quanto o plano está pronto, quando termina, as decisões a tomar, o dinheiro e as etapas. Não traz as fotos, e anotações longas vêm encurtadas — o PDF do diário as traz inteiras.',
+    'Um PDF de uma semana nas palavras do dono: os dias escritos e os dias úteis sem nada escrito, o que foi feito, quem esteve na obra, quanto o plano está pronto, quando termina e a chance de terminar até lá, as decisões a tomar, o dinheiro e as etapas. Não traz as fotos, e anotações longas vêm encurtadas — o PDF do diário as traz inteiras.',
   'reports.week': 'Semana',
   'reports.weekly.write': 'Gravar o relatório semanal',
   'reports.weekly.waiting': 'Lendo o diário…',
@@ -1414,4 +1419,87 @@ export const ptBR: Dictionary = {
   'nextQuestion.allSkipped.one': 'A {count} pergunta que restava foi pulada por agora.',
   'nextQuestion.allSkipped.other': 'As {count} perguntas que restavam foram puladas por agora.',
   'nextQuestion.askAgain': 'Perguntar de novo as puladas',
+  'nextQuestion.ask.most':
+    'Quanto {name} pode levar, no máximo, em dias úteis? O plano diz {days}.',
+  'nextQuestion.optional':
+    'Opcional — o plano não fica faltando nada sem ela; ela dá ao término uma faixa de onde sortear.',
+  'nextQuestion.field.most': 'O máximo, em dias úteis — a ponta pessimista da sua {range}',
+  'nextQuestion.hint.most':
+    'A duração fica como a ponta otimista; só você sabe quanto ela pode atrasar.',
+  'nextQuestion.invalid.most': 'O máximo é um número inteiro de dias úteis, de {min} a {max}.',
+
+  // ── D1: quando termina de verdade ─────────────────────────────────────────
+  'schedule.probability.title': 'Quando termina de verdade?',
+  'schedule.probability.lead':
+    'A data do plano toma cada duração como certa. Aqui as durações otimista e pessimista de cada atividade são levadas em conta, e o cronograma é simulado muitas vezes para dizer quão provável é cada data.',
+  'schedule.probability.frequency.none': 'quase nenhuma chance',
+  'schedule.probability.frequency.underOne': 'menos de 1 em 10 chances',
+  'schedule.probability.frequency.inTen': '{n} em 10 chances',
+  'schedule.probability.frequency.every': '10 em 10 chances',
+  'schedule.probability.headline': '{chance} de terminar até {date}',
+  'schedule.probability.engineer': '{sentence} (P{percentile})',
+  'schedule.probability.sameDay.p50':
+    '{date} também é o dia até o qual metade das simulações tinha terminado: elas se concentram ali.',
+  'schedule.probability.sameDay.p90':
+    '{date} também é o dia até o qual 9 em 10 simulações tinham terminado: elas se concentram ali.',
+  'schedule.probability.engineer.percentile': '{sentence} (P{percentile})',
+  'schedule.probability.engineer.percent': '{sentence} — {percent} das simulações',
+  'schedule.probability.engineer.after': '{sentence} São {percent} das simulações.',
+  'schedule.probability.planChance': 'A data do plano, {date}, tem {chance}.',
+  'schedule.probability.baselineChance': 'A data da linha de base {number}, {date}, tem {chance}.',
+  'schedule.probability.allCertain':
+    'Toda atividade é contada como certa, então o término é a data do plano. Dê às atividades uma duração otimista e uma pessimista para ver a chance.',
+  'schedule.probability.certainCount':
+    'Atividades contadas como certas — o mesmo número de dias em todas as simulações: {certain} de {total}.',
+  'schedule.probability.unplacedCount':
+    'Atividades sem duração nem faixa, deixadas de fora das simulações: {unplaced}.',
+  'schedule.probability.method':
+    '{runs} simulações deste cronograma com as faixas dadas; com semente fixa, então o mesmo plano dá os mesmos números.',
+  'schedule.probability.capped':
+    'Este plano é grande, então foram feitas {runs} simulações em vez de {max}.',
+  'schedule.probability.leftOut':
+    'Cada atividade é sorteada sozinha: um mês de chuva que atrasa tudo de uma vez não está nas simulações.',
+  'schedule.probability.note': 'Nada aqui é guardado, e nada aqui muda as datas do plano.',
+  'schedule.probability.criticalIn': 'crítica em {n} de 10 simulações',
+  'schedule.probability.criticalNever': 'nunca crítica nas simulações',
+  'schedule.probability.criticalUnderOne': 'crítica em menos de 1 de 10 simulações',
+  'schedule.probability.short': '{n} em 10',
+  'schedule.probability.short.underOne': 'menos de 1 em 10',
+  'schedule.probability.figure.p80': 'O término, como chance',
+  'schedule.probability.figure.plan': 'A data do plano, como chance',
+  'schedule.probability.figure.baseline': 'A data da linha de base, como chance',
+  'schedule.probability.figure.criticality': 'Com que frequência cada atividade é crítica',
+  'schedule.probability.problem.invalidCalendar':
+    'Nenhuma chance pode ser dada: não dá para contar com o calendário de trabalho.',
+  'schedule.probability.problem.invalidStart':
+    'Nenhuma chance pode ser dada: a data de início não é um dia.',
+  'schedule.probability.problem.cyclic':
+    'Nenhuma chance pode ser dada: as ligações fazem um ciclo.',
+  'schedule.probability.problem.nothingPlaced':
+    'Nenhuma chance pode ser dada ainda: nenhuma atividade tem duração nem faixa.',
+  'schedule.probability.rows': 'Do que a chance depende',
+  'schedule.probability.row.driver': 'a sua faixa move o término',
+  'schedule.probability.row.certain': 'contada como certa',
+  'schedule.probability.row.correlation': 'correlação de postos {value}',
+  'schedule.probability.dates': 'A chance de terminar até outras datas',
+  'schedule.probability.chart.title': 'Chance de ter terminado, por data',
+  'schedule.probability.chart.description':
+    'Nenhuma simulação terminou antes de {earliest}; todas tinham terminado até {latest}.',
+  'schedule.probability.legend.curve': 'A chance de ter terminado até cada dia: a linha contínua',
+  'schedule.probability.legend.plan': 'A data do plano: a linha tracejada',
+  'schedule.probability.legend.headline': 'A data com {chance}: a linha pontilhada',
+  'schedule.probability.table': 'Chance de ter terminado, semana a semana',
+  'schedule.probability.table.by': 'Até',
+  'schedule.probability.table.chance': 'Chance',
+  'schedule.probability.table.percent': 'Parte das simulações',
+  'schedule.probability.drivers': 'O que mais move o término',
+  'schedule.probability.drivers.lead':
+    'As atividades cuja faixa mais move a data de término, da mais forte para a mais fraca.',
+  'schedule.probability.drivers.none':
+    'Nenhuma faixa move o término com clareza: as faixas dadas são estreitas, ou longe do caminho crítico.',
+  'schedule.probability.driver.range': '{range} dias úteis, mais provável {mode}',
+  'schedule.criticality.toggle': 'Sombrear cada barra pela frequência com que é crítica',
+  'schedule.legend.criticality':
+    'Sombra vermelha: com que frequência é crítica nas simulações — mais forte é mais vezes, e a fração está ao lado do nome',
+  'schedule.bar.criticality': '{sentence}, {critical}',
 };
