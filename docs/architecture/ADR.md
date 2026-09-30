@@ -26,7 +26,9 @@ question at a time ([ADR-034](#adr-034)).
 Before its first use, the product's owner widened 1.0 with four differentiators, set out with their
 cost in [ADR-036](#adr-036). The first, slice D1, gives the finish as a probability as well as a
 date, from the ranges a person gives and without touching the plan's own dates
-([ADR-035](#adr-035)).
+([ADR-035](#adr-035)). The second, slice D2, ties each payment to the work it pays for: a
+commitment's milestones are earned only by facts of the work, and a payment that would put the owner
+ahead of the work is warned about before it is saved, never refused ([ADR-037](#adr-037)).
 
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -66,6 +68,7 @@ date, from the ranges a person gives and without touching the plan's own dates
 | [034](#adr-034) | The plan asks one question at a time                                                                                  | Accepted — 2026-09-28          |
 | [035](#adr-035) | The finish is also a probability: ranges, a seeded simulation, natural frequencies, and the plan's own date untouched | Accepted — 2026-09-29          |
 | [036](#adr-036) | The owner widened 1.0 before first use                                                                                | Accepted — 2026-09-29, by Alex |
+| [037](#adr-037) | A payment plan is earned by facts, and paying ahead is warned, not refused                                            | Accepted — 2026-09-29          |
 
 ---
 
@@ -2040,3 +2043,105 @@ real work F12 was waiting for. **A larger surface to prove**: every screen, figu
 add is one more thing to test, capture, translate and keep true, and the release checklist grows
 with them. The specification's own rule was the guard against exactly this (R9); it is the owner
 who set it aside, once and by name, and a fifth differentiator would need a record of its own.
+
+## ADR-037 — A payment plan is earned by facts, and paying ahead is warned, not refused {#adr-037}
+
+**Status.** Accepted — 2026-09-29.
+
+**Context.** Slice F6 answers what was planned, what was agreed and what was paid, and flags a
+payment that goes past what was agreed ([ADR-023](#adr-023), [ADR-024](#adr-024)). It does not see
+the mistake an owner makes most often on a small work, which is not paying too much but paying too
+soon: half of the tiler's quote before a tile is laid, then a quarter more "for material", and three
+quarters of the job paid while a fifth of it is done. Paid is still under committed, so nothing is
+flagged, and the owner has lost the one thing that keeps a contractor coming back. The tools an
+owner already knows attach a **date** to each instalment; a date says when money is expected, not
+whether the work it pays for is there. The product already records the facts that say so — a stage's
+start and close gates ([ADR-022](#adr-022)) and an activity finished in the diary
+([ADR-020](#adr-020)) — and set them beside the money without joining the two.
+
+**Decision.**
+
+- **A commitment carries a payment plan of milestones.** A **milestone** is a label, a share of the
+  commitment's amount in **basis points** — whole hundredths of a percent, so "30 %" is 3 000 and
+  "12.5 %" is 1 250 — and the fact that earns it, in an order the person sets (`payment_milestone`,
+  migration 011, [`DATA_MODEL.md`](../DATA_MODEL.md)). The shares of one commitment sum to **at
+  most** 100 %; what is left is said on the screen as not in the plan yet, never assumed.
+- **A milestone is earned by a fact, never by a date or a tick.** Four triggers, a closed list:
+  **advance** — earned the day the commitment was agreed, before any work; **stage started** — the
+  commitment's stage passed its start gate; **activity finished** — an effective diary entry
+  finished that activity, corrections applied, and the activity must belong to the commitment's
+  stage; **stage closed** — the stage passed its close gate. A milestone is earned **on** the day of
+  its fact, and the screen says since when. It follows the fact both ways: a stage reopened un-earns
+  its "stage closed", and a correction that takes back a finish un-earns its "activity finished".
+  There is no control that marks a milestone earned, as there is none that sets progress
+  ([ADR-009](#adr-009)). An activity a milestone is earned by cannot be removed while the milestone
+  names it: the host refuses with a sentence, and the foreign key refuses it after.
+- **Four figures per commitment, each with its rows** (`src/domain/milestones.ts`, pure, in cents,
+  [ADR-024](#adr-024)). **Earned** — the milestones reached, each a row with its fact and its day;
+  **paid** — F6's payments on the commitment, reversals applied; **due now** — earned minus paid
+  when that is positive; **ahead of the work** — paid minus earned when that is positive. Per stage
+  and for the work they are the sums, with a row per commitment, and the dashboard counts the
+  commitments paid ahead. **Due and ahead are never netted across commitments**: a commitment paid
+  ahead does not pay what another has earned, so a stage can show money due and money paid ahead at
+  once, each with its own rows. A milestone's amount is its share of the commitment's cents, rounded
+  half up in exact integer arithmetic (`milestoneCents`); in a plan of exactly 100 % the last
+  milestone takes the remainder, so the plan adds up to the commitment's amount to the cent. A fact
+  dated after today is not a fact yet: an advance on a commitment agreed for next week is not earned
+  this week.
+- **A commitment with no plan is not evaluated.** It is neither earned nor unearned: it is counted
+  and listed as having no payment plan, and nothing is assumed about it; what was paid on it is
+  still shown, and a payment on it is never warned about. A payment that names no commitment is
+  outside the question altogether, and a line says how many there are.
+- **The warning comes before the payment.** The Ledger's payment form shows, as the person types,
+  what the commitment has earned so far, what has been paid, and what would be paid, due and ahead
+  after this payment (`paymentPreview`). When the payment would put the owner ahead of the work, a
+  caution says so before **Record the payment** is pressed, with the amount, the commitment and the
+  next milestone not yet earned. **The button is not disabled**: money paid is a fact, and the
+  decision is the person's. A reversal is never warned about.
+- **The plan is locked once money has moved.** From the first payment that names a commitment — a
+  reversal included — its milestones cannot be added, changed, moved or removed; the host refuses
+  with `invalid_input` and a sentence, as it refuses a change to the commitment itself
+  ([ADR-023](#adr-023)), and triggers in the schema refuse it again (`money: payment plan locked`);
+  the screen shows the plan as it is, with the sentence that says why and no control that would
+  change it. This is not the approved plan's lock ([ADR-027](#adr-027)): a payment plan is an
+  agreement, not something a baseline records, so no replanning opens it, and a closed stage does
+  not refuse it — money is not a plan edit.
+- **A usual plan, offered, not advised.** On a commitment with no milestones, **Add the usual plan**
+  fills three — 30 % when the stage starts, 40 % when the stage's last activity is finished, 30 %
+  when the stage closes — with labels in the person's language, each editable, and the screen says
+  it is a common split, not advice. It is refused, with a sentence, on a commitment that already has
+  a plan, and — since the middle one names the stage's last activity by position — on a stage with
+  no activity yet. The split is data in the host (`USUAL_SPLIT`) and the domain, not a rule.
+- **Where it shows.** On Money, by stage: each commitment's **Payment plan**, its earned and due
+  figures, and a mark in words when it is paid ahead or has money due. On the Ledger, the preview
+  and the warning. On the dashboard's money card, how many commitments are paid ahead and how much
+  is earned and not paid, with a sentence under them for the commitments with no plan and the
+  payments on no commitment. In the weekly report, the same two figures in the owner's words. And,
+  last and optional, the **Next question** asks how a commitment with no plan is to be paid — only
+  while no money has moved on it, since after that its plan can no longer be written — and answers
+  by opening that commitment's plan, not inline ([ADR-034](#adr-034)). **Nothing is stored but the
+  milestones**: earned, due and ahead are computed from the snapshot every time. Readiness does not
+  change.
+
+**Why.** A fact of the work is the only thing both sides of a payment can check: the diary and the
+gates are the record the product already keeps, and tying money to them makes "is the work there?"
+a question with an answer rather than an argument. A warning that arrives with the payment form, not
+in a report the week after, is the only one that can change what happens. And refusing the payment
+would push an agreed advance, or an honest favour to a good contractor, out of the ledger and into a
+notebook — the reason F6 flags and never refuses ([ADR-024](#adr-024)).
+
+**Cost accepted.** **A fact can be recorded late, and the milestone is earned late**: the product
+knows the work only through the diary and the gates, so a payment made the day the tiles were laid,
+with the diary written on Friday, reads as ahead until then. **An advance is money before work**, by
+definition; the product says so plainly on every advance and counts what it earns, rather than
+forbidding what many contracts require. **The plan locks after the first payment**: a renegotiated
+split cannot be written over the old one, so a renegotiation is a new commitment, and the old one
+keeps its amount and its record as they were paid. **Payments on no commitment are not evaluated**:
+money paid outside a commitment is counted and said, but nobody can say whether it was ahead of
+anything. A commitment with no plan is likewise not judged. **An activity a paid commitment's
+milestone names can never be removed**: the milestone is locked, and it holds the activity with it —
+the plan keeps the fact it was paid against. A milestone is earned whole or not at all — a share of
+an activity's quantities in the diary does not earn a share of its milestone. And a share rounded to
+the cent is not always the share a person's calculator gives: in a 100 % plan the last milestone
+takes the remainder, and may differ from its own share by up to half a cent for each milestone
+before it.
