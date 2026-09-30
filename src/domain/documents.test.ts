@@ -57,6 +57,7 @@ const PLAN = snapshot({
       amountCents: 1,
       agreedOn: '2026-08-28',
       documentHash: null,
+      milestones: [],
     },
   ],
   payments: [

@@ -22,6 +22,7 @@ const commitment: Commitment = {
   amountCents: 150_000,
   agreedOn: '2026-08-28',
   documentHash: null,
+  milestones: [],
 };
 const paid: Payment = {
   id: 'p1',
