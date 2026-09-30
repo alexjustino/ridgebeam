@@ -159,3 +159,42 @@ describe('the Next question card', () => {
     expect(gone).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('the optional question (D1)', () => {
+  /** One critical activity with a duration and nobody missing: only the optional question is left. */
+  const certain = (): WorkSnapshot =>
+    snapshot({
+      people: [person('p')],
+      stages: [stage('s', 1, 'Bathroom')],
+      activities: [{ ...activity('tiles', 's', 1, 4, 'p'), name: 'Tiling' }],
+    });
+
+  it('asks the most a critical activity could take, says it is optional, and counts it nowhere', () => {
+    render(certain());
+    expect(find('next-question').textContent).toContain(
+      'What is the most Tiling could take, in working days? The plan says 4.',
+    );
+    expect(find('next-optional').textContent).toContain('Optional');
+    expect(find('next-count').textContent).toBe('1 of 1 answered');
+  });
+
+  it('writes the range whole — the duration as its optimistic end — in one patch', async () => {
+    invoke.mockResolvedValue(certain());
+    render(certain());
+    type(find('next-answer'), '7');
+    act(() => find('next-keep').click());
+    await settle();
+    expect(invoke).toHaveBeenCalledWith('activity_update', {
+      id: 'tiles',
+      patch: { durationMinDays: 4, durationMaxDays: 7 },
+    });
+  });
+
+  it('refuses a most below the duration, and asks nothing', () => {
+    render(certain());
+    type(find('next-answer'), '3');
+    act(() => find('next-keep').click());
+    expect(invoke.mock.calls.map(([command]) => command)).not.toContain('activity_update');
+    expect(find('next-problem').textContent).toContain('from 4 to 3,650');
+  });
+});

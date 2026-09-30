@@ -24,14 +24,16 @@ import {
 } from '@/domain/readiness';
 import { schedule, type Schedule } from '@/domain/schedule';
 import { useStatusText } from '@/features/decisions/statusText';
+import type { FinishProbabilityResult } from '@/domain/schedule/probability';
 import { slip } from '@/domain/schedule/slip';
 import { SlipFigure } from '@/features/schedule/SlipFigure';
-import { readinessRowText } from '@/features/reports/compose/words';
+import { useFinishProbability } from '@/features/schedule/useFinishProbability';
+import { headlineText, readinessRowText } from '@/features/reports/compose/words';
 import { RestoredNote } from '@/features/start/RestoredNote';
 import { TemplateNotes } from '@/features/templates/TemplateNotes';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n } from '@/i18n/useI18n';
-import { useTerms } from '@/i18n/useTerm';
+import { useLens, useTerms } from '@/i18n/useTerm';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { FigureRow } from '@/ui/FigureRow';
@@ -86,6 +88,7 @@ export function DashboardPage({
   const title = useRef<HTMLHeadingElement>(null);
   const focusTitle = useCallback(() => title.current?.focus(), []);
   const scheduled = useMemo(() => schedule(snapshot), [snapshot]);
+  const probability = useFinishProbability(snapshot, scheduled);
   const measure = readiness(snapshot, { schedule: scheduled, today });
   const figure = readinessFigure(measure);
   const parts = sentenceParts(measure.missing);
@@ -161,7 +164,7 @@ export function DashboardPage({
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <FinishCard snapshot={snapshot} scheduled={scheduled} />
+        <FinishCard snapshot={snapshot} scheduled={scheduled} probability={probability} />
         <DecisionsDueCard snapshot={snapshot} scheduled={scheduled} today={today} />
         <CalendarCard snapshot={snapshot} />
       </div>
@@ -182,11 +185,23 @@ export function DashboardPage({
  * the plan is approved, read against the baseline: the baseline's finish, the slip with the same
  * rows the Schedule page shows, how many baselines there are and how many times the plan was
  * replanned (F8), a replanning still open with its reason, and how many activities are on the
- * critical path.
+ * critical path. When some activity has a range (D1), one line more under the date: the finish as a
+ * probability, in the Schedule's own words and numbers — "8 in 10 chances of finishing by 14
+ * November 2026" (`dashboard-finish-p80`) — from the same seeded simulation, so the two pages agree.
  */
-function FinishCard({ snapshot, scheduled }: { snapshot: WorkSnapshot; scheduled: Schedule }) {
-  const { t, tp, day } = useI18n();
+function FinishCard({
+  snapshot,
+  scheduled,
+  probability,
+}: {
+  snapshot: WorkSnapshot;
+  scheduled: Schedule;
+  probability: FinishProbabilityResult | null;
+}) {
+  const i18n = useI18n();
+  const { t, tp, day } = i18n;
   const term = useTerms();
+  const engineer = useLens() === 'engineer';
   const finish = scheduled.finishDate;
   const reasons = new Set(scheduled.unplaced.map((row) => row.reason));
   const leftOut = scheduled.unplaced.filter((row) => row.reason === 'no-duration').length;
@@ -216,6 +231,16 @@ function FinishCard({ snapshot, scheduled }: { snapshot: WorkSnapshot; scheduled
       {finish !== null && leftOut > 0 && (
         <p className="mt-1 text-body text-fg-secondary">
           {tp('dashboard.finish.leftOut', leftOut)}
+        </p>
+      )}
+      {probability !== null && probability.ok && !probability.allCertain && (
+        <p
+          data-testid="dashboard-finish-p80"
+          data-day={probability.p80}
+          data-chance={probability.headline.chance}
+          className="mt-1 text-body-lg text-fg"
+        >
+          {headlineText(i18n, probability.headline, engineer ? { percentile: 80 } : null)}
         </p>
       )}
       {baseline !== null && (
