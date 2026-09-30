@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useDiary } from '@/data/queries';
 import { progress } from '@/domain/diary';
@@ -6,19 +6,23 @@ import { breakdown } from '@/domain/arrangements';
 import { latestBaseline, type WorkSnapshot } from '@/domain/plan';
 import { schedule } from '@/domain/schedule';
 import { ganttLayout } from '@/domain/schedule/gantt';
+import { naturalFrequency } from '@/domain/schedule/probability';
 import { slip } from '@/domain/schedule/slip';
-import { UNPLACED_KEYS } from '@/features/reports/compose/words';
+import { criticalText, frequencyShort, UNPLACED_KEYS } from '@/features/reports/compose/words';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Card } from '@/ui/Card';
+import { Checkbox } from '@/ui/Checkbox';
 import { EmptyState } from '@/ui/EmptyState';
 import { InfoBar } from '@/ui/InfoBar';
 
 import { BaselineCard } from './BaselineCard';
 import { BaselinesCard } from './BaselinesCard';
+import { FinishProbabilityCard } from './FinishProbabilityCard';
 import { Gantt } from './Gantt';
 import { toGanttView } from './ganttView';
 import { SlipFigure } from './SlipFigure';
+import { useFinishProbability } from './useFinishProbability';
 import { WhatIfCard } from './WhatIfCard';
 
 /**
@@ -34,9 +38,17 @@ import { WhatIfCard } from './WhatIfCard';
  * way to replan an approved plan, with a reason; **Baselines** lists every one and compares any
  * two; **What if** recomputes the schedule in memory with durations or lags that are not the
  * plan's, and says it is not saved — nothing it shows is written, and the Gantt stays the plan's.
+ *
+ * Slice D1 adds **When will it really finish?** after the finish and baseline cards: the finish as a
+ * probability, from the ranges given (`FinishProbabilityCard`). The same simulation gives the Gantt
+ * each activity's criticality index — in every bar's sentence, "critical in 8 of 10 runs", and, when
+ * **Shade each bar by how often it is critical** (`gantt-criticality`) is ticked, as a shade over the
+ * bar with the share in words beside its name. The toggle is the page's, for this visit: nothing is
+ * stored, and the plan's own critical path is drawn as before.
  */
 export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
-  const { t, tp, day } = useI18n();
+  const i18n = useI18n();
+  const { t, tp, day } = i18n;
   const term = useTerms();
 
   const scheduled = useMemo(() => schedule(snapshot), [snapshot]);
@@ -52,6 +64,17 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
   );
   const diary = useDiary(true);
   const progressById = useMemo(() => progress(snapshot, diary.data ?? []), [snapshot, diary.data]);
+  const probability = useFinishProbability(snapshot, scheduled);
+  const [shade, setShade] = useState(false);
+  // How often each activity was critical, when some range makes the runs differ: with no range,
+  // every run is the plan, and "critical in 10 of 10 runs" would only repeat the critical path.
+  const criticality = useMemo(
+    () =>
+      probability === null || !probability.ok || probability.allCertain
+        ? null
+        : new Map(probability.criticality.map((each) => [each.activityId, each.index])),
+    [probability],
+  );
   const view =
     layout === null
       ? null
@@ -67,16 +90,23 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
                 finish: day(bar.finish),
               });
               const known = bar.progress;
-              if (known?.state === 'finished' && known.finishedOn !== null) {
-                return t('schedule.bar.finished', { sentence, day: day(known.finishedOn) });
-              }
-              if (known?.state === 'started' && known.startedOn !== null) {
-                return t('schedule.bar.started', { sentence, day: day(known.startedOn) });
-              }
-              return sentence;
+              const said =
+                known?.state === 'finished' && known.finishedOn !== null
+                  ? t('schedule.bar.finished', { sentence, day: day(known.finishedOn) })
+                  : known?.state === 'started' && known.startedOn !== null
+                    ? t('schedule.bar.started', { sentence, day: day(known.startedOn) })
+                    : sentence;
+              return bar.criticality === null
+                ? said
+                : t('schedule.bar.criticality', {
+                    sentence: said,
+                    critical: criticalText(i18n, naturalFrequency(bar.criticality)),
+                  });
             },
+            share: (index) => frequencyShort(i18n, naturalFrequency(index)),
           },
           progressById,
+          criticality,
         );
   const slipped = baseline === null ? null : slip(scheduled, baseline);
   const hasBars = view !== null && view.rows.some((row) => row.kind === 'bar');
@@ -121,6 +151,8 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
         <BaselineCard snapshot={snapshot} scheduled={scheduled} />
       </div>
 
+      <FinishProbabilityCard result={probability} />
+
       {slipped !== null && (
         <Card>
           <SlipFigure figure={slipped} />
@@ -132,7 +164,18 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
           <h2 id="schedule-gantt" className="text-subtitle font-semibold text-fg">
             {term('schedule', { capital: true })}
           </h2>
-          <Gantt view={view} label={t('schedule.gantt')} />
+          {criticality !== null && (
+            <label className="flex items-center gap-2 self-start text-body text-fg">
+              <Checkbox
+                testId="gantt-criticality"
+                label={t('schedule.criticality.toggle')}
+                checked={shade}
+                onChange={setShade}
+              />
+              <span>{t('schedule.criticality.toggle')}</span>
+            </label>
+          )}
+          <Gantt view={view} label={t('schedule.gantt')} shade={shade && criticality !== null} />
           <ul className="grid gap-x-6 gap-y-1 text-caption text-fg-secondary sm:grid-cols-2">
             <li className="flex items-center gap-2">
               <svg width="28" height="12" aria-hidden="true" className="shrink-0">
@@ -191,6 +234,21 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
               </svg>
               {t('schedule.legend.done')}
             </li>
+            {shade && criticality !== null && (
+              <li className="flex items-center gap-2">
+                <svg width="28" height="12" aria-hidden="true" className="shrink-0">
+                  <rect
+                    x="1"
+                    y="1"
+                    width="26"
+                    height="10"
+                    rx="2"
+                    className="fill-danger opacity-70"
+                  />
+                </svg>
+                {t('schedule.legend.criticality')}
+              </li>
+            )}
           </ul>
         </section>
       ) : (
