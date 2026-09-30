@@ -18,23 +18,26 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F11, and D1.** The product was named on 2026-09-24
+> **Status: pre-release — slices F0 to F11, D1 and D2.** The product was named on 2026-09-24
 > ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 — from the foundation to backup,
-> restore and polish — and the first differentiator, D1, run from source; there is no published
-> installer yet: that is F12, the release. The [specification](docs/SPEC.md) says what 1.0.0 will be
-> and what "done" means for every slice; [What exists today](#what-exists-today) says exactly how far
-> the code has got.
+> restore and polish — and the first two differentiators, D1 and D2, run from source; there is no
+> published installer yet: that is F12, the release. The [specification](docs/SPEC.md) says what
+> 1.0.0 will be and what "done" means for every slice; [What exists today](#what-exists-today) says
+> exactly how far the code has got.
 
 **Differentiators, before first use.** Before using Ridgebeam on a work of his own, its owner
 widened 1.0 with four things no other small-works tool does offline
 ([ADR-036](docs/architecture/ADR.md#adr-036)): **D1, "When will it really finish?"** — the finish as
 a probability from each activity's optimistic and pessimistic duration, said as "8 in 10 chances"
 ([ADR-035](docs/architecture/ADR.md#adr-035)); **D2, "Am I paying ahead of the work?"** — payment
-milestones earned only by facts, flagged when paid runs ahead of earned; **D3, the handover book** —
-one PDF the owner keeps, with the photos of hidden work taken before it was closed; and **D4, the
-owner's snapshot** — one self-contained HTML file that opens on any phone, which the person sends
-themselves; Ridgebeam still sends nothing.
-**D1 is in.** D2 to D4 follow, one slice at a time, and the release is cut again after them.
+milestones earned only by facts of the work, never by dates, with a warning before a payment that
+would put the owner ahead of the work — a warning, not a refusal
+([ADR-037](docs/architecture/ADR.md#adr-037)); **D3, the handover book** — one PDF the owner keeps,
+with the photos of hidden work taken before it was closed; and **D4, the owner's snapshot** — one
+self-contained HTML file that opens on any phone, which the person sends themselves; Ridgebeam still
+sends nothing.
+**D1 and D2 are in.** D3 and D4 follow, one slice at a time, and the release is cut again after
+them.
 
 ## Why
 
@@ -83,7 +86,8 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F11**, and the first differentiator, **D1** — nothing after them:
+Slices **F0** to **F11**, and the first two differentiators, **D1** and **D2** — nothing after
+them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -215,6 +219,17 @@ Slices **F0** to **F11**, and the first differentiator, **D1** — nothing after
   are drawn on their own, so a rainy month that slows everything at once is not in the runs — are on
   the page. The dashboard and the weekly report say the headline. Nothing about it is stored, and
   the plan's own dates never move ([ADR-035](docs/architecture/ADR.md#adr-035)).
+- **Am I paying ahead of the work? (D2).** A commitment carries a **payment plan**: milestones, each
+  a share of its amount earned only by a fact of the work — an **advance** the day it was agreed,
+  the stage started, an activity finished in the diary, the stage closed — never by a date, and
+  nothing marks one earned by hand. **Add the usual plan** fills 30 % / 40 % / 30 %, said to be a
+  common split, not advice. Each commitment shows what it has earned, what is due now and what was
+  paid ahead of the work, each opening onto its rows; the dashboard counts the commitments paid
+  ahead and the weekly report says both. The Ledger's payment form shows what a payment would change
+  as it is typed and, when it would put the owner ahead of the work, **warns before it is saved** —
+  naming the amount and the milestone not yet earned — and still lets it be saved: money paid is a
+  fact. A commitment's plan locks at its first payment, so it cannot be rewritten to hide being
+  ahead; a renegotiation is a new commitment ([ADR-037](docs/architecture/ADR.md#adr-037)).
 - **Readiness.** A figure that says how much of what the plan must know it does know, from seven
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -230,13 +245,13 @@ Slices **F0** to **F11**, and the first differentiator, **D1** — nothing after
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-six binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-seven binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: the differentiators **D2** to **D4**, and **the release** (F12) — an
+Not yet, and not pretended: the differentiators **D3** and **D4**, and **the release** (F12) — an
 installer, tried on a clean machine, and a real work planned, run for a week and its weekly report
 read by somebody who is not an engineer.
 

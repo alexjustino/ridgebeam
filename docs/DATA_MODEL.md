@@ -563,6 +563,57 @@ thousands a house has; a much larger ledger would need a query of its own.
 the sum of its rows; _over committed_ where paid exceeds committed for a stage or a commitment,
 or a payment names no commitment.
 
+### `payment_milestone` — a commitment's payment plan (D2)
+
+A commitment may carry a **payment plan**: milestones, each a share of its amount earned by a fact
+of the work, never by a date (ADR-037).
+
+| `payment_milestone` | Type    | Meaning                                                                                                                                    |
+| ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                | TEXT    | UUID v7                                                                                                                                    |
+| `commitment_id`     | TEXT    | `REFERENCES commitment ON DELETE CASCADE`                                                                                                  |
+| `position`          | INTEGER | 1 … n within the commitment, renumbered in the same transaction as a move or a removal                                                     |
+| `label`             | TEXT    | 1–120 characters, not blank — _Tiles laid_                                                                                                 |
+| `share_bp`          | INTEGER | the share of the commitment's amount in basis points, 1–10 000 — "30 %" is 3 000                                                           |
+| `trigger`           | TEXT    | the fact that earns it: `advance`, `stage_started`, `activity_finished` or `stage_closed`                                                  |
+| `activity_id`       | TEXT    | `REFERENCES activity`, with no action; required when `trigger` is `activity_finished`, `NULL` otherwise — a `CHECK` holds the two together |
+| `created_at`        | TEXT    | UTC                                                                                                                                        |
+
+**The triggers are facts.** `advance` is earned the day the commitment was agreed
+(`commitment.agreed_on`); `stage_started` the day the stage passed its start gate
+(`stage.started_at`, F5); `stage_closed` the day it passed its close gate (`stage.closed_at`), and a
+stage reopened has none, so it un-earns it; `activity_finished` the first day an effective diary
+entry finished the activity, corrections applied (F4), so a correction that takes the finish back
+un-earns it. A fact dated after today is not a fact yet. **Nothing records that a milestone was
+earned**: the domain reads it from those facts every time (`src/domain/milestones.ts`), so there is
+no column to set and none to tamper with.
+
+**What the schema holds, behind the host.** The host refuses each of these first, with a sentence,
+and the migration's triggers refuse them again, so a file written by something else holds the same
+rules: the shares of one commitment summing past 10 000 (`money: payment plan over 100 %`); an
+`activity_finished` milestone naming an activity of another stage than the commitment's (`money:
+milestone activity`); and **any insert, change or removal once a payment names the commitment** — a
+reversal included — (`money: payment plan locked`), as a change to the commitment itself is refused
+(F6). A closed stage does not refuse a milestone: a payment plan is money, not a plan edit, and no
+baseline records it, so an approved plan's lock (ADR-027) does not cover it either.
+
+**What goes with what.** A milestone goes with its commitment (`ON DELETE CASCADE`), which can
+itself be removed only while nothing was paid against it. The activity a milestone names is
+referenced with no action: the host refuses to remove an activity a milestone is earned by, with a
+sentence, and the foreign key refuses it after. A stage nothing was paid on, removed whole, takes
+its activities, its commitments and their milestones in the same statement. The lookups by
+commitment use the index of `UNIQUE (commitment_id, position)`; `idx_payment_milestone_activity`
+serves the check an activity's removal makes.
+
+**Every figure is computed.** Earned, paid, due now (earned − paid, when positive) and ahead of the
+work (paid − earned, when positive) are the domain's, per commitment, per stage and for the work,
+each with its rows (ADR-024); due and ahead are summed commitment by commitment and never netted
+across them. A milestone's amount is its share of the commitment's cents, rounded half up in exact
+integer arithmetic (`milestoneCents`); in a plan of exactly 10 000 the last milestone takes the
+remainder, so the plan sums to the commitment's amount exactly, and a plan below it is rounded
+milestone by milestone. A commitment with no milestones is not evaluated — counted and listed as
+having no payment plan; payments on no commitment are outside the question, and counted.
+
 ### `document` and `document_link` — the files the work owns (F7)
 
 A document is a file the work owns: copied into `documents/`, typed by its bytes, never parsed
@@ -707,17 +758,21 @@ covered by a round-trip test that opens a work at version N-1 and migrates it wi
 | `008_documents.sql`                  | F7    | `person.phone`, `.email`, `.note`, `.availability`; `person_stage`; `document`; `document_link`; the backfill of every file already in the folder                                                                     |
 | `009_replanning.sql`                 | F8    | `replanning` with its written-once triggers; `baseline.planned_cents` and `baseline_activity.planned_cents`; `baseline_stage` with its insert-only triggers; the backfill of every earlier baseline's stages          |
 | `010_templates.sql`                  | F9    | `activity.duration_min_days` and `.duration_max_days`; `decision.lead_min_days` and `.lead_max_days`; `work.template_id`, `.template_version` and `.template_title`; `cost_line` rebuilt with `amount_cents` nullable |
+| `011_payment_milestones.sql`         | D2    | `payment_milestone` with its `CHECK`s and its triggers: an activity of the commitment's stage, at most 100 % per commitment, and locked once a payment names the commitment                                           |
 
-Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its
-stages and activities migrates to schema 2 without loss, a work at schema 2 with rooms and
-quantities migrates to schema 3 the same way, a work at schema 3 with dependencies and a
-baseline migrates to schema 4, a work at schema 4 with decisions migrates to schema 5, a work at schema 5 with diary entries
-migrates to schema 6 with its chain still verifying, and a work at schema 6 with checks and
-answers migrates to schema 7 the same way, and a work at schema 7 with photos, receipts and
-quotes migrates to schema 8 with a document for each and its chain still verifying, and a work
-at schema 8 with two baselines migrates to schema 9 with their stages rebuilt, their money not
-recorded and its chain still verifying, and a work at schema 9 with cost lines, a baseline and a
-diary entry migrates to schema 10 with every amount and id kept and its chain still verifying.
+Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its stages
+and activities migrates to schema 2 without loss, a work at schema 2 with rooms and quantities
+migrates to schema 3 the same way, a work at schema 3 with dependencies and a baseline migrates to
+schema 4, a work at schema 4 with decisions migrates to schema 5, a work at schema 5 with diary
+entries migrates to schema 6 with its chain still verifying, and a work at schema 6 with checks and
+answers migrates to schema 7 the same way, and a work at schema 7 with photos, receipts and quotes
+migrates to schema 8 with a document for each and its chain still verifying, and a work at schema 8
+with two baselines migrates to schema 9 with their stages rebuilt, their money not recorded and its
+chain still verifying, and a work at schema 9 with cost lines, a baseline and a diary entry migrates
+to schema 10 with every amount and id kept and its chain still verifying, and a work at schema 10
+with commitments, payments and a diary migrates to schema 11 with every amount kept, no milestone
+invented, the paid commitment's plan locked from the start — a reversal does not unlock it — and its
+chain still verifying.
 
 **Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
 where it came from, one row per hash in this order of precedence: a diary photo (kind `photo`,
@@ -754,6 +809,10 @@ are created again under the names they had. It runs with `foreign_keys = ON` ins
 transaction. No table, trigger or view refers to `cost_line`, so dropping it removes no row that
 anything points at, and each copied row is checked against `stage` and `activity` as it is
 inserted. A failure anywhere rolls the whole migration back and the file stays at version 9.
+
+**Migration 011 adds a table and nothing else.** No existing row changes: every commitment starts
+with no payment plan, which the domain reads as _not evaluated_ — never as earned, never as paid
+ahead — so no figure an earlier slice showed moves with the migration.
 
 The migrations live in `src-tauri/work_migrations/`.
 

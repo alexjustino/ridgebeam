@@ -12,7 +12,7 @@ language, a term or a sentence, or names a lens that does not exist.
 
 A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-59 terms.
+61 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
@@ -55,6 +55,8 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `variance` | variance | How far committed or paid has drifted from planned, in money. Positive means over the plan. | desvio | Quanto o comprometido ou o pago se afastou do planejado, em dinheiro. Positivo significa acima do plano. |
 | `payment` | payment | One amount paid on one day to one person for one thing, with its receipt. Payments are never edited; a mistake is a new payment that says so. | pagamento | Um valor pago num dia a uma pessoa por uma coisa, com o comprovante. Pagamentos nunca são editados; um erro é um novo pagamento que diz isso. |
 | `ledger` | ledger | The list of every payment, in order, that can only grow. | livro-razão | A lista de todos os pagamentos, em ordem, que só pode crescer. |
+| `milestone` | milestone | A share of a commitment’s amount that is earned by a fact of the work — the stage started, an activity finished in the diary, the stage closed — never by a date. Paying more than has been earned is paying ahead of the work. | marco de pagamento | Uma parte do valor de um compromisso que passa a ser devida por um fato da obra — a etapa começou, uma atividade terminou no diário, a etapa fechou — e nunca por uma data. Pagar mais do que já é devido é pagar à frente da obra. |
+| `advance` | advance | A milestone earned the day the commitment was agreed, before any work is done. It is money paid ahead of the work on purpose, and the product says so rather than forbids it. | sinal | Um marco de pagamento devido no dia em que o compromisso foi combinado, antes de qualquer trabalho. É dinheiro pago à frente da obra de propósito, e o produto diz isso em vez de proibir. |
 | `person` | person | Somebody on the work — a trade, a contact, the architect, the inspector. A row with a name and a phone, not an account. | pessoa | Alguém na obra — um profissional, um contato, o arquiteto, o fiscal. Uma linha com nome e telefone, não uma conta. |
 | `trade` | trade | What a person does on site: mason, electrician, plumber, tiler, painter, roofer. | ofício | O que uma pessoa faz na obra: pedreiro, eletricista, encanador, azulejista, pintor, telhadista. |
 | `document` | document | A file kept with the work — a photo, a quote, a drawing, a permit, a receipt — copied into the work folder so it can never go missing. | documento | Um arquivo guardado com a obra — uma foto, um orçamento, um desenho, um alvará, um comprovante — copiado para a pasta da obra para nunca se perder. |
@@ -82,7 +84,7 @@ A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a 
 with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
 The sentence never changes with the lens, and nothing about a work is stored per lens.
 
-9 of the 59 terms change with the lens.
+9 of the 61 terms change with the lens.
 
 | Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
 | --- | --- | --- | --- | --- | --- | --- |
