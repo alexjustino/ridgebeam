@@ -55,6 +55,8 @@ export const TERM_KEYS = [
   'payment',
   'ledger',
   'commitment',
+  'milestone',
+  'advance',
   'trade',
   'document',
   'entry',
