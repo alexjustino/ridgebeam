@@ -4,6 +4,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { NavigationContext } from '@/app/navigation';
 import { activity, person, snapshot, stage } from '@/domain/__fixtures__/plan';
 import type { Activity, WorkSnapshot } from '@/domain/plan';
 import { schedule } from '@/domain/schedule';
@@ -196,5 +197,67 @@ describe('the optional question (D1)', () => {
     act(() => find('next-keep').click());
     expect(invoke.mock.calls.map(([command]) => command)).not.toContain('activity_update');
     expect(find('next-problem').textContent).toContain('from 4 to 3,650');
+  });
+});
+
+describe('the optional question of a payment plan (D2)', () => {
+  /** Nothing else to ask: a commitment with no payment plan is the one question left. */
+  const unpaid = (): WorkSnapshot =>
+    snapshot({
+      people: [person('p')],
+      stages: [stage('s', 1, 'Tiling')],
+      activities: [
+        {
+          ...activity('lay', 's', 1, 2, 'p'),
+          name: 'Lay the tiles',
+          durationMinDays: 2,
+          durationMaxDays: 3,
+        },
+      ],
+      commitments: [
+        {
+          id: 'quote',
+          stageId: 's',
+          personId: 'p',
+          label: 'Tiler’s quote',
+          amountCents: 1000_00,
+          agreedOn: '2026-08-20',
+          documentHash: null,
+          milestones: [],
+        },
+      ],
+    });
+
+  it('asks how the commitment is to be paid, and answers by opening its plan — not inline', () => {
+    const openPaymentPlan = vi.fn();
+    const work = unpaid();
+    act(() =>
+      root.render(
+        <QueryClientProvider client={client}>
+          <NavigationContext.Provider
+            value={{
+              openDocuments: () => undefined,
+              openDiary: () => undefined,
+              openPlan: () => undefined,
+              openPaymentPlan,
+            }}
+          >
+            <NextQuestionCard
+              snapshot={work}
+              scheduled={schedule(work)}
+              today={TODAY}
+              onGone={gone}
+            />
+          </NavigationContext.Provider>
+        </QueryClientProvider>,
+      ),
+    );
+    expect(find('next-question').textContent).toContain('How is Tiler’s quote to be paid?');
+    expect(find('next-optional').textContent).toContain('Optional');
+    expect(host.querySelector('[data-testid="next-answer"]')).toBeNull();
+    expect(host.querySelector('[data-testid="next-keep"]')).toBeNull();
+    act(() => find('next-open-plan').click());
+    expect(openPaymentPlan).toHaveBeenCalledWith('quote');
+    expect(invoke.mock.calls.map(([command]) => command)).not.toContain('milestone_add');
   });
 });

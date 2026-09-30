@@ -409,6 +409,18 @@ exports[`the documents, in en > composes the weekly document the same way every 
       "value": "R$200.00",
     },
     {
+      "label": "Paid ahead of the work",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Earned and not paid",
+      "rows": [],
+      "type": "figure",
+      "value": "R$0.00",
+    },
+    {
       "level": 2,
       "text": "Stages",
       "type": "heading",
@@ -871,6 +883,18 @@ exports[`the documents, in pt-BR > composes the weekly document the same way eve
       ],
       "type": "figure",
       "value": "R$ 200,00",
+    },
+    {
+      "label": "Pago à frente da obra",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Devido e não pago",
+      "rows": [],
+      "type": "figure",
+      "value": "R$ 0,00",
     },
     {
       "level": 2,

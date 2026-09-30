@@ -1,6 +1,7 @@
 import {
   ArrowRight20Regular,
   ArrowSync20Regular,
+  BookOpen20Regular,
   Checkmark20Regular,
   PersonAdd20Regular,
 } from '@fluentui/react-icons';
@@ -13,7 +14,9 @@ import type { WorkSnapshot } from '@/domain/plan';
 import {
   openQuestionsWithOptional,
   QUESTION_MESSAGE_KEYS,
+  PAYMENT_PLAN_QUESTION_KEYS,
   type AnyQuestion,
+  type PaymentPlanQuestion,
 } from '@/domain/questions';
 import type { Schedule } from '@/domain/schedule';
 import { PEOPLE_ADD_FOCUS } from '@/features/plan/PeopleCard';
@@ -48,6 +51,11 @@ import { useSkipped } from './skipped';
  * working days? The plan says 4." — so the finish probability has a range to draw from where it
  * matters most. The card says it is optional; it is not in the count, and the answer writes the
  * range with the duration as its optimistic end, in one patch, as the domain says.
+ *
+ * Then a second optional kind (D2): a commitment with no payment plan is asked "How is Tiler's quote
+ * to be paid?" — answered not here but by **Open its payment plan**, which opens Money on that
+ * commitment's plan with the focus on it. One editing place: the card is a way in, never a second
+ * editor of the plan.
  */
 export function NextQuestionCard({
   snapshot,
@@ -82,6 +90,7 @@ export function NextQuestionCard({
     }
     const target =
       card.current?.querySelector<HTMLElement>('[data-testid="next-answer"]') ??
+      card.current?.querySelector<HTMLElement>('[data-testid="next-open-plan"]') ??
       card.current?.querySelector<HTMLElement>('[data-testid="next-again"]') ??
       null;
     target?.focus();
@@ -124,6 +133,16 @@ export function NextQuestionCard({
               </Button>
             </div>
           </div>
+        ) : question.kind === 'paymentPlan' ? (
+          <PaymentPlanQuestionForm
+            key={question.key}
+            question={question}
+            onSkip={() => {
+              acted.current = true;
+              skip(question.key);
+              announce(t('nextQuestion.skipped'));
+            }}
+          />
         ) : (
           <QuestionForm
             key={question.key}
@@ -165,6 +184,8 @@ function questionText(i18n: I18n, question: AnyQuestion): string {
       return t(key, { name: question.params.name, deadline: day(question.params.deadline) });
     case 'most':
       return t(key, { name: question.params.name, days: number(question.params.days) });
+    case 'paymentPlan':
+      return t(key, { label: question.params.label });
   }
 }
 
@@ -190,7 +211,7 @@ function QuestionForm({
   onKept,
   onSkip,
 }: {
-  question: AnyQuestion;
+  question: Exclude<AnyQuestion, PaymentPlanQuestion>;
   snapshot: WorkSnapshot;
   onKept: () => void;
   onSkip: () => void;
@@ -401,5 +422,49 @@ function QuestionForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * The optional question of D2: how a commitment with no payment plan is to be paid. It is answered
+ * where plans are written — **Open its payment plan** opens Money → By stage on that commitment, its
+ * plan open and focused — and nothing is typed here. **Skip for now** moves on, as for any question.
+ */
+function PaymentPlanQuestionForm({
+  question,
+  onSkip,
+}: {
+  question: PaymentPlanQuestion;
+  onSkip: () => void;
+}) {
+  const i18n = useI18n();
+  const { t } = i18n;
+  const navigation = useNavigation();
+  const where = whereText(i18n, question);
+
+  return (
+    <div className="flex flex-col gap-3" data-kind={question.kind}>
+      <div>
+        <p data-testid="next-optional" className="mb-0.5 text-caption text-fg-tertiary">
+          {t('nextQuestion.optional.paymentPlan')}
+        </p>
+        <p className="text-body-lg font-semibold text-fg">{questionText(i18n, question)}</p>
+        {where !== null && <p className="mt-0.5 text-caption text-fg-tertiary">{where}</p>}
+        <p className="mt-1 text-caption text-fg-tertiary">{t('nextQuestion.hint.paymentPlan')}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:flex">
+        <Button
+          appearance="accent"
+          icon={<BookOpen20Regular />}
+          data-testid="next-open-plan"
+          onClick={() => navigation.openPaymentPlan(question.answer.targetId)}
+        >
+          {t(PAYMENT_PLAN_QUESTION_KEYS.open)}
+        </Button>
+        <Button icon={<ArrowRight20Regular />} data-testid="next-skip" onClick={onSkip}>
+          {t('nextQuestion.skip')}
+        </Button>
+      </div>
+    </div>
   );
 }
