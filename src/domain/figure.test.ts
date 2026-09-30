@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CHANCE_ROLES,
+  chanceFigure,
   counted,
   daysFigure,
   moneyFigure,
@@ -9,6 +11,7 @@ import {
   summed,
   traceable,
   type AmountRow,
+  type ChanceRow,
   type DaysRow,
   type Figure,
   type ReportRow,
@@ -239,5 +242,68 @@ describe('a money figure', () => {
       false,
     );
     expect(traceable(moneyFigure('x', 'x', [amount('a', 1), amount('a', 1)]))).toBe(false);
+  });
+});
+
+describe('a chance figure', () => {
+  const chance = (key: string, role: ChanceRow['role'], share: number | null): ChanceRow => ({
+    key,
+    itemId: key,
+    title: key,
+    day: null,
+    minutes: 0,
+    role,
+    share,
+  });
+  const rows = [chance('driver:a', 'driver', 0.62), chance('certain:b', 'certain', null)];
+
+  it('is a share of runs, and its rows are what it depends on, not parts of it', () => {
+    const figure = chanceFigure(
+      'p80',
+      'schedule.probability.figure.p80',
+      1640,
+      2000,
+      '2026-11-14',
+      rows,
+    );
+    expect(figure).toMatchObject({ unit: 'chance', value: 0.82, hits: 1640, runs: 2000 });
+    expect(figure.date).toBe('2026-11-14');
+    expect(traceable(figure)).toBe(true);
+    expect(traceable(chanceFigure('x', 'x', 0, 1, null, []))).toBe(true);
+    expect(traceable(chanceFigure('x', 'x', 5, 5, null, [chance('c', 'critical', 1)]))).toBe(true);
+    expect(CHANCE_ROLES).toEqual(['driver', 'certain', 'critical']);
+  });
+
+  it('is caught when its value is not hits over runs, or its counts are not counts', () => {
+    const honest = chanceFigure('x', 'x', 3, 4, null, rows);
+    expect(traceable({ ...honest, value: 0.8 })).toBe(false);
+    expect(traceable({ ...honest, hits: 5, value: 1.25 })).toBe(false);
+    expect(traceable({ ...honest, hits: -1, value: -0.25 })).toBe(false);
+    expect(traceable({ ...honest, runs: 0, hits: 0, value: Number.NaN })).toBe(false);
+    expect(traceable({ ...honest, hits: 1.5, value: 1.5 / 4 })).toBe(false);
+    expect(traceable({ ...honest, runs: 4.5, value: 3 / 4.5 })).toBe(false);
+  });
+
+  it('is caught with a row whose share its role does not allow, or a row listed twice', () => {
+    const with_ = (each: ChanceRow) => chanceFigure('x', 'x', 1, 2, null, [each]);
+    expect(traceable(with_(chance('a', 'certain', 0.5)))).toBe(false);
+    expect(traceable(with_(chance('a', 'driver', 1.2)))).toBe(false);
+    expect(traceable(with_(chance('a', 'driver', -1)))).toBe(true);
+    expect(traceable(with_(chance('a', 'driver', null)))).toBe(false);
+    expect(traceable(with_(chance('a', 'driver', Number.NaN)))).toBe(false);
+    expect(traceable(with_(chance('a', 'critical', -0.1)))).toBe(false);
+    expect(traceable(with_(chance('a', 'critical', 1.1)))).toBe(false);
+    expect(traceable(with_(row('a') as unknown as ChanceRow))).toBe(false);
+    expect(
+      traceable(with_({ ...chance('a', 'driver', 0.5), role: 'other' } as unknown as ChanceRow)),
+    ).toBe(false);
+    expect(
+      traceable(
+        chanceFigure('x', 'x', 1, 2, null, [
+          chance('a', 'certain', null),
+          chance('a', 'certain', null),
+        ]),
+      ),
+    ).toBe(false);
   });
 });
