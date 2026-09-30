@@ -16,12 +16,18 @@ export interface Navigation {
    * People card's field that adds a person (F11: the Next question card's "Add a person").
    */
   openPlan: (focus: string) => void;
+  /**
+   * Open Money by stage on one commitment, its payment plan open and the focus on it (D2: the Next
+   * question's "How is this commitment to be paid?" answers by opening the plan, not inline).
+   */
+  openPaymentPlan: (commitmentId: string) => void;
 }
 
 export const NavigationContext = createContext<Navigation>({
   openDocuments: () => undefined,
   openDiary: () => undefined,
   openPlan: () => undefined,
+  openPaymentPlan: () => undefined,
 });
 
 export function useNavigation(): Navigation {

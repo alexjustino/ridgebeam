@@ -77,6 +77,11 @@ import {
   commitmentAdd,
   commitmentRemove,
   commitmentUpdate,
+  milestoneAdd,
+  milestoneMove,
+  milestoneRemove,
+  milestoneUpdate,
+  milestonesUsual,
   costLineAdd,
   costLineRemove,
   costLineUpdate,
@@ -121,6 +126,9 @@ import {
   type DecisionPatch,
   type EntryDraft,
   type Gate,
+  type MilestoneDraft,
+  type MilestonePatch,
+  type UsualMilestoneLabels,
   type PaymentDraftWire,
   type PersonPatch,
   type PlanToApply,
@@ -602,6 +610,35 @@ export function useAddPayment() {
 export function useReversePayment() {
   return useWorkCommand(({ seq, note }: { seq: number; note: string }) =>
     paymentReverse(seq, note),
+  );
+}
+
+// ── A commitment's payment plan (D2) ─────────────────────────────────────────
+
+export function useAddMilestone() {
+  return useWorkCommand((draft: MilestoneDraft) => milestoneAdd(draft));
+}
+
+export function useUpdateMilestone() {
+  return useWorkCommand(({ id, patch }: { id: string; patch: MilestonePatch }) =>
+    milestoneUpdate(id, patch),
+  );
+}
+
+export function useMoveMilestone() {
+  return useWorkCommand(({ id, direction }: { id: string; direction: Direction }) =>
+    milestoneMove(id, direction),
+  );
+}
+
+export function useRemoveMilestone() {
+  return useWorkCommand((id: string) => milestoneRemove(id));
+}
+
+export function useUsualMilestones() {
+  return useWorkCommand(
+    ({ commitmentId, labels }: { commitmentId: string; labels: UsualMilestoneLabels }) =>
+      milestonesUsual(commitmentId, labels),
   );
 }
 

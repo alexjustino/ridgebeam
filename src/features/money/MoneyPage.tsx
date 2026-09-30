@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 
 import type { WorkSnapshot } from '@/domain/plan';
 import { useI18n } from '@/i18n/useI18n';
@@ -18,11 +18,32 @@ type MoneyTab = 'by-stage' | 'by-trade' | 'ledger';
  * work's currency and in whole cents until the moment it becomes words (ADR-023, ADR-024). Three
  * arrangements of the same money: by stage, by trade, and the ledger itself; the S-curve of planned
  * against paid under them.
+ *
+ * Asked for from another page (D2: the Next question's "How is this commitment to be paid?"), it
+ * opens By stage on that commitment's payment plan, open and focused; the request is then let go,
+ * so the next visit opens as usual.
  */
-export function MoneyPage({ snapshot }: { snapshot: WorkSnapshot }) {
+export function MoneyPage({
+  snapshot,
+  initialCommitment = null,
+  onFocusTaken,
+}: {
+  snapshot: WorkSnapshot;
+  /** A commitment whose payment plan to open on, focused — asked for from another page. */
+  initialCommitment?: string | null;
+  onFocusTaken?: () => void;
+}) {
   const { t, describeError } = useI18n();
   const panel = useId();
   const [tab, setTab] = useState<MoneyTab>('by-stage');
+  // Held here until By stage has put the focus on it, then let go: coming back to the tab later
+  // opens as usual.
+  const [focusCommitment, setFocusCommitment] = useState<string | null>(initialCommitment);
+  const focusTaken = useCallback(() => setFocusCommitment(null), []);
+
+  useEffect(() => {
+    if (initialCommitment !== null) onFocusTaken?.();
+  }, [initialCommitment, onFocusTaken]);
   const [refusal, setRefusal] = useState<string | null>(null);
   const outcome = useMemo(
     () => ({
@@ -66,7 +87,14 @@ export function MoneyPage({ snapshot }: { snapshot: WorkSnapshot }) {
         aria-labelledby={`${panel}-tab-${tab}`}
         className="flex flex-col gap-4"
       >
-        {tab === 'by-stage' && <ByStage snapshot={snapshot} outcome={outcome} />}
+        {tab === 'by-stage' && (
+          <ByStage
+            snapshot={snapshot}
+            outcome={outcome}
+            focusCommitment={focusCommitment}
+            onFocusTaken={focusTaken}
+          />
+        )}
         {tab === 'by-trade' && <ByTrade snapshot={snapshot} />}
         {tab === 'ledger' && <Ledger snapshot={snapshot} />}
       </div>

@@ -16,7 +16,14 @@ import { invoke } from '@tauri-apps/api/core';
 
 import type { DiaryEntry, EntryDraft } from '@/domain/diary';
 import type { Direction } from '@/domain/ordering';
-import type { Answer, Endpoint, Gate, Holiday, WorkSnapshot } from '@/domain/plan';
+import type {
+  Answer,
+  Endpoint,
+  Gate,
+  Holiday,
+  MilestoneTrigger,
+  WorkSnapshot,
+} from '@/domain/plan';
 import type { PlanDraft, Provenance } from '@/domain/templates/format';
 import {
   readLanguage,
@@ -709,6 +716,69 @@ export function paymentAdd(draft: PaymentDraftWire): Promise<WorkSnapshot> {
 /** Reverse a payment: a new, negative payment naming it, with the reason. Once per payment. */
 export function paymentReverse(seq: number, note: string): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('payment_reverse', { seq, note });
+}
+
+// ── A commitment's payment plan (D2) ─────────────────────────────────────────
+//
+// A milestone is a share of a commitment's amount, in basis points (30 % = 3000), earned by a fact
+// of the work — never a date. Every one of these is refused once a payment names the commitment:
+// a plan rewritten after paying would hide being ahead of the work (ADR-037).
+
+export interface MilestoneDraft {
+  commitmentId: string;
+  label: string;
+  /** 1..10 000; the shares of a commitment add up to at most 10 000. */
+  shareBp: number;
+  trigger: MilestoneTrigger;
+  /** Required for `activity_finished` — an activity of the commitment's stage — and `null` otherwise. */
+  activityId: string | null;
+}
+
+export function milestoneAdd(draft: MilestoneDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('milestone_add', {
+    commitment_id: draft.commitmentId,
+    label: draft.label,
+    share_bp: draft.shareBp,
+    trigger: draft.trigger,
+    activity_id: draft.activityId,
+  });
+}
+
+export interface MilestonePatch {
+  label?: string;
+  shareBp?: number;
+  trigger?: MilestoneTrigger;
+  activityId?: string | null;
+}
+
+export function milestoneUpdate(id: string, patch: MilestonePatch): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('milestone_update', { id, patch });
+}
+
+export function milestoneMove(id: string, direction: Direction): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('milestone_move', { id, direction });
+}
+
+export function milestoneRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('milestone_remove', { id });
+}
+
+/** The labels of the usual three, in the person's language: the host writes them as given. */
+export interface UsualMilestoneLabels {
+  started: string;
+  finished: string;
+  closed: string;
+}
+
+/**
+ * The usual split — 30 % when the stage starts, 40 % when its last activity is finished, 30 % when
+ * it closes — on a commitment with no milestones. The host picks the stage's last activity.
+ */
+export function milestonesUsual(
+  commitmentId: string,
+  labels: UsualMilestoneLabels,
+): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('milestones_usual', { commitment_id: commitmentId, labels });
 }
 
 // ── People as contacts, documents and the folder (F7) ────────────────────────
