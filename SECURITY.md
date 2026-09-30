@@ -165,7 +165,12 @@ lines — with `plan_approved`, unless a **replanning** is open. A replanning is
 reason that is not blank, and closed only by taking the next baseline, which copies the reason
 and is insert-only like every baseline. There is no abandon: an edit already in the file ends in
 a baseline that records it. Facts are never locked — the diary, answers, payments and the rest
-are the record, and refusing them would push them out of it.
+are the record, and refusing them would push them out of it. **An activity's range is not in the
+list either** (D1, ADR-035): a baseline does not record it, so an approved plan takes a new
+optimistic or pessimistic duration with no reason asked, and the finish's chance moves with it —
+never the plan's dates, the slip or a baseline. The chance is computed and never stored, so there
+is nothing of it to tamper with in the file; a range changed after approval is not recorded
+anywhere either, which is the cost ADR-035 names.
 
 **The replanning is written once, and not a requirement-one table.** Its `closed_at` and
 `baseline_number` are written into the row by the transaction that takes the baseline closing
