@@ -55,12 +55,17 @@ import {
   dependencyRemove,
   dependencyUpdate,
   calendarSet,
+  careNoteAdd,
+  careNoteMove,
+  careNoteRemove,
+  careNoteUpdate,
   checkAdd,
   checkAnswer,
   checkMove,
   checkRemove,
   checkRename,
   checksAddDefaults,
+  checkSetNeedsPhoto,
   personRemove,
   personUpdate,
   personSetStages,
@@ -123,6 +128,7 @@ import {
   type CostLinePatch,
   type BaselineRowDraft,
   type CalendarDraft,
+  type CareNoteTarget,
   type DecisionPatch,
   type EntryDraft,
   type Gate,
@@ -365,7 +371,7 @@ export function useRemoveRoom() {
 }
 
 /** A move names what moves: a stage, an activity inside its stage, or a room. */
-export type MoveKind = 'stage' | 'activity' | 'room' | 'decision' | 'check';
+export type MoveKind = 'stage' | 'activity' | 'room' | 'decision' | 'check' | 'careNote';
 
 const MOVES: Record<MoveKind, (id: string, direction: Direction) => Promise<WorkSnapshot>> = {
   stage: stageMove,
@@ -373,6 +379,7 @@ const MOVES: Record<MoveKind, (id: string, direction: Direction) => Promise<Work
   room: roomMove,
   decision: decisionMove,
   check: checkMove,
+  careNote: careNoteMove,
 };
 
 export function useMove() {
@@ -520,8 +527,17 @@ export function useRemoveCheck() {
 
 export function useAddDefaultChecks() {
   return useWorkCommand(
-    ({ stageId, start, close }: { stageId: string; start: string[]; close: string[] }) =>
-      checksAddDefaults(stageId, start, close),
+    ({
+      stageId,
+      start,
+      close,
+      needsPhoto,
+    }: {
+      stageId: string;
+      start: string[];
+      close: string[];
+      needsPhoto: string[];
+    }) => checksAddDefaults(stageId, start, close, needsPhoto),
   );
 }
 
@@ -543,6 +559,12 @@ export function useAnswerCheck() {
   );
 }
 
+export function useSetNeedsPhoto() {
+  return useWorkCommand(({ id, needsPhoto }: { id: string; needsPhoto: boolean }) =>
+    checkSetNeedsPhoto(id, needsPhoto),
+  );
+}
+
 export function useStartStage() {
   return useWorkCommand((id: string) => stageStart(id));
 }
@@ -553,6 +575,22 @@ export function useCloseStage() {
 
 export function useReopenStage() {
   return useWorkCommand((id: string) => stageReopen(id));
+}
+
+// ── Care notes (D3) ──────────────────────────────────────────────────────────
+
+export function useAddCareNote() {
+  return useWorkCommand(({ target, text }: { target: CareNoteTarget; text: string }) =>
+    careNoteAdd(target, text),
+  );
+}
+
+export function useUpdateCareNote() {
+  return useWorkCommand(({ id, text }: { id: string; text: string }) => careNoteUpdate(id, text));
+}
+
+export function useRemoveCareNote() {
+  return useWorkCommand((id: string) => careNoteRemove(id));
 }
 
 // ── People and money (F6) ────────────────────────────────────────────────────
