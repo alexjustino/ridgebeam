@@ -468,7 +468,16 @@ describe('stages', () => {
         { ...stage('finish', 2, 'Finishes'), startedAt: '2026-09-29T08:00:00.000Z' },
         stage('extra', 3, 'Extra'),
       ],
-      checks: [{ id: 'k', stageId: 'finish', gate: 'close', position: 1, name: 'Clean' }],
+      checks: [
+        {
+          id: 'k',
+          stageId: 'finish',
+          gate: 'close',
+          position: 1,
+          name: 'Clean',
+          needsPhoto: false,
+        },
+      ],
     };
     const report = made(plan, [], null, '2026-10-01');
     const ids = (figure: Figure<ReportRow>) => figure.rows.map((row) => row.itemId);

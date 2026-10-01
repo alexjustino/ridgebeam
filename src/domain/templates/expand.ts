@@ -222,6 +222,7 @@ export function draftCycle(shape: DraftShape, links: readonly DraftLink[]): Draf
     decisions: [],
     checks: [],
     checkAnswers: [],
+    careNotes: [],
     costLines: [],
     commitments: [],
     payments: [],

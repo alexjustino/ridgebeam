@@ -11,6 +11,7 @@ const startCheck = (id: string, stageId: string): Check => ({
   gate: 'start',
   position: 1,
   name: `Check ${id}`,
+  needsPhoto: false,
 });
 
 const yes = (checkId: string): CheckAnswer => ({

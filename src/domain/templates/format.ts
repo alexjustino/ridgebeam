@@ -17,7 +17,7 @@
  *   "includes": ["other-template-id"],
  *   "rooms": [ { "key": "bathroom", "name": { … } } ],
  *   "stages": [ { "key": "strip-out", "name": { … },
- *       "checks": { "start": [ { … } ], "close": [ { … } ] },
+ *       "checks": { "start": [ { … } ], "close": [ { "en": "…", "pt-BR": "…", "photo": true } ] },
  *       "costLines": [ { "label": { … }, "activity": "remove-tiles", "amountCents": 12345 } ],
  *       "decisions": [ { "key": "tile", "name": { … }, "leadDays": { "min": 5, "max": 15 },
  *                        "needs": "remove-tiles" } ],
@@ -70,10 +70,19 @@ export interface TemplateActivity {
   readonly rooms?: readonly string[];
 }
 
+/**
+ * One question a stage must answer at a gate: its text, and, optionally, `"photo": true` when a
+ * `yes` needs its photo — hidden work, photographed before it is covered (slice D3). Absent (or
+ * `false`) is a check like any other.
+ */
+export interface TemplateCheck extends LocalisedText {
+  readonly photo?: boolean;
+}
+
 /** The questions a stage must answer before it starts and before it closes. */
 export interface TemplateChecks {
-  readonly start?: readonly LocalisedText[];
-  readonly close?: readonly LocalisedText[];
+  readonly start?: readonly TemplateCheck[];
+  readonly close?: readonly TemplateCheck[];
 }
 
 export interface TemplateCostLine {
@@ -183,6 +192,8 @@ export interface DraftActivity {
 export interface DraftCheck {
   readonly gate: 'start' | 'close';
   readonly name: string;
+  /** The template's `photo`: a `yes` needs its photo. `false` when the template did not say. */
+  readonly needsPhoto: boolean;
 }
 
 export interface DraftCostLine {

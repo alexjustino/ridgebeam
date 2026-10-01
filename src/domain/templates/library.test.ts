@@ -4,9 +4,9 @@ import { basename, join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { draftProblems, provenanceProblems, sampleTemplate } from '../__fixtures__/templates';
+import { both, draftProblems, provenanceProblems, sampleTemplate } from '../__fixtures__/templates';
 import { applyTemplate, TEMPLATE_NOTE_KEYS } from './apply';
-import { TEMPLATE_LANGUAGES } from './format';
+import { TEMPLATE_LANGUAGES, type Template, type TemplateStage } from './format';
 import { validateLibrary, type LibraryFile } from './validate';
 
 /**
@@ -291,5 +291,48 @@ describe("the host's checks, restated for the library test", () => {
     expect(
       provenanceProblems({ templateId: 'k', templateVersion: 1, templateTitle: 'x'.repeat(121) }),
     ).toHaveLength(1);
+  });
+});
+
+describe('the library with the photo flag', () => {
+  const files = existsSync(LIBRARY)
+    ? readdirSync(LIBRARY)
+        .filter((entry) => entry.endsWith('.json'))
+        .sort()
+        .map((entry) => ({
+          name: basename(entry, '.json'),
+          raw: JSON.parse(readFileSync(join(LIBRARY, entry), 'utf8')) as Template,
+        }))
+    : [];
+
+  it('still passes every library file when each closing check carries the flag', () => {
+    // Whether or not the library files say it yet, a flag on any check must not cost a file its
+    // place: the library rule is unchanged otherwise.
+    const withFlag = files.map(({ name, raw }) => ({
+      name,
+      raw: {
+        ...raw,
+        stages: raw.stages.map((each): TemplateStage =>
+          each.checks?.close === undefined
+            ? {
+                ...each,
+                checks: {
+                  ...each.checks,
+                  close: [{ ...both('Hidden work photographed'), photo: true }],
+                },
+              }
+            : {
+                ...each,
+                checks: {
+                  ...each.checks,
+                  close: each.checks.close.map((check) => ({ ...check, photo: true })),
+                },
+              },
+        ),
+      },
+    }));
+    const { library, rejected } = validateLibrary(withFlag);
+    expect(rejected).toEqual([]);
+    expect(library.size).toBe(files.length);
   });
 });

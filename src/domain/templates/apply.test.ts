@@ -65,8 +65,8 @@ describe('applyTemplate', () => {
 
   it('copies checks gate by gate, cost lines as labels with no amount, and links with their lag', () => {
     expect(draft.stages[0]!.checks).toEqual([
-      { gate: 'start', name: 'Is the water shut off?' },
-      { gate: 'close', name: 'Is the rubble gone?' },
+      { gate: 'start', name: 'Is the water shut off?', needsPhoto: false },
+      { gate: 'close', name: 'Is the rubble gone?', needsPhoto: false },
     ]);
     expect(draft.stages[0]!.costLines).toEqual([
       { label: 'Skip hire', activityKey: null, amountCents: null },

@@ -131,8 +131,22 @@ export function largeWork(seed = 20260928): { plan: WorkSnapshot; entries: Diary
   }));
 
   const checks: Check[] = stages.flatMap((each) => [
-    { id: `${each.id}-start`, stageId: each.id, gate: 'start' as const, position: 1, name: 'S' },
-    { id: `${each.id}-close`, stageId: each.id, gate: 'close' as const, position: 1, name: 'C' },
+    {
+      id: `${each.id}-start`,
+      stageId: each.id,
+      gate: 'start' as const,
+      position: 1,
+      name: 'S',
+      needsPhoto: false,
+    },
+    {
+      id: `${each.id}-close`,
+      stageId: each.id,
+      gate: 'close' as const,
+      position: 1,
+      name: 'C',
+      needsPhoto: false,
+    },
   ]);
   const checkAnswers: CheckAnswer[] = stages.slice(0, 10).map((each, i) => ({
     id: `ans${i}`,
