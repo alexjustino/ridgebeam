@@ -15,10 +15,11 @@ import { Breakdown } from './Breakdown';
 import { ByRoom } from './ByRoom';
 import { Checklist } from './Checklist';
 import { GatesTab } from './GatesTab';
+import { HandoverTab } from './HandoverTab';
 import { PeopleTab } from './PeopleTab';
 import type { Outcome } from './outcome';
 
-export type PlanTab = 'breakdown' | 'by-room' | 'checklist' | 'gates' | 'people';
+export type PlanTab = 'breakdown' | 'by-room' | 'checklist' | 'gates' | 'people' | 'handover';
 
 /**
  * The arrangement each lens opens on (ADR-014): the engineer's work breakdown, the architect's
@@ -43,6 +44,10 @@ const TAB_FOR_LENS: Record<LensChoice, PlanTab> = {
  *
  * The header offers **Export as a template…** (F9, `template-export`): the plan's shape written to a
  * file another work can start from, with its numbers stripped or kept (ADR-030).
+ *
+ * **Handover** (D3, decision 7) holds what the owner keeps when the work ends: the care notes of the
+ * work, each room and each stage, and the hidden work — every check that needs its photo, with its
+ * state — each leading to its item on the Gates tab.
  */
 export function PlanPage({
   snapshot,
@@ -66,6 +71,7 @@ export function PlanPage({
     initialFocus === null ? TAB_FOR_LENS[lens] : 'breakdown',
   );
   const [focusRow, setFocusRow] = useState<string | null>(initialFocus);
+  const [focusCheck, setFocusCheck] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const panel = useId();
@@ -88,6 +94,11 @@ export function PlanPage({
     setFocusRow(activityId);
   }, []);
   const focused = useCallback(() => setFocusRow(null), []);
+  const gates = useCallback((checkId: string) => {
+    setTab('gates');
+    setFocusCheck(checkId);
+  }, []);
+  const checkFocused = useCallback(() => setFocusCheck(null), []);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
@@ -125,6 +136,7 @@ export function PlanPage({
             { id: 'checklist', label: t('plan.tab.checklist') },
             { id: 'gates', label: t('plan.tab.gates') },
             { id: 'people', label: t('plan.tab.people') },
+            { id: 'handover', label: t('plan.tab.handover') },
           ]}
         />
       </div>
@@ -147,8 +159,11 @@ export function PlanPage({
         )}
         {tab === 'by-room' && <ByRoom snapshot={snapshot} onEdit={edit} />}
         {tab === 'checklist' && <Checklist snapshot={snapshot} onEdit={edit} />}
-        {tab === 'gates' && <GatesTab snapshot={snapshot} />}
+        {tab === 'gates' && (
+          <GatesTab snapshot={snapshot} focusCheck={focusCheck} onFocused={checkFocused} />
+        )}
         {tab === 'people' && <PeopleTab snapshot={snapshot} />}
+        {tab === 'handover' && <HandoverTab snapshot={snapshot} onGates={gates} />}
       </div>
 
       {/* Mounted only while open, so each opening starts from the plan as it is now. */}
