@@ -542,15 +542,16 @@ breaks one is not merged.
   list of its problems in sentences, each saying where in the file it is — never "invalid file".
 - **A report says what the screen says, in the same words.** A PDF is composed from the rows the
   screen shows, by the same domain selections, through the same `t()` and the same dictionaries —
-  never from a second calculation and never from words written for paper only (ADR-031). A figure
-  on the page carries its rows under it, as it opens onto them on the screen. The weekly report is
-  in the **owner's** words whatever lens is on, because it is the owner's report; the diary and the
+  never from a second calculation and never from words written for paper only (ADR-031). A figure on
+  the page carries its rows under it, as it opens onto them on the screen. The weekly report is in
+  the **owner's** words whatever lens is on, because it is the owner's report; the diary and the
   schedule follow the lens and the language on screen. A string the page cannot print is a defect
   the encoder test finds before a person does: the three stand-ins (→ `->`, ≥ `>=`, ≤ `<=`) are the
-  only difference allowed, and a `?` fails the gate. What the page leaves out it says in words —
-  photos are counted and said to be in the work's folder, a note shortened in a row is whole in the
-  diary's PDF — and each card on **Reports** says in one line what its file holds **and what it
-  does not**, and after writing names the path and offers **Open**.
+  only difference allowed, and a `?` fails the gate. What the page leaves out it says in words — the
+  weekly report and the diary count photos and say they are in the work's folder, a note shortened
+  in a row is whole in the diary's PDF, and the handover book, which prints its photos, names each
+  PDF document without reproducing it — and each card on **Reports** says in one line what its file
+  holds **and what it does not**, and after writing names the path and offers **Open**.
 - **The plan asks one question at a time.** While a work's plan still has open questions — an
   activity with a range and no duration, an activity with nobody responsible, a cost line not priced
   yet, a decision not made that is overdue or due within 14 calendar days — the dashboard's first
@@ -578,6 +579,21 @@ breaks one is not merged.
   drops a section because it has nothing in it — a figure with nothing to count is printed with its
   zero — and never leaves a reader unable to tell an empty week from a page that failed to print
   (SPEC R2).
+- **A book says what it still lacks before it is printed.** A document meant to be kept as the
+  record — the handover book — is never written silently incomplete. Its card on **Reports** shows,
+  before the button that writes it, a counted figure of its gaps (`handover-gaps`) that opens onto
+  its rows like any other figure — _"The book has 4 gaps"_, then each one by name: a check that
+  needs a photo answered without one, a check that needs a photo not answered, a stage not closed, a
+  room with no photo, no warranty or manual at all, no care note. **The gaps do not disable the
+  button**: an owner may want the book halfway through, so writing stays the person's decision, as a
+  warning is not a refusal (above). And what the screen said, the page says: a book written while
+  any stage is open says on its first page that it was _written while the work was in progress_, and
+  that page prints the same gaps, with their rows. The book is in the **owner's** words whatever
+  lens is on, like the weekly report. A photo in it is captioned with what it shows — the check or
+  the activity, and the day — and a photo of hidden work is printed full width, others two to a row.
+  A care note is printed as the person wrote it, and never offered by the product as advice. Where a
+  check needs a photo, its photo field is open from the start and the Gates tab says why, so nobody
+  learns of the rule from a refusal (ADR-038).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries

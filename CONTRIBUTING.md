@@ -79,7 +79,8 @@ it for them.
    changes; a work records the version it started from.
 2. **Only the fields of the format, and no other.** The top level is `ridgebeamTemplate` (always
    1, the format's version), `id`, `version`, `title`, `summary`, `includes`, `rooms`, `stages` and
-   `links`. A stage has `key`, `name`, `checks` (`start` and `close`, each a list of questions),
+   `links`. A stage has `key`, `name`, `checks` (`start` and `close`, each a list of questions, a
+   question optionally saying `"photo": true`),
    `costLines` (`label`, and the `activity` it belongs to if it is not the stage's own), `decisions`
    (`key`, `name`, `leadDays`, and the activity that `needs` it) and `activities` (`key`, `name`,
    `durationDays`, `rooms`). A link is `blocker`, `blocked` and `lagDays`: finish-to-start, each end
@@ -112,7 +113,25 @@ it for them.
    stage that needs it, with the activity that needs it (`needs`). Rooms where they help the
    person read the work by room. The summary says what the template covers and says that it is a
    starting point, not a quote.
-8. **Includes, when a template is made of others.** `includes` names library templates whose
+8. **Hidden work asks for its photo.** A stage that closes a wall, a floor, a ceiling or a slab
+   over pipes, wiring, conduits, reinforcement or waterproofing carries **one** close-gate check
+   that needs a photo, with `"photo": true` beside its two languages:
+
+   ```json
+   {
+     "en": "Are the pipes and wiring photographed before the walls are closed?",
+     "pt-BR": "Os canos e a fiação foram fotografados antes de fechar as paredes?",
+     "photo": true
+   }
+   ```
+
+   A work started from the template gets the check with its photo required: a _yes_ without a
+   photo is refused, and the photo is what the handover book prints
+   ([ADR-038](docs/architecture/ADR.md#adr-038)). Ask it of what the stage hides, in the stage
+   that hides it — the waterproofing before the tiles, not every stage. `photo` is `true` or
+   absent; `false` is allowed and means the same as absent.
+
+9. **Includes, when a template is made of others.** `includes` names library templates whose
    stages come first, in that order, each once (`apartment-refit` includes `bathroom-renovation`
    and `kitchen-renovation`). A link may name an included stage by its key when only one template
    in reach has it, or as `template-id:stage-key`. A template may not include itself, and
@@ -127,6 +146,7 @@ and in CI on every pull request. For **every** file in `templates/` it checks th
 - every key is kebab-case and unique where it must be, and every room, activity, `needs` and link
   endpoint names something that exists;
 - every text is in both languages, not blank, and within its length;
+- a check's `photo`, when it is there, is `true` or `false` and nothing else;
 - a summary is there;
 - every duration and every lead time is a range with `min < max`, within its limits;
 - no cost line has an amount;
@@ -149,12 +169,12 @@ gate checks them.
 ### What the test cannot enforce
 
 A test can refuse a point, a price and a phone number; it cannot tell whether a range is honest,
-whether a check is the question a site really asks, whether a name is a brand, or whether the
-Portuguese reads naturally. **A maintainer reviews every template before it merges**, on those
-four questions and on the rule of nothing real, and asks for changes the way a reviewer asks for
-them in code. The pull request answers the template questions in
-[`PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md): which template, that the library
-test passes, and that somebody who speaks each language has read it.
+whether a check is the question a site really asks, whether a stage that hides work asks for its
+photo, whether a name is a brand, or whether the Portuguese reads naturally. **A maintainer reviews
+every template before it merges**, on those five questions and on the rule of nothing real, and asks
+for changes the way a reviewer asks for them in code. The pull request answers the template
+questions in [`PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md): which template, that
+the library test passes, and that somebody who speaks each language has read it.
 
 A work exported as a template ([ADR-030](docs/architecture/ADR.md#adr-030)) is a starting point
 for a library template, not one: it is in one language, has no summary, and, with its numbers
