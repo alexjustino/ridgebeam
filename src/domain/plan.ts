@@ -127,6 +127,30 @@ export interface CostLine {
   readonly amountCents: number | null;
 }
 
+/**
+ * The fact of the work a milestone is earned by (slice D2): never a date, never a tick. `advance`:
+ * the day the commitment was agreed (a "sinal", paid before any work); `stage_started`: the stage's
+ * start gate passed; `activity_finished`: an effective diary entry finished the activity;
+ * `stage_closed`: the close gate passed (a reopened stage un-earns it).
+ */
+export type MilestoneTrigger = 'advance' | 'stage_started' | 'activity_finished' | 'stage_closed';
+
+/**
+ * One step of a commitment's payment plan (slice D2): a share of the commitment's amount, earned by
+ * a fact of the work. The shares of a commitment sum to at most 10 000 basis points (100 %).
+ */
+export interface Milestone {
+  readonly id: string;
+  /** Order inside the commitment's plan. */
+  readonly position: number;
+  readonly label: string;
+  /** Basis points of the commitment's amount, 1 to 10 000: "30 %" is 3 000. */
+  readonly shareBp: number;
+  readonly trigger: MilestoneTrigger;
+  /** The activity whose finish earns it: set exactly when `trigger` is `activity_finished`. */
+  readonly activityId: string | null;
+}
+
 /** Money committed: a quote or contract accepted, for a stage, usually with one trade. */
 export interface Commitment {
   readonly id: string;
@@ -138,6 +162,11 @@ export interface Commitment {
   /** `YYYY-MM-DD`. */
   readonly agreedOn: string;
   readonly documentHash: string | null;
+  /**
+   * Its payment plan, in position order (slice D2); empty when it has none, which is "no payment
+   * plan", never "nothing earned".
+   */
+  readonly milestones: readonly Milestone[];
 }
 
 /**

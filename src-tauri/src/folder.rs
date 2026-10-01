@@ -1110,10 +1110,13 @@ mod tests {
             assert_eq!(migrations::WORK.current_version(&conn), 9);
         }
 
-        let state = open(scratch.path()).expect("an F8 work opens in F9");
+        let state = open(scratch.path()).expect("an F8 work opens in F9, and on to head");
         let conn = &state.conn;
 
-        assert_eq!(migrations::WORK.current_version(conn), 10);
+        assert_eq!(
+            migrations::WORK.current_version(conn),
+            migrations::WORK.target_version()
+        );
         assert_eq!(raw_rows(conn, lines), lines_before, "every line, as it was");
         assert_eq!(
             baselines.map(|sql| raw_rows(conn, sql)),
@@ -1214,6 +1217,191 @@ mod tests {
         close(state);
 
         let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        assert!(diary::verify(&again.conn).unwrap().intact);
+        close(again);
+        assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
+    }
+
+    /// The upgrade a person makes from D1: a work folder at schema 10 with
+    /// money — a cost line, two commitments, one paid against (a payment and
+    /// its reversal) and one not — and a diary entry. Opened by D2, it gains
+    /// `payment_milestone`, empty: every commitment reads "no payment plan",
+    /// and nothing already written moves. The paid commitment's plan is fixed
+    /// from the start — the reversal does not unfix it — and the unpaid one
+    /// takes the usual plan. The diary chain still verifies.
+    #[test]
+    fn a_work_folder_at_schema_ten_with_money_and_a_diary_gains_payment_plans_and_keeps_every_row()
+    {
+        use crate::db::{diary, milestones};
+
+        let scratch = Scratch::create();
+        let bathroom = "00000000-0000-7000-8000-00000000000b";
+        let tiling = "00000000-0000-7000-8000-00000000000c";
+        let paid = "00000000-0000-7000-8000-0000000000d1";
+        let unpaid = "00000000-0000-7000-8000-0000000000d2";
+        let money = [
+            "SELECT * FROM cost_line ORDER BY id",
+            "SELECT * FROM commitment ORDER BY id",
+            "SELECT * FROM payment ORDER BY seq",
+            "SELECT id, name, trade FROM person ORDER BY id",
+        ];
+
+        let (money_before, diary_before);
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 10).unwrap();
+            conn.execute_batch(&format!(
+                "UPDATE person SET trade = 'Tiler';
+                 INSERT INTO cost_line (id, stage_id, activity_id, label, amount_cents, created_at)
+                 VALUES ('00000000-0000-7000-8000-0000000000c1', '{bathroom}', '{tiling}',
+                         'Tiles', 120000, '2026-09-20T10:00:00.000Z'),
+                        ('00000000-0000-7000-8000-0000000000c2', '{bathroom}', NULL,
+                         'Grout', NULL, '2026-09-20T10:00:01.000Z');
+                 INSERT INTO commitment (id, stage_id, person_id, label, amount_cents, agreed_on,
+                                         created_at)
+                 VALUES ('{paid}', '{bathroom}', '00000000-0000-7000-8000-00000000000a',
+                         'Tiler''s quote', 100000, '2026-10-01', '2026-10-01T09:00:00.000Z'),
+                        ('{unpaid}', '{bathroom}', NULL, 'Plumber''s quote', 50000,
+                         '2026-10-02', '2026-10-02T09:00:00.000Z');
+                 INSERT INTO payment (id, seq, day, person_id, stage_id, commitment_id,
+                                      amount_cents, what_for, author_name, created_at)
+                 VALUES ('00000000-0000-7000-8000-0000000000e1', 1, '2026-10-03',
+                         '00000000-0000-7000-8000-00000000000a', '{bathroom}', '{paid}', 30000,
+                         'Advance', 'Synthetic author', '2026-10-03T09:00:00.000Z');
+                 INSERT INTO payment (id, seq, day, person_id, stage_id, commitment_id,
+                                      amount_cents, what_for, reverses_seq, author_name,
+                                      created_at)
+                 VALUES ('00000000-0000-7000-8000-0000000000e2', 2, '2026-10-04',
+                         '00000000-0000-7000-8000-00000000000a', '{bathroom}', '{paid}', -30000,
+                         'Paid by mistake.', 1, 'Synthetic author',
+                         '2026-10-04T09:00:00.000Z');"
+            ))
+            .expect("a D1 work's money");
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    day: "2026-10-06".into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Tiles laid.".into()),
+                    weather: None,
+                    lost_day: false,
+                    hours: None,
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: vec![crate::contract::DoneLine {
+                        activity_id: tiling.into(),
+                        state: "finished".into(),
+                        quantity: None,
+                        note: None,
+                    }],
+                    present: Vec::new(),
+                    photos: Vec::new(),
+                },
+            )
+            .unwrap();
+            money_before = money.map(|sql| raw_rows(&conn, sql));
+            diary_before = diary::list(&conn, None, None).unwrap();
+            assert_eq!(migrations::WORK.current_version(&conn), 10);
+            assert_eq!(
+                raw_rows(
+                    &conn,
+                    "SELECT count(*) FROM sqlite_master WHERE name = 'payment_milestone'"
+                ),
+                vec!["Integer(0)"]
+            );
+        }
+
+        let state = open(scratch.path()).expect("a D1 work opens in D2");
+        let conn = &state.conn;
+
+        assert_eq!(migrations::WORK.current_version(conn), 11);
+        assert_eq!(
+            money.map(|sql| raw_rows(conn, sql)),
+            money_before,
+            "every row of money, as it was"
+        );
+        assert_eq!(diary::list(conn, None, None).unwrap(), diary_before);
+        let report = diary::verify(conn).unwrap();
+        assert_eq!((report.entries, report.intact), (1, true));
+
+        let plan = db::work::snapshot(conn).unwrap();
+        let commitments: Vec<(&str, bool, usize)> = plan
+            .commitments
+            .iter()
+            .map(|c| (c.id.as_str(), c.locked, c.milestones.len()))
+            .collect();
+        assert_eq!(
+            commitments,
+            vec![(paid, true, 0), (unpaid, false, 0)],
+            "no payment plan yet, on either; the paid one stays paid"
+        );
+        assert_eq!(
+            serde_json::to_value(&plan.commitments[1]).unwrap()["milestones"],
+            serde_json::json!([])
+        );
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT name FROM sqlite_master WHERE tbl_name = 'payment_milestone'
+                 AND type IN ('index', 'trigger') AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            ),
+            [
+                "idx_payment_milestone_activity",
+                "payment_milestone_activity_insert",
+                "payment_milestone_activity_update",
+                "payment_milestone_locked_delete",
+                "payment_milestone_locked_insert",
+                "payment_milestone_locked_update",
+                "payment_milestone_sum_insert",
+                "payment_milestone_sum_update",
+            ]
+            .map(|name| format!("Text(\"{name}\")"))
+        );
+
+        assert_eq!(
+            milestones::add_usual(conn, paid, ["Start", "Laid", "Closed"])
+                .unwrap_err()
+                .to_string(),
+            milestones::PLAN_LOCKED,
+            "a payment and its reversal name it: fixed from the start"
+        );
+        let refused = conn
+            .execute(
+                &format!(
+                    "INSERT INTO payment_milestone (id, commitment_id, position, label, share_bp,
+                                                    trigger, created_at)
+                     VALUES ('00000000-0000-7000-8000-0000000000f1', '{paid}', 1, 'Advance',
+                             3000, 'advance', 't')"
+                ),
+                [],
+            )
+            .unwrap_err();
+        assert!(refused.to_string().contains("money: payment plan locked"));
+        milestones::add_usual(conn, unpaid, ["Start", "Laid", "Closed"]).unwrap();
+        let plan = db::work::snapshot(conn).unwrap();
+        assert_eq!(
+            plan.commitments[1]
+                .milestones
+                .iter()
+                .map(|m| (m.share_bp, m.activity_id.as_deref()))
+                .collect::<Vec<_>>(),
+            vec![(3_000, None), (4_000, Some(tiling)), (3_000, None)]
+        );
+        assert!(raw_rows(conn, "PRAGMA foreign_key_check").is_empty());
+        close(state);
+
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        assert_eq!(
+            db::work::snapshot(&again.conn).unwrap().commitments[1]
+                .milestones
+                .len(),
+            3
+        );
         assert!(diary::verify(&again.conn).unwrap().intact);
         close(again);
         assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);

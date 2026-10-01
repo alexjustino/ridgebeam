@@ -1,24 +1,41 @@
-import { Add20Regular, Delete20Regular, Warning16Regular } from '@fluentui/react-icons';
+import {
+  Add20Regular,
+  Delete20Regular,
+  ErrorCircle16Regular,
+  Info16Regular,
+  Warning16Regular,
+} from '@fluentui/react-icons';
 import { useId, useState, type FormEvent } from 'react';
 
 import { today as todayOf } from '@/app/today';
 import { LIMITS } from '@/data/commands';
 import { useAddCommitment, useRemoveCommitment } from '@/data/queries';
-import { moneyByStage, moneyOfWork, type StageMoney } from '@/domain/money';
-import { stagesInOrder, type Stage, type WorkSnapshot } from '@/domain/plan';
+import {
+  MILESTONE_LABEL_KEYS,
+  milestonesLocked,
+  type CommitmentPlan,
+  type MilestoneRow,
+} from '@/domain/milestones';
+import { moneyByStage, moneyOfWork, type MoneyRow, type StageMoney } from '@/domain/money';
+import { stagesInOrder, type Commitment, type Stage, type WorkSnapshot } from '@/domain/plan';
 import { toCents } from '@/i18n/format';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { EmptyState } from '@/ui/EmptyState';
+import { FigureRow } from '@/ui/FigureRow';
 import { IconButton } from '@/ui/IconButton';
 import { Input } from '@/ui/Input';
 import { Select } from '@/ui/Select';
 
 import { MoneyCell } from './MoneyCell';
+import { PaymentPlan } from './PaymentPlan';
+import { planRowParts, usePaymentPlans } from './paymentPlanWords';
 
 type Outcome = { kept: () => void; refused: (error: unknown) => void };
+
+const noop = () => undefined;
 
 const COLUMNS = ['planned', 'committed', 'paid', 'remaining', 'variance'] as const;
 
@@ -27,10 +44,28 @@ const COLUMNS = ['planned', 'committed', 'paid', 'remaining', 'variance'] as con
  * one a button that opens onto its rows — and the whole work above them. A stage paid over what was
  * committed is allowed and marked, in words, with the excess (ADR-024). Under each stage, its
  * commitments — quotes and contracts accepted — and the line that adds one.
+ *
+ * Each commitment carries its payment plan (slice D2): what the work has earned of it and what is
+ * due now, each a figure that opens onto its milestones and payments, a mark in words when it was
+ * paid ahead of the work or has money earned and not paid, and the plan itself under a disclosure.
  */
-export function ByStage({ snapshot, outcome }: { snapshot: WorkSnapshot; outcome: Outcome }) {
+export function ByStage({
+  snapshot,
+  outcome,
+  focusCommitment = null,
+  onFocusTaken = noop,
+}: {
+  snapshot: WorkSnapshot;
+  outcome: Outcome;
+  /** A commitment whose payment plan opens focused (asked for from the Next question). */
+  focusCommitment?: string | null;
+  /** Called once that commitment's plan has the focus, so it is not taken again. */
+  onFocusTaken?: () => void;
+}) {
   const { t } = useI18n();
   const term = useTerms();
+  const { plans } = usePaymentPlans(snapshot);
+  const planOf = new Map((plans?.commitments ?? []).map((plan) => [plan.commitmentId, plan]));
   const stages = stagesInOrder(snapshot);
   const byStage = new Map(moneyByStage(snapshot).map((row) => [row.stageId, row]));
   const work = moneyOfWork(snapshot);
@@ -84,6 +119,9 @@ export function ByStage({ snapshot, outcome }: { snapshot: WorkSnapshot; outcome
               money={money}
               snapshot={snapshot}
               outcome={outcome}
+              planOf={planOf}
+              focusCommitment={focusCommitment}
+              onFocusTaken={onFocusTaken}
             />
           );
         })}
@@ -97,15 +135,20 @@ function StageMoneyCard({
   money: figures,
   snapshot,
   outcome,
+  planOf,
+  focusCommitment,
+  onFocusTaken,
 }: {
   stage: Stage;
   money: StageMoney;
   snapshot: WorkSnapshot;
   outcome: Outcome;
+  planOf: ReadonlyMap<string, CommitmentPlan>;
+  focusCommitment: string | null;
+  onFocusTaken: () => void;
 }) {
-  const { t, money, day } = useI18n();
+  const { t, money } = useI18n();
   const term = useTerms();
-  const remove = useRemoveCommitment();
   const currency = snapshot.work.currency;
   const commitments = snapshot.commitments.filter((each) => each.stageId === stage.id);
   const paidAgainst = new Set(snapshot.payments.map((payment) => payment.commitmentId));
@@ -150,53 +193,178 @@ function StageMoneyCard({
           {commitments.length === 0 ? (
             <p className="text-caption text-fg-tertiary">{t('money.commitments.none')}</p>
           ) : (
-            <ul className="flex flex-col gap-1">
-              {commitments.map((commitment) => {
-                const locked = paidAgainst.has(commitment.id);
-                return (
-                  <li
-                    key={commitment.id}
-                    data-commitment-id={commitment.id}
-                    className="flex items-center gap-2 text-body text-fg"
-                  >
-                    <span className="min-w-0 flex-1">
-                      {t('money.commitment.line', {
-                        label: commitment.label,
-                        person:
-                          commitment.personId === null
-                            ? t('money.commitment.nobody')
-                            : (people.get(commitment.personId) ?? '?'),
-                        amount: money(commitment.amountCents, currency),
-                        day: day(commitment.agreedOn),
-                      })}
-                    </span>
-                    {locked ? (
-                      <span className="text-caption text-fg-tertiary">
-                        {t('money.commitment.locked')}
-                      </span>
-                    ) : (
-                      <IconButton
-                        data-testid="commitment-remove"
-                        icon={<Delete20Regular />}
-                        label={t('money.commitment.remove', { name: commitment.label })}
-                        disabled={remove.isPending}
-                        onClick={() =>
-                          remove.mutate(commitment.id, {
-                            onSuccess: outcome.kept,
-                            onError: outcome.refused,
-                          })
-                        }
-                      />
-                    )}
-                  </li>
-                );
-              })}
+            <ul className="flex flex-col gap-2">
+              {commitments.map((commitment) => (
+                <CommitmentRow
+                  key={commitment.id}
+                  commitment={commitment}
+                  plan={planOf.get(commitment.id) ?? null}
+                  stage={stage}
+                  snapshot={snapshot}
+                  locked={paidAgainst.has(commitment.id)}
+                  person={
+                    commitment.personId === null
+                      ? t('money.commitment.nobody')
+                      : (people.get(commitment.personId) ?? '?')
+                  }
+                  focused={focusCommitment === commitment.id}
+                  onFocusTaken={onFocusTaken}
+                  outcome={outcome}
+                />
+              ))}
             </ul>
           )}
           <AddCommitment stage={stage} snapshot={snapshot} outcome={outcome} />
         </section>
       </Card>
     </li>
+  );
+}
+
+/**
+ * One commitment: what was agreed, with whom, how much and when; what its payment plan has earned
+ * and what is due now (D2), each a figure with its rows; a mark in words when it was paid ahead of
+ * the work or has money earned and not paid; and the payment plan under it.
+ */
+function CommitmentRow({
+  commitment,
+  plan,
+  stage,
+  snapshot,
+  locked,
+  person,
+  focused,
+  onFocusTaken,
+  outcome,
+}: {
+  commitment: Commitment;
+  plan: CommitmentPlan | null;
+  stage: Stage;
+  snapshot: WorkSnapshot;
+  locked: boolean;
+  person: string;
+  focused: boolean;
+  onFocusTaken: () => void;
+  outcome: Outcome;
+}) {
+  const { t, money, day } = useI18n();
+  const remove = useRemoveCommitment();
+  const currency = snapshot.work.currency;
+  const planLocked = plan?.locked ?? milestonesLocked(snapshot, commitment.id);
+
+  return (
+    <li
+      data-commitment-id={commitment.id}
+      className="flex flex-col gap-1 rounded-md border border-stroke-subtle px-3 py-2"
+    >
+      <div className="flex items-center gap-2 text-body text-fg">
+        <span className="min-w-0 flex-1">
+          {t('money.commitment.line', {
+            label: commitment.label,
+            person,
+            amount: money(commitment.amountCents, currency),
+            day: day(commitment.agreedOn),
+          })}
+        </span>
+        {locked ? (
+          <span className="text-caption text-fg-tertiary">{t('money.commitment.locked')}</span>
+        ) : (
+          <IconButton
+            data-testid="commitment-remove"
+            icon={<Delete20Regular />}
+            label={t('money.commitment.remove', { name: commitment.label })}
+            disabled={remove.isPending}
+            onClick={() =>
+              remove.mutate(commitment.id, {
+                onSuccess: outcome.kept,
+                onError: outcome.refused,
+              })
+            }
+          />
+        )}
+      </div>
+
+      {plan !== null && plan.hasPlan && (
+        <div className="grid items-start gap-x-6 gap-y-1 sm:grid-cols-[auto_auto_minmax(0,1fr)]">
+          <FigureRow<MilestoneRow>
+            testId="earned"
+            size="inline"
+            figure={plan.earned}
+            label={t(MILESTONE_LABEL_KEYS.earned)}
+            value={money(plan.earned.value, currency)}
+            rowsLabel={t('money.paymentPlan.rows.earned')}
+            renderRow={(row) => <PlanRowText row={row} currency={currency} />}
+          />
+          <FigureRow<MilestoneRow | MoneyRow>
+            testId="due"
+            size="inline"
+            figure={plan.due}
+            label={t(MILESTONE_LABEL_KEYS.due)}
+            value={money(plan.due.value, currency)}
+            rowsLabel={t('money.paymentPlan.rows.due')}
+            renderRow={(row) => <PlanRowText row={row} currency={currency} />}
+          />
+          <div className="flex flex-col items-start gap-1">
+            {plan.ahead.value > 0 && (
+              <span
+                data-testid="paid-ahead"
+                className="inline-flex w-fit items-center gap-1 rounded-md bg-danger-subtle px-2 py-0.5 text-caption text-fg"
+              >
+                <ErrorCircle16Regular aria-hidden="true" className="text-danger" />
+                {t('money.paymentPlan.paidAhead.mark', {
+                  amount: money(plan.ahead.value, currency),
+                })}
+              </span>
+            )}
+            {plan.due.value > 0 && (
+              <span
+                data-testid="due-now"
+                className="inline-flex w-fit items-center gap-1 rounded-md bg-info-subtle px-2 py-0.5 text-caption text-fg"
+              >
+                <Info16Regular aria-hidden="true" className="text-info" />
+                {t('money.paymentPlan.dueNow.mark', { amount: money(plan.due.value, currency) })}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+      {commitment.milestones.length === 0 && (
+        <span data-testid="no-payment-plan" className="text-caption text-fg-secondary">
+          {t('money.paymentPlan.noPlan.mark')}
+        </span>
+      )}
+
+      <PaymentPlan
+        commitment={commitment}
+        plan={plan}
+        stage={stage}
+        snapshot={snapshot}
+        locked={planLocked}
+        initiallyOpen={focused || commitment.milestones.length === 0}
+        focusToggle={focused}
+        onFocusTaken={onFocusTaken}
+      />
+    </li>
+  );
+}
+
+/** A row of a commitment's earned or due figure, as `planRowParts` says it. */
+function PlanRowText({ row, currency }: { row: MilestoneRow | MoneyRow; currency: string }) {
+  const parts = planRowParts(useI18n(), row, currency);
+  return (
+    <>
+      <span className="font-semibold text-fg">{parts.title}</span>
+      <span aria-hidden="true"> — </span>
+      <span>{parts.kind}</span>
+      {parts.day !== null && (
+        <>
+          <span aria-hidden="true"> — </span>
+          <span>{parts.day}</span>
+        </>
+      )}
+      <span aria-hidden="true"> — </span>
+      <span className="tabular-nums">{parts.amount}</span>
+    </>
   );
 }
 

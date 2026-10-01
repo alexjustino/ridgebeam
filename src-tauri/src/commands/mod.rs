@@ -24,6 +24,7 @@ pub mod diary;
 pub mod documents;
 #[cfg(test)]
 mod large_work_tests;
+pub mod milestones;
 pub mod money;
 pub mod plan;
 #[cfg(test)]

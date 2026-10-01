@@ -731,3 +731,86 @@ numbers, and never changing the plan's own dates (ADR-035).
   optimistic and the pessimistic duration on any activity.
 
 No migration: neither database's schema changes.
+
+### Added in D2 — am I paying ahead of the work
+
+The second of the four differentiators (ADR-036). The mistake an owner makes most often on a small
+work is not paying too much but paying too soon — three quarters of a job paid while a fifth of it
+is done — and nothing in F6 said so while paid stayed under committed. A commitment now carries a
+**payment plan**: milestones, each a share of its amount earned only by a fact of the work, never by
+a date. The product says what is earned, what is due and what was paid ahead of the work, and warns
+**before** a payment that would put the owner ahead — and still lets it be saved (ADR-037).
+
+- **Milestones** (`payment_milestone`, migration 011). A label of up to 120 characters, a share of
+  the commitment's amount in basis points — whole hundredths of a percent, 1 to 10 000, so "30 %" is
+  3 000 and a share may carry one decimal — and the fact that earns it, in an order the person sets.
+  The shares of one commitment add up to at most 100 %, and the rest is said on the screen as not in
+  the plan yet, never assumed. Commands `milestone_add`, `milestone_update`, `milestone_move`,
+  `milestone_remove` and `milestones_usual`.
+- **Earned by facts.** Four triggers, a closed list: an **advance**, earned the day the commitment
+  was agreed, before any work — and the screen says so plainly; **the stage started**, its start
+  gate passed; **an activity finished**, by an effective diary entry, corrections applied — an
+  activity of the commitment's own stage; and **the stage closed**, its close gate passed, which a
+  reopened stage un-earns. A milestone is earned on the day of its fact, and says since when.
+  Nothing marks one earned by hand.
+- **Four figures, each with its rows.** Per commitment: **earned** (the milestones reached, each
+  with its fact and day), **paid** (reversals applied), **due now** (earned minus paid, when
+  positive) and **ahead of the work** (paid minus earned, when positive); per stage and for the
+  work, the sums, with a row per commitment — due and ahead are never netted across commitments,
+  since one paid ahead does not pay what another has earned. A fact dated after today is not a fact
+  yet. A milestone's amount is its share of the commitment's cents rounded half up, and a plan of
+  exactly 100 % puts the rounding remainder on its last milestone, so it adds up to the commitment
+  to the cent. A commitment with no plan is not evaluated — counted and listed as having none, never
+  assumed earned or not, and a payment on it is not warned about — and payments on no commitment are
+  outside the question, with a line that says how many. All of it is in `src/domain/milestones.ts`,
+  pure.
+- **The warning comes before the payment.** The Ledger's form shows, under its fields and as the
+  amount is typed on a commitment, what it has earned so far, what has been paid and what would be
+  paid after this payment, and whether that leaves money due or paid ahead. When the payment would
+  put the owner ahead of the work, a caution titled _Ahead of the work_ says so with the amount and
+  the next milestone not yet earned — "This payment puts you R$ 500,00 ahead of the work on Tiler's
+  quote: earned so far R$ 300,00 — Tiles laid (40 %) is not earned yet: Lay the tiles is not
+  finished yet." — and "You can still record it: whether to pay is yours to decide." **Record the
+  payment stays enabled**: money paid is a fact, and the decision is the person's. A reversal is
+  never warned about, and a payment on a commitment with no plan is not either: the form says
+  whether it is ahead cannot be said.
+- **Locked once money has moved.** From the first payment that names a commitment — a reversal
+  included — its milestones cannot be added, changed, moved or removed: the plan is shown as it is,
+  with the sentence that says why and no control that would change it; the host refuses with a
+  sentence, and triggers in the schema refuse it again. A renegotiation is a new commitment. A
+  closed stage does not refuse a milestone, and an approved plan's lock does not cover one: a
+  payment plan is an agreement, not something a baseline records.
+- **The usual plan.** On a commitment with none, **Add the usual plan** fills 30 % when the stage
+  starts, 40 % when its last activity is finished and 30 % when it closes, labelled in the person's
+  language and editable — said to be a common split, not advice. The middle milestone names the
+  stage's last activity, so the usual plan is refused, with a sentence, on a stage with no activity
+  yet — and on a commitment that already has a plan.
+- **An activity a milestone is earned by is not removed.** The host refuses, with a sentence, to
+  remove an activity a milestone names — change or remove the milestone first — and the schema
+  refuses it after. Once the commitment is paid, the milestone is locked, so that activity can never
+  be removed.
+- **Where it shows.** Money → By stage: each commitment's **Payment plan**, open by default when it
+  has none, with its milestones, their state — "earned on 3 Oct" or "not yet" — and the share in the
+  plan; the commitment's earned and due figures; and marks in words: "R$ 500,00 ahead of the work",
+  "R$ 300,00 earned and not paid". The dashboard's money card counts the commitments paid ahead and
+  sums what is earned and not paid, each opening onto its rows — a commitment with its excess and
+  the milestone it waits for — and says under them, in words, how many commitments have no payment
+  plan and how many payments name no commitment. The weekly report gains _Paid ahead of the work_
+  and _Earned and not paid_, as of the day it is written. And the **Next question**, last and
+  optional, asks "How is Tiler's quote to be paid?" of a commitment with no plan and no payment on
+  it yet, and answers by opening its plan — not inline.
+- **Work migration 011** (`011_payment_milestones.sql`) adds `payment_milestone` with its `CHECK`s
+  and its triggers — an activity of the commitment's stage, at most 100 % per commitment, locked
+  once a payment names the commitment — and changes no existing row: every commitment starts with no
+  payment plan, so no earlier figure moves. A work from D1 is migrated when it is opened, without
+  loss, and its diary's chain still verifies.
+- **Readiness does not change**: a commitment with no payment plan is not something the plan lacks.
+- **Documentation.** ADR-037 (a payment plan is earned by facts, and paying ahead is warned, not
+  refused), with its costs — a fact recorded late is a milestone earned late, an advance is money
+  before work and is said so rather than forbidden, a renegotiation after the first payment is a new
+  commitment, payments on no commitment are not evaluated;
+  [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) gains `payment_milestone` and migration 011;
+  [`SECURITY.md`](SECURITY.md), the lock after payment and why;
+  [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a warning comes before the act it warns about_
+  and how a payment plan reads; the glossary gains _milestone_ (_marco de pagamento_) and _advance_
+  (_sinal_).

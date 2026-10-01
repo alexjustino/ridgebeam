@@ -583,9 +583,9 @@ export const en = {
   'money.payment.noCommitment': 'None',
   'money.payment.amount': 'Amount',
   'money.payment.what': 'What for',
-  'money.payment.receipt': 'Receipt (an image)',
+  'money.payment.receipt': 'Receipt (an image or a PDF)',
   'money.payment.receiptHint':
-    'A receipt is a photo or a scan saved as an image; PDF receipts arrive with documents, later.',
+    'A receipt is a photo, a scan or a PDF. It is copied into the work folder and listed with the documents.',
   'money.payment.save': 'Record the payment',
   'money.payment.problem': 'The payment was not recorded',
   'money.payment.chooseStage': 'Choose…',
@@ -1162,7 +1162,7 @@ export const en = {
   'reports.file.schedule': '{work} schedule',
 
   'reports.weekly.holds':
-    'One PDF of a week in the owner’s words: the days written and the working days with nothing written, what was done, who was on site, how ready the plan is, when it ends and the chance of finishing by then, the decisions due, the money and the stages. It does not hold the photos, and long notes are shortened — the diary’s PDF has them whole.',
+    'One PDF of a week in the owner’s words: the days written and the working days with nothing written, what was done, who was on site, how ready the plan is, when it ends and the chance of finishing by then, the decisions due, the money — with what was paid ahead of the work and what is earned and not paid — and the stages. It does not hold the photos, and long notes are shortened — the diary’s PDF has them whole.',
   'reports.week': 'Week',
   'reports.weekly.write': 'Write the weekly report',
   'reports.weekly.waiting': 'Reading the diary…',
@@ -1483,6 +1483,121 @@ export const en = {
   'schedule.legend.criticality':
     'Red shade: how often it is critical in the runs — stronger is more often, and the share is beside its name',
   'schedule.bar.criticality': '{sentence}, {critical}',
+
+  // ── D2: am I paying ahead of the work? ────────────────────────────────────
+  'money.milestone.trigger.advance': 'An advance — the day it was agreed, before any work',
+  'money.milestone.trigger.stageStarted': 'When the stage starts',
+  'money.milestone.trigger.activityFinished': 'When an activity is finished',
+  'money.milestone.trigger.stageClosed': 'When the stage closes',
+  'money.milestone.pending.advance': '{name} is not agreed yet.',
+  'money.milestone.pending.stageStarted': '{name} is not started yet.',
+  'money.milestone.pending.activityFinished': '{name} is not finished yet.',
+  'money.milestone.pending.stageClosed': '{name} is not closed yet.',
+  'money.milestone.state.earned': 'earned on {day}',
+  'money.milestone.state.notYet': 'not yet',
+  'money.paymentPlan.sum': '{planned} in the plan; {rest} not in the plan yet.',
+  'money.paymentPlan.sumWhole': '{planned} in the plan.',
+  'money.paymentPlan.figure.earned': 'Earned',
+  'money.paymentPlan.figure.paid': 'Paid on it',
+  'money.paymentPlan.figure.due': 'Due now',
+  'money.paymentPlan.figure.ahead': 'Paid ahead of the work',
+  'money.paymentPlan.figure.paidAhead': 'Paid ahead of the work',
+  'money.paymentPlan.figure.dueNow': 'Earned and not paid',
+  'money.paymentPlan.figure.noPlan': 'Commitments with no payment plan',
+  'money.paymentPlan.figure.outside': 'Payments on no commitment',
+  'money.paymentPreview.ahead':
+    'This payment puts you {amount} ahead of the work on {commitment}: earned so far {earned} — {next} ({share}) is not earned yet: {pending}',
+  'money.paymentPreview.aheadNoNext':
+    'This payment puts you {amount} ahead of the work on {commitment}: earned so far {earned} — every milestone is earned, and the rest of the amount is not in its payment plan.',
+  'money.milestone.problem.unknownCommitment': 'That commitment is no longer in the plan.',
+  'money.milestone.problem.unknownMilestone': 'That milestone is no longer in the payment plan.',
+  'money.milestone.problem.locked':
+    'A payment names this commitment, so its payment plan stays as it is.',
+  'money.milestone.problem.labelEmpty': 'Give the milestone a name.',
+  'money.milestone.problem.labelTooLong': 'The name is too long: at most 120 characters.',
+  'money.milestone.problem.invalidShare':
+    'A share is a percentage above 0 and at most 100, with at most one decimal.',
+  'money.milestone.problem.overPlan':
+    'That takes the payment plan over 100 % of the commitment: {available} is left for it.',
+  'money.milestone.problem.invalidTrigger': 'Choose what earns it.',
+  'money.milestone.problem.activityRequired': 'Choose the activity whose finish earns it.',
+  'money.milestone.problem.activityNotAllowed':
+    'Only a milestone earned by a finish names an activity.',
+  'money.milestone.problem.unknownActivity': 'That activity is no longer in the plan.',
+  'money.milestone.problem.activityOfAnotherStage':
+    'That activity belongs to another stage than the commitment.',
+  'money.paymentPlan.usual.started': 'Stage started',
+  'money.paymentPlan.usual.finished': 'Last activity finished',
+  'money.paymentPlan.usual.closed': 'Stage closed',
+  'money.paymentPlan.usual.note':
+    'A common split — 30 % when the stage starts, 40 % when its last activity is finished, 30 % when it closes. Not advice: change it to what you agreed.',
+  'money.paymentPlan.toggle': 'Payment plan',
+  'money.paymentPlan.summary.none': 'none yet',
+  'money.paymentPlan.summary.one': '{count} milestone · {share} in the plan',
+  'money.paymentPlan.summary.other': '{count} milestones · {share} in the plan',
+  'money.paymentPlan.lead':
+    'Each milestone is earned by a fact of the work, never by a date: the stage starting, an activity finished in the diary, the stage closing — or, for an advance, the day it was agreed.',
+  'money.paymentPlan.none':
+    'No payment plan yet. Until it has one, nobody can say whether paying it is ahead of the work.',
+  'money.paymentPlan.locked':
+    'A payment names this commitment, so its payment plan stays as it is: a plan rewritten after paying would hide being ahead of the work.',
+  'money.paymentPlan.closedStage':
+    '{stage} is closed, and this payment plan can still change: money is not a plan edit.',
+  'money.paymentPlan.usual': 'Add the usual plan',
+  'money.paymentPlan.usual.noActivity':
+    'The usual plan pays 40 % when the stage’s last activity is finished, and {stage} has no activity yet: add one on the Plan first.',
+  'money.paymentPlan.usual.done': 'The usual plan was added: three milestones.',
+  'money.paymentPlan.milestones': 'Milestones of {name}',
+  'money.milestone.when.advance': 'an advance, on agreeing — paid before any work',
+  'money.milestone.when.stageStarted': 'when {name} starts',
+  'money.milestone.when.activityFinished': 'when {name} is finished',
+  'money.milestone.when.stageClosed': 'when {name} closes',
+  'money.milestone.goneActivity': 'an activity no longer in the plan',
+  'money.milestone.share': '{share} · {amount}',
+  'money.milestone.labelOf': 'Name of {name}',
+  'money.milestone.shareOf': 'Share of {name}, in %',
+  'money.milestone.remove': 'Remove: {name}',
+  'money.milestone.removed': '{name} was taken out of the payment plan.',
+  'money.milestone.added': '{name} was added to the payment plan.',
+  'money.milestone.add.label': 'Milestone',
+  'money.milestone.add.share': 'Share, in %',
+  'money.milestone.add.trigger': 'Earned when',
+  'money.milestone.add.activity': 'Which activity',
+  'money.milestone.add.chooseActivity': 'Choose the activity…',
+  'money.milestone.add': 'Add milestone',
+  'money.milestone.advanceNote':
+    'An advance is paid before any work is done: it is money ahead of the work, on purpose.',
+  'money.milestone.noActivities':
+    '{stage} has no activity yet: add one on the Plan to pay on its finish.',
+  'money.paymentPlan.rows.earned': 'The milestones reached',
+  'money.paymentPlan.rows.due': 'Earned, less what was paid on it',
+  'money.paymentPlan.row.milestone': 'milestone, {share}',
+  'money.paymentPlan.paidAhead.mark': '{amount} ahead of the work',
+  'money.paymentPlan.dueNow.mark': '{amount} earned and not paid',
+  'money.paymentPlan.noPlan.mark': 'No payment plan — not evaluated',
+  'money.paymentPreview.title': 'Against the payment plan of {commitment}',
+  'money.paymentPreview.line':
+    'Earned so far {earned} · paid so far {paid} · paid after this payment {after}',
+  'money.paymentPreview.even': 'After this payment, what is paid matches what the work has earned.',
+  'money.paymentPreview.due': 'After this payment, {due} is earned and not paid.',
+  'money.paymentPreview.aheadAfter': 'After this payment, {ahead} is paid ahead of the work.',
+  'money.paymentPreview.noPlan':
+    '{commitment} has no payment plan, so whether this payment is ahead of the work cannot be said.',
+  'money.paymentPreview.warningTitle': 'Ahead of the work',
+  'money.paymentPreview.decision': 'You can still record it: whether to pay is yours to decide.',
+  'nextQuestion.ask.paymentPlan': 'How is {label} to be paid?',
+  'nextQuestion.openPaymentPlan': 'Open its payment plan',
+  'nextQuestion.optional.paymentPlan':
+    'Optional — the plan lacks nothing without it; a payment plan says when paying is ahead of the work.',
+  'nextQuestion.hint.paymentPlan':
+    'Its payment plan opens on Money, by stage: say what fact of the work earns each part.',
+  'dashboard.paidAhead.rows': 'The commitments paid ahead of the work',
+  'dashboard.dueNow.rows': 'The commitments with money earned and not paid',
+  'dashboard.money.noPlan.one': '{count} commitment has no payment plan, so it is not evaluated.',
+  'dashboard.money.noPlan.other':
+    '{count} commitments have no payment plan, so they are not evaluated.',
+  'dashboard.money.outside.one': '{count} payment names no commitment, so it is outside this.',
+  'dashboard.money.outside.other': '{count} payments name no commitment, so they are outside this.',
 } as const;
 
 /** Every key the interface may ask for. */

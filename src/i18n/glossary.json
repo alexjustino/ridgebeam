@@ -502,6 +502,28 @@
       }
     },
     {
+      "key": "milestone",
+      "en": {
+        "term": "milestone",
+        "sentence": "A share of a commitment’s amount that is earned by a fact of the work — the stage started, an activity finished in the diary, the stage closed — never by a date. Paying more than has been earned is paying ahead of the work."
+      },
+      "pt-BR": {
+        "term": "marco de pagamento",
+        "sentence": "Uma parte do valor de um compromisso que passa a ser devida por um fato da obra — a etapa começou, uma atividade terminou no diário, a etapa fechou — e nunca por uma data. Pagar mais do que já é devido é pagar à frente da obra."
+      }
+    },
+    {
+      "key": "advance",
+      "en": {
+        "term": "advance",
+        "sentence": "A milestone earned the day the commitment was agreed, before any work is done. It is money paid ahead of the work on purpose, and the product says so rather than forbids it."
+      },
+      "pt-BR": {
+        "term": "sinal",
+        "sentence": "Um marco de pagamento devido no dia em que o compromisso foi combinado, antes de qualquer trabalho. É dinheiro pago à frente da obra de propósito, e o produto diz isso em vez de proibir."
+      }
+    },
+    {
       "key": "person",
       "en": {
         "term": "person",

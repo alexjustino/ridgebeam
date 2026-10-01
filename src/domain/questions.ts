@@ -35,11 +35,18 @@
  * not lack anything without it. `openQuestions` and `nextQuestion` are unchanged and never ask it;
  * `openQuestionsWithOptional` and `nextQuestionWithOptional` ask everything, it included.
  *
+ * **A second optional kind, after it** (slice D2): a commitment with no payment plan, on which no
+ * money has moved yet, is asked "How is <commitment> to be paid?", answered by opening the
+ * commitment's payment plan (a link, not an answer typed here). A commitment paid on already cannot
+ * be given a plan any more, so it is not asked. Like every question, it is not asked while the plan
+ * is locked, although the host would accept a payment plan then (a payment plan is not in F8's lock).
+ *
  * What this module is not: text, storage or a clock. `today` is passed in; nothing is written.
  */
 
 import { addCalendarDays, isIsoDay } from './calendar';
 import { byUrgency, decisionRows } from './decisions';
+import { commitmentsWithMoney, noPlanFigure } from './milestones';
 import {
   activitiesInOrder,
   durationRangeOf,
@@ -53,8 +60,11 @@ import {
 } from './plan';
 import type { Schedule } from './schedule';
 
-/** The kinds of optional question, asked after every other (slice D1). */
-export const OPTIONAL_QUESTION_KINDS = ['most'] as const;
+/**
+ * The kinds of optional question, asked after every other: the most a critical activity could take
+ * (slice D1), then how a commitment is to be paid (slice D2).
+ */
+export const OPTIONAL_QUESTION_KINDS = ['most', 'paymentPlan'] as const;
 export type OptionalQuestionKind = (typeof OPTIONAL_QUESTION_KINDS)[number];
 
 /**
@@ -63,6 +73,16 @@ export type OptionalQuestionKind = (typeof OPTIONAL_QUESTION_KINDS)[number];
  */
 export const OPTIONAL_QUESTION_MESSAGE_KEYS = {
   most: 'nextQuestion.ask.most',
+  paymentPlan: 'nextQuestion.ask.paymentPlan',
+} as const;
+
+/**
+ * The optional question of slice D2's sentence and its link: `{label}` — "How is {label} to be
+ * paid?"; the link that answers it — "Open its payment plan".
+ */
+export const PAYMENT_PLAN_QUESTION_KEYS = {
+  ask: OPTIONAL_QUESTION_MESSAGE_KEYS.paymentPlan,
+  open: 'nextQuestion.openPaymentPlan',
 } as const;
 
 /** The kinds of question, in the order they are asked. */
@@ -198,8 +218,27 @@ export interface MostQuestion extends QuestionBase {
   };
 }
 
-/** Any question the dashboard may ask, the optional one included. */
-export type AnyQuestion = Question | MostQuestion;
+/**
+ * The optional question of slice D2: a commitment with no payment plan, on which no money has moved
+ * (after a payment its plan can no longer be written), asked "How is <commitment> to be paid?". It
+ * is answered by **opening the commitment's payment plan** (Money → By stage), not inline: the
+ * answer names no command of the host (`command: 'open'`), only what to open.
+ */
+export interface PaymentPlanQuestion extends QuestionBase {
+  readonly kind: 'paymentPlan';
+  readonly optional: true;
+  readonly messageKey: (typeof OPTIONAL_QUESTION_MESSAGE_KEYS)['paymentPlan'];
+  readonly params: { readonly label: string };
+  readonly commitmentId: string;
+  readonly answer: {
+    readonly command: 'open';
+    readonly targetId: string;
+    readonly field: 'paymentPlan';
+  };
+}
+
+/** Any question the dashboard may ask, the optional ones included. */
+export type AnyQuestion = Question | MostQuestion | PaymentPlanQuestion;
 
 /** Every open question of the plan, and the count the card says. */
 export interface OpenQuestions {
@@ -398,8 +437,10 @@ export function nextQuestion(
 }
 
 /**
- * Every open question of the plan, the optional ones last (`MostQuestion`, in plan order): the
- * critical activities of open stages with a duration and no range. The count (`answered`, `total`)
+ * Every open question of the plan, the optional ones last: the critical activities of open stages
+ * with a duration and no range (`MostQuestion`, in plan order), then the commitments with no payment
+ * plan and no money moved on them (`PaymentPlanQuestion`, in plan order, whatever their stage's
+ * state: a closed stage does not refuse a payment plan). The count (`answered`, `total`)
  * is `openQuestions`'s and does not include them; `optional` says how many there are, and `skipped`
  * and `remaining` do include them, since they are asked. Nothing is asked while the plan is locked.
  */
@@ -419,7 +460,7 @@ export function openQuestionsWithOptional(
   const closed = new Set(
     snapshot.stages.filter((stage) => stage.closedAt !== null).map((stage) => stage.id),
   );
-  const optional: MostQuestion[] = [];
+  const optional: Array<MostQuestion | PaymentPlanQuestion> = [];
   for (const activity of activitiesInOrder(snapshot)) {
     if (closed.has(activity.stageId) || !scheduled.critical.has(activity.id)) continue;
     if (!hasDuration(activity) || durationRangeOf(activity) !== null) continue;
@@ -441,6 +482,22 @@ export function openQuestionsWithOptional(
         field: 'durationMaxDays',
         with: { durationMinDays: days },
       },
+    });
+  }
+  // Then every commitment with no payment plan and no money moved on it, in plan order (D2).
+  const moved = commitmentsWithMoney(snapshot);
+  for (const row of noPlanFigure(snapshot).rows) {
+    if (moved.has(row.commitmentId)) continue;
+    optional.push({
+      kind: 'paymentPlan',
+      optional: true,
+      key: `paymentPlan:${row.commitmentId}`,
+      messageKey: OPTIONAL_QUESTION_MESSAGE_KEYS.paymentPlan,
+      params: { label: row.title },
+      stageId: row.stageId,
+      stageName: stageNames.get(row.stageId) ?? null,
+      commitmentId: row.commitmentId,
+      answer: { command: 'open', targetId: row.commitmentId, field: 'paymentPlan' },
     });
   }
   const skippedOptional = optional.filter((question) => skipped.has(question.key)).length;

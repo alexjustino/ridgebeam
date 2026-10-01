@@ -56,6 +56,10 @@ export function App({ settings }: { settings: Settings }) {
   // on it, then let go, so the next visit opens at the top as usual.
   const [diaryFocus, setDiaryFocus] = useState<number | null>(null);
   const releaseDiaryFocus = useCallback(() => setDiaryFocus(null), []);
+  // The commitment whose payment plan the Next question asked Money to open on (D2): held until
+  // Money has put the focus on it, then let go, so the next visit opens as usual.
+  const [moneyFocus, setMoneyFocus] = useState<string | null>(null);
+  const releaseMoneyFocus = useCallback(() => setMoneyFocus(null), []);
   const navigation: Navigation = useMemo(
     () => ({
       openDocuments: (target) => {
@@ -69,6 +73,10 @@ export function App({ settings }: { settings: Settings }) {
       openPlan: (focus) => {
         setPlanFocus(focus);
         setDestination('plan');
+      },
+      openPaymentPlan: (commitmentId) => {
+        setMoneyFocus(commitmentId);
+        setDestination('money');
       },
     }),
     [],
@@ -120,6 +128,7 @@ export function App({ settings }: { settings: Settings }) {
             onNavigate={(next) => {
               if (next === 'documents') setDocumentsFilter(null);
               if (next === 'diary') setDiaryFocus(null);
+              if (next === 'money') setMoneyFocus(null);
               setDestination(next);
             }}
           />
@@ -185,7 +194,11 @@ export function App({ settings }: { settings: Settings }) {
                   />
                 )}
                 {!showsStart && destination === 'money' && snapshot !== null && (
-                  <MoneyPage snapshot={snapshot} />
+                  <MoneyPage
+                    snapshot={snapshot}
+                    initialCommitment={moneyFocus}
+                    onFocusTaken={releaseMoneyFocus}
+                  />
                 )}
                 {!showsStart && destination === 'documents' && snapshot !== null && (
                   <DocumentsPage

@@ -16,8 +16,10 @@ import { useI18n } from '@/i18n/useI18n';
  * `testId` names the figure for the end-to-end suite (`<testId>`, `<testId>-value`,
  * `<testId>-row`), and `size` is `display` for the one number a screen is about and `title` for
  * a figure that sits beside others, and `cell` for a figure in a table-like row — its name read by
- * a screen reader but not shown, because the column already says it. `rowTestId` names the rows
- * when a suite reads them across figures (`money-row`).
+ * a screen reader but not shown, because the column already says it. `inline` is a small figure
+ * inside a row that has no column to name it (D2: a commitment's earned and due): its name is shown
+ * beside it in caption type, the value in body type, and the hint is read, not shown. `rowTestId`
+ * names the rows when a suite reads them across figures (`money-row`).
  *
  * It stays pressable when there is nothing to list: opening it then says so, which is a fact the
  * reader checked, rather than a disabled control that says nothing.
@@ -43,7 +45,7 @@ export function FigureRow<Row extends ReportRow>({
   /** The accessible name of the list the figure opens onto. */
   rowsLabel: string;
   testId?: string;
-  size?: 'display' | 'title' | 'cell';
+  size?: 'display' | 'title' | 'cell' | 'inline';
   rowTestId?: string;
   /**
    * When given, the rows are shown under headings — the group each belongs to, groups in their
@@ -58,10 +60,18 @@ export function FigureRow<Row extends ReportRow>({
 
   return (
     <div data-testid={testId} data-figure={figure.id} className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+      <div
+        className={`flex flex-wrap items-baseline gap-y-1 ${size === 'inline' ? 'gap-x-1' : 'gap-x-4'}`}
+      >
         <span
           id={`${id}-label`}
-          className={size === 'cell' ? 'sr-only' : 'text-body-lg font-semibold text-fg'}
+          className={
+            size === 'cell'
+              ? 'sr-only'
+              : size === 'inline'
+                ? 'text-caption font-semibold text-fg-secondary'
+                : 'text-body-lg font-semibold text-fg'
+          }
         >
           {label}
         </span>
@@ -86,7 +96,9 @@ export function FigureRow<Row extends ReportRow>({
         </button>
         <span
           id={`${id}-hint`}
-          className={size === 'cell' ? 'sr-only' : 'text-caption text-fg-tertiary'}
+          className={
+            size === 'cell' || size === 'inline' ? 'sr-only' : 'text-caption text-fg-tertiary'
+          }
         >
           {open ? t('figure.closes') : t('figure.opens')}
         </span>

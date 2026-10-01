@@ -18,6 +18,7 @@ use crate::commands::decisions::decision_make_with;
 use crate::commands::diary::{diary_entry_add_with, diary_list_with};
 use crate::commands::documents::tests::minimal_pdf;
 use crate::commands::documents::{document_add_with, documents_verify_with};
+use crate::commands::milestones::milestone_add_with;
 use crate::commands::money::{
     commitment_add_with, cost_line_add_with, payment_add_with, payment_reverse_with,
     CommitmentDraft,
@@ -110,7 +111,8 @@ pub fn entries_of(archive: &[u8]) -> Vec<(String, Vec<u8>)> {
 /// a responsible; a decision made; a document library with a PDF and a
 /// drawing; three diary entries — one with photos, a person present and work
 /// done, and a correction re-attaching a photo; an answer with a photo, and
-/// the stage it opens started; a priced line; a commitment with its quote;
+/// the stage it opens started; a priced line; a commitment with its quote
+/// and its payment plan (D2);
 /// two payments with receipts and the reversal of one; the approval (baseline
 /// 1); a replanning closed by baseline 2; and a second replanning left open.
 pub struct FullWork {
@@ -292,6 +294,15 @@ pub fn a_full_work() -> FullWork {
     .commitments[0]
         .id
         .clone();
+    milestone_add_with(
+        &open,
+        &commitment,
+        "Half up front",
+        5_000.0,
+        "advance",
+        None,
+    )
+    .unwrap();
     payment_add_with(
         &open,
         &from(json!({

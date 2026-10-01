@@ -38,6 +38,8 @@
 //!   both ends in one statement) and refuses a change to the duration or the
 //!   range that leaves the duration outside it. No migration: the columns and
 //!   their `CHECK`s are F9's (work migration 010).
+//! - D2: an activity a payment milestone is earned by is not removed
+//!   (`db::milestones`); the snapshot's commitments carry their payment plans.
 
 use std::collections::HashMap;
 
@@ -46,8 +48,8 @@ use rusqlite::{params, Connection, OptionalExtension};
 use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, WorkSnapshot};
 use crate::db::order::{ACTIVITIES, STAGES};
 use crate::db::{
-    baselines, check_answers, checks, decisions, dependencies, documents, money, payments,
-    replanning,
+    baselines, check_answers, checks, decisions, dependencies, documents, milestones, money,
+    payments, replanning,
 };
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
@@ -697,11 +699,13 @@ fn quantity_and_unit(
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] when the activity is not in this work.
+/// [`Error::InvalidInput`] when the activity is not in this work, or a payment
+/// milestone is earned by its finish (D2).
 pub fn remove_activity(conn: &Connection, id: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     let stage = ACTIVITIES.scope_of(&tx, id)?;
     refuse_if_activity_closed(&tx, id)?;
+    milestones::refuse_if_activity_earns(&tx, id)?;
     dependencies::remove_naming_activity(&tx, id)?;
     tx.execute("DELETE FROM activity WHERE id = ?1", [id])?;
     ACTIVITIES.close_gaps(&tx, stage.as_deref())?;
@@ -835,6 +839,7 @@ pub(crate) mod tests {
             "person_stage",
             "document",
             "document_link",
+            "payment_milestone",
         ] {
             let found: i64 = conn
                 .query_row(

@@ -15,7 +15,7 @@ import {
   worked,
 } from '@/domain/__fixtures__/plan';
 import type { DiaryEntry } from '@/domain/diary';
-import type { WorkSnapshot } from '@/domain/plan';
+import type { Milestone, MilestoneTrigger, WorkSnapshot } from '@/domain/plan';
 import { diaryReport } from '@/domain/reports/diary';
 import { scheduleReport } from '@/domain/reports/schedule';
 import { weekly, type Weekly } from '@/domain/reports/weekly';
@@ -194,6 +194,17 @@ function refusal(document: ReportDocument): string | null {
     if (rows > REPORT_LIMITS.tableRows) return 'rows';
   }
   return stringsOf(document).some(long) ? 'text' : null;
+}
+
+function milestone(
+  id: string,
+  position: number,
+  label: string,
+  shareBp: number,
+  trigger: MilestoneTrigger,
+  activityId: string | null = null,
+): Milestone {
+  return { id, position, label, shareBp, trigger, activityId };
 }
 
 const text = (document: ReportDocument) => stringsOf(document).join('\n');
@@ -486,6 +497,97 @@ describe('the schedule document', () => {
     });
     const table = document.blocks.find((block) => block.type === 'table');
     expect(table?.type === 'table' && table.rows.length).toBe(3);
+  });
+});
+
+describe('the weekly report says who was paid ahead of the work (D2)', () => {
+  /**
+   * Two commitments with payment plans: the demolition's, paid 800,00 against 700,00 earned (its
+   * advance, and the floor broken in the diary's correction), so 100,00 ahead; and the tiler's, with
+   * its advance earned and nothing paid, so 400,00 earned and not paid.
+   */
+  const PAID: WorkSnapshot = {
+    ...PLAN,
+    commitments: [
+      {
+        id: 'k1',
+        stageId: 's1',
+        personId: 'p2',
+        label: 'Contrato da demolição',
+        amountCents: 1000_00,
+        agreedOn: '2026-09-01',
+        documentHash: null,
+        milestones: [
+          milestone('m1', 1, 'Sinal', 3000, 'advance'),
+          milestone('m2', 2, 'Piso quebrado', 4000, 'activity_finished', 'a1'),
+          milestone('m3', 3, 'Entrega', 3000, 'stage_closed'),
+        ],
+      },
+      {
+        id: 'k2',
+        stageId: 's2',
+        personId: 'p1',
+        label: 'Orçamento do azulejista',
+        amountCents: 2000_00,
+        agreedOn: '2026-09-15',
+        documentHash: null,
+        milestones: [
+          milestone('m4', 1, 'Sinal', 2000, 'advance'),
+          milestone('m5', 2, 'Início', 3000, 'stage_started'),
+          milestone('m6', 3, 'Entrega', 5000, 'stage_closed'),
+        ],
+      },
+    ],
+    payments: [
+      ...PLAN.payments,
+      {
+        id: 'pay2',
+        seq: 2,
+        day: '2026-09-29',
+        stageId: 's1',
+        personId: 'p2',
+        commitmentId: 'k1',
+        amountCents: 800_00,
+        whatFor: 'Adiantamento pedido',
+        receiptHash: null,
+        reversesSeq: null,
+        authorName: 'Sample author',
+        createdAt: '2026-09-29T13:00:00.000Z',
+      },
+    ],
+  };
+  const compose = (language: Language) =>
+    composeWeekly(
+      weeklyOf(PAID, ENTRIES, null),
+      PAID,
+      schedule(PAID),
+      i18nOf(language),
+      chancesOf(PAID),
+    );
+
+  it('prints both figures with a row per commitment, the milestone each waits for named', () => {
+    const en = compose('en');
+    const ahead = figureLabelled(en, 'Paid ahead of the work');
+    expect(ahead.value).toBe('1');
+    expect(ahead.rows).toEqual([
+      'Contrato da demolição — Demolição — R$100.00 ahead of the work — Entrega (30 %): Demolição is not closed yet.',
+    ]);
+    const due = figureLabelled(en, 'Earned and not paid');
+    expect(due.value).toBe('R$400.00');
+    expect(due.rows).toEqual([
+      'Orçamento do azulejista — Acabamento — R$400.00 earned and not paid — Início (30 %): Acabamento is not started yet.',
+    ]);
+  });
+
+  it('says it in Portuguese, and every string prints as itself', () => {
+    const pt = compose('pt-BR');
+    const ahead = figureLabelled(pt, 'Pago à frente da obra');
+    expect(ahead.rows[0]).toContain('à frente da obra');
+    expect(figureLabelled(pt, 'Devido e não pago').value.replace(/\s/gu, ' ')).toBe('R$ 400,00');
+    for (const each of stringsOf(pt)) expect(unprintable(printable(each)), each).toEqual([]);
+    for (const each of stringsOf(compose('en'))) {
+      expect(unprintable(printable(each)), each).toEqual([]);
+    }
   });
 });
 

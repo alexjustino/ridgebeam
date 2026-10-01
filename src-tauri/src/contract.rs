@@ -70,6 +70,11 @@
 //!   not at all, `null` for both clears it). `Activity` is unchanged: the
 //!   fields F9 added now say the optimistic and the pessimistic duration,
 //!   whoever gave them.
+//! - D2: a commitment's payment plan (`Milestone`, `Commitment.milestones`,
+//!   by position, empty when none; `MilestonePatch`; `UsualLabels`, the words
+//!   `milestones_usual` writes). A share is whole basis points (`shareBp`,
+//!   3000 is 30 %). Nothing earned, due or ahead crosses the boundary: it is
+//!   the domain's, computed every time.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -573,8 +578,70 @@ pub struct Commitment {
     /// none.
     pub document_hash: Option<String>,
     /// Whether a payment names it — from then on it cannot be changed or
-    /// removed.
+    /// removed, and neither can its payment plan.
     pub locked: bool,
+    /// Its payment plan (D2), by position; empty when it has none — "no
+    /// payment plan", which the domain never assumes earned or not.
+    pub milestones: Vec<Milestone>,
+}
+
+/// One milestone of a commitment's payment plan (D2): a share of its amount,
+/// earned by a fact of the work — never a date, never a tick. What is earned
+/// is the domain's, computed from the stage's lifecycle and the diary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct Milestone {
+    /// UUID v7.
+    pub id: String,
+    /// Its order in the plan: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// What it is, in the person's words.
+    pub label: String,
+    /// Its share of the commitment's amount, in basis points: 1 to 10 000
+    /// ("30 %" is 3000). A plan's shares add up to at most 10 000.
+    pub share_bp: i64,
+    /// The fact that earns it: `advance` (the day the commitment was agreed),
+    /// `stage_started`, `activity_finished` or `stage_closed`.
+    pub trigger: String,
+    /// The activity whose finish earns it — given exactly when the trigger is
+    /// `activity_finished`, and of the commitment's stage; `null` otherwise.
+    pub activity_id: Option<String>,
+}
+
+/// A change to a milestone, while nothing is paid against its commitment. A
+/// field left out is left alone. The milestone the patch leaves must still
+/// name an activity exactly when its trigger is `activity_finished`: moving
+/// away from that trigger sends `activityId: null` with it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MilestonePatch {
+    /// A new label.
+    #[serde(default)]
+    pub label: Option<String>,
+    /// A new share, whole basis points, 1 to 10 000.
+    #[serde(default)]
+    pub share_bp: Option<f64>,
+    /// A new trigger.
+    #[serde(default)]
+    pub trigger: Option<String>,
+    /// Absent: unchanged. `null`: none. A string: an activity of the
+    /// commitment's stage.
+    #[serde(default, deserialize_with = "present")]
+    pub activity_id: Option<Option<String>>,
+}
+
+/// The labels of the usual payment plan, in the person's language — the
+/// interface's words, written as they are sent (each checked as a label).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsualLabels {
+    /// The 30 % earned when the stage starts.
+    pub started: String,
+    /// The 40 % earned when the stage's last activity is finished.
+    pub finished: String,
+    /// The 30 % earned when the stage closes.
+    pub closed: String,
 }
 
 /// A change to a commitment, while nothing is paid against it. A field left

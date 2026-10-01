@@ -11,6 +11,7 @@ import { DASHBOARD_LABEL_KEYS, WEEK_DAY_STATUS_KEYS } from '@/domain/dashboard';
 import { DECISIONS_DUE_LABEL_KEY } from '@/domain/decisions';
 import { DONE_LABEL_KEYS } from '@/domain/diary';
 import { DOCUMENTS_LABEL_KEYS, TARGET_KINDS } from '@/domain/documents';
+import { MILESTONE_MESSAGE_KEYS } from '@/domain/milestones';
 import { MONEY_LABEL_KEYS, NOT_PRICED_KEY, OVER_COMMITTED_LABEL_KEY } from '@/domain/money';
 import {
   READINESS_LABEL_KEY,
@@ -22,7 +23,11 @@ import {
 import { DIARY_ROW_STATUS_KEYS } from '@/domain/reports/diary';
 import { SCHEDULE_BLOCKED_KEYS } from '@/domain/reports/schedule';
 import { WEEKLY_LABEL_KEYS, WEEKLY_PROBLEM_KEYS } from '@/domain/reports/weekly';
-import { OPTIONAL_QUESTION_MESSAGE_KEYS, QUESTION_MESSAGE_KEYS } from '@/domain/questions';
+import {
+  OPTIONAL_QUESTION_MESSAGE_KEYS,
+  PAYMENT_PLAN_QUESTION_KEYS,
+  QUESTION_MESSAGE_KEYS,
+} from '@/domain/questions';
 import { PROBABILITY_MESSAGE_KEYS } from '@/domain/schedule/probability';
 import { SLIP_LABEL_KEY } from '@/domain/schedule/slip';
 import { WHAT_IF_LABEL_KEY, WHAT_IF_PROBLEM_KEYS } from '@/domain/schedule/whatIf';
@@ -204,6 +209,8 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         RULE_UNCOUNTED_KEY,
         ...Object.values(QUESTION_MESSAGE_KEYS),
         ...Object.values(OPTIONAL_QUESTION_MESSAGE_KEYS),
+        ...MILESTONE_MESSAGE_KEYS,
+        ...Object.values(PAYMENT_PLAN_QUESTION_KEYS),
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }

@@ -1,5 +1,6 @@
 //! Order: stages among themselves, rooms among themselves, activities and
-//! decisions within their stage, checks within their stage's gate.
+//! decisions within their stage, checks within their stage's gate, and the
+//! milestones of a commitment's payment plan (D2).
 //!
 //! Order is explicit and the person edits it one step at a time — move up, move
 //! down. A move at the edge is not an error: the first stage moved up is still
@@ -18,6 +19,7 @@
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::db::check_answers::CHECK_NOT_FOUND;
+use crate::db::milestones::MILESTONE_NOT_FOUND;
 use crate::db::work::{ACTIVITY_NOT_FOUND, DECISION_NOT_FOUND, ROOM_NOT_FOUND, STAGE_NOT_FOUND};
 use crate::error::{Error, Result};
 
@@ -77,6 +79,13 @@ pub const DECISIONS: Sequence = Sequence {
     table: "decision",
     scope: Some("stage_id"),
     missing: DECISION_NOT_FOUND,
+};
+
+/// A commitment's milestones, one sequence per commitment (D2).
+pub const MILESTONES: Sequence = Sequence {
+    table: "payment_milestone",
+    scope: Some("commitment_id"),
+    missing: MILESTONE_NOT_FOUND,
 };
 
 impl Sequence {

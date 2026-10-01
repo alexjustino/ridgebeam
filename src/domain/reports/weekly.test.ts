@@ -67,6 +67,8 @@ const figuresOf = (report: Weekly): Array<Figure<ReportRow>> => [
   report.money.committed,
   report.money.paid,
   report.money.paidThisWeek,
+  report.money.paidAhead,
+  report.money.dueNow,
   report.stages.planned,
   report.stages.ready,
   report.stages.started,
@@ -366,6 +368,7 @@ describe('money', () => {
         amountCents: 400_00,
         agreedOn: '2026-08-30',
         documentHash: null,
+        milestones: [],
       },
     ],
     payments: [
@@ -385,6 +388,70 @@ describe('money', () => {
     expect(report.money.paidThisWeek.rows.map((row) => row.sourceId)).toEqual(['2', '3']);
     expect(report.money.paidThisWeek.value).toBe(-50_00);
     expect(traceable(report.money.paidThisWeek)).toBe(true);
+  });
+
+  it('says which commitments are paid ahead of the work and what is earned and not paid (D2)', () => {
+    const planned: WorkSnapshot = {
+      ...plan,
+      commitments: [
+        {
+          ...plan.commitments[0]!,
+          // 25 % in advance; 75 % once the frame is finished.
+          milestones: [
+            {
+              id: 'm1',
+              position: 1,
+              label: 'Advance',
+              shareBp: 2_500,
+              trigger: 'advance',
+              activityId: null,
+            },
+            {
+              id: 'm2',
+              position: 2,
+              label: 'Frame up',
+              shareBp: 7_500,
+              trigger: 'activity_finished',
+              activityId: 'frame',
+            },
+          ],
+        },
+        {
+          id: 'k2',
+          stageId: 'finish',
+          personId: 'p1',
+          label: 'Tiler',
+          amountCents: 200_00,
+          agreedOn: '2026-08-30',
+          documentHash: null,
+          milestones: [
+            {
+              id: 'm3',
+              position: 1,
+              label: 'Advance',
+              shareBp: 5_000,
+              trigger: 'advance',
+              activityId: null,
+            },
+          ],
+        },
+      ],
+      payments: [{ ...payment(1, '2026-09-04', 250_00), commitmentId: 'k1' }],
+    };
+    // The mason's 100 earned, 250 paid: 150 ahead. The tiler's 100 earned, nothing paid: due.
+    const before = made(planned, [], '2026-09-08', '2026-09-15');
+    expect(before.money.paidAhead).toMatchObject({ unit: 'count', value: 1 });
+    expect(before.money.paidAhead.rows[0]).toMatchObject({
+      commitmentId: 'k1',
+      amountCents: 150_00,
+    });
+    expect(before.money.dueNow).toMatchObject({ unit: 'money', value: 100_00 });
+    // Once the diary finishes the frame, the mason's plan is earned: 150 due, none ahead.
+    const done = [entry(1, '2026-09-14', { done: [finished('frame')] })];
+    const after = made(planned, done, '2026-09-08', '2026-09-15');
+    expect(after.money.paidAhead.value).toBe(0);
+    expect(after.money.dueNow.value).toBe(250_00);
+    expect(figuresOf(after).every((figure) => traceable(figure))).toBe(true);
   });
 });
 

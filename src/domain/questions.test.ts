@@ -9,10 +9,11 @@ import {
   stage,
   takeBaseline,
 } from './__fixtures__/plan';
-import type { Activity, CostLine, WorkSnapshot } from './plan';
+import type { Activity, Commitment, CostLine, Payment, WorkSnapshot } from './plan';
 import {
   OPTIONAL_QUESTION_KINDS,
   OPTIONAL_QUESTION_MESSAGE_KEYS,
+  PAYMENT_PLAN_QUESTION_KEYS,
   QUESTION_DECISION_WINDOW_DAYS,
   QUESTION_KINDS,
   QUESTION_MESSAGE_KEYS,
@@ -463,7 +464,7 @@ describe('the optional question, asked last (slice D1)', () => {
         with: { durationMinDays: 5 },
       },
     });
-    expect(OPTIONAL_QUESTION_KINDS).toEqual(['most']);
+    expect(OPTIONAL_QUESTION_KINDS).toEqual(['most', 'paymentPlan']);
     expect(OPTIONAL_QUESTION_MESSAGE_KEYS.most).toBe('nextQuestion.ask.most');
     // Not in the count; asked, so skipped and remaining know them.
     expect(all).toMatchObject({ answered: 6, total: 15, optional: 3, skipped: 0, remaining: 12 });
@@ -517,5 +518,136 @@ describe('the optional question, asked last (slice D1)', () => {
       remaining: 0,
       optional: 0,
     });
+  });
+});
+
+describe('the payment-plan question, asked last of all (slice D2)', () => {
+  const askAll = (plan: WorkSnapshot, skipped: ReadonlySet<string> = new Set()) =>
+    openQuestionsWithOptional(plan, schedule(plan), TODAY, skipped);
+  const commitment = (
+    id: string,
+    stageId: string,
+    parts: Partial<Commitment> = {},
+  ): Commitment => ({
+    id,
+    stageId,
+    personId: null,
+    label: `Quote ${id}`,
+    amountCents: 1_000_00,
+    agreedOn: '2026-08-28',
+    documentHash: null,
+    milestones: [],
+    ...parts,
+  });
+  const paid = (
+    seq: number,
+    commitmentId: string | null,
+    parts: Partial<Payment> = {},
+  ): Payment => ({
+    id: `pay-${seq}`,
+    seq,
+    day: '2026-08-31',
+    personId: null,
+    stageId: 's1',
+    commitmentId,
+    amountCents: 100_00,
+    whatFor: 'Paid',
+    receiptHash: null,
+    reversesSeq: null,
+    authorName: 'Sample author',
+    createdAt: '2026-08-31T12:00:00.000Z',
+    ...parts,
+  });
+
+  it('asks how a commitment with no plan is to be paid, after the most questions, in plan order', () => {
+    const base = templatePlan();
+    const plan: WorkSnapshot = {
+      ...base,
+      stages: [
+        ...base.stages.slice(0, 2),
+        { ...base.stages[2]!, closedAt: '2026-08-31T17:00:00Z' },
+      ],
+      commitments: [
+        commitment('k-s3', 's3'),
+        commitment('k-s1', 's1'),
+        commitment('k-planned', 's1', {
+          milestones: [
+            {
+              id: 'm1',
+              position: 1,
+              label: 'Advance',
+              shareBp: 3_000,
+              trigger: 'advance',
+              activityId: null,
+            },
+          ],
+        }),
+        commitment('k-gone', 'nowhere'),
+      ],
+    };
+    const all = askAll(plan);
+    expect(keys(all.questions)).toEqual([
+      ...keys(ask(plan).questions),
+      'most:a1',
+      'most:a2',
+      // A closed stage does not refuse a payment plan, so its commitment is asked too.
+      'paymentPlan:k-s1',
+      'paymentPlan:k-s3',
+      'paymentPlan:k-gone',
+    ]);
+    expect(all.questions.find((question) => question.key === 'paymentPlan:k-s1')).toEqual({
+      kind: 'paymentPlan',
+      optional: true,
+      key: 'paymentPlan:k-s1',
+      messageKey: 'nextQuestion.ask.paymentPlan',
+      params: { label: 'Quote k-s1' },
+      stageId: 's1',
+      stageName: 'Demolition',
+      commitmentId: 'k-s1',
+      answer: { command: 'open', targetId: 'k-s1', field: 'paymentPlan' },
+    });
+    expect(all.questions.find((question) => question.key === 'paymentPlan:k-gone')).toMatchObject({
+      stageName: null,
+    });
+    // Optional: not in the count; asked, so remaining knows them.
+    expect(all.optional).toBe(5);
+    expect(all.total).toBe(ask(plan).total);
+    expect(PAYMENT_PLAN_QUESTION_KEYS).toEqual({
+      ask: 'nextQuestion.ask.paymentPlan',
+      open: 'nextQuestion.openPaymentPlan',
+    });
+    // Asked once every other question is answered or skipped.
+    const others = new Set(keys(all.questions).filter((key) => !key.startsWith('paymentPlan:')));
+    expect(nextQuestionWithOptional(plan, schedule(plan), TODAY, others)?.key).toBe(
+      'paymentPlan:k-s1',
+    );
+    // The required questions never ask it.
+    expect(keys(ask(plan).questions).some((key) => key.startsWith('paymentPlan:'))).toBe(false);
+  });
+
+  it('is not asked once money has moved on the commitment, a reversal included', () => {
+    const plan = snapshot({
+      stages: [stage('s1', 1)],
+      commitments: [commitment('k1', 's1'), commitment('k2', 's1'), commitment('k3', 's1')],
+      payments: [
+        paid(1, 'k1'),
+        // A reversal that names nothing still counts for the commitment of what it reverses.
+        paid(2, 'k2'),
+        paid(3, null, { amountCents: -100_00, reversesSeq: 2 }),
+        paid(4, null),
+      ],
+    });
+    expect(keys(askAll(plan).questions)).toEqual(['paymentPlan:k3']);
+  });
+
+  it('is not asked while the plan is locked', () => {
+    const plan = snapshot({ stages: [stage('s1', 1)], commitments: [commitment('k1', 's1')] });
+    const approved: WorkSnapshot = {
+      ...plan,
+      work: { ...plan.work, approvedAt: '2026-08-31T12:00:00.000Z' },
+      baselines: [takeBaseline(plan, 1)],
+    };
+    expect(keys(askAll(plan).questions)).toEqual(['paymentPlan:k1']);
+    expect(askAll(approved).questions).toEqual([]);
   });
 });

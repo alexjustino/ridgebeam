@@ -23,6 +23,7 @@ import type { ReportBlock, ReportDocument } from '@/data/commands';
 import { GATES_HELD_LABEL_KEY, STAGES_LABEL_KEYS, STAGES_READY_LABEL_KEY } from '@/domain/checks';
 import { DASHBOARD_LABEL_KEYS, WEEK_DAY_STATUS_KEYS, type WeekDay } from '@/domain/dashboard';
 import type { Figure, ReportRow } from '@/domain/figure';
+import { MILESTONE_LABEL_KEYS, type PlanRow } from '@/domain/milestones';
 import type { MoneyRow } from '@/domain/money';
 import { NOT_PRICED_KEY } from '@/domain/money';
 import type { WorkSnapshot } from '@/domain/plan';
@@ -37,6 +38,7 @@ import {
   type WeekActivityRow,
   type Weekly,
 } from '@/domain/reports/weekly';
+import { pendingText, percentText } from '@/features/money/paymentPlanWords';
 import type { MessageKey } from '@/i18n/en';
 import { termsFor } from '@/i18n/terms';
 import type { I18n } from '@/i18n/useI18n';
@@ -111,6 +113,30 @@ function moneyRows(i18n: I18n, figureOf: Figure<MoneyRow>, currency: string): st
       each.label,
       each.day === null ? null : i18n.day(each.day),
       each.priced ? i18n.money(each.amountCents, currency) : i18n.t(NOT_PRICED_KEY as MessageKey),
+    ),
+  );
+}
+
+/**
+ * A payment-plan figure's rows (D2): each commitment, its stage, the mark in words with its amount,
+ * and the milestone it waits for — what the dashboard's figure opens onto.
+ */
+function planRows(
+  i18n: I18n,
+  figureOf: Figure<PlanRow>,
+  snapshot: WorkSnapshot,
+  mark: 'money.paymentPlan.paidAhead.mark' | 'money.paymentPlan.dueNow.mark',
+): string[] {
+  const stages = new Map(snapshot.stages.map((stage) => [stage.id, stage.name]));
+  const currency = snapshot.work.currency;
+  return figureOf.rows.map((each) =>
+    row(
+      each.title,
+      stages.get(each.stageId),
+      i18n.t(mark, { amount: i18n.money(each.amountCents, currency) }),
+      each.next === null
+        ? null
+        : `${each.next.label} (${percentText(i18n, each.next.shareBp)}): ${pendingText(i18n, each.next)}`,
     ),
   );
 }
@@ -341,6 +367,21 @@ export function composeWeekly(
       t(WEEKLY_LABEL_KEYS.paidThisWeek),
       money(weekly.money.paidThisWeek.value, currency),
       moneyRows(i18n, weekly.money.paidThisWeek, currency),
+    ),
+  );
+  // D2: the payment plans, as of today — the same two figures the dashboard shows.
+  blocks.push(
+    figure(
+      t(MILESTONE_LABEL_KEYS.paidAhead),
+      number(weekly.money.paidAhead.value),
+      planRows(i18n, weekly.money.paidAhead, snapshot, 'money.paymentPlan.paidAhead.mark'),
+    ),
+  );
+  blocks.push(
+    figure(
+      t(MILESTONE_LABEL_KEYS.dueNow),
+      money(weekly.money.dueNow.value, currency),
+      planRows(i18n, weekly.money.dueNow, snapshot, 'money.paymentPlan.dueNow.mark'),
     ),
   );
 

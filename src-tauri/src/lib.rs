@@ -121,6 +121,19 @@
 //!   approval: a baseline does not record it. Nothing the simulation computes
 //!   is stored. No migration (F9's columns), no new command, no new error
 //!   kind, no new capability.
+//! - D2: "Am I paying ahead of the work?" A commitment gains a payment plan:
+//!   milestones, each a share of its amount in basis points, earned by a fact
+//!   of the work — an advance, the stage started, an activity finished, the
+//!   stage closed — never a date. Work migration 011 adds `payment_milestone`,
+//!   with its rules in the schema behind the host's sentences: at most 100 %
+//!   per commitment, an activity of the commitment's stage exactly when the
+//!   trigger is an activity's finish, and nothing added, changed, moved or
+//!   removed once a payment (a reversal included) names the commitment. Five
+//!   commands (`milestone_add`, `milestone_update`, `milestone_move`,
+//!   `milestone_remove`, `milestones_usual`); an activity a milestone is
+//!   earned by is not removed. What is earned, due and paid ahead — and the
+//!   warning before a payment ahead of the work, which never refuses it — is
+//!   the domain's. No new error kind, no new capability.
 
 pub mod commands;
 pub mod contract;
@@ -238,6 +251,11 @@ pub fn run() {
             commands::money::commitment_remove,
             commands::money::payment_add,
             commands::money::payment_reverse,
+            commands::milestones::milestone_add,
+            commands::milestones::milestone_update,
+            commands::milestones::milestone_move,
+            commands::milestones::milestone_remove,
+            commands::milestones::milestones_usual,
             commands::documents::document_add,
             commands::documents::document_update,
             commands::documents::document_link,

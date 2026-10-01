@@ -17,7 +17,8 @@
  * - **the finish** against the latest baseline, with the slip;
  * - **decisions** overdue, or due within the next 14 calendar days from today;
  * - **money** planned, committed and paid, and paid this week (payments dated in the week,
- *   reversals included, so a reversed payment nets out);
+ *   reversals included, so a reversed payment nets out); and, from the payment plans (slice D2), the
+ *   commitments **paid ahead of the work** and what is **earned and not paid**, as of today;
  * - **stages** planned, ready, running, held at a gate ("blocked") and closed.
  *
  * The decisions, the money and the stages are the work **as it is today**: a report on a past week
@@ -47,6 +48,7 @@ import {
 import { decisionRows, decisionsDue, type DecisionDueRow } from '../decisions';
 import { effectiveEntries, type DiaryEntry } from '../diary';
 import { counted, moneyFigure, type Figure, type ReportRow } from '../figure';
+import { aheadFigure, dueFigure, type PlanRow } from '../milestones';
 import { moneyOfWork, type MoneyRow } from '../money';
 import { latestBaseline, type WorkSnapshot } from '../plan';
 import { readiness, readinessFigure, type ReadinessRow } from '../readiness';
@@ -146,6 +148,10 @@ export interface Weekly {
     readonly committed: Figure<MoneyRow>;
     readonly paid: Figure<MoneyRow>;
     readonly paidThisWeek: Figure<MoneyRow>;
+    /** The commitments paid ahead of the work, counted, each with its excess (slice D2). */
+    readonly paidAhead: Figure<PlanRow>;
+    /** What is earned and not paid, summed, a row per commitment (slice D2). */
+    readonly dueNow: Figure<PlanRow>;
   };
   readonly stages: {
     readonly planned: Figure<StageRow>;
@@ -307,6 +313,8 @@ export function weekly(
             (row) => row.day !== null && row.day >= week.from && row.day <= week.to,
           ),
         ),
+        paidAhead: aheadFigure(snapshot, entries, today),
+        dueNow: dueFigure(snapshot, entries, today),
       },
       stages: {
         planned: planned!,

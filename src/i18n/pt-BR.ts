@@ -580,9 +580,9 @@ export const ptBR: Dictionary = {
   'money.payment.noCommitment': 'Nenhum',
   'money.payment.amount': 'Valor',
   'money.payment.what': 'Para quê',
-  'money.payment.receipt': 'Recibo (uma imagem)',
+  'money.payment.receipt': 'Recibo (uma imagem ou um PDF)',
   'money.payment.receiptHint':
-    'Um recibo é uma foto ou um escaneamento salvo como imagem; recibos em PDF chegam com os documentos, mais tarde.',
+    'Um recibo é uma foto, um escaneamento ou um PDF. Ele é copiado para a pasta da obra e listado com os documentos.',
   'money.payment.save': 'Registrar o pagamento',
   'money.payment.problem': 'O pagamento não foi registrado',
   'money.payment.chooseStage': 'Escolha…',
@@ -1170,7 +1170,7 @@ export const ptBR: Dictionary = {
   'reports.file.schedule': '{work} cronograma',
 
   'reports.weekly.holds':
-    'Um PDF de uma semana nas palavras do dono: os dias escritos e os dias úteis sem nada escrito, o que foi feito, quem esteve na obra, quanto o plano está pronto, quando termina e a chance de terminar até lá, as decisões a tomar, o dinheiro e as etapas. Não traz as fotos, e anotações longas vêm encurtadas — o PDF do diário as traz inteiras.',
+    'Um PDF de uma semana nas palavras do dono: os dias escritos e os dias úteis sem nada escrito, o que foi feito, quem esteve na obra, quanto o plano está pronto, quando termina e a chance de terminar até lá, as decisões a tomar, o dinheiro — com o que foi pago à frente da obra e o que é devido e não pago — e as etapas. Não traz as fotos, e anotações longas vêm encurtadas — o PDF do diário as traz inteiras.',
   'reports.week': 'Semana',
   'reports.weekly.write': 'Gravar o relatório semanal',
   'reports.weekly.waiting': 'Lendo o diário…',
@@ -1502,4 +1502,123 @@ export const ptBR: Dictionary = {
   'schedule.legend.criticality':
     'Sombra vermelha: com que frequência é crítica nas simulações — mais forte é mais vezes, e a fração está ao lado do nome',
   'schedule.bar.criticality': '{sentence}, {critical}',
+
+  // ── D2: estou pagando à frente da obra? ───────────────────────────────────
+  'money.milestone.trigger.advance':
+    'Um sinal — no dia em que foi combinado, antes de qualquer trabalho',
+  'money.milestone.trigger.stageStarted': 'Quando a etapa começa',
+  'money.milestone.trigger.activityFinished': 'Quando uma atividade termina',
+  'money.milestone.trigger.stageClosed': 'Quando a etapa é encerrada',
+  'money.milestone.pending.advance': '{name} ainda não foi combinado.',
+  'money.milestone.pending.stageStarted': '{name} ainda não começou.',
+  'money.milestone.pending.activityFinished': '{name} ainda não terminou.',
+  'money.milestone.pending.stageClosed': '{name} ainda não foi encerrada.',
+  'money.milestone.state.earned': 'devido desde {day}',
+  'money.milestone.state.notYet': 'ainda não',
+  'money.paymentPlan.sum': '{planned} no plano; {rest} ainda fora do plano.',
+  'money.paymentPlan.sumWhole': '{planned} no plano.',
+  'money.paymentPlan.figure.earned': 'Devido pela obra',
+  'money.paymentPlan.figure.paid': 'Pago nele',
+  'money.paymentPlan.figure.due': 'A pagar agora',
+  'money.paymentPlan.figure.ahead': 'Pago à frente da obra',
+  'money.paymentPlan.figure.paidAhead': 'Pago à frente da obra',
+  'money.paymentPlan.figure.dueNow': 'Devido e não pago',
+  'money.paymentPlan.figure.noPlan': 'Compromissos sem plano de pagamento',
+  'money.paymentPlan.figure.outside': 'Pagamentos sem compromisso',
+  'money.paymentPreview.ahead':
+    'Este pagamento deixa você {amount} à frente da obra em {commitment}: devido até agora {earned} — {next} ({share}) ainda não é devido: {pending}',
+  'money.paymentPreview.aheadNoNext':
+    'Este pagamento deixa você {amount} à frente da obra em {commitment}: devido até agora {earned} — todos os marcos já são devidos, e o resto do valor não está no plano de pagamento.',
+  'money.milestone.problem.unknownCommitment': 'Esse compromisso não está mais no plano.',
+  'money.milestone.problem.unknownMilestone': 'Esse marco não está mais no plano de pagamento.',
+  'money.milestone.problem.locked':
+    'Um pagamento cita este compromisso, então o plano de pagamento fica como está.',
+  'money.milestone.problem.labelEmpty': 'Dê um nome ao marco.',
+  'money.milestone.problem.labelTooLong': 'O nome é longo demais: no máximo 120 caracteres.',
+  'money.milestone.problem.invalidShare':
+    'Uma parte é uma porcentagem acima de 0 e no máximo 100, com no máximo uma casa decimal.',
+  'money.milestone.problem.overPlan':
+    'Isso passa o plano de pagamento de 100 % do compromisso: restam {available} para ele.',
+  'money.milestone.problem.invalidTrigger': 'Escolha o que o torna devido.',
+  'money.milestone.problem.activityRequired': 'Escolha a atividade cujo término o torna devido.',
+  'money.milestone.problem.activityNotAllowed':
+    'Só um marco devido por um término cita uma atividade.',
+  'money.milestone.problem.unknownActivity': 'Essa atividade não está mais no plano.',
+  'money.milestone.problem.activityOfAnotherStage':
+    'Essa atividade é de outra etapa, não da etapa do compromisso.',
+  'money.paymentPlan.usual.started': 'Início da etapa',
+  'money.paymentPlan.usual.finished': 'Última atividade concluída',
+  'money.paymentPlan.usual.closed': 'Etapa encerrada',
+  'money.paymentPlan.usual.note':
+    'Uma divisão comum — 30 % quando a etapa começa, 40 % quando a última atividade termina, 30 % quando ela é encerrada. Não é um conselho: mude para o que foi combinado.',
+  'money.paymentPlan.toggle': 'Plano de pagamento',
+  'money.paymentPlan.summary.none': 'nenhum ainda',
+  'money.paymentPlan.summary.one': '{count} marco · {share} no plano',
+  'money.paymentPlan.summary.other': '{count} marcos · {share} no plano',
+  'money.paymentPlan.lead':
+    'Cada marco passa a ser devido por um fato da obra, nunca por uma data: a etapa começar, uma atividade terminar no diário, a etapa ser encerrada — ou, para um sinal, o dia em que foi combinado.',
+  'money.paymentPlan.none':
+    'Ainda sem plano de pagamento. Até ter um, ninguém pode dizer se pagar este compromisso é pagar à frente da obra.',
+  'money.paymentPlan.locked':
+    'Um pagamento cita este compromisso, então o plano de pagamento fica como está: um plano reescrito depois de pagar esconderia o pagamento à frente da obra.',
+  'money.paymentPlan.closedStage':
+    '{stage} está encerrada, e este plano de pagamento ainda pode mudar: dinheiro não é uma mudança do plano.',
+  'money.paymentPlan.usual': 'Adicionar o plano usual',
+  'money.paymentPlan.usual.noActivity':
+    'O plano usual paga 40 % quando a última atividade da etapa termina, e {stage} ainda não tem atividade: adicione uma no Plano primeiro.',
+  'money.paymentPlan.usual.done': 'O plano usual foi adicionado: três marcos.',
+  'money.paymentPlan.milestones': 'Marcos de {name}',
+  'money.milestone.when.advance': 'um sinal, ao combinar — pago antes de qualquer trabalho',
+  'money.milestone.when.stageStarted': 'quando {name} começar',
+  'money.milestone.when.activityFinished': 'quando {name} terminar',
+  'money.milestone.when.stageClosed': 'quando {name} for encerrada',
+  'money.milestone.goneActivity': 'uma atividade que não está mais no plano',
+  'money.milestone.share': '{share} · {amount}',
+  'money.milestone.labelOf': 'Nome de {name}',
+  'money.milestone.shareOf': 'Parte de {name}, em %',
+  'money.milestone.remove': 'Remover: {name}',
+  'money.milestone.removed': '{name} saiu do plano de pagamento.',
+  'money.milestone.added': '{name} entrou no plano de pagamento.',
+  'money.milestone.add.label': 'Marco',
+  'money.milestone.add.share': 'Parte, em %',
+  'money.milestone.add.trigger': 'Devido quando',
+  'money.milestone.add.activity': 'Qual atividade',
+  'money.milestone.add.chooseActivity': 'Escolha a atividade…',
+  'money.milestone.add': 'Adicionar marco',
+  'money.milestone.advanceNote':
+    'Um sinal é pago antes de qualquer trabalho: é dinheiro à frente da obra, de propósito.',
+  'money.milestone.noActivities':
+    '{stage} ainda não tem atividade: adicione uma no Plano para pagar pelo término dela.',
+  'money.paymentPlan.rows.earned': 'Os marcos alcançados',
+  'money.paymentPlan.rows.due': 'O devido, menos o que foi pago nele',
+  'money.paymentPlan.row.milestone': 'marco, {share}',
+  'money.paymentPlan.paidAhead.mark': '{amount} à frente da obra',
+  'money.paymentPlan.dueNow.mark': '{amount} devido e não pago',
+  'money.paymentPlan.noPlan.mark': 'Sem plano de pagamento — não avaliado',
+  'money.paymentPreview.title': 'Diante do plano de pagamento de {commitment}',
+  'money.paymentPreview.line':
+    'Devido até agora {earned} · pago até agora {paid} · pago depois deste pagamento {after}',
+  'money.paymentPreview.even':
+    'Depois deste pagamento, o que foi pago é o que a obra já tornou devido.',
+  'money.paymentPreview.due': 'Depois deste pagamento, {due} fica devido e não pago.',
+  'money.paymentPreview.aheadAfter': 'Depois deste pagamento, {ahead} fica pago à frente da obra.',
+  'money.paymentPreview.noPlan':
+    '{commitment} não tem plano de pagamento, então não dá para dizer se este pagamento está à frente da obra.',
+  'money.paymentPreview.warningTitle': 'À frente da obra',
+  'money.paymentPreview.decision': 'Você ainda pode registrá-lo: pagar ou não é uma decisão sua.',
+  'nextQuestion.ask.paymentPlan': 'Como {label} vai ser pago?',
+  'nextQuestion.openPaymentPlan': 'Abrir o plano de pagamento',
+  'nextQuestion.optional.paymentPlan':
+    'Opcional — o plano não fica faltando nada sem isto; um plano de pagamento diz quando pagar é pagar à frente da obra.',
+  'nextQuestion.hint.paymentPlan':
+    'O plano de pagamento abre em Dinheiro, por etapa: diga que fato da obra torna devida cada parte.',
+  'dashboard.paidAhead.rows': 'Os compromissos pagos à frente da obra',
+  'dashboard.dueNow.rows': 'Os compromissos com dinheiro devido e não pago',
+  'dashboard.money.noPlan.one':
+    '{count} compromisso não tem plano de pagamento, então não é avaliado.',
+  'dashboard.money.noPlan.other':
+    '{count} compromissos não têm plano de pagamento, então não são avaliados.',
+  'dashboard.money.outside.one': '{count} pagamento não cita compromisso, então fica fora disto.',
+  'dashboard.money.outside.other':
+    '{count} pagamentos não citam compromisso, então ficam fora disto.',
 };

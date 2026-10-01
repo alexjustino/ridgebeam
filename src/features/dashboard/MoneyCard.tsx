@@ -1,3 +1,4 @@
+import { aheadFigure, dueFigure, MILESTONE_LABEL_KEYS, type PlanRow } from '@/domain/milestones';
 import {
   moneyOfWork,
   overCommittedFigure,
@@ -5,7 +6,8 @@ import {
   type OverCommittedRow,
 } from '@/domain/money';
 import type { WorkSnapshot } from '@/domain/plan';
-import { useI18n } from '@/i18n/useI18n';
+import { pendingText, percentText, usePaymentPlans } from '@/features/money/paymentPlanWords';
+import { useI18n, type I18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Card } from '@/ui/Card';
 import { FigureRow } from '@/ui/FigureRow';
@@ -17,17 +19,27 @@ const TOTALS = ['planned', 'committed', 'paid'] as const;
  * the cost lines, commitments or payments it adds up — the same figures the Money page shows — and
  * how many stages were paid over what was committed, opening onto them with the excess. Paying over
  * is allowed and flagged, never refused (ADR-024).
+ *
+ * And, from the payment plans (slice D2): how many commitments were **paid ahead of the work**,
+ * each with its excess and the milestone it waits for, and how much is **earned and not paid**, a
+ * row per commitment. Under them, in words, what these two leave out: the commitments with no
+ * payment plan, which are not evaluated, and the payments that name no commitment.
  */
 export function MoneyCard({ snapshot }: { snapshot: WorkSnapshot }) {
-  const { t, money, number, day } = useI18n();
+  const i18n = useI18n();
+  const { t, tp, money, number, day } = i18n;
   const term = useTerms();
   const work = moneyOfWork(snapshot);
   const over = overCommittedFigure(snapshot);
+  const { plans, entries, today } = usePaymentPlans(snapshot);
+  const ahead = entries === null ? null : aheadFigure(snapshot, entries, today);
+  const due = entries === null ? null : dueFigure(snapshot, entries, today);
   const currency = snapshot.work.currency;
+  const commitmentOf = new Map(snapshot.commitments.map((each) => [each.id, each.label]));
 
   return (
     <Card>
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         {TOTALS.map((name) => (
           <FigureRow<MoneyRow>
             key={name}
@@ -69,7 +81,86 @@ export function MoneyCard({ snapshot }: { snapshot: WorkSnapshot }) {
             </>
           )}
         />
+        {ahead !== null && due !== null && (
+          <>
+            <FigureRow<PlanRow>
+              testId="paid-ahead"
+              size="title"
+              figure={ahead}
+              label={t(MILESTONE_LABEL_KEYS.paidAhead)}
+              value={number(ahead.value)}
+              rowsLabel={t('dashboard.paidAhead.rows')}
+              renderRow={(row) => (
+                <PlanRowText
+                  i18n={i18n}
+                  row={row}
+                  name={commitmentOf.get(row.commitmentId) ?? row.title}
+                  sentence={t('money.paymentPlan.paidAhead.mark', {
+                    amount: money(row.amountCents, currency),
+                  })}
+                />
+              )}
+            />
+            <FigureRow<PlanRow>
+              testId="due-now"
+              size="title"
+              figure={due}
+              label={t(MILESTONE_LABEL_KEYS.dueNow)}
+              value={money(due.value, currency)}
+              rowsLabel={t('dashboard.dueNow.rows')}
+              renderRow={(row) => (
+                <PlanRowText
+                  i18n={i18n}
+                  row={row}
+                  name={commitmentOf.get(row.commitmentId) ?? row.title}
+                  sentence={t('money.paymentPlan.dueNow.mark', {
+                    amount: money(row.amountCents, currency),
+                  })}
+                />
+              )}
+            />
+          </>
+        )}
       </div>
+      {plans !== null && (plans.noPlan.value > 0 || plans.outside.value > 0) && (
+        <p data-testid="money-not-evaluated" className="mt-3 text-caption text-fg-tertiary">
+          {[
+            plans.noPlan.value > 0 ? tp('dashboard.money.noPlan', plans.noPlan.value) : null,
+            plans.outside.value > 0 ? tp('dashboard.money.outside', plans.outside.value) : null,
+          ]
+            .filter((each) => each !== null)
+            .join(' ')}
+        </p>
+      )}
     </Card>
+  );
+}
+
+/** A commitment's row: its name, the mark in words, and the milestone it waits for. */
+function PlanRowText({
+  i18n,
+  row,
+  name,
+  sentence,
+}: {
+  i18n: I18n;
+  row: PlanRow;
+  name: string;
+  sentence: string;
+}) {
+  return (
+    <>
+      <span className="font-semibold text-fg">{name}</span>
+      <span aria-hidden="true"> — </span>
+      <span>{sentence}</span>
+      {row.next !== null && (
+        <>
+          <span aria-hidden="true"> — </span>
+          <span>
+            {row.next.label} ({percentText(i18n, row.next.shareBp)}): {pendingText(i18n, row.next)}
+          </span>
+        </>
+      )}
+    </>
   );
 }
