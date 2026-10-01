@@ -10,9 +10,16 @@ import {
   useVerifyDiary,
   useWriteReport,
 } from '@/data/queries';
+import { stageState } from '@/domain/checks';
 import { weekOf } from '@/domain/dashboard';
 import type { WorkSnapshot } from '@/domain/plan';
 import { diaryReport } from '@/domain/reports/diary';
+import {
+  handover,
+  handoverGaps,
+  HANDOVER_LABEL_KEYS,
+  type HandoverGapRow,
+} from '@/domain/reports/handover';
 import { scheduleReport } from '@/domain/reports/schedule';
 import { weekly, type WeeklyProblem } from '@/domain/reports/weekly';
 import { schedule, type Schedule } from '@/domain/schedule';
@@ -23,10 +30,12 @@ import { useI18n, type I18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { announce } from '@/ui/announce';
 import { Card } from '@/ui/Card';
+import { FigureRow } from '@/ui/FigureRow';
 import { InfoBar } from '@/ui/InfoBar';
 import { Input } from '@/ui/Input';
 
 import { composeDiary } from './compose/diary';
+import { composeHandover, handoverGapText } from './compose/handover';
 import { composeSchedule } from './compose/schedule';
 import { composeWeekly, weekText } from './compose/weekly';
 import { PathForm, ProblemBar, WrittenBar } from './PathForm';
@@ -34,7 +43,8 @@ import { useSaveTarget } from './useSaveTarget';
 
 /**
  * Reports (slice F10): the files a work is written out as, one card each — the weekly report, the
- * diary, the schedule and the work as JSON. Each card says in one line what its file holds and what
+ * diary, the schedule, the work as JSON and — last, for the owner — the handover book (D3). Each
+ * card says in one line what its file holds and what
  * it does not, takes a path typed or chosen in the save dialog, and writes; the written path is
  * shown with **Open**, and a refusal is shown on the card in its own sentence.
  *
@@ -59,6 +69,7 @@ export function ReportsPage({ snapshot }: { snapshot: WorkSnapshot }) {
       <DiaryCard snapshot={snapshot} />
       <ScheduleCard snapshot={snapshot} scheduled={scheduled} />
       <JsonCard snapshot={snapshot} />
+      <HandoverCard snapshot={snapshot} />
     </div>
   );
 }
@@ -458,6 +469,115 @@ function JsonCard({ snapshot }: { snapshot: WorkSnapshot }) {
         {outcome.done !== null && (
           <WrittenBar
             testId="json-done"
+            written={outcome.done}
+            onOpenFailed={(error) => outcome.setProblem(describeError(error))}
+          />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * The handover book (D3, decisions 6 and 7): one PDF the owner keeps — room by room what was done,
+ * the decisions, the photos of hidden work, the documents by name, who did what and the care notes —
+ * always in the owner's words, as the weekly report is.
+ *
+ * Before anything is written the card says **what the book still lacks** (`handover-gaps`): a figure
+ * that opens onto its rows — a hidden-work check answered without its photo, a stage not closed, a
+ * room with no photo — computed from the same rows the book is composed from. Writing is allowed
+ * anyway: the book may be wanted mid-work, and its first page then says it was written while the
+ * work was in progress, which the card also says beforehand.
+ */
+function HandoverCard({ snapshot }: { snapshot: WorkSnapshot }) {
+  const i18n = useI18n();
+  const { t, tp, number, describeError } = i18n;
+  const term = useTerms();
+  const today = useToday();
+  const diary = useDiary(true);
+  const write = useWriteReport();
+  const outcome = useOutcome();
+  const suggested = useCallback(
+    () => t('reports.file.handover', { work: keyFrom(snapshot.work.name, 'work') }),
+    [snapshot.work.name, t],
+  );
+  const target = useSaveTarget('pdf', suggested);
+  const gaps = useMemo(
+    () => (diary.data === undefined ? null : handoverGaps(snapshot, diary.data)),
+    [snapshot, diary.data],
+  );
+  const open =
+    snapshot.stages.length === 0 || snapshot.stages.some((stage) => stageState(stage) !== 'closed');
+  const book = term('handoverBook');
+
+  const submit = () => {
+    outcome.clear();
+    const where = target.target();
+    if (!where.ok) {
+      outcome.setProblem(where.problem);
+      return;
+    }
+    if (diary.data === undefined) return;
+    write.mutate(
+      {
+        path: where.path,
+        document: composeHandover(handover(snapshot, diary.data), snapshot, i18n, today),
+        overwrite: where.overwrite,
+      },
+      {
+        onSuccess: (file) => written(i18n, file, outcome.setDone),
+        onError: (error) => outcome.setProblem(describeError(error)),
+      },
+    );
+  };
+
+  return (
+    <Card title={t('reports.handover.title', { book })}>
+      <p className="mb-3 text-body text-fg-secondary">{t('reports.handover.holds')}</p>
+      <div className="flex flex-col gap-3">
+        {gaps === null ? (
+          <p className="text-body text-fg-tertiary">
+            {diary.isError ? describeError(diary.error) : t('reports.weekly.waiting')}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <FigureRow<HandoverGapRow>
+              figure={gaps}
+              testId="handover-gaps"
+              size="title"
+              label={t(HANDOVER_LABEL_KEYS.gaps as MessageKey)}
+              value={number(gaps.value)}
+              rowsLabel={t('reports.handover.gaps.rows')}
+              renderRow={(gap) => handoverGapText(i18n, term, gap)}
+            />
+            <p data-testid="handover-gaps-sentence" className="text-body text-fg">
+              {gaps.value === 0
+                ? t('reports.handover.gaps.nothing', { book })
+                : tp('reports.handover.gaps.sentence', gaps.value, { book })}
+            </p>
+          </div>
+        )}
+        {open && (
+          <p data-testid="handover-in-progress" className="text-caption text-fg-secondary">
+            {t('reports.handover.inProgressNote', { stage: term('stage') })}
+          </p>
+        )}
+        <PathForm
+          target={target}
+          testId="handover-path"
+          writeTestId="handover-write"
+          writeLabel={t('reports.handover.write', { book })}
+          writing={write.isPending}
+          disabled={diary.data === undefined}
+          onEdited={outcome.clear}
+          onWrite={submit}
+        />
+        {outcome.problem !== null && (
+          <ProblemBar testId="handover-problem" problem={outcome.problem} />
+        )}
+        {outcome.done !== null && (
+          <WrittenBar
+            testId="handover-done"
             written={outcome.done}
             onOpenFailed={(error) => outcome.setProblem(describeError(error))}
           />
