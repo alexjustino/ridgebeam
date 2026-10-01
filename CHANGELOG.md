@@ -814,3 +814,87 @@ a date. The product says what is earned, what is due and what was paid ahead of 
   [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a warning comes before the act it warns about_
   and how a payment plan reads; the glossary gains _milestone_ (_marco de pagamento_) and _advance_
   (_sinal_).
+
+### Added in D3 — the handover book
+
+The third of the four differentiators (ADR-036). At the end of a work the owner keeps one PDF for
+the decades after it: room by room what was done and when, every decision with its answer, **the
+photos of the work hidden behind walls and floors, taken before it was closed**, the documents by
+name, who did what with their trade and contact, and the care notes — in the owner's words, in
+English or Portuguese. A gate check can now require its photo, and the book says what it still
+lacks before it is written (ADR-038).
+
+- **The handover book**, a fifth card on **Reports**, in the owner's words whatever lens is on. Its
+  first page says _Written while the work was in progress_ while any stage is open, then the place,
+  the start, the day the last stage closed or that the work is in progress, the template it started
+  from, what the book holds and what it does not, what it still lacks with its rows, and the people
+  by trade. Then one section per room, in room order — or per stage when the work has no rooms, and
+  a last section, _Elsewhere in the work_, for what touches no room — with the activities finished
+  and the day the diary says they finished, the decisions made with their answer and day, **the
+  photos of hidden work**, every one, full width, captioned with the check, its stage and the day it
+  was answered; the diary's other photos of the section's activities, two to a row, at most six per
+  section, the latest per activity first, with how many more are in the work's folder; and the care
+  notes. Then the documents by kind — permits, warranties, manuals, contracts, receipts — by title,
+  file name, day and what each is attached to; **who did what** — everyone in the plan with their
+  trade, phone and e-mail, the stages the diary saw them on and their days on site; the care notes
+  for the whole work, and any whose room or stage is gone; and **the record**: how many entries the
+  diary holds, from which day to which, and that its chain is verified whenever the diary is written
+  out as a PDF — the book claims no verification of its own. The selection is pure
+  (`src/domain/reports/handover.ts`, with `handoverGaps`); the composer is
+  `src/features/reports/compose/handover.ts`.
+- **Photos in a PDF.** The report model gains an **image** block — a hash, a caption, `full` or
+  `half` width, two half-width images side by side — and a report kind, `handover`. The host
+  (`src-tauri/src/report/images.rs`) accepts an image **only by a 64-hex-digit hash that a
+  `document` row of the open work names**, and only an image: a path-shaped value is refused before
+  any file is looked for, an image block naming a PDF or a hash the work does not hold is refused,
+  not skipped, and a PDF document is listed by name, never embedded. It reads the original from the
+  work's `documents/` under the documents' caps, checks that its bytes still hash to its name,
+  decodes it under the `image` crate's limits, turns it the way the camera said, lays transparency
+  on white, scales it to at most 1 600 pixels on the long edge and embeds it as JPEG at quality 82;
+  a JPEG already within those bounds — 8 bits, grey or colour, not turned, at most 4 MiB — is
+  embedded byte for byte. At most **400 images and 150 MiB of image data** per document, each
+  distinct photo counted once; past 400 the book leaves the later photos out and says how many, and
+  a book past 150 MiB is refused with a sentence. The second reader checks the embedded images in
+  `cargo test`.
+- **Hidden work needs its photo.** A gate check can **need a photo** (`check_needs_photo`, on the
+  Gates tab, while the stage is not closed). A _yes_ on it without a photo is refused — _"This check
+  needs a photo of the work before it is closed."_ — by the host and again by the schema
+  (`checks: needs a photo`); _no_, and _not applicable_ with its reason, are not. A check that needs
+  a photo shows its photo field open. The usual checks gain one at the close gate, _The pipes and
+  wiring were photographed before the walls were closed_, added needing its photo.
+- **The library asks for the photo where work is hidden.** The template format gains an optional
+  `"photo": true` on a check — validated as a boolean, applied as the check's flag, kept by a
+  work's export as a template — and five templates gain or convert one close-gate check that needs
+  a photo, each raised to version 2: the bathroom's pipes and wiring and its waterproofing, the
+  kitchen's pipes, gas line and wiring, the rewire's conduit runs, the apartment's wiring in the
+  walls and above the ceilings, and the masonry house's foundations, slab, pipes and conduits, and
+  wet-area waterproofing. The roof is unchanged.
+- **Warranties and manuals.** Two more kinds of document, `warranty` and `manual`, offered on
+  **Documents** and listed by the book under their own headings.
+- **Care notes** — "Reseal the shower grout once a year", "The stopcock is under the sink" — on the
+  work, a room or a stage, up to 1 000 characters each, in an order the person sets
+  (`care_note_add`, `care_note_update`, `care_note_move`, `care_note_remove`). They are not the
+  plan: no approval locks them and a closed stage does not refuse them. A room or a stage removed
+  takes its notes with it, in the same transaction.
+- **What the book still lacks.** The card shows a counted figure of the book's gaps, opening onto
+  its rows — checks that need a photo answered without one, checks that need a photo not answered,
+  stages not closed, rooms with no photo, no warranty or manual at all, no care note — and **writes
+  the book anyway** when asked: an owner may want it halfway through. A book written while any stage
+  is open says so on its first page.
+- **The Plan's Handover tab**: the care notes of the work, of each room and of each stage, written,
+  changed, moved and removed in place; and every check that needs a photo, with its state and its
+  photo, linking to the Gates tab.
+- **Work migration 012** (`012_handover.sql`) adds `stage_check.needs_photo` (0 for every check
+  already in a file) with the trigger that refuses a _yes_ without a photo on such a check;
+  rebuilds `document` to take the two new kinds, setting its links aside first and restoring them,
+  so every document keeps its id and every link its target; and adds `care_note`. A work from D2 is
+  migrated when it is opened, without loss, and its diary's chain still verifies.
+- **Documentation.** ADR-038 (the handover book, and photos of hidden work required where it
+  matters), with its costs — photos make a large PDF; a photo required for a _yes_ can be taken
+  after the wall is closed and the product cannot tell; care notes are the person's words, not
+  advice; a book written mid-work says so; [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) gains
+  `needs_photo`, the two kinds, the rebuild of `document` and `care_note`;
+  [`SECURITY.md`](SECURITY.md), an image in a report resolved by hash inside the open work only, and
+  its caps; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a book says what it still lacks before
+  it is printed_; [`CONTRIBUTING.md`](CONTRIBUTING.md), the template check's `photo` flag; the
+  glossary gains _handover book_ (_manual de entrega_) and _care note_ (_cuidado de manutenção_).

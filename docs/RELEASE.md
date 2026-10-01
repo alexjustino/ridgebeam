@@ -79,6 +79,14 @@ release that skipped a step is a release nobody can reason about afterwards.
      The diary PDF opens with "Chain verified on …" and says it is not a signature and not legal
      proof. Open the CSV in a spreadsheet: one entry per row, the columns split, and a note typed
      as `=1+1` shows as text with its apostrophe, not as `2`;
+   - **write the handover book of a real work** with rooms, a check that needs a photo answered
+     with one, a diary photo, a warranty as a PDF and a care note: the card lists what the book
+     still lacks before it is written, and the book opens in the system viewer with every photo
+     drawn — the hidden-work photo full width, captioned with its check and its day — the room's
+     section, the decision's answer, the care note as it was typed, and the warranty listed by name,
+     not reproduced. Print one page with photos on a real printer: they are sharp enough to find
+     a pipe by. While a stage is still open, the first page says the book was written while the
+     work was in progress;
    - **back up and restore a real work**: open a work with diary entries, a correction, photos
      and a PDF, and in **Settings → This work** press **Back up this work** and save the
      `.ridgebeam` file where the save dialog says. The sentence names the path, the size and how
