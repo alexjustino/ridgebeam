@@ -21,6 +21,7 @@ import {
   RULE_UNCOUNTED_KEY,
 } from '@/domain/readiness';
 import { DIARY_ROW_STATUS_KEYS } from '@/domain/reports/diary';
+import { HANDOVER_GAP_KEYS, HANDOVER_LABEL_KEYS } from '@/domain/reports/handover';
 import { SCHEDULE_BLOCKED_KEYS } from '@/domain/reports/schedule';
 import { WEEKLY_LABEL_KEYS, WEEKLY_PROBLEM_KEYS } from '@/domain/reports/weekly';
 import {
@@ -211,6 +212,8 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         ...Object.values(OPTIONAL_QUESTION_MESSAGE_KEYS),
         ...MILESTONE_MESSAGE_KEYS,
         ...Object.values(PAYMENT_PLAN_QUESTION_KEYS),
+        ...Object.values(HANDOVER_GAP_KEYS),
+        ...Object.values(HANDOVER_LABEL_KEYS),
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }

@@ -731,6 +731,28 @@
       }
     },
     {
+      "key": "handoverBook",
+      "en": {
+        "term": "handover book",
+        "sentence": "One PDF the owner keeps when the work ends: room by room what was done and when, every decision with its answer, the photos of the work hidden behind walls and floors, the documents by name, who did what, and the care notes. It says what it still lacks."
+      },
+      "pt-BR": {
+        "term": "manual de entrega",
+        "sentence": "Um PDF que o dono guarda quando a obra termina: cômodo por cômodo o que foi feito e quando, cada decisão com a sua resposta, as fotos do que ficou escondido atrás das paredes e dos pisos, os documentos pelo nome, quem fez o quê e os cuidados de manutenção. Ele diz o que ainda falta."
+      }
+    },
+    {
+      "key": "careNote",
+      "en": {
+        "term": "care note",
+        "sentence": "A sentence the owner keeps for later about looking after the work — “Reseal the shower grout once a year”, “The stopcock is under the sink”. Written in the person’s own words; it is not advice from the product."
+      },
+      "pt-BR": {
+        "term": "cuidado de manutenção",
+        "sentence": "Uma frase que o dono guarda para depois sobre como cuidar da obra — “Refazer o rejunte do box uma vez por ano”, “O registro geral fica embaixo da pia”. Escrita nas palavras da própria pessoa; não é um conselho do produto."
+      }
+    },
+    {
       "key": "export",
       "en": {
         "term": "export",
