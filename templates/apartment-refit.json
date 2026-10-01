@@ -1,7 +1,7 @@
 {
   "ridgebeamTemplate": 1,
   "id": "apartment-refit",
-  "version": 1,
+  "version": 2,
   "title": {
     "en": "Apartment refit",
     "pt-BR": "Reforma de apartamento"
@@ -163,8 +163,9 @@
             "pt-BR": "As paredes estão planas, com cada trinca e rasgo recomposto?"
           },
           {
-            "en": "Were photos taken of the cables above the ceilings before they were closed?",
-            "pt-BR": "Foram tiradas fotos dos cabos acima dos forros antes de fechá-los?"
+            "en": "Is the wiring in the walls and above the ceilings photographed before they are closed?",
+            "pt-BR": "A fiação nas paredes e acima dos forros foi fotografada antes de fechá-los?",
+            "photo": true
           }
         ]
       },

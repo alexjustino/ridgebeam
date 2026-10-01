@@ -1,7 +1,7 @@
 {
   "ridgebeamTemplate": 1,
   "id": "masonry-house",
-  "version": 1,
+  "version": 2,
   "title": {
     "en": "Masonry house",
     "pt-BR": "Casa térrea em alvenaria"
@@ -176,6 +176,11 @@
           {
             "en": "Are the ground beams waterproofed before the walls start?",
             "pt-BR": "As vigas baldrame estão impermeabilizadas antes de subir as paredes?"
+          },
+          {
+            "en": "Are the reinforcement and the waterproofed ground beams photographed before they are covered?",
+            "pt-BR": "As armaduras e as vigas baldrame impermeabilizadas foram fotografadas antes de serem cobertas?",
+            "photo": true
           }
         ]
       },
@@ -423,6 +428,11 @@
           {
             "en": "Were the props left for the curing time the engineer set?",
             "pt-BR": "O escoramento ficou pelo tempo de cura definido pelo engenheiro?"
+          },
+          {
+            "en": "Are the conduits and the reinforcement in the slab photographed before the pour?",
+            "pt-BR": "Os eletrodutos e a armadura da laje foram fotografados antes da concretagem?",
+            "photo": true
           }
         ]
       },
@@ -648,8 +658,9 @@
             "pt-BR": "Todo esgoto tem caimento até a rede ou a fossa, testado com água?"
           },
           {
-            "en": "Were photos taken of the pipes and conduits before the walls were rendered?",
-            "pt-BR": "Foram tiradas fotos dos tubos e eletrodutos antes do reboco?"
+            "en": "Are the pipes and conduits photographed before the walls are rendered?",
+            "pt-BR": "Os canos e os eletrodutos foram fotografados antes do reboco das paredes?",
+            "photo": true
           }
         ]
       },
@@ -780,6 +791,11 @@
           {
             "en": "Did the wet areas hold water for the whole flood test?",
             "pt-BR": "As áreas molhadas seguraram a água durante todo o teste de estanqueidade?"
+          },
+          {
+            "en": "Is the waterproofing of the wet areas photographed before the tiles cover it?",
+            "pt-BR": "A impermeabilização das áreas molhadas foi fotografada antes de o revestimento cobri-la?",
+            "photo": true
           }
         ]
       },
