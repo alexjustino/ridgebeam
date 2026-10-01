@@ -13,6 +13,8 @@
 //!
 //! - F9: `plan_apply`, `ranges_take`, `template_read`, `template_write`; the
 //!   plan `work_create` may carry is checked here ([`check_plan`]).
+//! - D3: a draft's check may need its photo (`CheckDraft.needsPhoto`, `false`
+//!   when left out); the template file itself is still the domain's.
 
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
@@ -247,7 +249,13 @@ pub fn check_plan(draft: &PlanDraft) -> Result<NewPlan> {
         let checks = stage
             .checks
             .iter()
-            .map(|check| Ok((gate(&check.gate)?, check_name(&check.name)?)))
+            .map(|check| {
+                Ok((
+                    gate(&check.gate)?,
+                    check_name(&check.name)?,
+                    check.needs_photo,
+                ))
+            })
             .collect::<Result<Vec<_>>>()?;
 
         let mut cost_lines = Vec::with_capacity(stage.cost_lines.len());

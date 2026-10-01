@@ -14,16 +14,21 @@
 //! # Changelog of this repository
 //!
 //! - F5: `append` and `list`.
+//! - D3: a "yes" without a photo on a check that needs one is refused
+//!   ([`NEEDS_PHOTO`]); "no", and "na" with its reason, are not. The schema
+//!   refuses it again (`checks: needs a photo`, work migration 012).
 
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::contract::CheckAnswer;
-use crate::db::work::exists;
 use crate::db::{new_id, now};
 use crate::error::{Error, Result};
 
 /// The sentence for a check id that is not in this work.
 pub const CHECK_NOT_FOUND: &str = "That check is not in this work.";
+
+/// The sentence for a "yes" without a photo on a check that needs one.
+pub const NEEDS_PHOTO: &str = "This check needs a photo of the work before it is closed.";
 
 /// An answer about to be written; every field already checked.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,16 +49,24 @@ pub struct NewAnswer {
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] when the check is not in this work;
+/// [`Error::InvalidInput`] when the check is not in this work, or for a "yes"
+/// without a photo on a check that needs one ([`NEEDS_PHOTO`]);
 /// [`Error::Database`] when the row cannot be written.
 pub fn append(conn: &Connection, new: &NewAnswer) -> Result<i64> {
     let tx = conn.unchecked_transaction()?;
-    if !exists(
-        &tx,
-        "SELECT 1 FROM stage_check WHERE id = ?1",
-        &new.check_id,
-    )? {
-        return Err(Error::InvalidInput(CHECK_NOT_FOUND.into()));
+    // The flag by its name: a file older than work migration 012 — which only
+    // a test of an upgrade writes answers into — has no such column, and no
+    // check of it needs a photo.
+    let needs_photo: bool = tx
+        .query_row(
+            "SELECT * FROM stage_check WHERE id = ?1",
+            [&new.check_id],
+            |row| Ok(row.get::<_, i64>("needs_photo").unwrap_or(0) == 1),
+        )
+        .optional()?
+        .ok_or_else(|| Error::InvalidInput(CHECK_NOT_FOUND.into()))?;
+    if needs_photo && new.answer == "yes" && new.photo_hash.is_none() {
+        return Err(Error::InvalidInput(NEEDS_PHOTO.into()));
     }
     let seq: i64 = tx.query_row(
         "SELECT coalesce(max(seq), 0) + 1 FROM check_answer WHERE check_id = ?1",

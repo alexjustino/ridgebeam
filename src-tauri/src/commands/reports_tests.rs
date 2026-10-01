@@ -186,7 +186,15 @@ fn a_weekly_report_is_written_whole_and_the_second_reader_finds_its_words() {
     let folder = Scratch::create();
     let path = at(&folder, "weekly.pdf");
 
-    let file = report_pdf_write_with(&written, &path, &every_block(), false, CREATED_AT).unwrap();
+    let file = report_pdf_write_with(
+        &OpenWork::default(),
+        &written,
+        &path,
+        &every_block(),
+        false,
+        CREATED_AT,
+    )
+    .unwrap();
 
     assert_eq!(file.path, path);
     let bytes = std::fs::read(&path).unwrap();
@@ -256,7 +264,9 @@ fn a_report_that_cannot_be_written_is_refused_and_nothing_is_written() {
             "“weekly.pdf” was not saved: the folder it would go in is not there.".to_string(),
         ),
     ] {
-        let refused = report_pdf_write_with(&written, &path, &document, true, date).unwrap_err();
+        let refused =
+            report_pdf_write_with(&OpenWork::default(), &written, &path, &document, true, date)
+                .unwrap_err();
         assert_eq!(refused.kind(), "invalid_input");
         assert_eq!(refused.to_string(), sentence);
     }
@@ -270,16 +280,30 @@ fn an_existing_file_is_replaced_only_when_the_save_dialog_chose_it() {
     let path = at(&folder, "Weekly.PDF");
     std::fs::write(&path, "somebody's file").unwrap();
 
-    let refused =
-        report_pdf_write_with(&written, &path, &every_block(), false, CREATED_AT).unwrap_err();
+    let refused = report_pdf_write_with(
+        &OpenWork::default(),
+        &written,
+        &path,
+        &every_block(),
+        false,
+        CREATED_AT,
+    )
+    .unwrap_err();
     assert_eq!(
         refused.to_string(),
         "“Weekly.PDF” was not saved: a file of that name is already there; choose it in the save dialog to replace it."
     );
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "somebody's file");
 
-    report_pdf_write_with(&written, &path, &every_block(), true, CREATED_AT)
-        .expect("chosen in the save dialog; .PDF in any case");
+    report_pdf_write_with(
+        &OpenWork::default(),
+        &written,
+        &path,
+        &every_block(),
+        true,
+        CREATED_AT,
+    )
+    .expect("chosen in the save dialog; .PDF in any case");
     assert!(std::fs::read(&path).unwrap().starts_with(b"%PDF-"));
     assert_eq!(files_in(folder.path()), vec!["Weekly.PDF"]);
 }
@@ -544,7 +568,15 @@ fn report_open_opens_only_a_file_this_session_wrote() {
         assert_eq!(refused.to_string(), NOT_WRITTEN_HERE);
     }
 
-    report_pdf_write_with(&written, &path, &every_block(), false, CREATED_AT).unwrap();
+    report_pdf_write_with(
+        &OpenWork::default(),
+        &written,
+        &path,
+        &every_block(),
+        false,
+        CREATED_AT,
+    )
+    .unwrap();
     let mut opened: Option<PathBuf> = None;
     report_open_with(&written, &path, |file| {
         opened = Some(file.to_path_buf());

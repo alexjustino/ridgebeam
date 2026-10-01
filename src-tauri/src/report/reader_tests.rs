@@ -26,6 +26,27 @@ pub struct Reading {
     pub has_author: bool,
     /// The fonts the pages use, by base name.
     pub fonts: Vec<String>,
+    /// Every image XObject in the file (D3), in object order.
+    pub images: Vec<ImageObject>,
+    /// How many times the pages draw an image (`Do`), all pages together.
+    pub placements: usize,
+}
+
+/// An image XObject, as the second reader finds it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImageObject {
+    /// `/Width`.
+    pub width: i64,
+    /// `/Height`.
+    pub height: i64,
+    /// `/Filter`, as a name.
+    pub filter: String,
+    /// `/ColorSpace`, as a name.
+    pub colour_space: String,
+    /// `/BitsPerComponent`.
+    pub bits: i64,
+    /// The stream's bytes, as stored.
+    pub bytes: Vec<u8>,
 }
 
 impl Reading {
@@ -69,7 +90,16 @@ pub fn read(bytes: &[u8]) -> Reading {
     let mut pages = Vec::new();
     let mut sizes = Vec::new();
     let mut fonts = Vec::new();
+    let mut placements = 0;
     for (number_of_page, id) in document.get_pages() {
+        let content = document
+            .get_and_decode_page_content(id)
+            .expect("the second reader decodes the page's content");
+        placements += content
+            .operations
+            .iter()
+            .filter(|operation| operation.operator == "Do")
+            .count();
         let text = document
             .extract_text(&[number_of_page])
             .expect("the second reader extracts the page's text");
@@ -93,7 +123,36 @@ pub fn read(bytes: &[u8]) -> Reading {
             }
         }
     }
+    let name = |object: &Object| -> String {
+        String::from_utf8(object.as_name().expect("a name").to_vec()).unwrap()
+    };
+    let images = document
+        .objects
+        .values()
+        .filter_map(|object| match object {
+            Object::Stream(stream)
+                if stream
+                    .dict
+                    .get(b"Subtype")
+                    .and_then(Object::as_name)
+                    .is_ok_and(|subtype| subtype == b"Image") =>
+            {
+                let dict = &stream.dict;
+                Some(ImageObject {
+                    width: dict.get(b"Width").unwrap().as_i64().unwrap(),
+                    height: dict.get(b"Height").unwrap().as_i64().unwrap(),
+                    filter: name(dict.get(b"Filter").unwrap()),
+                    colour_space: name(dict.get(b"ColorSpace").unwrap()),
+                    bits: dict.get(b"BitsPerComponent").unwrap().as_i64().unwrap(),
+                    bytes: stream.content.clone(),
+                })
+            }
+            _ => None,
+        })
+        .collect();
     Reading {
+        images,
+        placements,
         pages,
         sizes,
         title: info_string(&document, b"Title"),
@@ -430,4 +489,185 @@ fn every_character_the_dictionaries_hold_prints_without_a_question_mark() {
         }
     }
     assert!(checked > 0, "the dictionaries were found");
+}
+
+/// Photos (D3): a PNG and a JPEG past 1 600 px are re-encoded as JPEG within
+/// 1 600 px, a small JPEG goes in byte for byte, and the same photo placed
+/// twice is one image XObject drawn twice. The second reader finds each one's
+/// size, filter and colour space, and the captions as text.
+#[test]
+fn photos_are_embedded_once_each_as_dct_within_1600_px_and_a_small_jpeg_byte_for_byte() {
+    use crate::files::intake::tests::{jpeg, png};
+    use crate::report::images::{prepare, tests::grey_jpeg, Images};
+    use crate::report::render_with;
+
+    let small = jpeg(640, 480);
+    let grey = grey_jpeg(300, 200);
+    let mut photos = Images::new();
+    let (tall, wide, kept, grey_hash) = (
+        "a".repeat(64),
+        "b".repeat(64),
+        "c".repeat(64),
+        "d".repeat(64),
+    );
+    photos.insert(tall.clone(), prepare(&png(900, 2000)).unwrap());
+    photos.insert(wide.clone(), prepare(&jpeg(2400, 1800)).unwrap());
+    photos.insert(kept.clone(), prepare(&small).unwrap());
+    photos.insert(grey_hash.clone(), prepare(&grey).unwrap());
+    let image = |hash: &str, caption: &str, size: &str| serde_json::json!({ "type": "image", "hash": hash, "caption": caption, "size": size });
+    let document: ReportDocument = serde_json::from_value(serde_json::json!({
+        "kind": "handover", "title": "Handover book — Synthetic bathroom", "subtitle": "",
+        "pageSize": "a4", "language": "en",
+        "blocks": [
+            { "type": "heading", "level": 1, "text": "Bathroom" },
+            image(&tall, "Pipes before the wall was closed", "full"),
+            image(&wide, "Wiring, north wall", "half"),
+            image(&kept, "The finished floor", "half"),
+            image(&grey_hash, "A grey photo", "half"),
+            { "type": "heading", "level": 1, "text": "Hall" },
+            image(&tall, "Pipes before the wall was closed (again)", "full")
+        ]
+    }))
+    .unwrap();
+    crate::report::model::check(&document).unwrap();
+
+    let pdf = render_with(&document, &[], &moment(), &photos).unwrap();
+    let reading = read(&pdf.bytes);
+
+    assert_eq!(reading.images.len(), 4, "each distinct photo once");
+    assert_eq!(reading.placements, 5, "every placement drawn");
+    for image in &reading.images {
+        assert_eq!(image.filter, "DCTDecode");
+        assert_eq!(image.bits, 8);
+        assert!(image.width.max(image.height) <= 1600, "{image:?}");
+        assert!(
+            image.bytes.starts_with(&[0xFF, 0xD8, 0xFF]),
+            "a JPEG stream"
+        );
+    }
+    let sizes: Vec<(i64, i64, &str)> = reading
+        .images
+        .iter()
+        .map(|i| (i.width, i.height, i.colour_space.as_str()))
+        .collect();
+    for expected in [
+        (720, 1600, "DeviceRGB"),
+        (1600, 1200, "DeviceRGB"),
+        (640, 480, "DeviceRGB"),
+        (300, 200, "DeviceGray"),
+    ] {
+        assert!(sizes.contains(&expected), "{expected:?} in {sizes:?}");
+    }
+    let passed: Vec<&ImageObject> = reading
+        .images
+        .iter()
+        .filter(|i| i.bytes == small || i.bytes == grey)
+        .collect();
+    assert_eq!(passed.len(), 2, "the small JPEGs, byte for byte");
+
+    let text = reading.text();
+    for words in [
+        "Pipes before the wall was closed",
+        "Wiring, north wall",
+        "The finished floor",
+        "Pipes before the wall was closed (again)",
+    ] {
+        assert!(text.contains(words), "{words:?} in {text}");
+    }
+    assert_eq!(
+        render_with(&document, &[], &moment(), &photos)
+            .unwrap()
+            .bytes,
+        pdf.bytes,
+        "the same document, date and photos write the same bytes"
+    );
+}
+
+/// ATLAS's rule: two image blocks with the same hash are one image XObject
+/// and two placements.
+#[test]
+fn the_same_photo_placed_twice_is_one_image_object_and_two_placements() {
+    use crate::files::intake::tests::png;
+    use crate::report::images::{prepare, Images};
+    use crate::report::render_with;
+
+    let hash = "e".repeat(64);
+    let mut photos = Images::new();
+    photos.insert(hash.clone(), prepare(&png(400, 300)).unwrap());
+    let block = |caption: &str| Block::Image {
+        hash: hash.clone(),
+        caption: caption.into(),
+        size: crate::report::model::ImageSize::Full,
+    };
+    let document = ReportDocument {
+        blocks: vec![
+            block("In the bathroom"),
+            Block::PageBreak,
+            block("In the hall"),
+        ],
+        ..every_block()
+    };
+    let reading = read(
+        &render_with(&document, &[], &moment(), &photos)
+            .unwrap()
+            .bytes,
+    );
+    assert_eq!(reading.images.len(), 1);
+    assert_eq!(reading.placements, 2);
+    assert_eq!(reading.pages.len(), 2, "one on each page");
+}
+
+/// A report with no photo carries no image object, as before D3.
+#[test]
+fn a_report_without_photos_has_no_image_object() {
+    let reading = written(&every_block());
+    assert!(reading.images.is_empty());
+    assert_eq!(reading.placements, 0);
+}
+
+/// A 1×1 photo is drawn at most 1 pt across: the second reader reads the
+/// scale of the matrix its `Do` is drawn under.
+#[test]
+fn a_one_pixel_photo_is_drawn_no_larger_than_a_point() {
+    use crate::files::intake::tests::png;
+    use crate::report::images::{prepare, Images};
+    use crate::report::render_with;
+
+    let hash = "1".repeat(64);
+    let mut photos = Images::new();
+    photos.insert(hash.clone(), prepare(&png(1, 1)).unwrap());
+    let document = ReportDocument {
+        blocks: vec![Block::Image {
+            hash,
+            caption: "One pixel".into(),
+            size: crate::report::model::ImageSize::Full,
+        }],
+        ..every_block()
+    };
+    let bytes = render_with(&document, &[], &moment(), &photos)
+        .unwrap()
+        .bytes;
+    let parsed = Document::load_mem(&bytes).unwrap();
+    let (_, page) = parsed.get_pages().into_iter().next().unwrap();
+    let content = parsed.get_and_decode_page_content(page).unwrap();
+    let mut scale = None;
+    let mut matrix = (0.0f32, 0.0f32);
+    for operation in &content.operations {
+        match operation.operator.as_str() {
+            "cm" => {
+                matrix = (
+                    number(&operation.operands[0]),
+                    number(&operation.operands[3]),
+                )
+            }
+            "Do" => scale = Some(matrix),
+            _ => {}
+        }
+    }
+    let (sx, sy) = scale.expect("the photo is drawn");
+    assert!(
+        sx > 0.0 && sx <= 1.0 && sy > 0.0 && sy <= 1.0,
+        "{sx} × {sy}"
+    );
+    assert_eq!(read(&bytes).images.len(), 1);
 }

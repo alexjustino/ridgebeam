@@ -21,6 +21,7 @@
 //!
 //! - F7: documents recorded, re-linked by hash, titled and kinded, linked and
 //!   unlinked, removed; the backfill completed; the hashes the work names.
+//! - D3: two more kinds, `warranty` and `manual`.
 
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
@@ -33,9 +34,10 @@ use crate::db::{new_id, now};
 use crate::error::{Error, Result};
 use crate::files::intake::{self, Format};
 
-/// The kinds a document may be filed as.
-pub const KINDS: [&str; 7] = [
-    "photo", "quote", "drawing", "permit", "receipt", "contract", "other",
+/// The kinds a document may be filed as — `warranty` and `manual` from D3
+/// (work migration 012).
+pub const KINDS: [&str; 9] = [
+    "photo", "quote", "drawing", "permit", "receipt", "contract", "warranty", "manual", "other",
 ];
 
 /// The kinds of thing a document may be attached to.

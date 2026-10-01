@@ -14,6 +14,7 @@
 //!
 //! - F9: `apply` (a plan onto an empty work), `ranges_open` and `take_ranges`
 //!   (every range without a duration gives it one of its ends).
+//! - D3: a check is written needing its photo when the plan says so.
 
 use rusqlite::{params, Connection, OptionalExtension};
 
@@ -45,8 +46,9 @@ pub struct NewStage {
     pub name: String,
     /// Its activities, in order.
     pub activities: Vec<NewActivity>,
-    /// Its checks, in order within each gate.
-    pub checks: Vec<(Gate, String)>,
+    /// Its checks, in order within each gate: the gate, the question, and
+    /// whether a "yes" must carry a photo (D3).
+    pub checks: Vec<(Gate, String, bool)>,
     /// Its cost lines, in order.
     pub cost_lines: Vec<NewCostLine>,
     /// Its decisions, in order.
@@ -172,8 +174,8 @@ pub fn apply(conn: &Connection, plan: &NewPlan, provenance: &NewProvenance) -> R
             }
             ids.push(id);
         }
-        for (gate, name) in &stage.checks {
-            checks::add(&tx, &stage_id, *gate, name)?;
+        for (gate, name, needs_photo) in &stage.checks {
+            checks::add_flagged(&tx, &stage_id, *gate, name, *needs_photo)?;
         }
         for line in &stage.cost_lines {
             let activity = line.activity.map(|index| ids[index].as_str());

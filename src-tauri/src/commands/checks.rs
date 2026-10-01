@@ -12,6 +12,10 @@
 //! - F5: `check_add`, `check_rename`, `check_move`, `check_remove`,
 //!   `checks_add_defaults`, `check_answer`, `stage_start`, `stage_close`,
 //!   `stage_reopen`.
+//! - D3: `check_needs_photo` — a check that needs a photo of the work before
+//!   it is closed; a "yes" without one is refused with a sentence
+//!   ([`NEEDS_PHOTO`]); `checks_add_defaults` takes the usual checks that need
+//!   one (`needs_photo`, optional).
 
 use std::path::PathBuf;
 
@@ -21,7 +25,7 @@ use tauri::State;
 use crate::commands::documents::file_it;
 use crate::commands::work::{change_work, with_work};
 use crate::contract::{DocumentTarget, WorkSnapshot};
-use crate::db::check_answers::{self, NewAnswer, CHECK_NOT_FOUND};
+use crate::db::check_answers::{self, NewAnswer, CHECK_NOT_FOUND, NEEDS_PHOTO};
 use crate::db::checks::{self, Gate};
 use crate::db::order::CHECKS;
 use crate::db::work::{self as repo, exists};
@@ -96,7 +100,8 @@ pub fn check_remove(open: State<'_, OpenWork>, id: String) -> Result<WorkSnapsho
 }
 
 /// Add the usual checks to a stage, in the names the interface put in the
-/// person's language; any a gate already has, by name, is skipped.
+/// person's language; any a gate already has, by name, is skipped. Those named
+/// in `needs_photo` (optional) are added needing their photo.
 ///
 /// # Errors
 ///
@@ -109,8 +114,41 @@ pub fn checks_add_defaults(
     stage_id: String,
     start: Vec<String>,
     close: Vec<String>,
+    needs_photo: Option<Vec<String>>,
 ) -> Result<WorkSnapshot> {
-    checks_add_defaults_with(&open, &stage_id, &start, &close)
+    checks_add_defaults_with(
+        &open,
+        &stage_id,
+        &start,
+        &close,
+        &needs_photo.unwrap_or_default(),
+    )
+}
+
+/// Say whether a check needs a photo of the work before it is closed — hidden
+/// work. Toggled while its stage is not closed; answers already given stay.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a check not in this work;
+/// [`Error::StageClosed`] for a check of a closed stage; and the errors of
+/// every work command.
+#[tauri::command(rename_all = "snake_case")]
+pub fn check_needs_photo(
+    open: State<'_, OpenWork>,
+    id: String,
+    needs_photo: bool,
+) -> Result<WorkSnapshot> {
+    check_needs_photo_with(&open, &id, needs_photo)
+}
+
+/// What [`check_needs_photo`] does once the state is in hand.
+pub fn check_needs_photo_with(
+    open: &OpenWork,
+    id: &str,
+    needs_photo: bool,
+) -> Result<WorkSnapshot> {
+    change_work(open, |conn| checks::set_needs_photo(conn, id, needs_photo))
 }
 
 /// Answer a check: `yes`, `no`, or `na` with its reason; with a photo copied
@@ -119,7 +157,7 @@ pub fn checks_add_defaults(
 /// # Errors
 ///
 /// [`Error::InvalidInput`] for an answer that is not one of the three, `na`
-/// without a reason, a reason that does not fit, both a path and a hash, a
+/// without a reason, `yes` without a photo on a check that needs one, a reason that does not fit, both a path and a hash, a
 /// relative path, a hash that names no photo of this work, or a check not in
 /// this work; [`Error::PhotoRefused`] for a photo refused under the caps
 /// (nothing is written); and the errors of every work command.
@@ -263,7 +301,12 @@ pub fn checks_add_defaults_with(
     stage_id: &str,
     start: &[String],
     close: &[String],
+    needs_photo: &[String],
 ) -> Result<WorkSnapshot> {
+    let needs_photo: Vec<String> = needs_photo
+        .iter()
+        .map(|name| name.trim().to_string())
+        .collect();
     let start = start
         .iter()
         .map(|name| check_name(name))
@@ -273,7 +316,7 @@ pub fn checks_add_defaults_with(
         .map(|name| check_name(name))
         .collect::<Result<Vec<_>>>()?;
     change_work(open, |conn| {
-        checks::add_defaults(conn, stage_id, &start, &close)
+        checks::add_defaults(conn, stage_id, &start, &close, &needs_photo)
     })
 }
 
@@ -350,6 +393,18 @@ pub fn check_answer_with(
             draft.check_id,
         )? {
             return Err(invalid(CHECK_NOT_FOUND));
+        }
+        // Hidden work: a "yes" carries its photo (`db::check_answers` refuses
+        // it too; here it is refused before anything else is read).
+        if draft.answer == "yes" && path.is_none() && draft.photo_hash.is_none() {
+            let needs: i64 = conn.query_row(
+                "SELECT needs_photo FROM stage_check WHERE id = ?1",
+                [draft.check_id],
+                |row| row.get(0),
+            )?;
+            if needs == 1 {
+                return Err(invalid(NEEDS_PHOTO));
+            }
         }
         // Dropped without `keep`, the copy-in removes every file it wrote.
         let mut copy = CopyIn::new(&state.folder);
@@ -459,6 +514,7 @@ mod tests {
                 " The area is clear ".into(),
             ],
             &["The work was inspected".into()],
+            &[],
         )
         .unwrap();
         let wire = serde_json::to_value(&plan.checks[1]).unwrap();
@@ -748,6 +804,176 @@ mod tests {
 
         stage_reopen_with(&open, &tiling).unwrap();
         activity_move_with(&open, &grout, "up").expect("reopened: it moves again");
+        work_close_with(&open);
+    }
+
+    const HIDDEN: &str = "Are the pipes and wiring photographed before the wall is closed?";
+
+    /// Hidden work (D3): a check that needs its photo refuses a "yes" without
+    /// one — with the sentence, before anything is written, and in the schema
+    /// after it — and takes "no", "n/a" with its reason, and "yes" with a
+    /// photo, copied in or already held.
+    #[test]
+    fn a_check_that_needs_a_photo_refuses_yes_without_one_and_takes_everything_else() {
+        let (_db, open, _scratch) = host_with_a_work();
+        let stage = stage_add_with(&open, "Plumbing").unwrap().stages[0]
+            .id
+            .clone();
+        let check = check_add_with(&open, &stage, "close", HIDDEN)
+            .unwrap()
+            .checks[0]
+            .id
+            .clone();
+        let plan = check_needs_photo_with(&open, &check, true).unwrap();
+        let wire = serde_json::to_value(&plan.checks[0]).unwrap();
+        assert_eq!(wire["needsPhoto"], true);
+
+        let refused = check_answer_with(&open, &answer(&check, "yes"), AUTHOR).unwrap_err();
+        assert_eq!(refused.kind(), "invalid_input");
+        assert_eq!(
+            refused.to_string(),
+            "This check needs a photo of the work before it is closed."
+        );
+        assert_eq!(refused.to_string(), NEEDS_PHOTO);
+        assert!(crate::commands::work::work_get_with(&open)
+            .unwrap()
+            .check_answers
+            .is_empty());
+        assert_eq!(
+            folder_entries(&open),
+            Vec::<String>::new(),
+            "nothing written"
+        );
+
+        check_answer_with(&open, &answer(&check, "no"), AUTHOR).expect("no is not the claim");
+        check_answer_with(
+            &open,
+            &AnswerDraft {
+                reason: Some("The wall stays open."),
+                ..answer(&check, "na")
+            },
+            AUTHOR,
+        )
+        .expect("n/a with its reason");
+
+        let source = Scratch::create();
+        let photo = source.path().join("pipes.png");
+        let bytes = png(320, 240);
+        std::fs::write(&photo, &bytes).unwrap();
+        let photo_path = photo.to_string_lossy().into_owned();
+        check_answer_with(
+            &open,
+            &AnswerDraft {
+                photo_path: Some(&photo_path),
+                ..answer(&check, "yes")
+            },
+            AUTHOR,
+        )
+        .expect("yes with its photo");
+        let hash = intake::sha256_hex(&bytes);
+        let plan = check_answer_with(
+            &open,
+            &AnswerDraft {
+                photo_hash: Some(&hash),
+                ..answer(&check, "yes")
+            },
+            AUTHOR,
+        )
+        .expect("yes with a photo the work holds");
+        let answers: Vec<(&str, Option<&str>)> = plan
+            .check_answers
+            .iter()
+            .map(|a| (a.answer.as_str(), a.photo_hash.as_deref()))
+            .collect();
+        assert_eq!(
+            answers,
+            vec![
+                ("no", None),
+                ("na", None),
+                ("yes", Some(hash.as_str())),
+                ("yes", Some(hash.as_str()))
+            ]
+        );
+
+        // The schema refuses it again, for a file written by something else.
+        let refused = with_work(&open, |state| {
+            Ok(state.conn.execute(
+                "INSERT INTO check_answer (id, check_id, seq, answer, author_name, answered_at)
+                 VALUES (?1, ?2, 5, 'yes', 'x', 't')",
+                [crate::db::new_id(), check.clone()],
+            ))
+        })
+        .unwrap()
+        .unwrap_err();
+        assert!(
+            refused.to_string().contains("checks: needs a photo"),
+            "{refused}"
+        );
+
+        // Toggled off, a "yes" stands on its own again.
+        let plan = check_needs_photo_with(&open, &check, false).unwrap();
+        assert!(!plan.checks[0].needs_photo);
+        check_answer_with(&open, &answer(&check, "yes"), AUTHOR).unwrap();
+        work_close_with(&open);
+    }
+
+    #[test]
+    fn needing_a_photo_is_toggled_while_the_stage_is_open_and_the_usual_checks_may_carry_it() {
+        let (_db, open, _scratch) = host_with_a_work();
+        let stage = stage_add_with(&open, "Plumbing").unwrap().stages[0]
+            .id
+            .clone();
+        let plan = checks_add_defaults_with(
+            &open,
+            &stage,
+            &["The water is off".into()],
+            &["The work was inspected".into(), format!(" {HIDDEN} ")],
+            &[HIDDEN.to_lowercase()],
+        )
+        .unwrap();
+        let flags: Vec<(&str, bool)> = plan
+            .checks
+            .iter()
+            .map(|c| (c.name.as_str(), c.needs_photo))
+            .collect();
+        assert_eq!(
+            flags,
+            vec![
+                ("The water is off", false),
+                ("The work was inspected", false),
+                (HIDDEN, true)
+            ]
+        );
+        let hidden = plan.checks[2].id.clone();
+        let inspected = plan.checks[1].id.clone();
+        assert_eq!(
+            check_needs_photo_with(&open, "00000000-0000-7000-8000-000000000000", true)
+                .unwrap_err()
+                .to_string(),
+            CHECK_NOT_FOUND
+        );
+
+        stage_start_with(&open, &stage).unwrap_err();
+        let water = plan.checks[0].id.clone();
+        check_answer_with(&open, &answer(&water, "yes"), AUTHOR).unwrap();
+        stage_start_with(&open, &stage).unwrap();
+        check_needs_photo_with(&open, &hidden, false).unwrap();
+        check_answer_with(&open, &answer(&hidden, "yes"), AUTHOR).unwrap();
+        check_answer_with(&open, &answer(&inspected, "yes"), AUTHOR).unwrap();
+        stage_close_with(&open, &stage).unwrap();
+        let refused = check_needs_photo_with(&open, &hidden, true).unwrap_err();
+        assert_eq!(refused.kind(), "stage_closed");
+        stage_reopen_with(&open, &stage).unwrap();
+        let plan = check_needs_photo_with(&open, &hidden, true).expect("reopened");
+        assert!(plan.checks[2].needs_photo);
+        assert_eq!(
+            plan.check_answers
+                .iter()
+                .filter(|a| a.check_id == hidden)
+                .count(),
+            1,
+            "an answer already given stays as it is"
+        );
         work_close_with(&open);
     }
 }

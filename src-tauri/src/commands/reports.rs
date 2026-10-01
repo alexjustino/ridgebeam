@@ -20,6 +20,11 @@
 //!
 //! - F10: `report_pdf_write`, `diary_export_pdf`, `diary_export_csv`,
 //!   `work_export_json`, `report_open`.
+//! - D3: a document may carry photos (`image` blocks, the `handover` kind).
+//!   A document with an image needs the work open: each photo is found by its
+//!   hash among the open work's documents, inside its own `documents/`, read
+//!   under the caps and embedded while the work is held
+//!   (`report::images::resolve`). A document without one still needs no work.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -35,7 +40,7 @@ use crate::files::save;
 use crate::folder::OpenWork;
 use crate::report::csv::{self, Names, Separator};
 use crate::report::model::{self, ReportDocument, ReportKind};
-use crate::report::{self, json, Verified, CSV_FILE, JSON_FILE, PDF_FILE};
+use crate::report::{self, images, json, Verified, CSV_FILE, JSON_FILE, PDF_FILE};
 
 /// The files the report commands wrote in this session, by their canonical
 /// path — the only files [`report_open`] opens.
@@ -68,16 +73,19 @@ pub const NOT_THE_DIARY: &str = "The diary's export writes the diary, and this i
 pub const NOT_WRITTEN_HERE: &str =
     "Only a file Ridgebeam wrote in this session can be opened here.";
 
-/// The weekly report or the printed schedule, as a PDF. No work needs to be
-/// open: the document holds every word.
+/// The weekly report, the printed schedule or the handover book, as a PDF.
+/// The document holds every word; a document with photos needs the work open,
+/// where they are found by hash.
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] for a document past a limit or of the diary, a date
-/// that is not one, or a path that cannot be written; [`Error::Io`] when the
-/// disk refuses.
+/// [`Error::InvalidInput`] for a document past a limit or of the diary, a
+/// photo the open work does not hold or past a cap, a date that is not one, or
+/// a path that cannot be written; [`Error::NoWorkOpen`] for a document with a
+/// photo and no work open; [`Error::Io`] when the disk refuses.
 #[tauri::command(rename_all = "snake_case")]
 pub fn report_pdf_write(
+    open: State<'_, OpenWork>,
     written: State<'_, Written>,
     path: String,
     document: ReportDocument,
@@ -85,6 +93,7 @@ pub fn report_pdf_write(
     created_at: String,
 ) -> Result<WrittenFile> {
     report_pdf_write_with(
+        &open,
         &written,
         &path,
         &document,
@@ -222,6 +231,7 @@ fn verified(entries: &[crate::contract::DiaryEntry]) -> Result<Verified> {
 
 /// What [`report_pdf_write`] does once the state is in hand.
 pub fn report_pdf_write_with(
+    open: &OpenWork,
     written: &Written,
     path: &str,
     document: &ReportDocument,
@@ -235,15 +245,25 @@ pub fn report_pdf_write_with(
     }
     model::check(document)?;
     let moment = report::created_at(created_at)?;
-    let pdf = report::render(document, &[], &moment)?;
-    save_and_record(
-        written,
-        path,
-        &pdf.bytes,
-        overwrite,
-        &PDF_FILE,
-        Some(pdf.pages),
-    )
+    let write = |photos: &images::Images| {
+        let pdf = report::render_with(document, &[], &moment, photos)?;
+        save_and_record(
+            written,
+            path,
+            &pdf.bytes,
+            overwrite,
+            &PDF_FILE,
+            Some(pdf.pages),
+        )
+    };
+    if !images::any(&document.blocks) {
+        return write(&images::Images::new());
+    }
+    // The photos are found, read and written while the work is held.
+    with_work(open, |state| {
+        let photos = images::resolve(&state.conn, &state.folder, &document.blocks)?;
+        write(&photos)
+    })
 }
 
 /// What [`diary_export_pdf`] does once the state is in hand.
@@ -267,7 +287,8 @@ pub fn diary_export_pdf_with(
     with_work(open, |state| {
         let chain = verified(&diary::all(&state.conn)?)?;
         let prelude = report::verification(document.language, &chain, &moment);
-        let pdf = report::render(document, &prelude, &moment)?;
+        let photos = images::resolve(&state.conn, &state.folder, &document.blocks)?;
+        let pdf = report::render_with(document, &prelude, &moment, &photos)?;
         save_and_record(
             written,
             path,

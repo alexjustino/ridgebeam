@@ -325,6 +325,14 @@ pub fn a_full_work() -> FullWork {
     )
     .unwrap();
     payment_reverse_with(&open, 2, "Paid twice by mistake", today(), AUTHOR).unwrap();
+    let bath = work_get_with(&open).unwrap().rooms[0].id.clone();
+    crate::commands::care_notes::care_note_add_with(
+        &open,
+        "room",
+        &bath,
+        "Reseal the shower grout once a year",
+    )
+    .unwrap();
 
     let take = |open: &OpenWork| -> WorkSnapshot {
         let rows: Vec<BaselineRowDraft> = work_get_with(open)
