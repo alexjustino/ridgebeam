@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, go, openRecent, startSession, type Session } from './session';
 import { Keys } from './webdriver';
 
 /**
@@ -155,7 +155,7 @@ describe('F0 — a work, one stage, one activity, and what the plan does not kno
     // The stage's checks (F5): the usual ones.
     await click(session, 'checks-add-defaults');
     await driver.waitFor('the usual checks', async () =>
-      (await driver.findAll('[data-check-id]')).length === 8 ? true : null,
+      (await driver.findAll('[data-check-id]')).length === 9 ? true : null,
     );
     // The stage's money (F6): one cost line.
     await setValue(session, 'stage-cost-line-add-label', 'Labour');
@@ -189,7 +189,7 @@ describe('F0 — a work, one stage, one activity, and what the plan does not kno
     await session.restart();
     const { driver } = session;
     await driver.waitForElement('[data-testid="start"]');
-    await (await driver.waitForElement(`[data-testid="recent-work"]`)).click();
+    await openRecent(session);
     await go(session, 'dashboard');
     await driver.waitForText(NAME);
     expect(await readinessValue(session)).toBe('100 %');
