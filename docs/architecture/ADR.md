@@ -45,7 +45,10 @@ work fails, admitted with the first of them in [ADR-041](#adr-041). The first, s
 change to an approved plan on record — who asked, what changes, what it costs and what it does to
 the finish, computed by the schedule before anybody decides — and an approval opens the replanning
 with the change already in the plan, while a standing tally says how much the work has grown
-([ADR-041](#adr-041)).
+([ADR-041](#adr-041)). The second, slice E2, asks whether the money will last: the funds the
+owner expects are plan, the money received is a ledger of facts, and a projection reads them week by
+week against what the schedule and the payment plans will ask for, naming the week the money runs
+short, if it does ([ADR-042](#adr-042)).
 
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -90,6 +93,7 @@ with the change already in the plan, while a standing tally says how much the wo
 | [039](#adr-039) | The owner's snapshot: one file with no script, rendered by the host, sent by the person                               | Accepted — 2026-10-02          |
 | [040](#adr-040) | Before the first real work: a drop is a choice, and the product reminds but never backs up on its own                 | Accepted — 2026-10-02          |
 | [041](#adr-041) | Change orders: nothing changes without a price and a date                                                             | Accepted — 2026-10-02          |
+| [042](#adr-042) | Will the money last? Funding as plan, receipts as facts, a weekly projection                                          | Accepted — 2026-10-02          |
 
 ---
 
@@ -2657,3 +2661,139 @@ with its price and its words, its schedule is put right by hand inside the repla
 impact shown before the decision did not include it. **A change left waiting lowers readiness**:
 after a week, a change raised and not decided is something the plan does not know, even when it was
 raised only as a note.
+
+## ADR-042 — Will the money last? Funding as plan, receipts as facts, a weekly projection {#adr-042}
+
+**Status.** Accepted — 2026-10-02.
+
+**Context.** This is E2, the second slice of the second wave ([ADR-041](#adr-041)), and the second
+of the four ways a small work fails: **the money runs out before the work does**. The product
+already knows, in detail, what the work will ask for and when. The cost lines are the plan's money
+and the commitments what was agreed ([ADR-023](#adr-023)); a payment plan says which fact of the
+work earns each share of a commitment ([ADR-037](#adr-037)); the schedule says the day each of those
+facts is expected; and the owner's snapshot already lists the payments falling due in the next two
+weeks ([ADR-039](#adr-039)). It knows nothing about the other side. The owner's money arrives when
+somebody else says — a loan released in tranches after an inspection, a client who pays by
+instalments, savings set aside — and an owner who has enough money for the whole work can still
+have none in the week the tiler's second milestone falls due. Nothing on the screen said so: Money
+compares planned, committed and paid, and every one of them is money going out.
+
+**Decision.**
+
+- **Funding is plan.** A **fund** (`funding`, migration 014, [`DATA_MODEL.md`](../DATA_MODEL.md)) is
+  money the work expects to receive: a label of 1–200 characters — _Savings_, _Loan tranche 2_;
+  where it comes from, optionally, in up to 200; an amount in cents, greater than zero; the day it
+  is expected; and an optional note — listed in the order written, with no reordering. It is changed
+  like a commitment, not like the plan, amount and day included, whether or not money was received
+  against it: an approved plan's lock ([ADR-027](#adr-027)) does not cover it, because funding is
+  not the plan's scope and no baseline records it. A fund is removed only while nothing received
+  names it; after that the host refuses with a sentence, and the schema refuses again.
+- **Receipts are facts.** Money that has actually come in is a **receipt** (`funding_receipt`),
+  recorded on the day it arrived — **Mark as received…** on a fund, or on no fund at all for money
+  that arrived unplanned. The receipts are a ledger exactly like the payments ([ADR-023](#adr-023)):
+  numbered 1, 2, 3 … in order, append-only, never edited or removed; a mistake is corrected by a
+  **reversal** — a negative receipt naming the one it reverses, for the same fund, for its whole
+  amount, dated on or after it, with no note, once only. Unlike a payment, a receipt is not reversed
+  in part: money that arrived short is a reversal and a new receipt of what did arrive. The table
+  carries the battery of migration 007, and the Rust module that writes it holds no `UPDATE`,
+  `DELETE` or `REPLACE`, which a test reads its source to prove. **A receipt's day is never after
+  today**: money that has not arrived is a fund, not a receipt. The host refuses a day in the future
+  with a sentence; the schema cannot, because it has no clock it can trust. The commands are
+  `funding_add`, `funding_update`, `funding_remove`, `funding_receipt_add` and
+  `funding_receipt_reverse`, each returning the work's snapshot, which now carries the funds by
+  position and the receipts by number.
+- **The projection is the domain's, week by week** (`runway`). From the snapshot, the schedule, the
+  diary and today, it returns one row per calendar week, Monday to Sunday, from the current week to
+  the week of the finish — or eight weeks past today when the plan has no finish — and never more
+  than 260 weeks. It opens with the money on hand today: **receipts to date less payments to date**,
+  both ledgers with their reversals. Then, week by week:
+  - **Out** is what the work will ask for that week, from what the product already holds, none of it
+    typed for the purpose. A **milestone** of a payment plan not yet earned falls on the day the
+    schedule expects its fact — the stage's start, an activity's finish, the stage's close — net of
+    what was paid ahead on that commitment, as the snapshot's next two weeks already reckon it; the
+    function that says that day (`expectedOn`) moves out of the lookahead into `milestones.ts`, so
+    the snapshot and the projection read one answer. A milestone whose expected day has passed and
+    that is still not earned is still owed, and falls in the current week; **money earned and not
+    paid** is owed now, and falls in the current week too. The rest of a **payment plan that covers
+    less than its commitment**, and the unpaid rest of a **commitment with no payment plan**, are
+    spread evenly over the working days left in the stage — from today, or from the stage's start
+    when that is later, to the stage's finish. **Money planned and not yet committed** — a stage's
+    planned amount less its committed amount and less what was paid on the stage outside any
+    commitment, when that is more than zero — is spread the same way. A **closed stage**'s money
+    still owed falls in the current week. **Money the schedule cannot date** falls in the current
+    week, and the projection says so in a note. A cost line not priced yet contributes nothing, and
+    is counted in a row that says so.
+  - **In** is what each fund still expects — its amount less what was received against it — on its
+    expected day. A fund expected today counts. **A fund expected on an earlier day and not received
+    is not counted**, and a note says how much: _"1 expected sum has not arrived: $5,000.00 not
+    counted — money that has not come is not money."_
+  - A week's **closing** is its opening plus what comes in less what goes out, and the next week
+    opens with it. **Money dated after the last week** is listed, not counted.
+  - The result is one of four states: the money **lasts**; it runs **short**; there is money going
+    out and **no funding** recorded; or there is **nothing** to project.
+- **One sentence, and figures with their rows.** The projection says, in one sentence, the first
+  week whose closing is below zero and by how much — _"Money runs short in the week of 16 Nov —
+  $4,200.00 short."_ — or, when no week is, what is left at the end — _"The money lasts to the end,
+  with $1,800.00 to spare."_ — and beside it the late funds and the lines not priced. A short week's
+  closing reads _"$700.00 short"_, never with a minus sign. Four figures carry their rows
+  ([ADR-024](#adr-024)): **Money on hand today** (money), **Money runs short in the week of** (the
+  week's Monday, as a day), **Money left at the end** (money) and **Money expected and late** (a
+  count, each row a fund and the day it was expected). Every week is a row, and every row opens onto
+  what was added up in it.
+- **The chance, from D1's ranges.** `finishProbability` ([ADR-035](#adr-035)) gains an optional
+  per-run hook that receives each run's activity starts and finishes; no result of D1 changes, and
+  neither does its seed. `runwayChance` places each run's milestones and spread money on that run's
+  days and counts the runs whose balance goes below zero in any week up to that run's own finish
+  week, said as a natural frequency — _"3 in 10 chances that the money runs short before the work
+  ends."_ On the 2 000-activity benchmark work it takes about 0.3 s. Where no activity has a range
+  there is no chance to give, and the card says so: _"Every duration is taken as certain, so the
+  weeks below are the only answer. Give activities a range to see the chance."_
+- **Readiness learns one rule** (`work.funding`). A work whose priced planned money is above zero
+  and that has no fund recorded does not know where its money comes from — money received with no
+  fund does not answer it: its own row in the rule table, _"Where the money comes from is not
+  written down yet."_ ([ADR-018](#adr-018)).
+- **Where it lives.** **Money** gains a **Funding** tab: the funds, each with its source, amount,
+  day and what was received against it — added, changed at any time, amount and day included, and
+  removed only while nothing was received; **Mark as received…**, which asks for the amount and the
+  day; and the receipts ledger, with its reversals. Money gains a card titled **Will the money
+  last?**, with the sentence, the chance, a table of the weeks and a small balance chart drawn as
+  the S-curve is, ending with what it is: _"A projection, not a promise: it is as good as the
+  schedule, the payment plans and the dates typed here."_ The dashboard's money card shows the
+  week's Monday when the money runs short, or the money left at the end when it lasts, with the
+  sentence; it does not run the chance. The weekly report projects from the day it is written and
+  prints the sentence, with the short week's rows, or none when the money lasts; the owner's
+  snapshot carries the sentence.
+- **Words.** The glossary gains _funding_ (_recursos_): money the work will receive, from where and
+  when. A receipt is _money received_ (_dinheiro recebido_). There is no word for the runway: the
+  sentence says it.
+- **Change orders.** A change order waiting for a decision is **not** projected — nobody has decided
+  it. An approved one is already in the plan, as its cost line and its activities, and is projected
+  like any other planned money ([ADR-041](#adr-041)).
+
+**Why.** The owner does not need a cash-flow statement; he needs to know, before the week comes,
+whether there will be money in it. The money going out was already in the product, computed from
+the schedule and the payment plans rather than typed; the money coming in is a handful of sums and
+dates the owner knows. Read together, they name a week — and a week named a month ahead is a
+conversation with the bank, or the contractor, held in time rather than on the day the money is not
+there. Funds are plan and receipts are facts for the reason cost lines are plan and payments are
+facts: the plan moves when the bank moves, and what arrived must not. Money expected and not
+received is left out rather than assumed, because a projection that counts a late tranche says the
+money lasts in exactly the week it does not.
+
+**Cost accepted.** **A projection, not a promise**: it is as good as the schedule, the payment plans
+and the dates the owner typed — and the card says so in those words. A schedule that slips moves the
+money going out, a fund's day typed from hope moves the money coming in, and nothing checks either
+against a bank. **Money that has not arrived is not counted**: a tranche a day late can make a week
+short that it would have covered, and the sentence says so until the receipt is recorded or the
+fund's day is moved. **Uncommitted planned money is spread evenly** over its stage's working days,
+and so is the rest of a commitment with no payment plan, which a real invoice will not be: the week
+it lands in can be wrong by the length of the stage, and a payment plan is what makes it exact.
+**The chance uses D1's ranges and nothing else**: only the durations vary between runs — a fund that
+arrives late, a price that rises or a payment made early is the same in every run. **The week is the
+unit**: money that goes out on a Monday and comes in on the Friday of the same week nets out, and a
+few days short inside one week are not seen. **What was paid before any money was recorded as
+received counts against the money in hand**: a work whose payments are in the ledger and whose
+receipts are not opens below zero, and the projection says the money has already run short until
+what paid for them is recorded. **Money in is recorded, not connected**: the product holds no bank
+connection and imports no statement, so a receipt is what the person typed, and reconciling it with
+the account is theirs.
