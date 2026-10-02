@@ -1792,4 +1792,42 @@ export const ptBR: Dictionary = {
   'dashboard.money.outside.one': '{count} pagamento não cita compromisso, então fica fora disto.',
   'dashboard.money.outside.other':
     '{count} pagamentos não citam compromisso, então ficam fora disto.',
+
+  // ── Antes da primeira obra de verdade (U1) ──────────────────────────────────
+  'diary.form.samePeople': 'Mesma turma de {day}',
+  'diary.form.samePeople.ticked': 'Marcados na obra: {names}.',
+  'diary.form.samePeople.missing.one': '{count} dessas pessoas não está mais no plano.',
+  'diary.form.samePeople.missing.other': '{count} dessas pessoas não estão mais no plano.',
+  'drop.hint.diary.one': 'Solte para adicionar esta foto à entrada que está sendo escrita.',
+  'drop.hint.diary.other':
+    'Solte para adicionar estas {count} fotos à entrada que está sendo escrita.',
+  'drop.hint.documents.one': 'Solte para adicionar este arquivo aos documentos da obra.',
+  'drop.hint.documents.other':
+    'Solte para adicionar estes {count} arquivos aos documentos da obra.',
+  'drop.hint.none': 'Nada disso entra aqui.',
+  'drop.hint.left.one':
+    '{names} vai ficar de fora: é uma pasta, ou um tipo de arquivo que não entra aqui.',
+  'drop.hint.left.other':
+    '{names} vão ficar de fora: são pastas, ou tipos de arquivo que não entram aqui.',
+  'drop.left.one': '{names} ficou de fora: é uma pasta, ou um tipo de arquivo que não entra aqui.',
+  'drop.left.other':
+    '{names} ficaram de fora: são pastas, ou tipos de arquivo que não entram aqui.',
+  'drop.taken.diary.one':
+    '{count} foto adicionada à entrada. Ela é copiada para a obra quando a entrada for salva.',
+  'drop.taken.diary.other':
+    '{count} fotos adicionadas à entrada. Elas são copiadas para a obra quando a entrada for salva.',
+  'drop.taken.documents.one': '{count} arquivo adicionado aos documentos da obra.',
+  'drop.taken.documents.other': '{count} arquivos adicionados aos documentos da obra.',
+  'drop.notTaken': 'Nada foi adicionado',
+  'drop.elsewhere':
+    'Esta tela não recebe arquivos. Solte fotos no {diary}, ou arquivos em {documents}.',
+  'drop.noWork':
+    'Nenhuma obra está aberta. Abra uma e então solte fotos no {diary}, ou arquivos em {documents}.',
+  'dashboard.backup.never': 'Esta obra nunca teve cópia de segurança neste computador.',
+  'dashboard.backup.stale.one':
+    'A última cópia de segurança foi há {count} dia, e a obra mudou desde então.',
+  'dashboard.backup.stale.other':
+    'A última cópia de segurança foi há {count} dias, e a obra mudou desde então.',
+  'dashboard.backup.now': 'Fazer a cópia de segurança agora…',
+  'dashboard.backup.later': 'Agora não',
 };

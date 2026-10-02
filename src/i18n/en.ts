@@ -1545,7 +1545,8 @@ export const en = {
   'nextQuestion.description':
     'What the plan still has to be told, one question at a time. An answer is written into the plan as if it were typed in the breakdown.',
   'nextQuestion.count': '{answered} of {total} answered',
-  'nextQuestion.ask.duration': 'How many working days will “{name}” take? Most take {min} to {max}.',
+  'nextQuestion.ask.duration':
+    'How many working days will “{name}” take? Most take {min} to {max}.',
   'nextQuestion.ask.durationExact': 'How many working days will “{name}” take? Most take {days}.',
   'nextQuestion.ask.responsible': 'Who answers for “{name}”?',
   'nextQuestion.ask.price': 'How much is “{label}”?',
@@ -1770,6 +1771,40 @@ export const en = {
     '{count} commitments have no payment plan, so they are not evaluated.',
   'dashboard.money.outside.one': '{count} payment names no commitment, so it is outside this.',
   'dashboard.money.outside.other': '{count} payments name no commitment, so they are outside this.',
+  // ── Before the first real work (U1) ─────────────────────────────────────────
+  'diary.form.samePeople': 'Same people as {day}',
+  'diary.form.samePeople.ticked': 'Ticked as on site: {names}.',
+  'diary.form.samePeople.missing.one': '{count} of them is no longer in the plan.',
+  'diary.form.samePeople.missing.other': '{count} of them are no longer in the plan.',
+  'drop.hint.diary.one': 'Drop to add this photo to the entry being written.',
+  'drop.hint.diary.other': 'Drop to add these {count} photos to the entry being written.',
+  'drop.hint.documents.one': 'Drop to add this file to the work’s documents.',
+  'drop.hint.documents.other': 'Drop to add these {count} files to the work’s documents.',
+  'drop.hint.none': 'Nothing of this is taken here.',
+  'drop.hint.left.one':
+    '{names} will be left out: it is a folder, or not a kind of file taken here.',
+  'drop.hint.left.other':
+    '{names} will be left out: they are folders, or not kinds of file taken here.',
+  'drop.left.one': '{names} was left out: it is a folder, or not a kind of file taken here.',
+  'drop.left.other': '{names} were left out: they are folders, or not kinds of file taken here.',
+  'drop.taken.diary.one':
+    '{count} photo added to the entry. It is copied into the work when the entry is saved.',
+  'drop.taken.diary.other':
+    '{count} photos added to the entry. They are copied into the work when the entry is saved.',
+  'drop.taken.documents.one': '{count} file added to the work’s documents.',
+  'drop.taken.documents.other': '{count} files added to the work’s documents.',
+  'drop.notTaken': 'Nothing was added',
+  'drop.elsewhere':
+    'This screen takes no files. Drop photos on the {diary}, or files on {documents}.',
+  'drop.noWork':
+    'No work is open. Open one, then drop photos on the {diary}, or files on {documents}.',
+  'dashboard.backup.never': 'This work has never been backed up on this machine.',
+  'dashboard.backup.stale.one':
+    'The last backup was {count} day ago, and the work has changed since.',
+  'dashboard.backup.stale.other':
+    'The last backup was {count} days ago, and the work has changed since.',
+  'dashboard.backup.now': 'Back up now…',
+  'dashboard.backup.later': 'Not now',
 } as const;
 
 /** Every key the interface may ask for. */
