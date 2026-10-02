@@ -620,6 +620,22 @@ breaks one is not merged.
   announced, closable, gone at the next screen or the next drag — and every name a drop left out is
   named in one sentence, _"Week 1 was left out: it is a folder, or not a kind of file taken here."_
   (ADR-040).
+- **An impact is shown before a decision, always.** Nothing that moves the finish or the money is
+  decided on a blank. The form that raises a change order shows what it does **as it is written,
+  before it is saved** (`change-impact`) — computed by the schedule, never typed, in one sentence
+  that says the working days, both dates and the money: _"Finishes 3 working days later — on 14 Nov
+  instead of 11 Nov; costs $1,200.00 more."_ The dialog that approves, declines or withdraws it
+  shows the same impact again, from the same call, so the two readings cannot disagree (§2), and
+  says what approving will do — _"The replanning is open with this change applied; review the plan
+  and take the next baseline."_ — before the button is pressed, not after. Days are always
+  **working** days and the sentence says so; a change that does not move the finish says that in
+  words, and a change with no price says _not priced_, never _$0.00_. The impact is a figure like
+  any other, and opens onto the activities it moves. Approving is not destructive and does not take
+  the danger tone; the confirming button repeats the verb — **Approve**, **Decline**, **Withdraw**
+  (ADR-041). A change declined or withdrawn is **never shown as a cost**: it has no price line of
+  its own, and its impact reads as what approving it would have done — _"Not applied. Had it been
+  approved: …"_. A figure's value is a number and its unit lives in the label — _Working days added
+  by changes_ **+2**, never a sentence in the value's place.
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
