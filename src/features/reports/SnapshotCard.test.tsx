@@ -41,6 +41,8 @@ const NAVIGATION: Navigation = {
   openPaymentPlan: () => undefined,
   openSnapshot: vi.fn(),
   openBackup: () => undefined,
+  openSchedule: () => undefined,
+  openChanges: () => undefined,
 };
 
 let host: HTMLDivElement;

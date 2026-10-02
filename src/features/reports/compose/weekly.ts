@@ -38,12 +38,24 @@ import {
   type WeekActivityRow,
   type Weekly,
 } from '@/domain/reports/weekly';
+import { CHANGE_LABEL_KEYS, changeTally, type ChangeTally } from '@/domain/changes';
 import { pendingText, percentText } from '@/features/money/paymentPlanWords';
+import {
+  askedByText,
+  changeCostText,
+  signedDays,
+  changeRowTitle,
+  changeStateText,
+  decidedImpactSentence,
+  finishMoveText,
+  tallySentence,
+  waitedText,
+} from '@/features/plan/changeWords';
 import type { MessageKey } from '@/i18n/en';
 import { termsFor } from '@/i18n/terms';
 import type { I18n } from '@/i18n/useI18n';
 
-import { finished, shortened } from './document';
+import { finished, REPORT_LIMITS, shortened } from './document';
 import {
   baselineChanceText,
   criticalText,
@@ -70,6 +82,11 @@ function row(...parts: ReadonlyArray<string | null | undefined | false>): string
       .filter((part, index, all) => index === 0 || part !== all[index - 1])
       .join(' — ')
   );
+}
+
+/** A row that may carry names typed by a person, kept inside the host's string limit. */
+function line(...parts: ReadonlyArray<string | null | undefined | false>): string {
+  return shortened(row(...parts), REPORT_LIMITS.text);
 }
 
 function figure(label: string, value: string, rows: readonly string[]): ReportBlock {
@@ -145,6 +162,98 @@ function stageRows(i18n: I18n, figureOf: Figure<ReportRow>): string[] {
   return figureOf.rows.map((each) =>
     row(each.title, each.day === null ? null : i18n.day(each.day.slice(0, 10))),
   );
+}
+
+/**
+ * The week's change orders (E1), in the owner's words: the ones decided this week, each with how it
+ * was decided and the impact its decision froze; the ones still waiting, each with how long it has
+ * waited; then the standing tally — the approved changes' money and working days, each a figure with
+ * its changes as rows — and the tally in words, with who asked. The owner's snapshot prints the same
+ * waiting figure and tally (`changeTallyBlocks`).
+ */
+function weeklyChangeBlocks(weekly: Weekly, snapshot: WorkSnapshot, i18n: I18n): ReportBlock[] {
+  const { t, number } = i18n;
+  const currency = snapshot.work.currency;
+  const tally = changeTally(snapshot, weekly.today);
+  const decided = snapshot.changeOrders
+    .filter(
+      (change) =>
+        change.decision !== null &&
+        change.decision.decidedOn >= weekly.week.from &&
+        change.decision.decidedOn <= weekly.week.to,
+    )
+    .sort((a, b) => a.number - b.number);
+  return [
+    { type: 'heading', level: 2, text: t('reports.weekly.changes') },
+    figure(
+      t('reports.weekly.changes.decided'),
+      number(decided.length),
+      decided.map((change) =>
+        line(
+          changeRowTitle(i18n, change),
+          askedByText(i18n, snapshot, change, true),
+          changeStateText(i18n, change),
+          decidedImpactSentence(i18n, change, currency),
+        ),
+      ),
+    ),
+    ...changeTallyBlocks(i18n, snapshot, tally, t(CHANGE_LABEL_KEYS.waiting)),
+  ];
+}
+
+/**
+ * The waiting change orders and the standing tally, as both owner's documents print them: "Waiting
+ * for a decision" (or the snapshot's "Waiting for your decision") with each change, who asked and how
+ * long it has waited; the approved changes' money and working days, each change a row; and the tally
+ * in one sentence, with who asked.
+ */
+export function changeTallyBlocks(
+  i18n: I18n,
+  snapshot: WorkSnapshot,
+  tally: ChangeTally,
+  waitingLabel: string,
+): ReportBlock[] {
+  const { t, number, money, day } = i18n;
+  const currency = snapshot.work.currency;
+  const byId = new Map(snapshot.changeOrders.map((change) => [change.id, change]));
+  const { cost, days, waiting } = tally.figures;
+  return [
+    figure(
+      waitingLabel,
+      number(waiting.value),
+      waiting.rows.map((each) => {
+        const change = byId.get(each.changeOrderId);
+        return line(
+          changeRowTitle(i18n, each),
+          change === undefined ? null : askedByText(i18n, snapshot, change, true),
+          waitedText(i18n, each.waitedDays, each.tooLong),
+          change === undefined ? null : changeCostText(i18n, change.costCents, currency),
+        );
+      }),
+    ),
+    figure(
+      t(CHANGE_LABEL_KEYS.cost),
+      money(cost.value, currency),
+      cost.rows.map((each) =>
+        line(
+          changeRowTitle(i18n, each),
+          each.day === null ? null : day(each.day),
+          each.priced ? money(each.amountCents, currency) : t('changes.row.unpriced'),
+        ),
+      ),
+    ),
+    figure(
+      t(CHANGE_LABEL_KEYS.days),
+      signedDays(i18n, days.value),
+      days.rows.map((each) =>
+        line(changeRowTitle(i18n, each), finishMoveText(i18n, { ...each, days: each.daysDelta })),
+      ),
+    ),
+    {
+      type: 'paragraph',
+      text: shortened(tallySentence(i18n, tally, currency, true), REPORT_LIMITS.text),
+    },
+  ];
 }
 
 /**
@@ -387,6 +496,11 @@ export function composeWeekly(
       planRows(i18n, weekly.money.dueNow, snapshot, 'money.paymentPlan.dueNow.mark'),
     ),
   );
+
+  // ── Changes (E1) — once the plan is approved; before that there are none to report ──
+  if (snapshot.work.approvedAt !== null) {
+    blocks.push(...weeklyChangeBlocks(weekly, snapshot, i18n));
+  }
 
   // ── Stages ──
   blocks.push({ type: 'heading', level: 2, text: t('reports.weekly.stages') });

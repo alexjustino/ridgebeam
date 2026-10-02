@@ -23,6 +23,9 @@
  *   photos — half width, captioned with the day and the file — and how many more it has;
  * - **money**: planned, committed, paid, the commitments paid ahead of the work and what is earned
  *   and not paid now (D2), and what those leave out;
+ * - **changes** (E1), once the plan is approved: what waits for the owner's decision, each change
+ *   with who asked and how long it has waited, and the standing tally — the approved changes' money
+ *   and working days, with who asked;
  * - **the closing line**: when Ridgebeam wrote it, and that a snapshot does not change when the work
  *   does.
  *
@@ -41,6 +44,7 @@
 
 import type { ReportBlock, ReportDocument } from '@/data/commands';
 import type { ExpectedRow } from '@/domain/dashboard';
+import { changeTally } from '@/domain/changes';
 import type { DiaryEntry } from '@/domain/diary';
 import type { Figure } from '@/domain/figure';
 import { aheadFigure, MILESTONE_LABEL_KEYS, paymentPlans, type PlanRow } from '@/domain/milestones';
@@ -66,7 +70,7 @@ import { termsFor } from '@/i18n/terms';
 import type { I18n } from '@/i18n/useI18n';
 
 import { pieces, REPORT_LIMITS, shortened } from './document';
-import { probabilityBlocks } from './weekly';
+import { changeTallyBlocks, probabilityBlocks } from './weekly';
 import { decisionStatusText, finishText, readinessRowText, readinessSentence } from './words';
 
 /** How many diary entries "Lately on site" shows: the latest effective ones. */
@@ -533,6 +537,26 @@ function moneyBlocks(
   return blocks;
 }
 
+// ── Changes (E1) ─────────────────────────────────────────────────────────────
+
+/**
+ * What waits for the owner's decision, and the standing tally of change orders — once the plan is
+ * approved; before that there are none. The weekly report prints the same blocks.
+ */
+function changeBlocks(input: SnapshotInput, i18n: I18n): ReportBlock[] {
+  const { snapshot, today } = input;
+  if (snapshot.work.approvedAt === null) return [];
+  return [
+    { type: 'heading', level: 1, text: i18n.t('reports.snapshot.changes.title') },
+    ...changeTallyBlocks(
+      i18n,
+      snapshot,
+      changeTally(snapshot, today),
+      i18n.t('reports.snapshot.changes.waiting'),
+    ),
+  ];
+}
+
 // ── The snapshot ─────────────────────────────────────────────────────────────
 
 /** The owner's snapshot of the work as it stands on `input.today`, in `i18n`'s language. */
@@ -547,6 +571,7 @@ export function composeSnapshot(input: SnapshotInput, i18n: I18n): ReportDocumen
     ...nextTwoWeeksBlocks(input, ahead, i18n, term),
     ...latelyBlocks(input, i18n, term),
     ...moneyBlocks(input, ahead, i18n, term),
+    ...changeBlocks(input, i18n),
     { type: 'rule' },
     { type: 'paragraph', tone: 'muted', text: t('reports.snapshot.closing', { day: day(today) }) },
   ];
