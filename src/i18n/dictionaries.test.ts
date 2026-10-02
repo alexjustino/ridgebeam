@@ -12,6 +12,7 @@ import { DASHBOARD_LABEL_KEYS, WEEK_DAY_STATUS_KEYS } from '@/domain/dashboard';
 import { DECISIONS_DUE_LABEL_KEY } from '@/domain/decisions';
 import { DONE_LABEL_KEYS } from '@/domain/diary';
 import { DOCUMENTS_LABEL_KEYS, TARGET_KINDS } from '@/domain/documents';
+import { FUNDING_MESSAGE_KEYS } from '@/domain/funding';
 import { MILESTONE_MESSAGE_KEYS } from '@/domain/milestones';
 import { MONEY_LABEL_KEYS, NOT_PRICED_KEY, OVER_COMMITTED_LABEL_KEY } from '@/domain/money';
 import {
@@ -22,6 +23,7 @@ import {
   RULE_UNCOUNTED_KEY,
 } from '@/domain/readiness';
 import { DIARY_ROW_STATUS_KEYS } from '@/domain/reports/diary';
+import { RUNWAY_MESSAGE_KEYS, RUNWAY_NOTE_KEYS } from '@/domain/runway';
 import { HANDOVER_GAP_KEYS, HANDOVER_LABEL_KEYS } from '@/domain/reports/handover';
 import { LOOKAHEAD_MESSAGE_KEYS } from '@/domain/reports/lookahead';
 import { SCHEDULE_BLOCKED_KEYS } from '@/domain/reports/schedule';
@@ -250,6 +252,43 @@ describe('the finish as a probability, in both languages (D1)', () => {
         date: '14 de novembro de 2026',
       }),
     ).toBe('8 em 10 chances de terminar até 14 de novembro de 2026');
+  });
+});
+
+describe('where the money comes from and whether it lasts, in both languages (E2)', () => {
+  /** The notes that count something are plurals: their key is a base, with both forms. */
+  const PLURAL: ReadonlySet<string> = new Set([
+    RUNWAY_NOTE_KEYS.late,
+    RUNWAY_NOTE_KEYS.notPriced,
+    RUNWAY_NOTE_KEYS.beyond,
+  ]);
+
+  it.each(LANGUAGES)(
+    '%s carries every key funding and the runway hand the interface',
+    (language) => {
+      const dictionary = DICTIONARIES[language] as Record<string, string>;
+      for (const key of [...FUNDING_MESSAGE_KEYS, ...RUNWAY_MESSAGE_KEYS]) {
+        if (PLURAL.has(key)) {
+          expect(dictionary[`${key}.one`], `${language} ${key}.one`).toBeTruthy();
+          expect(dictionary[`${key}.other`], `${language} ${key}.other`).toBeTruthy();
+        } else {
+          expect(dictionary[key], `${language} ${key}`).toBeTruthy();
+        }
+      }
+    },
+  );
+
+  it('asks the question in plain words, and answers it the way a person says it', () => {
+    expect(translate(DICTIONARIES['pt-BR'], 'money.runway.title')).toBe('O dinheiro vai dar?');
+    expect(
+      translate(DICTIONARIES['pt-BR'], 'money.runway.sentence.short', {
+        week: '16 de nov.',
+        short: 'R$ 4.200,00',
+      }),
+    ).toBe('Falta dinheiro na semana de 16 de nov. — faltam R$ 4.200,00.');
+    expect(translate(DICTIONARIES.en, 'money.runway.sentence.lasts', { spare: '$1,200.00' })).toBe(
+      'The money lasts to the end, with $1,200.00 to spare.',
+    );
   });
 });
 
