@@ -6,8 +6,9 @@ authors = ["Alex Justino"]
 license = "Apache-2.0"
 repository = "https://github.com/alexjustino/ridgebeam"
 edition = "2021"
-# `image` 0.25.10 declares 1.88 (F4). The crate cannot build on less.
-rust-version = "1.88"
+# `image` 0.25.10 declares 1.88 (F4); `tauri` 2.12, `tauri-build` 2.7 and
+# `tauri-plugin-log` 2.10 declare 1.90. The crate cannot build on less.
+rust-version = "1.90"
 
 [lib]
 # The `_lib` suffix keeps the library name distinct from the binary on Windows.
