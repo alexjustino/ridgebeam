@@ -475,6 +475,8 @@ export const en = {
   'checks.default.close.photosTaken': 'Photos were taken',
   'checks.default.close.ownerWalked': 'The owner walked it',
   'checks.default.close.wasteRemoved': 'Leftovers and waste were removed',
+  'checks.default.close.hiddenWorkPhotographed':
+    'The pipes and wiring were photographed before the walls were closed',
   'checks.figure.planned': 'Planned stages',
   'checks.figure.started': 'Started stages',
   'checks.figure.closed': 'Closed stages',
@@ -521,6 +523,13 @@ export const en = {
   'gates.confirm.closeTitle': 'Close “{name}”?',
   'gates.confirm.closeBody': 'A closed stage is read-only until it is reopened.',
   'gates.refused': 'That was not kept',
+  'gates.problem.needsPhoto':
+    'This check needs a photo of the work before it is closed. Add the photo, then answer Yes.',
+  'gates.needsPhoto.box': 'Needs a photo',
+  'gates.needsPhoto.label': '{name} needs a photo of the work before it is closed',
+  'gates.needsPhoto.open': 'A Yes needs its photo',
+  'gates.needsPhoto.mark': 'Needs a photo of the work before it is closed',
+  'gates.needsPhoto.yesWithout': 'Answered Yes without a photo, before one was asked for.',
   'readiness.missing.stage.checks.one': '{count} stage has no checks.',
   'readiness.missing.stage.checks.other': '{count} stages have no checks.',
   'readiness.rule.stage.checks': 'Stages with checks',
@@ -651,6 +660,35 @@ export const en = {
   'plan.person.contactNote':
     'Kept on this machine and never used to reach anybody: Ridgebeam has no network.',
   'plan.tab.people': 'People',
+  'plan.tab.handover': 'Handover',
+  'handover.lead':
+    'What the owner keeps when the work ends, printed in the {book}: how to look after the work, and the photos of what walls and floors will hide. Notes are not the plan: they can be written and changed at any time.',
+  'handover.work.title': 'For the whole work',
+  'handover.work.description': 'Where things are, and what to do once a year.',
+  'handover.rooms.title': 'For each {room}',
+  'handover.rooms.description': 'What to know to look after each one.',
+  'handover.rooms.none':
+    'The plan has no {room} yet. Add them in the breakdown, then write their notes here.',
+  'handover.stages.title': 'For each {stage}',
+  'handover.stages.description': 'What each part of the work needs over the years.',
+  'handover.stages.none': 'The plan has no {stage} yet.',
+  'handover.care.none': 'No note yet.',
+  'handover.care.field': 'Note {position}: {name}',
+  'handover.care.placeholder': 'Reseal the shower grout once a year.',
+  'handover.care.empty': 'Write the note first.',
+  'handover.care.emptied': 'A note is not kept empty: to take it away, press Remove.',
+  'handover.care.added': 'Note added: {name}.',
+  'handover.care.removed': 'Note removed: {name}.',
+  'handover.hidden.title': 'Hidden work',
+  'handover.hidden.description':
+    'The checks that need a photo of the work before it is closed — the pipes before the wall, the wiring before the plaster. They are answered on the Gates tab.',
+  'handover.hidden.none':
+    'No check needs a photo yet. On the Gates tab, tick “Needs a photo” on a check of work that will be hidden.',
+  'handover.hidden.yesPhoto': 'Yes, with its photo · {author} · {day}',
+  'handover.hidden.yesWithout':
+    'Yes, without a photo · {author} · {day} — answered before a photo was asked for',
+  'handover.hidden.open': 'Open on Gates',
+  'handover.hidden.openNamed': 'Open on the Gates tab: {name}',
   'people.lead':
     'Everyone on the work: their trade, the stages they are expected on, the days the diary has them on site, and what is still owed to them.',
   'people.days.none': '0 days on site',
@@ -683,6 +721,8 @@ export const en = {
   'document.kind.permit': 'Permit',
   'document.kind.receipt': 'Receipt',
   'document.kind.contract': 'Contract',
+  'document.kind.warranty': 'Warranty',
+  'document.kind.manual': 'Manual',
   'document.kind.otherKind': 'Other',
   'documents.filter.kind': 'Kind',
   'documents.filter.allKinds': 'Every kind',
@@ -715,6 +755,8 @@ export const en = {
   'documents.figure.permit': 'Permits',
   'documents.figure.receipt': 'Receipts',
   'documents.figure.contract': 'Contracts',
+  'documents.figure.warranty': 'Warranties',
+  'documents.figure.manual': 'Manuals',
   'documents.figure.other': 'Other documents',
   'documents.target.stage': '{name}',
   'documents.target.activity': '{name}',
@@ -1160,6 +1202,7 @@ export const en = {
   'reports.file.weekly': '{work} weekly {week}',
   'reports.file.diary': '{work} diary',
   'reports.file.schedule': '{work} schedule',
+  'reports.file.handover': '{work} handover book',
 
   'reports.weekly.holds':
     'One PDF of a week in the owner’s words: the days written and the working days with nothing written, what was done, who was on site, how ready the plan is, when it ends and the chance of finishing by then, the decisions due, the money — with what was paid ahead of the work and what is earned and not paid — and the stages. It does not hold the photos, and long notes are shortened — the diary’s PDF has them whole.',
@@ -1263,6 +1306,84 @@ export const en = {
   'reports.json.holds':
     'The whole work and every diary entry with its hashes, as JSON for another program to read. It does not hold the files themselves: documents and photos are named by their hash.',
   'reports.json.write': 'Write the JSON',
+  'reports.handover.figure.gaps': 'What the book still lacks',
+  'reports.handover.section.other': 'Elsewhere in the work',
+  'reports.handover.gap.hiddenWithoutPhoto': 'Hidden work answered Yes without a photo — “{name}”',
+  'reports.handover.gap.hiddenUnanswered':
+    'Hidden work not answered and its photo not taken — “{name}”',
+  'reports.handover.gap.stageOpen': '{name}: {stage} still open.',
+  'reports.handover.gap.roomWithoutPhoto': '{name}: no photo yet.',
+  'reports.handover.gap.noWarrantyOrManual': 'No warranty and no manual among the documents.',
+  'reports.handover.gap.noCareNote': 'No {note} written yet.',
+  'reports.handover.title': 'The {book}',
+  'reports.handover.holds':
+    'One PDF for the owner to keep: room by room what was done and when, the decisions made with their answers, the photos of hidden work, the documents by name, who did what, and how to look after it all. It does not hold the money or the schedule — they have their own reports.',
+  'reports.handover.write': 'Write the {book}',
+  'reports.handover.gaps.one': '{count} gap',
+  'reports.handover.gaps.other': '{count} gaps',
+  'reports.handover.gaps.none': 'Nothing missing',
+  'reports.handover.gaps.sentence.one':
+    'The {book} has {count} gap. It can be written anyway: its first page says what it lacks.',
+  'reports.handover.gaps.sentence.other':
+    'The {book} has {count} gaps. It can be written anyway: its first page says what it lacks.',
+  'reports.handover.gaps.nothing': 'The {book} lacks nothing that Ridgebeam can see.',
+  'reports.handover.gaps.rows': 'What the book lacks',
+  'reports.handover.inProgressNote':
+    'A {stage} is still open: the first page will say the book was written while the work was in progress.',
+  'reports.handover.inProgress': 'Written while the work was in progress.',
+  'reports.handover.cover.started': 'Started on {day}.',
+  'reports.handover.cover.finished': 'Finished on {day}.',
+  'reports.handover.cover.notFinished': 'Not finished yet: the work is in progress.',
+  'reports.handover.reading.byRoom':
+    'Each {room} has its own pages: what was done and when, the decisions made, the photos of the hidden work and from the diary, and how to look after it. Then the documents, who did what, and how to look after the whole work. Money and the schedule are not in this book.',
+  'reports.handover.reading.byStage':
+    'Each {stage} has its own pages: what was done and when, the decisions made, the photos of the hidden work and from the diary, and how to look after it. Then the documents, who did what, and how to look after the whole work. Money and the schedule are not in this book.',
+  'reports.handover.cover.people': 'The people, by {trade}',
+  'reports.handover.sections.none': 'Nothing in the plan yet.',
+  'reports.handover.done.label': 'What was done',
+  'reports.handover.done.value.one': '{done} of {all} finished',
+  'reports.handover.done.value.other': '{done} of {all} finished',
+  'reports.handover.done.on': 'finished on {day}',
+  'reports.handover.decisions.label': 'Decisions made',
+  'reports.handover.decisions.noAnswer': 'made, with nothing written down',
+  'reports.handover.hidden.title': 'Hidden work, photographed before it was closed',
+  'reports.handover.hidden.none': 'No photo of hidden work here.',
+  'reports.handover.hidden.caption': '{check} — {stage}, {day}',
+  'reports.handover.photos.title': 'Photos from the diary',
+  'reports.handover.photos.none': 'No photo from the diary here.',
+  'reports.handover.photos.caption': '{activity}, {day}',
+  'reports.handover.photos.notShown.one':
+    '{count} more photo is in the diary and in the work’s folder.',
+  'reports.handover.photos.notShown.other':
+    '{count} more photos are in the diary and in the work’s folder.',
+  'reports.handover.photos.overCap.one':
+    'The book prints at most {max} photos: {count} more photo is in the work’s folder.',
+  'reports.handover.photos.overCap.other':
+    'The book prints at most {max} photos: {count} more photos are in the work’s folder.',
+  'reports.handover.care.title': 'How to look after it',
+  'reports.handover.care.none': 'No note here.',
+  'reports.handover.care.on': '{name}: {text}',
+  'reports.handover.care.work': 'Looking after the whole work',
+  'reports.handover.documents.reading':
+    'The files themselves are in the work’s folder; each is named here so it can be found.',
+  'reports.handover.documents.file': '{title} ({file})',
+  'reports.handover.documents.added': 'added on {day}',
+  'reports.handover.documents.attached': 'attached to {targets}',
+  'reports.handover.people.title': 'Who did what',
+  'reports.handover.people.names': 'Who',
+  'reports.handover.people.noTrade': 'Not said',
+  'reports.handover.people.none': 'Nobody is in the plan.',
+  'reports.handover.people.contact': 'Contact',
+  'reports.handover.people.stages': 'Worked on',
+  'reports.handover.people.days': 'Days on site',
+  'reports.handover.people.noStages': 'nothing in the diary',
+  'reports.handover.record.title': 'The record',
+  'reports.handover.record.empty': 'The diary has no entry yet.',
+  'reports.handover.record.summary.one':
+    'The diary holds {count} entry, from {from} to {to}. Its chain is verified each time the diary is written out as a PDF.',
+  'reports.handover.record.summary.other':
+    'The diary holds {count} entries, from {from} to {to}. Its chain is verified each time the diary is written out as a PDF.',
+  'reports.handover.record.written': 'This book was written on {day}.',
 
   // ── The front door, composed (F10) ─────────────────────────────────────────
   'dashboard.figure.weekEntries': 'Entries this week',

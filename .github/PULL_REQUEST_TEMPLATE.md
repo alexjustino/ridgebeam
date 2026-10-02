@@ -44,6 +44,8 @@
 - [ ] every duration and lead time is a range of working days, not a single number
 - [ ] no price, no brand, no supplier, no real place, person or contact, no standard cited by
       number
+- [ ] every stage that closes a wall, a floor, a ceiling or a slab over hidden work has one
+      close-gate check with `"photo": true`
 - [ ] the English and the Portuguese were each read by somebody who speaks the language
 - [ ] `version` raised by one, if the template was already in the library
 

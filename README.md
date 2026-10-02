@@ -18,9 +18,9 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F11, D1 and D2.** The product was named on 2026-09-24
+> **Status: pre-release — slices F0 to F11, and D1 to D3.** The product was named on 2026-09-24
 > ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 — from the foundation to backup,
-> restore and polish — and the first two differentiators, D1 and D2, run from source; there is no
+> restore and polish — and the first three differentiators, D1 to D3, run from source; there is no
 > published installer yet: that is F12, the release. The [specification](docs/SPEC.md) says what
 > 1.0.0 will be and what "done" means for every slice; [What exists today](#what-exists-today) says
 > exactly how far the code has got.
@@ -33,11 +33,11 @@ a probability from each activity's optimistic and pessimistic duration, said as 
 milestones earned only by facts of the work, never by dates, with a warning before a payment that
 would put the owner ahead of the work — a warning, not a refusal
 ([ADR-037](docs/architecture/ADR.md#adr-037)); **D3, the handover book** — one PDF the owner keeps,
-with the photos of hidden work taken before it was closed; and **D4, the owner's snapshot** — one
+with the photos of hidden work taken before it was closed, which a check can require
+([ADR-038](docs/architecture/ADR.md#adr-038)); and **D4, the owner's snapshot** — one
 self-contained HTML file that opens on any phone, which the person sends themselves; Ridgebeam still
 sends nothing.
-**D1 and D2 are in.** D3 and D4 follow, one slice at a time, and the release is cut again after
-them.
+**D1, D2 and D3 are in.** D4 follows, and the release is cut again after it.
 
 ## Why
 
@@ -86,7 +86,7 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F11**, and the first two differentiators, **D1** and **D2** — nothing after
+Slices **F0** to **F11**, and the first three differentiators, **D1** to **D3** — nothing after
 them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
@@ -230,6 +230,20 @@ them:
   naming the amount and the milestone not yet earned — and still lets it be saved: money paid is a
   fact. A commitment's plan locks at its first payment, so it cannot be rewritten to hide being
   ahead; a renegotiation is a new commitment ([ADR-037](docs/architecture/ADR.md#adr-037)).
+- **The handover book (D3).** One PDF the owner keeps when the work ends, written from **Reports**
+  in the owner's words: a cover with the work, its dates and the people by trade; then room by room
+  — or stage by stage when the work has no rooms — what was done and when, the decisions made with
+  their answers, **the photos of hidden work** taken before it was closed, other photos from the
+  diary, and the care notes; then the documents by kind — permits, **warranties**, **manuals**,
+  contracts, receipts — by name; who did what, with their trade and contact; and one line on the
+  diary's chain. The photos are **in the PDF**, scaled and embedded by the host, which finds each
+  one by its hash inside the open work only. A gate check can **need a photo**: a _yes_ without one
+  is refused, and the library's templates ask for one before a wall or a floor closes over pipes,
+  wiring or waterproofing. **Care notes** — "The stopcock is under the sink" — are written on the
+  Plan's new **Handover** tab, for the work, a room or a stage, in the person's own words. Before
+  writing, the card says **what the book still lacks**, counted with its rows, and writes it anyway
+  when asked; a book written before every stage closed says so on its first page
+  ([ADR-038](docs/architecture/ADR.md#adr-038)).
 - **Readiness.** A figure that says how much of what the plan must know it does know, from seven
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -245,24 +259,24 @@ them:
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-seven binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-eight binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: the differentiators **D3** and **D4**, and **the release** (F12) — an
+Not yet, and not pretended: the differentiator **D4**, and **the release** (F12) — an
 installer, tried on a clean machine, and a real work planned, run for a week and its weekly report
 read by somebody who is not an engineer.
 
 Not in 1.0, by decision rather than by schedule: files other than images and PDFs (no Word,
-spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a
-work; a decision tied to one activity rather than its whole stage; a replanning abandoned without
-a baseline; a what-if applied to the plan with one button; a work that follows its template when
-the library changes; prices in the library; photos inside a PDF report; a character outside the
-standard PDF fonts' set on paper; non-working days shaded on the printed schedule; an encrypted
-backup, an incremental one, a backup the product makes on its own, or a restore over an existing
-folder.
+spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a work; a
+decision tied to one activity rather than its whole stage; a replanning abandoned without a
+baseline; a what-if applied to the plan with one button; a work that follows its template when the
+library changes; prices in the library; photos inside a PDF report other than the handover book; a
+character outside the standard PDF fonts' set on paper; non-working days shaded on the printed
+schedule; an encrypted backup, an incremental one, a backup the product makes on its own, or a
+restore over an existing folder.
 
 ## What 1.0 does not do
 

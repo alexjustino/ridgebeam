@@ -10,6 +10,8 @@ import {
   checksWithoutStage,
   closedStageIfAdded,
   DEFAULT_CHECK_KEYS,
+  DEFAULT_CHECKS_NEEDING_PHOTO,
+  defaultCheckNeedsPhoto,
   gatesHeldFigure,
   gateStatus,
   holdingItems,
@@ -26,6 +28,7 @@ const check = (id: string, stageId: string, gate: Check['gate'], position: numbe
   gate,
   position,
   name: `Check ${id}`,
+  needsPhoto: false,
 });
 
 let answerId = 0;
@@ -350,12 +353,21 @@ describe('gates held', () => {
 });
 
 describe('the usual checks', () => {
-  it('are four at each gate, as message keys, each once', () => {
+  it('are four to start and five to close, as message keys, each once', () => {
     expect(DEFAULT_CHECK_KEYS.start).toHaveLength(4);
-    expect(DEFAULT_CHECK_KEYS.close).toHaveLength(4);
+    expect(DEFAULT_CHECK_KEYS.close).toHaveLength(5);
     const keys = [...DEFAULT_CHECK_KEYS.start, ...DEFAULT_CHECK_KEYS.close];
-    expect(new Set(keys).size).toBe(8);
+    expect(new Set(keys).size).toBe(9);
     for (const key of keys) expect(key).toMatch(/^checks\.default\.(start|close)\./);
+  });
+
+  it('flag one of them, at the close gate, as hidden work: its yes needs a photo', () => {
+    expect(DEFAULT_CHECKS_NEEDING_PHOTO).toEqual(['checks.default.close.hiddenWorkPhotographed']);
+    expect(DEFAULT_CHECK_KEYS.close).toContain('checks.default.close.hiddenWorkPhotographed');
+    const flagged = [...DEFAULT_CHECK_KEYS.start, ...DEFAULT_CHECK_KEYS.close].filter((key) =>
+      defaultCheckNeedsPhoto(key),
+    );
+    expect(flagged).toEqual(['checks.default.close.hiddenWorkPhotographed']);
   });
 });
 

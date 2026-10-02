@@ -3,7 +3,8 @@
  * printable, and the splitting of a text too long for one string.
  *
  * The host refuses a document over its limits with a sentence (decision 8) — 5 000 blocks, 20 000
- * rows in its tables, figures and schedules together, 2 000 characters in any one string. The composers keep inside them by construction: a
+ * rows in its tables, figures and schedules together, 2 000 characters in any one string, 400
+ * images (D3). The composers keep inside them by construction: a
  * note longer than a string may hold is carried on as many strings as it takes, never cut.
  */
 
@@ -17,6 +18,8 @@ export const REPORT_LIMITS = {
   /** Rows of every table, figure and schedule of a document, together. */
   tableRows: 20_000,
   text: 2000,
+  /** Image blocks of a document (D3). */
+  images: 400,
 } as const;
 
 /**
@@ -76,6 +79,8 @@ function printableBlock(block: ReportBlock): ReportBlock {
         dayLabels: block.dayLabels.map(printable),
         rows: block.rows.map((row) => ({ ...row, label: printable(row.label) })),
       };
+    case 'image':
+      return { ...block, caption: printable(block.caption) };
     case 'rule':
     case 'pageBreak':
       return block;
@@ -109,6 +114,9 @@ export function stringsOf(document: ReportDocument): string[] {
         break;
       case 'gantt':
         out.push(...block.dayLabels, ...block.rows.map((row) => row.label));
+        break;
+      case 'image':
+        out.push(block.caption);
         break;
       default:
         break;

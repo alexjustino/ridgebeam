@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   activitiesInOrder,
+  careNotesOf,
   compareText,
   durationRangeOf,
   hasDuration,
@@ -49,6 +50,7 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     commitments: [],
     payments: [],
     documents: [],
+    careNotes: [],
     ...parts,
   };
 }
@@ -161,6 +163,38 @@ describe('rooms', () => {
       activities: [{ ...activity('a', 's', 1, 2), roomIds: ['r'], quantity: 12, unit: 'm²' }],
     });
     expect(schedule(withRooms).dates).toEqual(schedule(plain).dates);
+  });
+});
+
+describe('care notes', () => {
+  const note = (
+    id: string,
+    targetKind: 'work' | 'room' | 'stage',
+    targetId: string,
+    position: number,
+  ) => ({
+    id,
+    targetKind,
+    targetId,
+    position,
+    text: `Note ${id}`,
+    createdAt: '2026-09-20T12:00:00.000Z',
+  });
+
+  it('are taken for one target only, by position, then by id when positions tie', () => {
+    const plan = snapshot({
+      careNotes: [
+        note('c', 'room', 'bath', 2),
+        note('b', 'room', 'bath', 1),
+        note('a', 'room', 'bath', 1),
+        note('d', 'stage', 'bath', 1),
+        note('e', 'room', 'hall', 1),
+        note('f', 'work', 'work-1', 1),
+      ],
+    });
+    expect(careNotesOf(plan, 'room', 'bath').map((each) => each.id)).toEqual(['a', 'b', 'c']);
+    expect(careNotesOf(plan, 'work', 'work-1').map((each) => each.id)).toEqual(['f']);
+    expect(careNotesOf(plan, 'stage', 'nowhere')).toEqual([]);
   });
 });
 

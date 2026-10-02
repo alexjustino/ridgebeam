@@ -7,7 +7,8 @@
  * the duration, and the notes say so. A decision takes the **upper** end of its lead-time range as
  * its lead time (the earlier deadline: the conservative reading) and keeps the range for display. A
  * cost line keeps its label and has no amount unless the template (a work's own export) carried
- * one. Checks and rooms are copied as they are; links are copied with their lag.
+ * one. Checks and rooms are copied as they are (a check's `photo` is the draft's `needsPhoto`); links
+ * are copied with their lag.
  *
  * Included templates come first, each once, in order (`expand.ts`); their rooms merge with the
  * template's by key, the first name given winning.
@@ -122,10 +123,12 @@ export function applyTemplate(
           ...(stage.checks?.start ?? []).map((check) => ({
             gate: 'start' as const,
             name: text(check),
+            needsPhoto: check.photo === true,
           })),
           ...(stage.checks?.close ?? []).map((check) => ({
             gate: 'close' as const,
             name: text(check),
+            needsPhoto: check.photo === true,
           })),
         ],
         costLines: (stage.costLines ?? []).map((line) => ({

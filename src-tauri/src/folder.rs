@@ -1319,7 +1319,10 @@ mod tests {
         let state = open(scratch.path()).expect("a D1 work opens in D2");
         let conn = &state.conn;
 
-        assert_eq!(migrations::WORK.current_version(conn), 11);
+        assert_eq!(
+            migrations::WORK.current_version(conn),
+            migrations::WORK.target_version()
+        );
         assert_eq!(
             money.map(|sql| raw_rows(conn, sql)),
             money_before,
@@ -1405,5 +1408,290 @@ mod tests {
         assert!(diary::verify(&again.conn).unwrap().intact);
         close(again);
         assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
+    }
+
+    /// The upgrade a person makes from D2: a work folder at schema 11 with
+    /// documents — a diary photo linked to its entry, an answer's photo to its
+    /// stage, a receipt to its payment, a permit PDF to the work and to a stage,
+    /// and one attached to nothing — checks with answers, and a diary. Opened by
+    /// D3, `document` is rebuilt under `foreign_keys = ON` for two more kinds:
+    /// every document keeps its id and every column, every link is still there
+    /// and still cascades, the index is back under its name, nothing of the
+    /// rebuild is left behind, and there was no trigger on either table to lose.
+    /// Every check reads "needs no photo", no care note exists yet, and the
+    /// diary chain still verifies.
+    #[test]
+    fn a_work_folder_at_schema_eleven_with_documents_and_links_rebuilds_its_documents_and_keeps_every_row(
+    ) {
+        use crate::db::{check_answers, checks, diary, documents};
+        use crate::files::intake::{self, Format};
+
+        let scratch = Scratch::create();
+        let folder_documents = scratch.path().join(intake::DOCUMENTS);
+        std::fs::create_dir(&folder_documents).unwrap();
+        let file = |bytes: Vec<u8>, format: Format| -> (String, i64) {
+            let hash = intake::sha256_hex(&bytes);
+            std::fs::write(
+                folder_documents.join(format!("{hash}.{}", format.extension())),
+                &bytes,
+            )
+            .unwrap();
+            (hash, bytes.len() as i64)
+        };
+        let (photo, photo_bytes) = file(intake::tests::png(64, 48), Format::Png);
+        let (inspection, inspection_bytes) = file(intake::tests::jpeg(40, 30), Format::Jpeg);
+        let (permit, permit_bytes) = file(
+            crate::commands::documents::tests::minimal_pdf(),
+            Format::Pdf,
+        );
+        let (loose, loose_bytes) = file(intake::tests::png(8, 8), Format::Png);
+        let stage = "00000000-0000-7000-8000-00000000000b";
+        let documents_sql = "SELECT * FROM document ORDER BY id";
+        let links_sql = "SELECT * FROM document_link ORDER BY document_id, target_kind, target_id";
+        let triggers_sql = "SELECT name FROM sqlite_master WHERE type = 'trigger'
+                            AND tbl_name IN ('document', 'document_link') ORDER BY name";
+
+        let (documents_before, links_before, triggers_before, checks_before, diary_before);
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 11).unwrap();
+            let work_id: String = conn
+                .query_row("SELECT work_id FROM work", [], |r| r.get(0))
+                .unwrap();
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    day: "2026-10-05".into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Pipes in.".into()),
+                    weather: None,
+                    lost_day: false,
+                    hours: None,
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: Vec::new(),
+                    present: Vec::new(),
+                    photos: vec![crate::contract::Photo {
+                        file_hash: photo.clone(),
+                        file_name: "pipes.png".into(),
+                        bytes: photo_bytes,
+                        width: 64,
+                        height: 48,
+                        thumbnail: false,
+                    }],
+                },
+            )
+            .unwrap();
+            let check =
+                checks::add(&conn, stage, checks::Gate::Close, "Pipes photographed?").unwrap();
+            check_answers::append(
+                &conn,
+                &check_answers::NewAnswer {
+                    check_id: check.clone(),
+                    answer: "yes".into(),
+                    reason: None,
+                    photo_hash: Some(inspection.clone()),
+                    author_name: "Synthetic inspector".into(),
+                },
+            )
+            .unwrap();
+            checks::add(&conn, stage, checks::Gate::Start, "Water off?").unwrap();
+            let target = |kind: &str, id: &str| crate::contract::DocumentTarget {
+                target_kind: kind.into(),
+                target_id: id.into(),
+            };
+            let record =
+                |hash: &str,
+                 name: &str,
+                 format: Format,
+                 bytes: i64,
+                 size,
+                 kind,
+                 target: Option<&crate::contract::DocumentTarget>| {
+                    documents::record(
+                        &conn,
+                        &documents::NewDocument {
+                            file_hash: hash,
+                            file_name: name,
+                            format,
+                            bytes,
+                            size,
+                            kind,
+                            added_on: "2026-10-05",
+                            author_name: "Synthetic author",
+                        },
+                        target,
+                    )
+                    .unwrap()
+                };
+            record(
+                &photo,
+                "pipes.png",
+                Format::Png,
+                photo_bytes,
+                Some((64, 48)),
+                "photo",
+                Some(&target("entry", "1")),
+            );
+            record(
+                &inspection,
+                "inspection.jpg",
+                Format::Jpeg,
+                inspection_bytes,
+                Some((40, 30)),
+                "photo",
+                Some(&target("stage", stage)),
+            );
+            record(
+                &permit,
+                "permit.pdf",
+                Format::Pdf,
+                permit_bytes,
+                None,
+                "permit",
+                Some(&target("work", &work_id)),
+            );
+            record(
+                &permit,
+                "permit.pdf",
+                Format::Pdf,
+                permit_bytes,
+                None,
+                "permit",
+                Some(&target("stage", stage)),
+            );
+            record(
+                &loose,
+                "loose.png",
+                Format::Png,
+                loose_bytes,
+                Some((8, 8)),
+                "other",
+                None,
+            );
+
+            documents_before = raw_rows(&conn, documents_sql);
+            links_before = raw_rows(&conn, links_sql);
+            triggers_before = raw_rows(&conn, triggers_sql);
+            checks_before = raw_rows(
+                &conn,
+                "SELECT id, stage_id, gate, position, name, created_at FROM stage_check ORDER BY id",
+            );
+            diary_before = diary::list(&conn, None, None).unwrap();
+            assert_eq!(documents_before.len(), 4);
+            assert_eq!(links_before.len(), 4, "the permit is linked twice");
+            assert_eq!(migrations::WORK.current_version(&conn), 11);
+        }
+
+        let state = open(scratch.path()).expect("a D2 work opens in D3");
+        let conn = &state.conn;
+
+        assert_eq!(migrations::WORK.current_version(conn), 12);
+        assert_eq!(
+            raw_rows(conn, documents_sql),
+            documents_before,
+            "every document, as it was"
+        );
+        assert_eq!(
+            raw_rows(conn, links_sql),
+            links_before,
+            "every link, as it was"
+        );
+        assert_eq!(
+            raw_rows(conn, triggers_sql),
+            triggers_before,
+            "no trigger, before or after"
+        );
+        assert!(triggers_before.is_empty());
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT id, stage_id, gate, position, name, created_at FROM stage_check ORDER BY id"
+            ),
+            checks_before
+        );
+        assert_eq!(
+            raw_rows(conn, "SELECT DISTINCT needs_photo FROM stage_check"),
+            vec!["Integer(0)"],
+            "no check already in a file needs a photo"
+        );
+        assert_eq!(diary::list(conn, None, None).unwrap(), diary_before);
+        let report = diary::verify(conn).unwrap();
+        assert_eq!(
+            (report.entries, report.intact),
+            (1, true),
+            "the chain still holds"
+        );
+
+        // The rebuild left nothing behind, and the index is back.
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT count(*) FROM sqlite_master WHERE name IN ('document_012', 'document_link_012')"
+            ),
+            vec!["Integer(0)"]
+        );
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_document%'"
+            ),
+            vec!["Text(\"idx_document_link_target\")"]
+        );
+        assert!(raw_rows(conn, "PRAGMA foreign_key_check").is_empty());
+        assert_eq!(raw_rows(conn, "PRAGMA foreign_keys"), vec!["Integer(1)"]);
+        assert_eq!(
+            raw_rows(conn, "SELECT count(*) FROM care_note"),
+            vec!["Integer(0)"]
+        );
+
+        let plan = db::work::snapshot(conn).unwrap();
+        let permit_row = plan
+            .documents
+            .iter()
+            .find(|d| d.file_hash == permit)
+            .unwrap();
+        assert_eq!(permit_row.links.len(), 2);
+        assert!(plan.checks.iter().all(|c| !c.needs_photo));
+
+        // The two new kinds are taken; a kind that is not one is still refused.
+        for kind in ["warranty", "manual"] {
+            db::documents::update(conn, &permit_row.id, None, Some(kind)).unwrap();
+        }
+        let refused = conn
+            .execute(
+                "UPDATE document SET kind = 'invoice' WHERE id = ?1",
+                [&permit_row.id],
+            )
+            .unwrap_err();
+        assert!(refused.to_string().contains("CHECK"), "{refused}");
+        // A link to a document that is not there is refused; removing a
+        // document still takes its links with it.
+        let refused = conn
+            .execute(
+                "INSERT INTO document_link (document_id, target_kind, target_id)
+                 VALUES ('00000000-0000-7000-8000-0000000000ff', 'work', 'x')",
+                [],
+            )
+            .unwrap_err();
+        assert!(refused.to_string().contains("FOREIGN KEY"), "{refused}");
+        conn.execute("DELETE FROM document WHERE id = ?1", [&permit_row.id])
+            .unwrap();
+        assert_eq!(
+            raw_rows(conn, links_sql).len(),
+            2,
+            "the cascade survived the rebuild"
+        );
+        close(state);
+
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        assert!(diary::verify(&again.conn).unwrap().intact);
+        close(again);
+        assert_eq!(files_in(scratch.path()), vec![intake::DOCUMENTS, WORK_FILE]);
     }
 }

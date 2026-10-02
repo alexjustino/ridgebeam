@@ -252,6 +252,7 @@ export function snapshotFromDraft(
         gate: check.gate,
         position: c + 1,
         name: check.name,
+        needsPhoto: check.needsPhoto,
       })),
     ),
     costLines: draft.stages.flatMap((stage) =>

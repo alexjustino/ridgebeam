@@ -13,6 +13,12 @@
 //! it). There is no author and no e-mail: the file says nothing about who
 //! printed it. The catalogue carries the document's language.
 //!
+//! A photo (D3) is an image XObject with `/DCTDecode` — the JPEG stream
+//! `report::images` prepared, written once however many times it is drawn,
+//! named `/Im1`, `/Im2` … in the order the pages first draw them, and listed in
+//! the resources of each page that draws it. Each draw scales the unit square
+//! to the mark's rectangle.
+//!
 //! Pure: pages in, bytes out. Nothing here opens a file.
 
 use std::io::Write;
@@ -21,6 +27,7 @@ use chrono::{DateTime, Datelike, FixedOffset, Timelike};
 use pdf_writer::{Content, Date, Filter, Finish, Name, Pdf, Rect, Ref, Str, TextStr};
 
 use crate::error::{Error, Result};
+use crate::report::images::{Colour, Images};
 use crate::report::layout::{Mark, Page};
 use crate::report::model::Language;
 use crate::report::winansi::Face;
@@ -61,13 +68,19 @@ fn pdf_date(moment: &DateTime<FixedOffset>) -> Date {
         .utc_offset_minute((offset % 60).unsigned_abs() as u8)
 }
 
-/// Write `pages` as a PDF.
+/// The name a photo is drawn by: `Im1`, `Im2` …
+fn image_name(number: usize) -> Vec<u8> {
+    format!("Im{number}").into_bytes()
+}
+
+/// Write `pages` as a PDF, with the photos their marks draw.
 ///
 /// # Errors
 ///
 /// [`Error::Io`] when a page's stream cannot be compressed — this host's own
-/// bytes, in memory.
-pub fn write(pages: &[Page], metadata: &Metadata<'_>) -> Result<Rendered> {
+/// bytes, in memory; [`Error::InvalidInput`] when a mark draws a photo that
+/// `images` does not hold.
+pub fn write(pages: &[Page], metadata: &Metadata<'_>, images: &Images) -> Result<Rendered> {
     let catalogue = Ref::new(1);
     let tree = Ref::new(2);
     let regular = Ref::new(3);
@@ -76,6 +89,27 @@ pub fn write(pages: &[Page], metadata: &Metadata<'_>) -> Result<Rendered> {
     let page_ids: Vec<(Ref, Ref)> = (0..pages.len() as i32)
         .map(|index| (Ref::new(6 + 2 * index), Ref::new(7 + 2 * index)))
         .collect();
+    // Every photo drawn, once, in the order the pages first draw it.
+    let mut drawn: Vec<&str> = Vec::new();
+    for page in pages {
+        for mark in &page.marks {
+            if let Mark::Image { hash, .. } = mark {
+                if !drawn.contains(&hash.as_str()) {
+                    if !images.contains_key(hash) {
+                        return Err(Error::InvalidInput(
+                            "A report draws a photo it was not given.".into(),
+                        ));
+                    }
+                    drawn.push(hash);
+                }
+            }
+        }
+    }
+    let first_image = 6 + 2 * pages.len() as i32;
+    let image_ref = |hash: &str| -> (Ref, usize) {
+        let index = drawn.iter().position(|h| *h == hash).unwrap_or(0);
+        (Ref::new(first_image + index as i32), index + 1)
+    };
 
     let mut pdf = Pdf::new();
     pdf.catalog(catalogue)
@@ -98,11 +132,41 @@ pub fn write(pages: &[Page], metadata: &Metadata<'_>) -> Result<Rendered> {
             written.contents(*content_id);
             let mut resources = written.resources();
             resources.fonts().pair(REGULAR, regular).pair(BOLD, bold);
+            let mut here: Vec<(Ref, usize)> = Vec::new();
+            for mark in &page.marks {
+                if let Mark::Image { hash, .. } = mark {
+                    let found = image_ref(hash);
+                    if !here.contains(&found) {
+                        here.push(found);
+                    }
+                }
+            }
+            if !here.is_empty() {
+                let mut objects = resources.x_objects();
+                for (id, number) in &here {
+                    objects.pair(Name(&image_name(*number)), *id);
+                }
+                objects.finish();
+            }
             resources.finish();
             written.finish();
         }
-        let stream = deflate(&draw(page))?;
+        let stream = deflate(&draw(page, &|hash| image_ref(hash).1))?;
         pdf.stream(*content_id, &stream).filter(Filter::FlateDecode);
+    }
+
+    for (index, hash) in drawn.iter().enumerate() {
+        let image = &images[*hash];
+        let mut object = pdf.image_xobject(Ref::new(first_image + index as i32), &image.jpeg);
+        object.filter(Filter::DctDecode);
+        object.width(image.width as i32);
+        object.height(image.height as i32);
+        match image.colour {
+            Colour::Gray => object.color_space().device_gray(),
+            Colour::Rgb => object.color_space().device_rgb(),
+        };
+        object.bits_per_component(8);
+        object.finish();
     }
 
     let version = format!("Ridgebeam {}", env!("CARGO_PKG_VERSION"));
@@ -117,8 +181,9 @@ pub fn write(pages: &[Page], metadata: &Metadata<'_>) -> Result<Rendered> {
     })
 }
 
-/// A page's marks as a content stream.
-fn draw(page: &Page) -> Vec<u8> {
+/// A page's marks as a content stream; `number` names the photo a hash is
+/// drawn by.
+fn draw(page: &Page, number: &dyn Fn(&str) -> usize) -> Vec<u8> {
     let mut content = Content::new();
     for mark in &page.marks {
         match mark {
@@ -186,6 +251,18 @@ fn draw(page: &Page) -> Vec<u8> {
                     (Some(_), None) => content.fill_nonzero(),
                     _ => content.stroke(),
                 };
+            }
+            Mark::Image {
+                x,
+                y,
+                width,
+                height,
+                hash,
+            } => {
+                content.save_state();
+                content.transform([*width, 0.0, 0.0, *height, *x, *y]);
+                content.x_object(Name(&image_name(number(hash))));
+                content.restore_state();
             }
         }
     }

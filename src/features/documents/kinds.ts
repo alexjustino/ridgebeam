@@ -9,5 +9,7 @@ export const KIND_KEYS: Record<DocumentKind, MessageKey> = {
   permit: 'document.kind.permit',
   receipt: 'document.kind.receipt',
   contract: 'document.kind.contract',
+  warranty: 'document.kind.warranty',
+  manual: 'document.kind.manual',
   other: 'document.kind.otherKind',
 };

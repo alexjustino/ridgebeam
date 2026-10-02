@@ -25,6 +25,10 @@
 //!
 //! - F5: checks added, renamed, removed, the usual ones added; gates held and
 //!   passed; start, close, reopen.
+//! - D3: a check may need its photo (`needs_photo`): set when it is added
+//!   ([`add_flagged`], the usual ones by name) or toggled while its stage is
+//!   not closed ([`set_needs_photo`]). A "yes" without a photo on such a check
+//!   is refused by `db::check_answers`.
 
 use std::collections::HashSet;
 
@@ -72,7 +76,7 @@ pub const STAGE_HAS_ANSWERS: &str =
 pub fn list(conn: &Connection) -> Result<Vec<Check>> {
     let checks = conn
         .prepare(
-            "SELECT c.id, c.stage_id, c.gate, c.position, c.name
+            "SELECT c.id, c.stage_id, c.gate, c.position, c.name, c.needs_photo
              FROM stage_check c JOIN stage s ON s.id = c.stage_id
              ORDER BY s.position, CASE c.gate WHEN 'start' THEN 0 ELSE 1 END, c.position",
         )?
@@ -83,6 +87,7 @@ pub fn list(conn: &Connection) -> Result<Vec<Check>> {
                 gate: row.get(2)?,
                 position: row.get(3)?,
                 name: row.get(4)?,
+                needs_photo: row.get::<_, i64>(5)? == 1,
             })
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -116,14 +121,36 @@ pub fn refuse_if_check_closed(conn: &Connection, check_id: &str) -> Result<Strin
 /// [`Error::InvalidInput`] for a stage not in this work;
 /// [`Error::StageClosed`] for a closed one.
 pub fn add(conn: &Connection, stage_id: &str, gate: Gate, name: &str) -> Result<String> {
+    add_flagged(conn, stage_id, gate, name, false)
+}
+
+/// Add a check at the end of a stage's gate, needing its photo or not;
+/// returns its id.
+///
+/// # Errors
+///
+/// As [`add`].
+pub fn add_flagged(
+    conn: &Connection,
+    stage_id: &str,
+    gate: Gate,
+    name: &str,
+    needs_photo: bool,
+) -> Result<String> {
     if !exists(conn, "SELECT 1 FROM stage WHERE id = ?1", stage_id)? {
         return Err(Error::InvalidInput(STAGE_NOT_FOUND.into()));
     }
     refuse_if_stage_closed(conn, stage_id)?;
-    insert(conn, stage_id, gate, name)
+    insert(conn, stage_id, gate, name, needs_photo)
 }
 
-fn insert(conn: &Connection, stage_id: &str, gate: Gate, name: &str) -> Result<String> {
+fn insert(
+    conn: &Connection,
+    stage_id: &str,
+    gate: Gate,
+    name: &str,
+    needs_photo: bool,
+) -> Result<String> {
     let id = new_id();
     conn.execute(
         "INSERT INTO stage_check (id, stage_id, gate, position, name, created_at)
@@ -133,11 +160,36 @@ fn insert(conn: &Connection, stage_id: &str, gate: Gate, name: &str) -> Result<S
                  ?4, ?5)",
         params![id, stage_id, gate.as_str(), name, now()],
     )?;
+    // The column's default is 0; it is named only when it says otherwise.
+    if needs_photo {
+        conn.execute(
+            "UPDATE stage_check SET needs_photo = 1 WHERE id = ?1",
+            [&id],
+        )?;
+    }
     Ok(id)
 }
 
+/// Say whether a check needs its photo. An answer already given stays as it
+/// is: it is a fact, and the handover book says what it lacks.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a check not in this work;
+/// [`Error::StageClosed`] for a check of a closed stage.
+pub fn set_needs_photo(conn: &Connection, id: &str, needs_photo: bool) -> Result<()> {
+    refuse_if_check_closed(conn, id)?;
+    conn.execute(
+        "UPDATE stage_check SET needs_photo = ?2 WHERE id = ?1",
+        params![id, i64::from(needs_photo)],
+    )?;
+    Ok(())
+}
+
 /// Add the usual checks — names the interface already put in the person's
-/// language — skipping any the gate already has (by name, ignoring case).
+/// language — skipping any the gate already has (by name, ignoring case). A
+/// check added whose name is in `needs_photo` (ignoring case) needs its photo;
+/// one skipped keeps what it had.
 ///
 /// # Errors
 ///
@@ -148,7 +200,9 @@ pub fn add_defaults(
     stage_id: &str,
     start: &[String],
     close: &[String],
+    needs_photo: &[String],
 ) -> Result<()> {
+    let photographed: HashSet<String> = needs_photo.iter().map(|n| n.to_lowercase()).collect();
     let tx = conn.unchecked_transaction()?;
     if !exists(&tx, "SELECT 1 FROM stage WHERE id = ?1", stage_id)? {
         return Err(Error::InvalidInput(STAGE_NOT_FOUND.into()));
@@ -165,8 +219,9 @@ pub fn add_defaults(
             .map(|name| name.to_lowercase())
             .collect();
         for name in names {
-            if have.insert(name.to_lowercase()) {
-                insert(&tx, stage_id, gate, name)?;
+            let lower = name.to_lowercase();
+            if have.insert(lower.clone()) {
+                insert(&tx, stage_id, gate, name, photographed.contains(&lower))?;
             }
         }
     }
@@ -595,8 +650,8 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
 
-        add_defaults(&conn, &stage, &start_names, &close_names).unwrap();
-        add_defaults(&conn, &stage, &start_names, &close_names).unwrap();
+        add_defaults(&conn, &stage, &start_names, &close_names, &[]).unwrap();
+        add_defaults(&conn, &stage, &start_names, &close_names, &[]).unwrap();
 
         let checks = list(&conn).unwrap();
         assert_eq!(checks.iter().filter(|c| c.gate == "start").count(), 3);
@@ -620,10 +675,14 @@ mod tests {
                 add(&conn, &stage, Gate::Start, "Late").map(|_| ()),
             ),
             ("rename a check", rename(&conn, &check, "X")),
+            (
+                "say a check needs its photo",
+                set_needs_photo(&conn, &check, true),
+            ),
             ("remove a check", remove(&conn, &check)),
             (
                 "add the usual checks",
-                add_defaults(&conn, &stage, &["A".into()], &[]),
+                add_defaults(&conn, &stage, &["A".into()], &[], &[]),
             ),
             (
                 "add an activity",

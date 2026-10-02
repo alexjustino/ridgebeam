@@ -144,7 +144,8 @@ describe('F5 — checks: two gates per stage, answered facts, and a closed stage
     const stage = `[data-stage-id="${id['tiling']}"]`;
     await click(session, `${stage} ${t('checks-add-defaults')}`);
     await driver.waitFor('eight checks', async () =>
-      (await driver.findAll(`${stage} ${t('checks')} [data-check-id]`)).length === 8 ? true : null,
+      // Four start items and five close items — the fifth, since D3, the hidden-work photo.
+      (await driver.findAll(`${stage} ${t('checks')} [data-check-id]`)).length === 9 ? true : null,
     );
     await go(session, 'dashboard');
     expect(await text(session, `${t('readiness-rules')} [data-rule-id="stage.checks"]`)).toMatch(
@@ -195,7 +196,7 @@ describe('F5 — checks: two gates per stage, answered facts, and a closed stage
     const { driver } = session;
     const stage = `[data-stage-id="${id['tiling']}"]`;
     const items = await gateItems(session, id['tiling']!, 'close');
-    expect(items).toHaveLength(4);
+    expect(items).toHaveLength(5);
     const close = await driver.find(`${stage} ${t('stage-close')}`);
     expect(await close.attribute('disabled')).not.toBeNull();
     // The inspection, with a photo.
@@ -209,6 +210,15 @@ describe('F5 — checks: two gates per stage, answered facts, and a closed stage
     await driver.waitForElement(`[data-check-id="${items[0]}"] ${t('photo-thumb')}`);
     await answer(session, items[1]!, 'yes');
     await answer(session, items[2]!, 'yes');
+    // The hidden-work item (D3) needs its photo before a yes.
+    await setValue(
+      session,
+      `[data-check-id="${items[4]}"] ${t('check-answer-photo-path')}`,
+      path.join(parent, 'inspection.png'),
+    );
+    await click(session, `[data-check-id="${items[4]}"] ${t('check-answer-photo-add')}`);
+    await answer(session, items[4]!, 'yes');
+    await driver.waitForElement(`[data-check-id="${items[4]}"] ${t('photo-thumb')}`);
     await answer(session, items[3]!, 'no');
     const holding = await text(session, `${stage} ${t('gate-holding')}`);
     expect(holding).not.toBe('');

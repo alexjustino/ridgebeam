@@ -134,6 +134,23 @@
 //!   earned by is not removed. What is earned, due and paid ahead — and the
 //!   warning before a payment ahead of the work, which never refuses it — is
 //!   the domain's. No new error kind, no new capability.
+//! - D3: the handover book. A report may print photos: the `image` block
+//!   names a file by its SHA-256 — never a path — and the host finds it only
+//!   among the open work's documents, inside its own `documents/`, reads it
+//!   under the F7 caps (its hash checked again), decodes it under
+//!   `image::Limits`, shrinks it to 1 600 px on the long edge and embeds it as
+//!   JPEG at quality 82 (`report::images`); a small JPEG that already fits is
+//!   embedded byte for byte. At most 400 photos and 150 MiB of photo data per
+//!   report, refused with a sentence; a PDF document is never printed as an
+//!   image. The `handover` kind joins the reports. Work migration 012 adds a
+//!   check's `needs_photo` — a "yes" without a photo on such a check is
+//!   refused with a sentence and by the schema — rebuilds `document` for two
+//!   more kinds (`warranty`, `manual`) with every row and link kept, and adds
+//!   `care_note`, removed with its room or stage in the same transaction. Five
+//!   commands (`check_needs_photo`, `care_note_add`, `care_note_update`,
+//!   `care_note_move`, `care_note_remove`); `checks_add_defaults` takes the
+//!   usual checks that need a photo; `plan_apply` writes a draft check's
+//!   `needsPhoto`. No new crate, no new error kind, no new capability.
 
 pub mod commands;
 pub mod contract;
@@ -239,6 +256,7 @@ pub fn run() {
             commands::checks::check_move,
             commands::checks::check_remove,
             commands::checks::checks_add_defaults,
+            commands::checks::check_needs_photo,
             commands::checks::check_answer,
             commands::checks::stage_start,
             commands::checks::stage_close,
@@ -256,6 +274,10 @@ pub fn run() {
             commands::milestones::milestone_move,
             commands::milestones::milestone_remove,
             commands::milestones::milestones_usual,
+            commands::care_notes::care_note_add,
+            commands::care_notes::care_note_update,
+            commands::care_notes::care_note_move,
+            commands::care_notes::care_note_remove,
             commands::documents::document_add,
             commands::documents::document_update,
             commands::documents::document_link,

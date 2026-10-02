@@ -472,6 +472,8 @@ export const ptBR: Dictionary = {
   'checks.default.close.photosTaken': 'As fotos foram tiradas',
   'checks.default.close.ownerWalked': 'O dono percorreu tudo',
   'checks.default.close.wasteRemoved': 'Sobras e entulho foram retirados',
+  'checks.default.close.hiddenWorkPhotographed':
+    'Os canos e a fiação foram fotografados antes de fechar as paredes',
   'checks.figure.planned': 'Etapas planejadas',
   'checks.figure.started': 'Etapas iniciadas',
   'checks.figure.closed': 'Etapas fechadas',
@@ -518,6 +520,13 @@ export const ptBR: Dictionary = {
   'gates.confirm.closeTitle': 'Fechar “{name}”?',
   'gates.confirm.closeBody': 'Uma etapa fechada fica só para leitura até ser reaberta.',
   'gates.refused': 'Isso não foi guardado',
+  'gates.problem.needsPhoto':
+    'Esta verificação pede uma foto do serviço antes de ele ser fechado. Adicione a foto e depois responda Sim.',
+  'gates.needsPhoto.box': 'Pede foto',
+  'gates.needsPhoto.label': '{name} pede uma foto do serviço antes de ele ser fechado',
+  'gates.needsPhoto.open': 'Um Sim pede a sua foto',
+  'gates.needsPhoto.mark': 'Pede uma foto do serviço antes de ele ser fechado',
+  'gates.needsPhoto.yesWithout': 'Respondida Sim sem foto, antes de a foto ser pedida.',
   'readiness.missing.stage.checks.one': '{count} etapa não tem verificações.',
   'readiness.missing.stage.checks.other': '{count} etapas não têm verificações.',
   'readiness.rule.stage.checks': 'Etapas com verificações',
@@ -650,6 +659,35 @@ export const ptBR: Dictionary = {
   'plan.person.contactNote':
     'Guardado neste computador e nunca usado para contatar ninguém: o Ridgebeam não tem rede.',
   'plan.tab.people': 'Pessoas',
+  'plan.tab.handover': 'Entrega',
+  'handover.lead':
+    'O que o dono guarda quando a obra termina, impresso no {book}: como cuidar da obra e as fotos do que paredes e pisos vão esconder. As notas não são o plano: podem ser escritas e mudadas a qualquer momento.',
+  'handover.work.title': 'Para a obra toda',
+  'handover.work.description': 'Onde as coisas ficam e o que fazer uma vez por ano.',
+  'handover.rooms.title': 'Para cada {room}',
+  'handover.rooms.description': 'O que saber para cuidar de cada um.',
+  'handover.rooms.none':
+    'O plano ainda não tem {room}. Adicione na estrutura e depois escreva as notas aqui.',
+  'handover.stages.title': 'Para cada {stage}',
+  'handover.stages.description': 'Do que cada parte da obra precisa ao longo dos anos.',
+  'handover.stages.none': 'O plano ainda não tem {stage}.',
+  'handover.care.none': 'Nenhuma nota ainda.',
+  'handover.care.field': 'Nota {position}: {name}',
+  'handover.care.placeholder': 'Refazer o rejunte do box uma vez por ano.',
+  'handover.care.empty': 'Escreva a nota primeiro.',
+  'handover.care.emptied': 'Uma nota não fica vazia: para tirá-la, pressione Remover.',
+  'handover.care.added': 'Nota adicionada: {name}.',
+  'handover.care.removed': 'Nota removida: {name}.',
+  'handover.hidden.title': 'Serviço escondido',
+  'handover.hidden.description':
+    'As verificações que pedem uma foto do serviço antes de ele ser fechado — os canos antes da parede, os fios antes do reboco. São respondidas na aba Portões.',
+  'handover.hidden.none':
+    'Nenhuma verificação pede foto ainda. Na aba Portões, marque “Pede foto” numa verificação de serviço que vai ficar escondido.',
+  'handover.hidden.yesPhoto': 'Sim, com a foto · {author} · {day}',
+  'handover.hidden.yesWithout':
+    'Sim, sem foto · {author} · {day} — respondida antes de a foto ser pedida',
+  'handover.hidden.open': 'Abrir em Portões',
+  'handover.hidden.openNamed': 'Abrir na aba Portões: {name}',
   'people.lead':
     'Todos na obra: o ofício, as etapas em que são esperados, os dias em que o diário os tem na obra e o que ainda se deve a eles.',
   'people.days.none': '0 dias na obra',
@@ -682,6 +720,8 @@ export const ptBR: Dictionary = {
   'document.kind.permit': 'Licença',
   'document.kind.receipt': 'Recibo',
   'document.kind.contract': 'Contrato',
+  'document.kind.warranty': 'Garantia',
+  'document.kind.manual': 'Manual',
   'document.kind.otherKind': 'Outro',
   'documents.filter.kind': 'Tipo',
   'documents.filter.allKinds': 'Todos os tipos',
@@ -714,6 +754,8 @@ export const ptBR: Dictionary = {
   'documents.figure.permit': 'Licenças',
   'documents.figure.receipt': 'Recibos',
   'documents.figure.contract': 'Contratos',
+  'documents.figure.warranty': 'Garantias',
+  'documents.figure.manual': 'Manuais',
   'documents.figure.other': 'Outros documentos',
   'documents.target.stage': '{name}',
   'documents.target.activity': '{name}',
@@ -1168,6 +1210,7 @@ export const ptBR: Dictionary = {
   'reports.file.weekly': '{work} semanal {week}',
   'reports.file.diary': '{work} diário',
   'reports.file.schedule': '{work} cronograma',
+  'reports.file.handover': '{work} manual de entrega',
 
   'reports.weekly.holds':
     'Um PDF de uma semana nas palavras do dono: os dias escritos e os dias úteis sem nada escrito, o que foi feito, quem esteve na obra, quanto o plano está pronto, quando termina e a chance de terminar até lá, as decisões a tomar, o dinheiro — com o que foi pago à frente da obra e o que é devido e não pago — e as etapas. Não traz as fotos, e anotações longas vêm encurtadas — o PDF do diário as traz inteiras.',
@@ -1275,6 +1318,83 @@ export const ptBR: Dictionary = {
   'reports.json.holds':
     'A obra inteira e cada entrada do diário com seus hashes, em JSON, para outro programa ler. Não traz os arquivos em si: documentos e fotos são nomeados pelo hash.',
   'reports.json.write': 'Gravar o JSON',
+  'reports.handover.figure.gaps': 'O que o manual ainda não tem',
+  'reports.handover.section.other': 'No resto da obra',
+  'reports.handover.gap.hiddenWithoutPhoto': 'Serviço escondido respondido Sim sem foto — “{name}”',
+  'reports.handover.gap.hiddenUnanswered': 'Serviço escondido sem resposta e sem foto — “{name}”',
+  'reports.handover.gap.stageOpen': '{name}: {stage} ainda em aberto.',
+  'reports.handover.gap.roomWithoutPhoto': '{name}: nenhuma foto ainda.',
+  'reports.handover.gap.noWarrantyOrManual':
+    'Nenhuma garantia e nenhum manual entre os documentos.',
+  'reports.handover.gap.noCareNote': 'Nenhum {note} escrito ainda.',
+  'reports.handover.title': 'O {book}',
+  'reports.handover.holds':
+    'Um PDF para o dono guardar: cômodo por cômodo o que foi feito e quando, as decisões tomadas com as respostas, as fotos do serviço escondido, os documentos pelo nome, quem fez o quê e como cuidar de tudo. Não traz o dinheiro nem o cronograma — eles têm relatórios próprios.',
+  'reports.handover.write': 'Gravar o {book}',
+  'reports.handover.gaps.one': '{count} lacuna',
+  'reports.handover.gaps.other': '{count} lacunas',
+  'reports.handover.gaps.none': 'Nada faltando',
+  'reports.handover.gaps.sentence.one':
+    'O {book} tem {count} lacuna. Ele pode ser gravado assim mesmo: a primeira página diz o que falta.',
+  'reports.handover.gaps.sentence.other':
+    'O {book} tem {count} lacunas. Ele pode ser gravado assim mesmo: a primeira página diz o que falta.',
+  'reports.handover.gaps.nothing': 'Não falta nada no {book} que o Ridgebeam consiga ver.',
+  'reports.handover.gaps.rows': 'O que falta no manual',
+  'reports.handover.inProgressNote':
+    'Ainda há {stage} em aberto: a primeira página vai dizer que o manual foi escrito com a obra em andamento.',
+  'reports.handover.inProgress': 'Escrito enquanto a obra estava em andamento.',
+  'reports.handover.cover.started': 'Começou em {day}.',
+  'reports.handover.cover.finished': 'Terminou em {day}.',
+  'reports.handover.cover.notFinished': 'Ainda não terminou: a obra está em andamento.',
+  'reports.handover.reading.byRoom':
+    'Cada {room} tem as suas páginas: o que foi feito e quando, as decisões tomadas, as fotos do serviço escondido e do diário, e como cuidar dele. Depois os documentos, quem fez o quê e como cuidar da obra toda. Dinheiro e cronograma não estão neste manual.',
+  'reports.handover.reading.byStage':
+    'Cada {stage} tem as suas páginas: o que foi feito e quando, as decisões tomadas, as fotos do serviço escondido e do diário, e como cuidar dela. Depois os documentos, quem fez o quê e como cuidar da obra toda. Dinheiro e cronograma não estão neste manual.',
+  'reports.handover.cover.people': 'As pessoas, por {trade}',
+  'reports.handover.sections.none': 'Nada no plano ainda.',
+  'reports.handover.done.label': 'O que foi feito',
+  'reports.handover.done.value.one': '{done} de {all} concluída',
+  'reports.handover.done.value.other': '{done} de {all} concluídas',
+  'reports.handover.done.on': 'concluída em {day}',
+  'reports.handover.decisions.label': 'Decisões tomadas',
+  'reports.handover.decisions.noAnswer': 'tomada, sem nada anotado',
+  'reports.handover.hidden.title': 'Serviço escondido, fotografado antes de ser fechado',
+  'reports.handover.hidden.none': 'Nenhuma foto de serviço escondido aqui.',
+  'reports.handover.hidden.caption': '{check} — {stage}, {day}',
+  'reports.handover.photos.title': 'Fotos do diário',
+  'reports.handover.photos.none': 'Nenhuma foto do diário aqui.',
+  'reports.handover.photos.caption': '{activity}, {day}',
+  'reports.handover.photos.notShown.one': 'Mais {count} foto está no diário e na pasta da obra.',
+  'reports.handover.photos.notShown.other':
+    'Mais {count} fotos estão no diário e na pasta da obra.',
+  'reports.handover.photos.overCap.one':
+    'O manual imprime no máximo {max} fotos: mais {count} foto está na pasta da obra.',
+  'reports.handover.photos.overCap.other':
+    'O manual imprime no máximo {max} fotos: mais {count} fotos estão na pasta da obra.',
+  'reports.handover.care.title': 'Como cuidar',
+  'reports.handover.care.none': 'Nenhuma nota aqui.',
+  'reports.handover.care.on': '{name}: {text}',
+  'reports.handover.care.work': 'Cuidados com a obra toda',
+  'reports.handover.documents.reading':
+    'Os arquivos estão na pasta da obra; cada um é nomeado aqui para ser encontrado.',
+  'reports.handover.documents.file': '{title} ({file})',
+  'reports.handover.documents.added': 'adicionado em {day}',
+  'reports.handover.documents.attached': 'anexado a {targets}',
+  'reports.handover.people.title': 'Quem fez o quê',
+  'reports.handover.people.names': 'Quem',
+  'reports.handover.people.noTrade': 'Não informado',
+  'reports.handover.people.none': 'Ninguém está no plano.',
+  'reports.handover.people.contact': 'Contato',
+  'reports.handover.people.stages': 'Trabalhou em',
+  'reports.handover.people.days': 'Dias na obra',
+  'reports.handover.people.noStages': 'nada no diário',
+  'reports.handover.record.title': 'O registro',
+  'reports.handover.record.empty': 'O diário ainda não tem nenhuma entrada.',
+  'reports.handover.record.summary.one':
+    'O diário tem {count} entrada, de {from} a {to}. A cadeia dele é verificada toda vez que o diário é gravado em PDF.',
+  'reports.handover.record.summary.other':
+    'O diário tem {count} entradas, de {from} a {to}. A cadeia dele é verificada toda vez que o diário é gravado em PDF.',
+  'reports.handover.record.written': 'Este manual foi escrito em {day}.',
 
   // ── A porta de entrada, completa (F10) ────────────────────────────────────
   'dashboard.figure.weekEntries': 'Entradas nesta semana',

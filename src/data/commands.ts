@@ -18,10 +18,13 @@ import type { DiaryEntry, EntryDraft } from '@/domain/diary';
 import type { Direction } from '@/domain/ordering';
 import type {
   Answer,
+  CareTargetKind,
+  DocumentKind,
   Endpoint,
   Gate,
   Holiday,
   MilestoneTrigger,
+  TargetKind,
   WorkSnapshot,
 } from '@/domain/plan';
 import type { PlanDraft, Provenance } from '@/domain/templates/format';
@@ -201,6 +204,7 @@ export const LIMITS = {
   durationDays: 3650,
   hoursPerDay: 24,
   replanReason: 2000,
+  careNote: 1000,
 } as const;
 
 // ── The application ──────────────────────────────────────────────────────────
@@ -578,14 +582,21 @@ export function checkRemove(id: string): Promise<WorkSnapshot> {
 
 /**
  * The usual checks, already in the person's language (the domain names them by key; the interface
- * resolves the keys). A name the gate already has is skipped by the host.
+ * resolves the keys). A name the gate already has is skipped by the host. Those named in
+ * `needsPhoto` (D3: hidden work) are added needing their photo.
  */
 export function checksAddDefaults(
   stageId: string,
   start: readonly string[],
   close: readonly string[],
+  needsPhoto: readonly string[] = [],
 ): Promise<WorkSnapshot> {
-  return invoke<WorkSnapshot>('checks_add_defaults', { stage_id: stageId, start, close });
+  return invoke<WorkSnapshot>('checks_add_defaults', {
+    stage_id: stageId,
+    start,
+    close,
+    needs_photo: needsPhoto,
+  });
 }
 
 /**
@@ -607,6 +618,15 @@ export function checkAnswer(
     photo_path: photoPath,
     photo_hash: photoHash,
   });
+}
+
+/**
+ * Whether a check needs a photo of the work before it is closed (D3, decision 2): a "yes" on such a
+ * check without a photo is refused by the host; "no" and "not applicable" with a reason are not.
+ * Refused on a closed stage, like every other change to it.
+ */
+export function checkSetNeedsPhoto(id: string, needsPhoto: boolean): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('check_needs_photo', { id, needs_photo: needsPhoto });
 }
 
 /** Start the stage: refused with `stage_gate_open` while the start gate holds. Cannot be undone. */
@@ -781,6 +801,39 @@ export function milestonesUsual(
   return invoke<WorkSnapshot>('milestones_usual', { commitment_id: commitmentId, labels });
 }
 
+// ── Care notes (D3) ──────────────────────────────────────────────────────────
+//
+// A care note is a sentence the owner keeps about looking after the work, on the work, a room or a
+// stage. Editable at any time — it is not the plan, and approval does not lock it — and removed by
+// the host with the room or stage it names.
+
+/** What a care note is written on: `work` (its id is the work's), a room, or a stage. */
+export interface CareNoteTarget {
+  targetKind: CareTargetKind;
+  targetId: string;
+}
+
+export function careNoteAdd(target: CareNoteTarget, text: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('care_note_add', {
+    target_kind: target.targetKind,
+    target_id: target.targetId,
+    text,
+  });
+}
+
+export function careNoteUpdate(id: string, text: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('care_note_update', { id, text });
+}
+
+export function careNoteRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('care_note_remove', { id });
+}
+
+/** Within its target. */
+export function careNoteMove(id: string, direction: Direction): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('care_note_move', { id, direction });
+}
+
 // ── People as contacts, documents and the folder (F7) ────────────────────────
 
 /** The stages a person is expected on — replaced whole. */
@@ -788,10 +841,8 @@ export function personSetStages(id: string, stageIds: readonly string[]): Promis
   return invoke<WorkSnapshot>('person_set_stages', { id, stage_ids: stageIds });
 }
 
-export type DocumentKind =
-  'photo' | 'quote' | 'drawing' | 'permit' | 'receipt' | 'contract' | 'other';
-export type TargetKind =
-  'work' | 'stage' | 'activity' | 'decision' | 'entry' | 'commitment' | 'payment';
+/** The domain's own kinds (D3 added a warranty and a manual), so the two can never drift. */
+export type { DocumentKind, TargetKind };
 
 /** What a document is attached to. */
 export interface DocumentTarget {
@@ -918,7 +969,13 @@ export type ReportBlock =
       rows: ReportGanttRow[];
     }
   | { type: 'rule' }
-  | { type: 'pageBreak' };
+  | { type: 'pageBreak' }
+  /**
+   * A photo the open work holds (D3), named by the SHA-256 of its file — never a path: the host finds
+   * it in the work's own `documents/` and embeds it, its caption printed under it. Two `half` images
+   * in a row sit side by side. A hash the work does not hold is refused, not skipped.
+   */
+  | { type: 'image'; hash: string; caption: string; size: 'full' | 'half' };
 
 /** One bar of a printed Gantt: offsets in day columns from day 0. */
 export interface ReportGanttRow {
@@ -930,7 +987,7 @@ export interface ReportGanttRow {
   baselineLength: number | null;
 }
 
-export type ReportKind = 'weekly' | 'diary' | 'schedule';
+export type ReportKind = 'weekly' | 'diary' | 'schedule' | 'handover';
 
 /** What the host renders: a title for the page footer and the metadata, and the blocks. */
 export interface ReportDocument {

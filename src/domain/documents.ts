@@ -34,6 +34,8 @@ export const DOCUMENT_KINDS = [
   'permit',
   'receipt',
   'contract',
+  'warranty',
+  'manual',
   'other',
 ] as const satisfies readonly DocumentKind[];
 
@@ -251,6 +253,8 @@ export const DOCUMENTS_LABEL_KEYS = {
   permit: 'documents.figure.permit',
   receipt: 'documents.figure.receipt',
   contract: 'documents.figure.contract',
+  warranty: 'documents.figure.warranty',
+  manual: 'documents.figure.manual',
   other: 'documents.figure.other',
 } as const satisfies Record<DocumentKind | 'all', string>;
 

@@ -46,11 +46,15 @@
 //! - D2: `milestones` — a commitment's payment plan, each milestone a share
 //!   earned by a fact of the work, fixed from the first payment against the
 //!   commitment; work migration 011.
+//! - D3: `care_notes` — what the owner must know to look after the work, on
+//!   the work, a room or a stage; a check may need its photo; two more
+//!   document kinds; work migration 012, which rebuilds `document`.
 
 #[cfg(test)]
 mod append_only_tests;
 pub mod backups;
 pub mod baselines;
+pub mod care_notes;
 pub mod check_answers;
 pub mod checks;
 pub mod decisions;

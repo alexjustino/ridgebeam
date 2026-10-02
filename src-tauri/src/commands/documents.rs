@@ -19,6 +19,7 @@
 //! - F7: `document_add`, `document_update`, `document_link`,
 //!   `document_unlink`, `document_remove`, `document_open`,
 //!   `document_thumbnail`, `documents_verify`, `folder_health`.
+//! - D3: a document may be filed as a `warranty` or a `manual`.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -219,7 +220,7 @@ fn kind_of(value: &str) -> Result<&str> {
         Ok(value)
     } else {
         Err(invalid(
-            "A document is a photo, a quote, a drawing, a permit, a receipt, a contract, or other.",
+            "A document is a photo, a quote, a drawing, a permit, a receipt, a contract, a warranty, a manual, or other.",
         ))
     }
 }

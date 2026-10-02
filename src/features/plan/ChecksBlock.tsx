@@ -9,7 +9,13 @@ import { useId, useState, type FormEvent } from 'react';
 
 import { LIMITS } from '@/data/commands';
 import { useAddCheck, useAddDefaultChecks, useRemoveCheck, useRenameCheck } from '@/data/queries';
-import { checksAt, DEFAULT_CHECK_KEYS, GATES, latestAnswers } from '@/domain/checks';
+import {
+  checksAt,
+  DEFAULT_CHECK_KEYS,
+  DEFAULT_CHECKS_NEEDING_PHOTO,
+  GATES,
+  latestAnswers,
+} from '@/domain/checks';
 import type { Direction } from '@/domain/ordering';
 import type { Check, Gate, Stage, WorkSnapshot } from '@/domain/plan';
 import { useI18n } from '@/i18n/useI18n';
@@ -28,8 +34,9 @@ import type { Outcome } from './outcome';
  * before it closes. They are answered on the Gates tab; here they are named, ordered and removed.
  *
  * Until templates arrive (F9), "Add the usual checks" inserts a small library in the person's
- * language as ordinary checks — the domain names them by key, this resolves the keys. A check that
- * has an answer cannot be removed, because its answers are facts; it can still be renamed.
+ * language as ordinary checks — the domain names them by key, this resolves the keys. The one about
+ * hidden work arrives needing its photo (D3), which the Gates tab can clear. A check that has an
+ * answer cannot be removed, because its answers are facts; it can still be renamed.
  */
 export function ChecksBlock({
   stage,
@@ -71,6 +78,7 @@ export function ChecksBlock({
                 stageId: stage.id,
                 start: DEFAULT_CHECK_KEYS.start.map((key) => t(key)),
                 close: DEFAULT_CHECK_KEYS.close.map((key) => t(key)),
+                needsPhoto: DEFAULT_CHECKS_NEEDING_PHOTO.map((key) => t(key)),
               },
               { onSuccess: outcome.kept, onError: outcome.refused },
             )

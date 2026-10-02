@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, go, openRecent, startSession, type Session } from './session';
 
 /**
  * Slice F8's proof of done, against the real binary:
@@ -275,8 +275,7 @@ describe('F8 — replanning: an approved plan asks for a reason, and any two bas
     await session.screenshot('f8-whatif-en');
 
     await session.restart();
-    const restarted = session.driver;
-    await (await restarted.waitForElement(t('recent-work'))).click();
+    await openRecent(session);
     await go(session, 'schedule');
     expect(await text(session, t('baseline-number'))).toBe('2');
     expect(await text(session, t('schedule-finish'))).toBe(finish);

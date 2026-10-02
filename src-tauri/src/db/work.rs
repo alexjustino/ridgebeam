@@ -40,6 +40,8 @@
 //!   their `CHECK`s are F9's (work migration 010).
 //! - D2: an activity a payment milestone is earned by is not removed
 //!   (`db::milestones`); the snapshot's commitments carry their payment plans.
+//! - D3: the snapshot carries care notes; a stage's removal takes its care
+//!   notes with it, in the same transaction.
 
 use std::collections::HashMap;
 
@@ -48,8 +50,8 @@ use rusqlite::{params, Connection, OptionalExtension};
 use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, WorkSnapshot};
 use crate::db::order::{ACTIVITIES, STAGES};
 use crate::db::{
-    baselines, check_answers, checks, decisions, dependencies, documents, milestones, money,
-    payments, replanning,
+    baselines, care_notes, check_answers, checks, decisions, dependencies, documents, milestones,
+    money, payments, replanning,
 };
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
@@ -291,6 +293,7 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         payments: payments::list(conn)?,
         documents: documents::list(conn)?,
         replanning: replanning::current(conn)?,
+        care_notes: care_notes::list(conn)?,
     })
 }
 
@@ -507,6 +510,7 @@ pub fn remove_stage(conn: &Connection, id: &str) -> Result<()> {
     dependencies::remove_naming_stage(&tx, id)?;
     let changed = tx.execute("DELETE FROM stage WHERE id = ?1", [id])?;
     found(changed, STAGE_NOT_FOUND)?;
+    care_notes::remove_for(&tx, "stage", id)?;
     STAGES.close_gaps(&tx, None)?;
     tx.commit()?;
     Ok(())
@@ -840,6 +844,7 @@ pub(crate) mod tests {
             "document",
             "document_link",
             "payment_milestone",
+            "care_note",
         ] {
             let found: i64 = conn
                 .query_row(

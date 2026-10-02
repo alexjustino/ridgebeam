@@ -28,7 +28,10 @@ cost in [ADR-036](#adr-036). The first, slice D1, gives the finish as a probabil
 date, from the ranges a person gives and without touching the plan's own dates
 ([ADR-035](#adr-035)). The second, slice D2, ties each payment to the work it pays for: a
 commitment's milestones are earned only by facts of the work, and a payment that would put the owner
-ahead of the work is warned about before it is saved, never refused ([ADR-037](#adr-037)).
+ahead of the work is warned about before it is saved, never refused ([ADR-037](#adr-037)). The
+third, slice D3, writes the work's record for its owner — one PDF with the photos of the work
+hidden behind walls and floors, which a check can now require before it is answered yes
+([ADR-038](#adr-038)).
 
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -69,6 +72,7 @@ ahead of the work is warned about before it is saved, never refused ([ADR-037](#
 | [035](#adr-035) | The finish is also a probability: ranges, a seeded simulation, natural frequencies, and the plan's own date untouched | Accepted — 2026-09-29          |
 | [036](#adr-036) | The owner widened 1.0 before first use                                                                                | Accepted — 2026-09-29, by Alex |
 | [037](#adr-037) | A payment plan is earned by facts, and paying ahead is warned, not refused                                            | Accepted — 2026-09-29          |
+| [038](#adr-038) | The handover book: the work's record for its owner, photos of hidden work required where it matters                   | Accepted — 2026-10-01          |
 
 ---
 
@@ -2145,3 +2149,108 @@ an activity's quantities in the diary does not earn a share of its milestone. An
 the cent is not always the share a person's calculator gives: in a 100 % plan the last milestone
 takes the remainder, and may differ from its own share by up to half a cent for each milestone
 before it.
+
+## ADR-038 — The handover book: the work's record for its owner, photos of hidden work required where it matters {#adr-038}
+
+**Status.** Accepted — 2026-10-01.
+
+**Context.** The third differentiator ([ADR-036](#adr-036)). At the end of a work the owner is left
+with a folder of receipts, a phone full of photos and what the builder remembers to say on the way
+out. Years later somebody drills into a wall to hang a shelf and finds the pipe nobody photographed,
+or a shower leaks under a tile and nobody knows whether the floor was waterproofed, who did it or
+whether it is still under warranty. Everything that would have answered those questions passed
+through the product — the diary, the gates, the decisions, the documents, the people — but F10's
+reports are about a week or about the record, and none of them carries a photo: they count an
+entry's photos and say they are in the work's folder ([ADR-031](#adr-031)). A gate can already ask
+"were photos taken before the walls were closed?", and a "yes" with no photo answered it.
+
+**Decision.**
+
+- **One PDF for the owner: the handover book.** Written from **Reports**, in the owner's words
+  whatever lens is on, in the language on screen. Its content is selected by the domain
+  (`src/domain/reports/handover.ts`, pure, keys and no strings) and composed into blocks by the
+  interface (`src/features/reports/compose/handover.ts`), as every report is. A **first page** —
+  "Written while the work was in progress" first, in strong type, while any stage is open; the
+  place, the start, the day the last stage closed or that the work is in progress, the template it
+  started from, what the book holds and what it does not, **what it still lacks** with its rows,
+  and the people by trade. Then **one section per room**, in room order — or one per stage when the
+  work has no rooms, and, when it has rooms, a last section for what touches none, so nothing done
+  is left out — with what was done and when (the finished activities and the day the diary says
+  they finished), the decisions made with their answers and days, **the photos of hidden work**,
+  every one, full width, captioned with the check, its stage and the day; the diary's other photos
+  of the section's activities, two to a row, at most six per section, the latest per activity
+  first, and how many more are in the work's folder; and the care notes. Then the **documents** by
+  kind — permits, warranties, manuals, contracts, receipts — each by its title and file name, the
+  day it was added and what it is attached to; **who did what** — everyone in the plan with their
+  trade, phone and e-mail, the stages the diary saw them on and their days on site; the care notes
+  for the whole work, and any whose room or stage is gone, said so; and last, **the record**: how
+  many entries the diary holds, from which day to which, that its chain is verified whenever the
+  diary is written out as a PDF, and the day the book was written. The book does not claim a
+  verification it did not make: the diary's own export carries that block ([ADR-032](#adr-032)).
+  It holds no money and no schedule — they have their own reports.
+- **Photos in a PDF.** The report model gains an **image** block — a hash, a caption, and a size,
+  `full` or `half`; two half-size images in a row sit side by side. The interface names a photo
+  **only by its hash**, 64 lowercase hexadecimal digits; anything else is refused before a file is
+  looked for. The host (`src-tauri/src/report/images.rs`) accepts a hash only when a `document` row
+  of the open work names it, and only an image — a PDF among the documents is listed by name and
+  never embedded, and an image block naming one is refused; reads the original from the work's own
+  `documents/` and nowhere else, under the documents' caps (25 MiB, 12 000 × 12 000), and checks
+  that its bytes still hash to the name — a file changed outside Ridgebeam is refused; decodes it
+  under the `image` crate's limits, turns it the way the camera said, lays any transparency on
+  white, scales it to at most **1 600 pixels** on its long edge and embeds it as JPEG at quality 82.
+  A JPEG that is already what the page needs — at most 1 600 pixels, 8 bits, grey or colour, not
+  turned, at most 4 MiB, and decoding like any other — is embedded **as it is**, byte for byte. A
+  document holds at most **400 image blocks and 150 MiB of image data** (each distinct photo counted
+  once), and the host refuses one past either with a sentence; the composer never sends more than
+  400 — past that, the photos that come later in the book are left out and the book says how many,
+  in words. An image block whose hash the work does not hold is refused, not skipped. The second
+  reader counts the embedded images in `cargo test`, and checks their size and filter.
+- **Hidden work needs its photo.** A gate check can **need a photo** (`stage_check.needs_photo`,
+  migration 012): a "yes" on it without a photo is refused by the host — _"This check needs a photo
+  of the work before it is closed."_ — and "no" or "not applicable, with a reason" are not. The
+  Gates tab turns it on or off for each check while the stage is not closed, and a check that needs
+  a photo shows its photo field open. The usual checks and the library's templates gain one
+  close-gate check that needs a photo on each stage that closes a wall or a floor over pipes,
+  wiring or waterproofing, and the template format gains an optional `"photo": true` on a check.
+- **Two more kinds of document**: `warranty` and `manual`, so the book can list them under their own
+  headings. Migration 012 rebuilds `document` to widen its `CHECK`, keeping every row with its id,
+  every link and the index, and setting the links aside first so that dropping the old table does
+  not cascade into them.
+- **Care notes.** A sentence of up to 1 000 characters on the work, a room or a stage — _"Reseal the
+  shower grout once a year"_, _"The stopcock is under the sink"_ — in an order the person sets
+  (`care_note`, migration 012). They are editable at any time, approved plan or not: they are not
+  the plan. A room or a stage removed takes its notes with it.
+- **The book says what it still lacks.** Before writing, the Reports card shows a counted figure
+  with its rows ([ADR-024](#adr-024)) of what the book would be missing: checks that need a photo
+  and were answered without one (only an answer from before this slice can be), checks that need a
+  photo and are not answered, stages not closed, rooms with no photo, no warranty or manual at all,
+  no care note. **Writing is allowed anyway**: an owner may want the book halfway through. When any
+  stage is still open, the book's first page says it was written while the work was in progress.
+- **Where it lives.** The Plan gains a **Handover** tab — the care notes of the work, each room and
+  each stage, and every check that needs a photo with its state and its photo; Reports gains the
+  card **The handover book**. The dashboard says nothing new: the book is for the end.
+
+**Why.** The owner keeps the work for decades and the people who built it are gone in weeks; the
+book is the part of the record that has to outlive both the product and the builder, so it is a
+PDF that opens anywhere and carries the photos itself, not a pointer into a folder. A photo of a
+pipe is worth something only if it was taken before the wall was closed, and the gate is the one
+moment the product knows the wall is about to be closed — so that is where the photo is asked for,
+and a "yes" without one is not a yes. Resolving an image only by hash, inside the open work, keeps
+the report command from becoming a way to read any file on the machine into a PDF.
+
+**Cost accepted.** **Photos make a large PDF**: a book with a few hundred photos runs to tens of
+megabytes, even scaled to 1 600 pixels — the caps are there so it stays a file a person can keep and
+copy, and nothing past them is dropped without a word: photos past 400 are counted and said to be in
+the work's folder, and a book past 150 MiB of photos is refused with a sentence. **A photo required
+for a "yes" can be taken after the wall is closed, and the product cannot tell**: it checks that a
+photo is attached, not what it shows or when it was taken; the book prints the day the check was
+answered under the photo, and the honesty of the photo is the person's. **A photo's metadata is
+left behind, and so is its colour profile**: a book is handed to other people, so a JPEG embedded as
+it is loses its EXIF (which may say where it was taken), XMP and comments, keeping only what decoding
+needs, and a re-encoded image carries none; the cost is that a photo with a wide colour profile
+prints a little less true. The original in the work folder keeps everything. **Care notes are the person's words, not advice**:
+the product prints what was typed and vouches for none of it, and a wrong note — the wrong stopcock
+— is printed as faithfully as a right one. **A book written mid-work is incomplete and says so** on
+its first page, and its gaps are listed before it is written; a person may still print it and file
+it as if it were final. A PDF document — a warranty scanned as PDF, a manual — is listed by name,
+never reproduced: the book points to it, and the work's folder keeps it.

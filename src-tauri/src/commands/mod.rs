@@ -18,10 +18,13 @@
 pub mod backup;
 #[cfg(test)]
 pub mod backup_tests;
+pub mod care_notes;
 pub mod checks;
 pub mod decisions;
 pub mod diary;
 pub mod documents;
+#[cfg(test)]
+mod handover_tests;
 #[cfg(test)]
 mod large_work_tests;
 pub mod milestones;

@@ -75,6 +75,11 @@
 //!   `milestones_usual` writes). A share is whole basis points (`shareBp`,
 //!   3000 is 30 %). Nothing earned, due or ahead crosses the boundary: it is
 //!   the domain's, computed every time.
+//! - D3: the handover book. A check may need its photo (`Check.needsPhoto`,
+//!   `CheckDraft.needsPhoto` — optional, `false` when left out); two more
+//!   document kinds (`warranty`, `manual`); care notes (`CareNote`,
+//!   `WorkSnapshot.careNotes`, by target and position). The report's `image`
+//!   block is `report::model::Block::Image`.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -368,6 +373,30 @@ pub struct WorkSnapshot {
     /// The replanning that is open, or `null`. While the plan is approved and
     /// this is `null`, the plan is locked (`plan_approved`).
     pub replanning: Option<Replanning>,
+    /// Care notes (D3): the work's first, then each room's in the rooms'
+    /// order, then each stage's in the stages' order; by position within each.
+    pub care_notes: Vec<CareNote>,
+}
+
+/// What the owner must know to look after the work — "Reseal the shower grout
+/// once a year" — on the work, a room or a stage (D3). Not the plan: editable
+/// at any time.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct CareNote {
+    /// UUID v7.
+    pub id: String,
+    /// `work`, `room` or `stage`.
+    pub target_kind: String,
+    /// The room's or the stage's id; for the work, its `workId`.
+    pub target_id: String,
+    /// Its order among its target's notes: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// What it says, 1 to 1 000 characters.
+    pub text: String,
+    /// When it was written, UTC.
+    pub created_at: String,
 }
 
 /// An approved plan being changed, and why. Opened with a reason; closed only
@@ -426,7 +455,8 @@ pub struct Document {
     pub width: Option<i64>,
     /// Its height in pixels, for an image; `null` for a PDF.
     pub height: Option<i64>,
-    /// `photo`, `quote`, `drawing`, `permit`, `receipt`, `contract` or `other`.
+    /// `photo`, `quote`, `drawing`, `permit`, `receipt`, `contract`,
+    /// `warranty`, `manual` or `other`.
     pub kind: String,
     /// Its title — the file name until somebody changes it.
     pub title: String,
@@ -745,6 +775,9 @@ pub struct Check {
     pub position: i64,
     /// The question, at most 200 characters.
     pub name: String,
+    /// Whether a "yes" must carry a photo of the work (D3): hidden work,
+    /// photographed before it is closed.
+    pub needs_photo: bool,
 }
 
 /// One answer to a check — a fact, never rewritten.
@@ -1242,6 +1275,9 @@ pub struct CheckDraft {
     pub gate: String,
     /// The question, at most 200 characters.
     pub name: String,
+    /// Whether a "yes" must carry a photo (D3); `false` when left out.
+    #[serde(default)]
+    pub needs_photo: bool,
 }
 
 /// A cost line of a [`StageDraft`].

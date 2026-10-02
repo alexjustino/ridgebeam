@@ -1,7 +1,7 @@
 {
   "ridgebeamTemplate": 1,
   "id": "bathroom-renovation",
-  "version": 1,
+  "version": 2,
   "title": {
     "en": "Bathroom renovation",
     "pt-BR": "Reforma de banheiro"
@@ -142,8 +142,9 @@
             "pt-BR": "Todo esgoto tem caimento até a saída, testado com água?"
           },
           {
-            "en": "Were photos taken of the pipes and cables before the walls were closed?",
-            "pt-BR": "Foram tiradas fotos dos tubos e cabos antes de fechar as paredes?"
+            "en": "Are the pipes and wiring photographed before the walls are closed?",
+            "pt-BR": "Os canos e a fiação foram fotografados antes de fechar as paredes?",
+            "photo": true
           }
         ]
       },
@@ -288,6 +289,11 @@
           {
             "en": "Does the waterproofing turn up the walls around the shower?",
             "pt-BR": "A impermeabilização sobe pelas paredes na área do box?"
+          },
+          {
+            "en": "Is the waterproofing photographed, turned up the walls, before the tiles cover it?",
+            "pt-BR": "A impermeabilização foi fotografada, subindo pelas paredes, antes de o revestimento cobri-la?",
+            "photo": true
           }
         ]
       },

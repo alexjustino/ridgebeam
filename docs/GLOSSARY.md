@@ -12,7 +12,7 @@ language, a term or a sentence, or names a lens that does not exist.
 
 A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-61 terms.
+63 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
@@ -74,6 +74,8 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `dashboard` | dashboard | The front door of a work: readiness, this week, the finish date against the baseline, decisions due, money, the last diary entries. Every figure opens onto its rows. | painel | A porta de entrada de uma obra: prontidão, esta semana, a data de término contra a linha de base, decisões a tomar, dinheiro, as últimas entradas do diário. Cada número abre nas suas linhas. |
 | `figure` | figure | A number on a screen that always knows which rows it was counted from, and opens onto them when clicked. | número | Um valor na tela que sempre sabe de quais linhas foi contado, e abre nelas ao ser clicado. |
 | `report` | weekly report | A PDF for one week, in the owner's words: what was done, what slipped, what to decide, what to pay — as many pages as the week needs. | relatório semanal | Um PDF de uma semana, nas palavras do dono: o que foi feito, o que atrasou, o que decidir, o que pagar — com quantas páginas a semana pedir. |
+| `handoverBook` | handover book | One PDF the owner keeps when the work ends: room by room what was done and when, every decision with its answer, the photos of the work hidden behind walls and floors, the documents by name, who did what, and the care notes. It says what it still lacks. | manual de entrega | Um PDF que o dono guarda quando a obra termina: cômodo por cômodo o que foi feito e quando, cada decisão com a sua resposta, as fotos do que ficou escondido atrás das paredes e dos pisos, os documentos pelo nome, quem fez o quê e os cuidados de manutenção. Ele diz o que ainda falta. |
+| `careNote` | care note | A sentence the owner keeps for later about looking after the work — “Reseal the shower grout once a year”, “The stopcock is under the sink”. Written in the person’s own words; it is not advice from the product. | cuidado de manutenção | Uma frase que o dono guarda para depois sobre como cuidar da obra — “Refazer o rejunte do box uma vez por ano”, “O registro geral fica embaixo da pia”. Escrita nas palavras da própria pessoa; não é um conselho do produto. |
 | `export` | export | A file written from the work for somebody else, or another program, to read — a PDF, a spreadsheet file or JSON. Writing it changes nothing in the work. | exportação | Um arquivo gravado a partir da obra para outra pessoa, ou outro programa, ler — um PDF, uma planilha ou JSON. Gravá-lo não muda nada na obra. |
 | `backup` | backup | The whole work as one file you can copy anywhere and bring back exactly as it was. It is not encrypted: keep it as carefully as the work folder. | cópia de segurança | A obra inteira como um arquivo que você pode copiar para qualquer lugar e trazer de volta exatamente como estava. Não é criptografada: guarde-a com o mesmo cuidado que a pasta da obra. |
 | `restore` | restore | Bringing a backup back as a work in a new, empty folder. Every file is checked against the backup first, and the folder the work was in before is left as it was. | restauração | Trazer uma cópia de segurança de volta como uma obra numa pasta nova e vazia. Cada arquivo é conferido com a cópia antes, e a pasta onde a obra estava é deixada como estava. |
@@ -84,7 +86,7 @@ A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a 
 with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
 The sentence never changes with the lens, and nothing about a work is stored per lens.
 
-9 of the 61 terms change with the lens.
+9 of the 63 terms change with the lens.
 
 | Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
 | --- | --- | --- | --- | --- | --- | --- |

@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, go, openRecent, startSession, type Session } from './session';
 
 /**
  * Slice D1's proof of done, against the real binary:
@@ -187,7 +187,7 @@ describe('D1 — when will it really finish: the finish as a probability, from t
     expect(JSON.stringify(wider)).not.toBe(JSON.stringify(seeded));
 
     await session.restart();
-    await (await session.driver.waitForElement(t('recent-work'))).click();
+    await openRecent(session);
     const again = await days(session);
     expect(again).toEqual(wider);
   });
