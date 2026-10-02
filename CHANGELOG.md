@@ -898,3 +898,70 @@ lacks before it is written (ADR-038).
   its caps; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a book says what it still lacks before
   it is printed_; [`CONTRIBUTING.md`](CONTRIBUTING.md), the template check's `photo` flag; the
   glossary gains _handover book_ (_manual de entrega_) and _care note_ (_cuidado de manutenção_).
+
+### Added in D4 — the owner's snapshot
+
+The last of the four differentiators (ADR-036). The owner asks how the work is going from wherever
+they are; Ridgebeam now writes the answer as **one HTML file, with no script and nothing loaded from
+anywhere**, that opens in any phone's browser and shows the work as it stands — readiness, the
+finish and its chance, the next two weeks, the last diary entries with their photos, and the money —
+with every figure still opening onto its rows. Ridgebeam writes the file; **sending it is the
+person's act**, by WhatsApp, by e-mail or any other way. The product still sends nothing (ADR-039).
+
+- **The owner's snapshot**, a sixth card on **Reports**, in the owner's words whatever lens is on and
+  in the language on screen. It says in one line what the file holds and that sending it is the
+  person's, writes it to the `.html` path chosen in the save dialog, names the path and the size, and
+  **Open** shows it in the system's browser. The dashboard's header gains **Owner's snapshot…**,
+  which goes to the card with the focus on its path.
+- **What it holds.** Titled _Owner's snapshot_, with the work's name and the day. **Today** — the
+  place, readiness as a figure with the dashboard's sentence, the finish date and the chance of
+  finishing by it, or the sentence that every activity is counted as certain; **The next two
+  weeks**; **Lately on site** — the last five diary entries, corrections applied, newest first, each
+  with its note, what was done, who was there and at most two photos captioned with the day and the
+  file name; and **Money** — planned, committed and paid with their lines, the commitments paid
+  ahead of the work and what is earned and not paid now. Its last line says the day it was written
+  and that it does not change when the work does. **No phone number, no e-mail address, no Windows
+  account and no document** is in it: contacts belong in the handover book.
+- **The next two weeks** (`src/domain/reports/lookahead.ts`, pure). The 14 calendar days from
+  today, today included, on the schedule as of today — a closed stage and an activity the diary says
+  is finished are left out. The activities starting in the window and those running through it,
+  with their responsible and stage; the people expected, by the dashboard's rule for the week; the
+  open decisions overdue or due in the window, with their lead time and the day to order by; the
+  gates coming up — the start gate of a stage whose first activity starts in the window and the
+  close gate of one whose last activity finishes in it, with the items that hold each; and the
+  payments — milestones whose fact the schedule expects in the window, less what was already paid
+  ahead on their commitment, and what is earned and not paid now. Each is a figure with its rows,
+  days in the owner's words — _Monday 5 Oct_ — and a small Gantt of the window when anything is
+  placed; with nothing placed, the page says there is no schedule rather than a quiet fortnight. The
+  composer is `src/features/reports/compose/snapshot.ts`.
+- **A second renderer for the same report model.** The report model gains the kind `snapshot`, and
+  the host renders it to HTML (`src-tauri/src/report/html.rs`, `report_html_write`) where it renders
+  the others to PDF: headings and paragraphs with their tones; a figure as `<details>` and
+  `<summary>` with its rows under it, which needs no script; a table that scrolls sideways on a
+  phone; the Gantt as inline SVG, each bar with a `<title>`; photos as `data:image/jpeg` URLs. The
+  style is inline — one readable column, the system's fonts, large tap targets, print styles — and
+  **light and dark follow the reader's phone**.
+- **Nothing in it can run or load.** Every string is escaped, in text and in attributes — the five
+  markup characters and also `/ : = @ (` and the backtick. The file carries its `lang`, a
+  `no-referrer` policy and a Content-Security-Policy `<meta>`:
+  `default-src 'none'; img-src data:; style-src 'unsafe-inline'`. Before the bytes are written the
+  host checks them (`report::html::verify`) and **refuses the write**, as a bug in the product,
+  unless the policy is there once before what it governs, every `src` is a base64
+  `data:image/jpeg` address, nothing else holds `<script`, an `on…=` attribute, `javascript:`,
+  `vbscript:`, `http:`, `https:`, `//`, `<iframe`, `<object`, `<embed`, `<link`, `<base`, `<form`,
+  `@import`, `url(`, `expression(`, another `data:` or `<!--`, and the page is made only of its own
+  elements and attributes. `cargo test` puts hostile strings into every field of every block and
+  injects each forbidden pattern into a rendered page.
+- **Photos are always re-encoded.** Resolved by hash inside the open work, as the handover book's,
+  then decoded and written again as JPEG at most 1 024 pixels on the long edge, quality 78 — never
+  passed through — so no metadata reaches the file. At most **60 photos placed, 8 MiB of image data as
+  placed, and 12 MiB in all**; a snapshot past a cap is refused with a sentence and nothing is
+  written.
+- **Documentation.** ADR-039 (the owner's snapshot), with its costs — it is stale the moment the work
+  changes, and says so; photos make it a few megabytes; it holds the work's state, which the person
+  chooses to share; it is not the 1.2 "crew" sync; a phone's browser decides how it looks within the
+  style it is given; [`SECURITY.md`](SECURITY.md), the snapshot's policy, its escaping, the verifier
+  and its exact rules, photos always re-encoded, no contact and no document in it, and nothing sent
+  by the product; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a file meant to be sent carries
+  nothing that runs and nothing the reader did not need_; [`docs/RELEASE.md`](docs/RELEASE.md), the
+  snapshot opened on a real phone; the glossary gains _owner's snapshot_ (_retrato da obra_).

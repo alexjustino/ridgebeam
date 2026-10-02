@@ -18,10 +18,11 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F11, and D1 to D3.** The product was named on 2026-09-24
+> **Status: pre-release — slices F0 to F11, and D1 to D4.** The product was named on 2026-09-24
 > ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 — from the foundation to backup,
-> restore and polish — and the first three differentiators, D1 to D3, run from source; there is no
-> published installer yet: that is F12, the release. The [specification](docs/SPEC.md) says what
+> restore and polish — and all four differentiators, D1 to D4, run from source; there is no
+> published installer yet: that is F12, the release, whose branch is to be cut again from
+> `develop`. The [specification](docs/SPEC.md) says what
 > 1.0.0 will be and what "done" means for every slice; [What exists today](#what-exists-today) says
 > exactly how far the code has got.
 
@@ -36,8 +37,8 @@ would put the owner ahead of the work — a warning, not a refusal
 with the photos of hidden work taken before it was closed, which a check can require
 ([ADR-038](docs/architecture/ADR.md#adr-038)); and **D4, the owner's snapshot** — one
 self-contained HTML file that opens on any phone, which the person sends themselves; Ridgebeam still
-sends nothing.
-**D1, D2 and D3 are in.** D4 follows, and the release is cut again after it.
+sends nothing ([ADR-039](docs/architecture/ADR.md#adr-039)).
+**All four are in.** The release branch is cut again from `develop` now that they are.
 
 ## Why
 
@@ -86,8 +87,7 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F11**, and the first three differentiators, **D1** to **D3** — nothing after
-them:
+Slices **F0** to **F11**, and the four differentiators, **D1** to **D4** — nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -244,6 +244,18 @@ them:
   writing, the card says **what the book still lacks**, counted with its rows, and writes it anyway
   when asked; a book written before every stage closed says so on its first page
   ([ADR-038](docs/architecture/ADR.md#adr-038)).
+- **The owner's snapshot (D4).** One HTML file, written from **Reports** — or from **Owner's
+  snapshot…** on the dashboard — that shows the owner the work as it stands, on any phone, in their
+  own words: readiness in a sentence, the finish and its chance, **the next two weeks** — what starts
+  and what runs, who must be there, what to decide or order and by when, which gates come up, what
+  payment falls due — the last five diary entries with their photos, and the money. Every figure
+  still opens onto its rows, light and dark follow the reader's phone, and its last line says the
+  day it was written and that it does not change when the work does. It has **no script and loads
+  nothing from anywhere**: every string escaped, a Content-Security-Policy in the file, and the host
+  checking the bytes before it writes them and refusing a file with anything in it that could run or
+  load. Photos are always re-encoded, so no metadata travels; no phone number, e-mail address or
+  document is in it. **Ridgebeam writes the file; sending it is yours** — by WhatsApp, by e-mail —
+  and the product still sends nothing ([ADR-039](docs/architecture/ADR.md#adr-039)).
 - **Readiness.** A figure that says how much of what the plan must know it does know, from seven
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -259,13 +271,13 @@ them:
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-eight binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-nine binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: the differentiator **D4**, and **the release** (F12) — an
+Not yet, and not pretended: **the release** (F12) — its branch cut again from `develop`, an
 installer, tried on a clean machine, and a real work planned, run for a week and its weekly report
 read by somebody who is not an engineer.
 
@@ -274,6 +286,7 @@ spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one cu
 decision tied to one activity rather than its whole stage; a replanning abandoned without a
 baseline; a what-if applied to the plan with one button; a work that follows its template when the
 library changes; prices in the library; photos inside a PDF report other than the handover book; a
+snapshot that updates itself, or that the product sends; a
 character outside the standard PDF fonts' set on paper; non-working days shaded on the printed
 schedule; an encrypted backup, an incremental one, a backup the product makes on its own, or a
 restore over an existing folder.
@@ -282,7 +295,8 @@ restore over an existing folder.
 
 Said once, plainly, so nobody finds out on site. Ridgebeam 1.0 is one person's planner on one
 Windows computer. It has **no accounts, no sync and no network**: a work is shared by copying its
-folder or a backup, and two people editing copies get two works. It has **no phone, tablet, web,
+folder or a backup, and two people editing copies get two works; the owner can be sent a snapshot to
+read, and nothing comes back from it. It has **no phone, tablet, web,
 macOS or Linux** version. It does not read drawings, BIM, IFC or CAD, has **no price database**,
 and makes **no quote, invoice or tax** document. It schedules finish-to-start links with lags on a
 working calendar — no other link types, no milestones, **no resource levelling** and no earned value

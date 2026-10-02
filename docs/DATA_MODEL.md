@@ -946,7 +946,10 @@ file that restores the work exactly, files included — is the next section.
 
 **Reports are files, not rows.** Nothing in either database records that a report or an export
 was written, where, or when. The set of files written in a session, which **Open** may open, is
-kept in the host's memory and forgotten when the application closes.
+kept in the host's memory and forgotten when the application closes. The owner's snapshot (D4) is
+one more such file: an HTML page rendered from the same report model, holding the work as it stood
+when it was written, and nothing records that it was written or sent
+([ADR-039](architecture/ADR.md#adr-039)).
 
 ## A backup — the `.ridgebeam` format (F11)
 
