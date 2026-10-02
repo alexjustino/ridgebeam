@@ -9,6 +9,7 @@ import {
   useExportWorkJson,
   useVerifyDiary,
   useWriteReport,
+  useWriteSnapshot,
 } from '@/data/queries';
 import { stageState } from '@/domain/checks';
 import { weekOf } from '@/domain/dashboard';
@@ -37,6 +38,7 @@ import { Input } from '@/ui/Input';
 import { composeDiary } from './compose/diary';
 import { composeHandover, handoverGapText } from './compose/handover';
 import { composeSchedule } from './compose/schedule';
+import { composeSnapshot } from './compose/snapshot';
 import { composeWeekly, weekText } from './compose/weekly';
 import { PathForm, ProblemBar, WrittenBar } from './PathForm';
 import { useSaveTarget } from './useSaveTarget';
@@ -53,9 +55,34 @@ import { useSaveTarget } from './useSaveTarget';
  * schedule in the lens on screen. The host lays each one out and writes it; nothing about the work
  * changes, and nothing leaves the machine.
  */
-export function ReportsPage({ snapshot }: { snapshot: WorkSnapshot }) {
+/** A card another page may ask Reports to open on, with the focus on its path field. */
+export type ReportsFocus = 'snapshot';
+
+export function ReportsPage({
+  snapshot,
+  initialFocus = null,
+  onFocusTaken,
+}: {
+  snapshot: WorkSnapshot;
+  /** The card to open on — the dashboard's "Owner's snapshot…" (D4) — or `null` for the top. */
+  initialFocus?: ReportsFocus | null;
+  /** Called once the focus has been put on `initialFocus`, so it is not taken twice. */
+  onFocusTaken?: () => void;
+}) {
   const { t } = useI18n();
   const scheduled = useMemo(() => schedule(snapshot), [snapshot]);
+
+  // The dashboard asked for the snapshot's card: its path field takes the focus and is brought into
+  // view, so the next key the person presses types the path.
+  useEffect(() => {
+    if (initialFocus === null) return;
+    const field = document.querySelector<HTMLElement>(`main [data-testid="${initialFocus}-path"]`);
+    if (field !== null) {
+      field.focus();
+      field.scrollIntoView?.({ block: 'center' });
+    }
+    onFocusTaken?.();
+  }, [initialFocus, onFocusTaken]);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-6">
@@ -70,6 +97,7 @@ export function ReportsPage({ snapshot }: { snapshot: WorkSnapshot }) {
       <ScheduleCard snapshot={snapshot} scheduled={scheduled} />
       <JsonCard snapshot={snapshot} />
       <HandoverCard snapshot={snapshot} />
+      <SnapshotCard snapshot={snapshot} scheduled={scheduled} />
     </div>
   );
 }
@@ -579,6 +607,100 @@ function HandoverCard({ snapshot }: { snapshot: WorkSnapshot }) {
           <WrittenBar
             testId="handover-done"
             written={outcome.done}
+            onOpenFailed={(error) => outcome.setProblem(describeError(error))}
+          />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * The owner's snapshot (D4, decisions 3 and 4): one HTML page the person sends to the owner — the
+ * work as it stands today, the next two weeks, the last diary entries with their photos and the
+ * money — always in the owner's words. The host renders it with no script and nothing loaded from
+ * anywhere, and writes it; **sending it is the person's act**, and the card says so in its one line.
+ * Written, it names the path and the size — a file meant to be attached to a message — and offers
+ * **Open**, which shows it in the system's browser.
+ */
+function SnapshotCard({ snapshot, scheduled }: { snapshot: WorkSnapshot; scheduled: Schedule }) {
+  const i18n = useI18n();
+  const { t, describeError } = i18n;
+  const term = useTerms();
+  const today = useToday();
+  const diary = useDiary(true);
+  const write = useWriteSnapshot();
+  const outcome = useOutcome();
+  const suggested = useCallback(
+    () => t('reports.file.snapshot', { work: keyFrom(snapshot.work.name, 'work'), day: today }),
+    [snapshot.work.name, t, today],
+  );
+  const target = useSaveTarget('html', suggested);
+  const name = term('snapshot');
+
+  const submit = () => {
+    outcome.clear();
+    const where = target.target();
+    if (!where.ok) {
+      outcome.setProblem(where.problem);
+      return;
+    }
+    if (diary.data === undefined) return;
+    const entries = diary.data;
+    write.mutate(
+      {
+        path: where.path,
+        document: composeSnapshot(
+          {
+            snapshot,
+            scheduled,
+            entries,
+            probability: finishProbability(snapshot, scheduled, { entries }),
+            today,
+          },
+          i18n,
+        ),
+        overwrite: where.overwrite,
+      },
+      {
+        onSuccess: (file) => written(i18n, file, outcome.setDone),
+        onError: (error) => outcome.setProblem(describeError(error)),
+      },
+    );
+  };
+
+  return (
+    <Card title={t('reports.snapshot.title', { snapshot: name })}>
+      <p className="mb-1 text-body text-fg-secondary">{t('reports.snapshot.holds')}</p>
+      <p data-testid="snapshot-sending" className="mb-3 text-body text-fg">
+        {t('reports.snapshot.sending', { snapshot: name })}
+      </p>
+      <div className="flex flex-col gap-3">
+        <PathForm
+          target={target}
+          testId="snapshot-path"
+          writeTestId="snapshot-write"
+          writeLabel={t('reports.snapshot.write', { snapshot: name })}
+          writing={write.isPending}
+          disabled={diary.data === undefined}
+          onEdited={outcome.clear}
+          onWrite={submit}
+        >
+          {diary.isPending && (
+            <span className="text-caption text-fg-tertiary">{t('reports.weekly.waiting')}</span>
+          )}
+        </PathForm>
+        {diary.isError && (
+          <ProblemBar testId="snapshot-problem" problem={describeError(diary.error)} />
+        )}
+        {outcome.problem !== null && (
+          <ProblemBar testId="snapshot-problem" problem={outcome.problem} />
+        )}
+        {outcome.done !== null && (
+          <WrittenBar
+            testId="snapshot-done"
+            written={outcome.done}
+            size
             onOpenFailed={(error) => outcome.setProblem(describeError(error))}
           />
         )}

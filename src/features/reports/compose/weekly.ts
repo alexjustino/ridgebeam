@@ -147,8 +147,11 @@ function stageRows(i18n: I18n, figureOf: Figure<ReportRow>): string[] {
   );
 }
 
-/** The finish as a probability, as the page prints it: one figure, then what it rests on. */
-function probabilityBlocks(i18n: I18n, probability: FinishProbabilityResult): ReportBlock[] {
+/**
+ * The finish as a probability, as the page prints it: one figure, then what it rests on. The owner's
+ * snapshot (D4) prints the same blocks.
+ */
+export function probabilityBlocks(i18n: I18n, probability: FinishProbabilityResult): ReportBlock[] {
   const { t, number, day } = i18n;
   const label = t(PROBABILITY_MESSAGE_KEYS.title);
   if (!probability.ok) {
