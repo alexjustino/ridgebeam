@@ -18,6 +18,7 @@ import {
   doneFigure,
   effectiveEntries,
   entriesByDay,
+  lastPresence,
   lostDays,
   lostDaysFigure,
   progress,
@@ -502,5 +503,94 @@ describe('the done figures', () => {
 
   it('count an activity missing from the progress as not started', () => {
     expect(doneFigure(PLAN, new Map(), 'not-started').value).toBe(3);
+  });
+});
+
+describe('the same people as last time', () => {
+  const people = [{ id: 'tiler' }, { id: 'mason' }, { id: 'helper' }];
+
+  it('offers the people of the latest day anyone was on site, in the entry’s order', () => {
+    const entries = [
+      entry(1, '2026-09-01', { present: ['tiler'] }),
+      entry(2, '2026-09-03', { present: ['mason', 'tiler'] }),
+      entry(3, '2026-09-02', { present: ['helper'] }),
+    ];
+    expect(lastPresence(entries, people)).toEqual({
+      day: '2026-09-03',
+      personIds: ['mason', 'tiler'],
+      missing: 0,
+    });
+  });
+
+  it('takes the entry written last when one day has two', () => {
+    const entries = [
+      entry(1, '2026-09-03', { present: ['tiler'] }),
+      entry(2, '2026-09-03', { present: ['helper'] }),
+    ];
+    expect(lastPresence(entries, people)?.personIds).toEqual(['helper']);
+  });
+
+  it('lets a correction speak for the entry it corrects', () => {
+    const entries = [
+      entry(1, '2026-09-02', { present: ['tiler'] }),
+      entry(2, '2026-09-03', { present: ['mason'] }),
+      correction(3, 2, '2026-09-03', { present: ['helper', 'tiler'] }),
+    ];
+    expect(lastPresence(entries, people)).toEqual({
+      day: '2026-09-03',
+      personIds: ['helper', 'tiler'],
+      missing: 0,
+    });
+  });
+
+  it('follows a correction that moved the day, and one that took everybody off', () => {
+    const moved = [
+      entry(1, '2026-09-02', { present: ['tiler'] }),
+      entry(2, '2026-09-04', { present: ['mason'] }),
+      correction(3, 2, '2026-09-01', { present: ['mason'] }),
+    ];
+    expect(lastPresence(moved, people)?.day).toBe('2026-09-02');
+    const emptied = [
+      entry(1, '2026-09-02', { present: ['tiler'] }),
+      entry(2, '2026-09-03', { present: ['mason'] }),
+      correction(3, 2, '2026-09-03', { present: [] }),
+    ];
+    expect(lastPresence(emptied, people)).toEqual({
+      day: '2026-09-02',
+      personIds: ['tiler'],
+      missing: 0,
+    });
+  });
+
+  it('passes over an entry with nobody present', () => {
+    const entries = [
+      entry(1, '2026-09-02', { present: ['tiler'] }),
+      entry(2, '2026-09-03', { lostDay: true }),
+    ];
+    expect(lastPresence(entries, people)?.day).toBe('2026-09-02');
+  });
+
+  it('leaves out, and counts, the people no longer in the plan, each once', () => {
+    const entries = [entry(1, '2026-09-02', { present: ['gone', 'tiler', 'gone', 'left'] })];
+    expect(lastPresence(entries, people)).toEqual({
+      day: '2026-09-02',
+      personIds: ['tiler'],
+      missing: 2,
+    });
+    expect(lastPresence(entries, [])).toEqual({
+      day: '2026-09-02',
+      personIds: [],
+      missing: 3,
+    });
+  });
+
+  it('is nothing when no effective entry names anyone', () => {
+    expect(lastPresence([], people)).toBeNull();
+    expect(lastPresence([entry(1, '2026-09-02')], people)).toBeNull();
+    const corrected = [
+      entry(1, '2026-09-02', { present: ['tiler'] }),
+      correction(2, 1, '2026-09-02', { present: [] }),
+    ];
+    expect(lastPresence(corrected, people)).toBeNull();
   });
 });

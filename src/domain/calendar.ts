@@ -102,6 +102,11 @@ export function addCalendarDays(day: string, n: number): string {
   return dayOf(requireDay(day) + n);
 }
 
+/** Calendar days from `from` to `to`: 0 on the same day, negative when `to` is earlier. */
+export function calendarDaysBetween(from: string, to: string): number {
+  return requireDay(to) - requireDay(from);
+}
+
 // ── The mask ─────────────────────────────────────────────────────────────────
 
 /**

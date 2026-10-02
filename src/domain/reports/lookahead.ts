@@ -24,13 +24,16 @@
  * - **people**: who is expected, by the front door's rule (`peopleExpectedFigure`, slice F10) applied
  *   to the window — whoever answers for an activity that is starting or running, and whoever is put
  *   on a stage that is started (and not closed);
- * - **decisions**: open decisions overdue, or whose deadline (the day to order by: the stage's first
- *   start less the lead time) is in the window, most urgent first, each with its lead time and the
- *   day its stage needs it;
+ * - **decisions**: by the product's one rule (`decisionsDueWithin`, the weekly report's too), open
+ *   decisions overdue, or whose deadline (the day to order by: the stage's first start less the
+ *   lead time) is on or before today + `WEEKLY_DECISION_WINDOW_DAYS` calendar days — day 14
+ *   included, one day past the window, and whatever `days` is — most urgent first, each with its
+ *   lead time and the day its stage needs it;
  * - **gates**: the start gate of every planned stage whose first activity is scheduled to start in
  *   the window, and the close gate of every stage not closed whose last activity is scheduled to
  *   finish in it, each with the items that hold it (unanswered, or answered no) — a gate already
- *   passed is still listed, with none;
+ *   passed is still listed, with none. A gate with no checks asks nothing and is not coming up: it
+ *   is left out, of the rows and of the count;
  * - **payments**: what **falls due** in the window — a milestone of a payment plan not earned yet
  *   whose fact the schedule expects in the window (an activity's scheduled finish for
  *   `activity_finished`; the stage's first activity start for `stage_started`; its last activity's
@@ -54,7 +57,7 @@ import { breakdown } from '../arrangements';
 import { addCalendarDays, isIsoDay, isWorkingDay } from '../calendar';
 import { gateStatus, holdingItems, stageState, type GateItem } from '../checks';
 import { peopleExpectedFigure, type ExpectedRow } from '../dashboard';
-import { decisionRows, decisionsDue, stageStart, type DecisionDueRow } from '../decisions';
+import { decisionRows, decisionsDueWithin, stageStart, type DecisionDueRow } from '../decisions';
 import { progress, type DiaryEntry } from '../diary';
 import { counted, moneyFigure, type AmountRow, type Figure, type ReportRow } from '../figure';
 import {
@@ -66,6 +69,7 @@ import {
 } from '../milestones';
 import { compareText, stagesInOrder, type Gate, type WorkSnapshot } from '../plan';
 import type { Schedule, ScheduledDates } from '../schedule';
+import { WEEKLY_DECISION_WINDOW_DAYS } from './weekly';
 
 // ── Constants and message keys ───────────────────────────────────────────────
 
@@ -150,7 +154,7 @@ export interface LookaheadGateRow extends ReportRow {
   readonly day: string;
   /** No item holds it. */
   readonly passed: boolean;
-  /** How many checks the gate has. */
+  /** How many checks the gate has: at least one (a gate with none is not listed). */
   readonly checks: number;
   /** The items that hold it (unanswered, or answered no), in position order. */
   readonly holding: readonly GateItem[];
@@ -347,18 +351,21 @@ export function lookahead(
   const decisions: LookaheadDecisionRow[] =
     scheduled.calendar === null
       ? []
-      : decisionsDue(decisionsOpen, scheduled.calendar, today, Number.POSITIVE_INFINITY)
-          .rows.filter((row) => row.status === 'overdue' || row.deadline <= window.to)
-          .map((row) => {
-            const source = leads.get(row.decisionId)!;
-            return {
-              ...row,
-              stageId: source.stageId,
-              stageName: source.stageName!,
-              leadTimeDays: source.leadTimeDays,
-              neededBy: stageStart(scheduled, source.stageId)!,
-            };
-          });
+      : decisionsDueWithin(
+          decisionsOpen,
+          scheduled.calendar,
+          today,
+          WEEKLY_DECISION_WINDOW_DAYS,
+        ).map((row) => {
+          const source = leads.get(row.decisionId)!;
+          return {
+            ...row,
+            stageId: source.stageId,
+            stageName: source.stageName!,
+            leadTimeDays: source.leadTimeDays,
+            neededBy: stageStart(scheduled, source.stageId)!,
+          };
+        });
 
   // ── Gates ──
   const gates: LookaheadGateRow[] = [];
@@ -372,6 +379,8 @@ export function lookahead(
     for (const [gate, day] of coming) {
       if (!inWindow(window, day)) continue;
       const status = gateStatus(stage, snapshot.checks, snapshot.checkAnswers, gate);
+      // A gate with no checks asks nothing: it is not something coming up.
+      if (status.items.length === 0) continue;
       gates.push({
         key: `gate:${stage.id}:${gate}`,
         itemId: stage.id,

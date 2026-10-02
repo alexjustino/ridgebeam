@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   addCalendarDays,
   addWorkingDays,
+  calendarDaysBetween,
   formatWorkingDays,
   isIsoDay,
   isWorkingDay,
@@ -74,6 +75,15 @@ describe('a day', () => {
     expect(addCalendarDays('2028-02-28', 1)).toBe('2028-02-29');
     expect(addCalendarDays('2026-09-01', -1)).toBe('2026-08-31');
     expect(addCalendarDays('2026-09-01', 0)).toBe('2026-09-01');
+  });
+
+  it('counts calendar days between two days, signed, across a year and a leap day', () => {
+    expect(calendarDaysBetween('2026-09-01', '2026-09-01')).toBe(0);
+    expect(calendarDaysBetween('2026-09-01', '2026-09-08')).toBe(7);
+    expect(calendarDaysBetween('2026-12-31', '2027-01-01')).toBe(1);
+    expect(calendarDaysBetween('2028-02-28', '2028-03-01')).toBe(2);
+    expect(calendarDaysBetween('2026-09-08', '2026-09-01')).toBe(-7);
+    expect(() => calendarDaysBetween('2026-02-30', '2026-03-01')).toThrow(RangeError);
   });
 
   it('keeps a year below 100 as written, not as the 1900s', () => {
