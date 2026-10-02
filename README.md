@@ -18,11 +18,13 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F11, and D1 to D4.** The product was named on 2026-09-24
-> ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 — from the foundation to backup,
-> restore and polish — and all four differentiators, D1 to D4, run from source; there is no
-> published installer yet: that is F12, the release, whose branch is to be cut again from
-> `develop`. The [specification](docs/SPEC.md) says what
+> **Status: pre-release — slices F0 to F11, D1 to D4, and U1.** The product was named on
+> 2026-09-24 ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 — from the foundation
+> to backup, restore and polish — all four differentiators, D1 to D4, and a round of dependency
+> updates are in `develop`, and U1 — the friction a first real week meets, taken away before the
+> owner's first real work — lands there after them; all of it runs from source. There is no
+> published installer yet: that is F12, the release, whose branch is cut again from `develop` once
+> U1 is in. The [specification](docs/SPEC.md) says what
 > 1.0.0 will be and what "done" means for every slice; [What exists today](#what-exists-today) says
 > exactly how far the code has got.
 
@@ -38,7 +40,7 @@ with the photos of hidden work taken before it was closed, which a check can req
 ([ADR-038](docs/architecture/ADR.md#adr-038)); and **D4, the owner's snapshot** — one
 self-contained HTML file that opens on any phone, which the person sends themselves; Ridgebeam still
 sends nothing ([ADR-039](docs/architecture/ADR.md#adr-039)).
-**All four are in.** The release branch is cut again from `develop` now that they are.
+**All four are in `develop`.** The release branch is to be cut again from there after U1.
 
 ## Why
 
@@ -87,7 +89,8 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F11**, and the four differentiators, **D1** to **D4** — nothing after them:
+Slices **F0** to **F11**, the four differentiators, **D1** to **D4**, and **U1** — nothing after
+them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -256,6 +259,19 @@ Slices **F0** to **F11**, and the four differentiators, **D1** to **D4** — not
   load. Photos are always re-encoded, so no metadata travels; no phone number, e-mail address or
   document is in it. **Ridgebeam writes the file; sending it is yours** — by WhatsApp, by e-mail —
   and the product still sends nothing ([ADR-039](docs/architecture/ADR.md#adr-039)).
+- **Before the first real work (U1).** Photos and files **dropped from Explorer** onto the window
+  are taken in exactly as if they had been chosen in the dialog, with the same refusals: on the
+  **Diary** they join the entry being written, on **Documents** they are added at once with the kind
+  the form has selected, and anywhere else a sentence says where to drop them and nothing happens —
+  while files are over the window, one overlay says what a drop will do on that screen, and a name
+  the screen does not take, a folder's included, is left out and named. The diary entry offers
+  **Same people as {day}**, which ticks the people of the latest entry that names anybody,
+  corrections applied, and says how many of them have since left the plan. The dashboard says,
+  quietly, when the work **has never been backed up on this machine** or the last backup is more
+  than a week old and the work has changed since, with **Back up now…** to the backup in Settings;
+  **the product still never backs up on its own**. And the owner's snapshot now lists decisions by
+  the same 14-day rule as the weekly report, and no longer lists a gate with no checks
+  ([ADR-040](docs/architecture/ADR.md#adr-040)).
 - **Readiness.** A figure that says how much of what the plan must know it does know, from seven
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -271,15 +287,15 @@ Slices **F0** to **F11**, and the four differentiators, **D1** to **D4** — not
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-nine binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **the release** (F12) — its branch cut again from `develop`, an
-installer, tried on a clean machine, and a real work planned, run for a week and its weekly report
-read by somebody who is not an engineer.
+Not yet, and not pretended: **the release** (F12) — its branch cut again from `develop` once U1 is
+merged, an installer, tried on a clean machine, and a real work planned, run for a week and its
+weekly report read by somebody who is not an engineer.
 
 Not in 1.0, by decision rather than by schedule: files other than images and PDFs (no Word,
 spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a work; a

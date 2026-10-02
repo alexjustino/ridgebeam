@@ -26,6 +26,11 @@ export interface Navigation {
    * "Snapshot for the owner…" goes to the card that writes it, rather than writing from there).
    */
   openSnapshot: () => void;
+  /**
+   * Open Settings on This work with the focus on the backup's path field (U1: the dashboard's
+   * "Back up now…" goes to the one flow that writes a backup, rather than writing from there).
+   */
+  openBackup: () => void;
 }
 
 export const NavigationContext = createContext<Navigation>({
@@ -34,6 +39,7 @@ export const NavigationContext = createContext<Navigation>({
   openPlan: () => undefined,
   openPaymentPlan: () => undefined,
   openSnapshot: () => undefined,
+  openBackup: () => undefined,
 });
 
 export function useNavigation(): Navigation {

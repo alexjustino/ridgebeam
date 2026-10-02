@@ -44,6 +44,7 @@ import { Card } from '@/ui/Card';
 import { FigureRow } from '@/ui/FigureRow';
 import { InfoBar } from '@/ui/InfoBar';
 
+import { BackupReminder } from './BackupReminder';
 import { DocumentsCard } from './DocumentsCard';
 import { MoneyCard } from './MoneyCard';
 import { NextQuestionCard } from './NextQuestionCard';
@@ -137,6 +138,8 @@ export function DashboardPage({
           {closeError}
         </InfoBar>
       )}
+
+      <BackupReminder snapshot={snapshot} today={today} onGone={focusTitle} />
 
       <RestoredNote workId={snapshot.work.workId} onDismissed={() => title.current?.focus()} />
       <TemplateNotes workId={snapshot.work.workId} onDismissed={() => title.current?.focus()} />

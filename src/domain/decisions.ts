@@ -20,7 +20,13 @@
  * What this module is not: storage, and not text. It returns rows, codes and figures.
  */
 
-import { isIsoDay, subtractWorkingDays, workingDaysUntil, type WorkingCalendar } from './calendar';
+import {
+  addCalendarDays,
+  isIsoDay,
+  subtractWorkingDays,
+  workingDaysUntil,
+  type WorkingCalendar,
+} from './calendar';
 import { counted, type Figure, type ReportRow } from './figure';
 import { decisionsInOrder, type WorkSnapshot } from './plan';
 import type { Schedule } from './schedule';
@@ -193,6 +199,25 @@ export function decisionsDue(
     });
   }
   return counted('decisions-due', DECISIONS_DUE_LABEL_KEY, due);
+}
+
+/**
+ * The decisions the reports name as coming up: every open decision overdue, or whose deadline is
+ * on or before today + `days` **calendar** days (that day included), most urgent first. The rows of
+ * `decisionsDue`, cut at a calendar day instead of a number of working days. The weekly report and
+ * the owner's snapshot both ask this, with `WEEKLY_DECISION_WINDOW_DAYS`, so the two never list a
+ * different set ("overdue, or due within the next 14 days"); there is one rule, here.
+ */
+export function decisionsDueWithin(
+  rows: readonly DecisionRow[],
+  calendar: WorkingCalendar,
+  today: string,
+  days: number,
+): DecisionDueRow[] {
+  const last = addCalendarDays(today, days);
+  return decisionsDue(rows, calendar, today, Number.POSITIVE_INFINITY).rows.filter(
+    (row) => row.status === 'overdue' || row.deadline <= last,
+  );
 }
 
 /**
