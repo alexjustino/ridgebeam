@@ -145,6 +145,30 @@ release that skipped a step is a release nobody can reason about afterwards.
      opening onto its rows, and one change waiting; write the owner's snapshot and the weekly
      report, and both say a change is waiting for a decision. Try to edit or remove a change: there
      is no control that does it. Do it once in Portuguese, where a change order is an _aditivo_;
+   - **ask whether the money will last** on a work with a scheduled stage of two activities, priced
+     cost lines and a commitment with a payment plan. With no fund recorded, readiness reads _"Where
+     the money comes from is not written down yet."_ On **Money → Funding**, record two funds
+     smaller than the work's total — savings expected today and a loan tranche in three weeks — and
+     **Mark as received…** the savings for their whole amount, today: the receipt is in the ledger,
+     and a day after today is refused with a sentence. The **Will the money last?** card reads
+     _"Money runs short in the week of … — … short."_ beside a danger-toned error icon; **Money runs
+     short in the week of** shows that week's Monday, every week is a row of the table, and the
+     short week's closing reads _"… short"_ with no minus sign. Receive part of the tranche early
+     and read the sentence change; then add a fund that covers the gap and read _"The money lasts to
+     the end, with … to spare."_, with no success colour. Add a fund expected yesterday and leave it
+     unreceived: a note says _"1 expected sum has not arrived: … not counted — money that has not
+     come is not money."_ and **Money expected and late** reads 1; a fund expected today is still
+     counted. Change the late fund's day and amount: it is allowed. Reverse a receipt: the reversal
+     is a new row for the whole amount, the original stays, and reversing it again is refused; try
+     to remove a fund with money received against it and read the refusal. Give two activities a
+     range and read _"N in 10 chances that the money runs short before the work ends."_; take the
+     ranges away and read _"Every duration is taken as certain, …"_. The card ends _"A projection,
+     not a promise: …"_. The dashboard's money card shows the short week's Monday, or the money left
+     at the end, with the sentence and no chance; the weekly report prints the sentence with the
+     short week's rows, and none once the money lasts; and the owner's snapshot, opened in a
+     browser, says the same sentence. Do it once in Portuguese, where the card reads _O dinheiro vai
+     dar?_, the money left is _Dinheiro que sobra no fim_, a fund is _recursos_, and the money that
+     lasts reads _"O dinheiro dá até o fim, e sobram …."_;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and

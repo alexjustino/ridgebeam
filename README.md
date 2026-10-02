@@ -18,15 +18,15 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F11, D1 to D4, U1 and E1; a second wave in progress.** The
-> product was named on 2026-09-24 ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 —
-> from the foundation to backup, restore and polish — all four differentiators, D1 to D4, a round of
-> dependency updates and U1 — the friction a first real week meets — are in `develop`, and so is E1,
-> change orders, the first of a second wave, E1 to E4, built there one slice at a time; all of it
-> runs from source. There is no published installer yet: that is F12, the release, whose branch is
-> cut again from `develop` once the second wave is in. The [specification](docs/SPEC.md) says what
-> 1.0.0 will be and what "done" means for every slice; [What exists today](#what-exists-today) says
-> exactly how far the code has got.
+> **Status: pre-release — slices F0 to F11, D1 to D4, U1, E1 and E2; a second wave in progress.**
+> The product was named on 2026-09-24 ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to
+> F11 — from the foundation to backup, restore and polish — all four differentiators, D1 to D4, a
+> round of dependency updates and U1 — the friction a first real week meets — are in `develop`, and
+> so are E1, change orders, and E2, whether the money will last — the first two of a second wave, E1
+> to E4, built there one slice at a time; all of it runs from source. There is no published
+> installer yet: that is F12, the release, whose branch is cut again from `develop` once the second
+> wave is in. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for
+> every slice; [What exists today](#what-exists-today) says exactly how far the code has got.
 
 **Differentiators, before first use.** Before using Ridgebeam on a work of his own, its owner
 widened 1.0 with four things no other small-works tool does offline
@@ -49,8 +49,8 @@ date** — change orders, with their effect on the finish computed by the schedu
 decides; **E2, will the money last?** — funds against what the work will ask for, week by week;
 **E3, why is it late, and on whose account?** — each working day lost on the critical path
 attributed to its cause; and **E4, a work that ends well** — snags closed with a photo before the
-last milestone is earned. **E1 is in `develop`**; E2 to E4 follow, and the release branch is cut
-again after them.
+last milestone is earned. **E1 and E2 are in `develop`**; E3 and E4 follow, and the release branch
+is cut again after them.
 
 ## Why
 
@@ -99,8 +99,8 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F11**, the four differentiators, **D1** to **D4**, **U1**, and **E1**, the first
-of the second wave — nothing after them:
+Slices **F0** to **F11**, the four differentiators, **D1** to **D4**, **U1**, and **E1** and **E2**,
+the first two of the second wave — nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -295,11 +295,26 @@ of the second wave — nothing after them:
   owner's snapshot say how much the work has grown, by how many working days, in how many changes
   and at whose request, and what is waiting for a decision; a change left waiting more than a week
   lowers readiness ([ADR-041](docs/architecture/ADR.md#adr-041)).
-- **Readiness.** A figure that says how much of what the plan must know it does know, from eight
+- **Will the money last? (E2).** On Money's **Funding** tab, the owner writes down where the money
+  comes from — savings on hand, a loan's tranches, a client's instalments — each with the day it is
+  expected, and records each sum with **Mark as received…** on the day it actually arrives. Funds
+  are plan and can be changed; money received is a ledger like the payments, never edited, a mistake
+  reversed. The **Will the money last?** card projects, week by week from today to the finish, what
+  the work will ask for — payment-plan milestones on the days the schedule expects their facts, the
+  rest of the money planned spread over its stage — against what will have come in, and says it in
+  one sentence: _"The money lasts to the end, with $1,800.00 to spare."_ or _"Money runs short in
+  the week of 16 Nov — $4,200.00 short."_ Every week is a row, every figure opens onto its rows, and
+  with ranges in the plan it gives the chance — _"3 in 10 chances that the money runs short before
+  the work ends."_ Money expected on an earlier day that has not arrived is **not counted**, and the
+  card says how much: money that has not come is not money. The dashboard shows the week it runs
+  short or the money left at the end, the weekly report prints the sentence with the short week's
+  rows, and the owner's snapshot carries the sentence. Nothing is connected to a bank, and nothing
+  is sent ([ADR-042](docs/architecture/ADR.md#adr-042)).
+- **Readiness.** A figure that says how much of what the plan must know it does know, from nine
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
-  gates and its money planned, with a priced line; every change order is decided within a week —
-  that opens onto the rows it
+  gates and its money planned, with a priced line; every change order is decided within a week; a
+  work with priced money planned says where the money comes from — that opens onto the rows it
   counts and says in a sentence what is missing, in English and in Portuguese. Rule by rule on
   the dashboard, each with why it matters; the rules add up to the figure.
 - **The shell.** Dashboard, Plan, Schedule, Decisions, Diary, Money, Documents, Reports, Settings
@@ -311,13 +326,13 @@ of the second wave — nothing after them:
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-one binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-two binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **the rest of the second wave**, E2 to E4; and **the release** (F12) —
+Not yet, and not pretended: **the rest of the second wave**, E3 and E4; and **the release** (F12) —
 its branch cut again from `develop` once the second wave is merged, an installer, tried on a clean
 machine, and a real work planned, run for a week and its weekly report read by somebody who is not
 an engineer.
@@ -327,7 +342,8 @@ spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one cu
 decision tied to one activity rather than its whole stage; a replanning abandoned without a
 baseline; a what-if applied to the plan with one button; a work that follows its template when the
 library changes; prices in the library; photos inside a PDF report other than the handover book; a
-snapshot that updates itself, or that the product sends; a
+snapshot that updates itself, or that the product sends; money received read from a bank or a
+statement rather than recorded by hand; a
 character outside the standard PDF fonts' set on paper; non-working days shaded on the printed
 schedule; an encrypted backup, an incremental one, a backup the product makes on its own, or a
 restore over an existing folder.
