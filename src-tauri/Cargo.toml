@@ -6,8 +6,9 @@ authors = ["Alex Justino"]
 license = "Apache-2.0"
 repository = "https://github.com/alexjustino/ridgebeam"
 edition = "2021"
-# `image` 0.25.10 declares 1.88 (F4). The crate cannot build on less.
-rust-version = "1.88"
+# `image` 0.25.10 declares 1.88 (F4); `tauri` 2.12, `tauri-build` 2.7 and
+# `tauri-plugin-log` 2.10 declare 1.90. The crate cannot build on less.
+rust-version = "1.90"
 
 [lib]
 # The `_lib` suffix keeps the library name distinct from the binary on Windows.
@@ -24,7 +25,7 @@ tauri-plugin-log = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
 log = "0.4"
 uuid = { version = "1", features = ["v7"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
@@ -67,7 +68,7 @@ lopdf = { version = "0.45", default-features = false }
 # The accent colour the desktop uses, read from the system (`os::accent`).
 # The accent colour (`os::accent`), and the account's display name, which signs
 # a diary entry (`os::account`) — the product has no accounts of its own.
-windows = { version = "0.58", features = [
+windows = { version = "0.62", features = [
     "UI_ViewManagement",
     "Foundation",
     "Win32_Foundation",

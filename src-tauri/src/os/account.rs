@@ -33,17 +33,17 @@ fn display_name_from_system() -> Option<String> {
 
     let mut size: u32 = 0;
     // The first call asks how long the name is; it fails by design.
-    // SAFETY: a null buffer with a size of 0 is the documented way to ask.
+    // SAFETY: no buffer (null) with a size of 0 is the documented way to ask.
     unsafe {
-        let _ = GetUserNameExW(NameDisplay, PWSTR::null(), &mut size);
+        let _ = GetUserNameExW(NameDisplay, None, &mut size);
     }
     if size == 0 || size > 1024 {
         return None;
     }
     let mut buffer = vec![0u16; size as usize];
     // SAFETY: `buffer` holds `size` UTF-16 units, as the call was told.
-    let ok = unsafe { GetUserNameExW(NameDisplay, PWSTR(buffer.as_mut_ptr()), &mut size) };
-    if !ok.as_bool() {
+    let ok = unsafe { GetUserNameExW(NameDisplay, Some(PWSTR(buffer.as_mut_ptr())), &mut size) };
+    if !ok {
         return None;
     }
     let written = (size as usize).min(buffer.len());
