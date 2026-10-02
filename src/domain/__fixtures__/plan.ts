@@ -53,6 +53,8 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     documents: [],
     careNotes: [],
     changeOrders: [],
+    funding: [],
+    fundingReceipts: [],
     ...parts,
   };
 }
@@ -177,7 +179,8 @@ export const finished = (activityId: string, quantity: number | null = null): Do
 /**
  * The plan with what the stage rules ask of every stage: one check at each gate, and one cost line.
  * For tests about the other rules; the stage rules then add one known and one must-know each, per
- * stage.
+ * stage. The cost lines are money planned, so the work's funding rule (slice E2) asks too, and is
+ * given one funding row: it adds one known and one must-know to the whole plan, once.
  */
 export function withStageRules(plan: WorkSnapshot): WorkSnapshot {
   return {
@@ -207,6 +210,20 @@ export function withStageRules(plan: WorkSnapshot): WorkSnapshot {
       label: 'Sample cost',
       amountCents: 100_00,
     })),
+    funding:
+      plan.stages.length === 0 || plan.funding.length > 0
+        ? plan.funding
+        : [
+            {
+              id: 'funding-rules',
+              position: 1,
+              label: 'Sample savings',
+              source: null,
+              amountCents: 100_00,
+              expectedOn: '2026-09-01',
+              note: null,
+            },
+          ],
   };
 }
 

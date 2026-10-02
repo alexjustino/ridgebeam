@@ -478,6 +478,49 @@ export interface ChangeOrder {
   readonly decision: ChangeOrderDecision | null;
 }
 
+/**
+ * Money the work expects to receive (slice E2, pt "recursos"): savings on hand, a loan's tranche, a
+ * client's instalment — from where, how much and on what day. Plan, not fact: editable like a
+ * commitment and never locked by approval (funding is not the plan's scope); the host removes one
+ * only while no receipt names it.
+ */
+export interface Funding {
+  readonly id: string;
+  /** Order among the funding rows. */
+  readonly position: number;
+  /** 1 to 200 characters, as the person wrote it. */
+  readonly label: string;
+  /** Where it comes from ("the bank", "my savings"), at most 200 characters; `null` when not said. */
+  readonly source: string | null;
+  /** Above zero, whole cents. */
+  readonly amountCents: number;
+  /** `YYYY-MM-DD`: the day it is expected. */
+  readonly expectedOn: string;
+  readonly note: string | null;
+}
+
+/**
+ * Money received: one row of the receipts ledger (slice E2), append-only exactly as the payments
+ * ledger is. A fact: never edited; a mistake is a new receipt that reverses it, the only kind whose
+ * amount is negative.
+ */
+export interface FundingReceipt {
+  /** 1, 2, 3 …: the order receipts were recorded in. */
+  readonly seq: number;
+  /** The funding row it was expected as; `null` for money that arrived unplanned. */
+  readonly fundingId: string | null;
+  /** Above zero; below zero only for a reversal. */
+  readonly amountCents: number;
+  /** `YYYY-MM-DD`, never in the future. */
+  readonly day: string;
+  readonly note: string | null;
+  /** The seq of the receipt this one reverses; `null` for an ordinary receipt. */
+  readonly reversesSeq: number | null;
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+}
+
 /** The whole plan of one work, as `work_get` returns it. */
 export interface WorkSnapshot {
   readonly work: Work;
@@ -502,6 +545,10 @@ export interface WorkSnapshot {
   readonly careNotes: readonly CareNote[];
   /** Every change order of the work, each with its decision or `null` (slice E1). */
   readonly changeOrders: readonly ChangeOrder[];
+  /** Every funding row of the work, by position (slice E2). */
+  readonly funding: readonly Funding[];
+  /** The receipts ledger, by seq, reversals included (slice E2). */
+  readonly fundingReceipts: readonly FundingReceipt[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────

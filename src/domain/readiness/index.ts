@@ -1,9 +1,10 @@
 /**
  * Readiness: how much of what the plan must know, it does know, as a measure from the rows.
  *
- * Every activity, decision, stage and change order is tested against every rule in `rules.ts` that
- * applies to it (the linking rule asks nothing of a plan with one activity; the timing rule asks
- * nothing of a decision with no deadline). Each test is one thing the plan must know (`mustKnow`); each that
+ * Every activity, decision, stage, change order and the work itself is tested against every rule in
+ * `rules.ts` that applies to it (the linking rule asks nothing of a plan with one activity; the
+ * timing rule asks nothing of a decision with no deadline; the funding rule nothing of a work with
+ * no money planned). Each test is one thing the plan must know (`mustKnow`); each that
  * passes is one it knows (`known`); each that fails is a missing row that names the activity or
  * decision, its stage and the rule. The figure is the share known, and it opens onto exactly those
  * rows, so the number and the list can never disagree. `readinessByRule` splits the same count
@@ -31,6 +32,7 @@ import {
   CHANGE_RULES,
   DECISION_RULES,
   STAGE_RULES,
+  WORK_RULES,
   READINESS_LABEL_KEY,
   READINESS_MESSAGE_KEYS,
   RULE_EXPLANATION_KEYS,
@@ -50,8 +52,8 @@ export interface ReadinessContext {
   readonly today: string;
 }
 
-/** What a missing row is about (`change`: a change order, slice E1). */
-export type ReadinessEntity = 'activity' | 'decision' | 'stage' | 'change' | 'plan';
+/** What a missing row is about (`change`: a change order, slice E1; `work`: the work, slice E2). */
+export type ReadinessEntity = 'activity' | 'decision' | 'stage' | 'change' | 'work' | 'plan';
 
 /** One thing the plan does not know. */
 export interface MissingRow {
@@ -174,6 +176,13 @@ export function readiness(snapshot: WorkSnapshot, context: ReadinessContext): Re
     id: change.changeOrderId,
     name: change.title,
     stageName: change.stageName,
+    durationRange: null,
+  }));
+  tally([snapshot.work], WORK_RULES, (work) => ({
+    entity: 'work',
+    id: work.workId,
+    name: work.name,
+    stageName: null,
     durationRange: null,
   }));
 

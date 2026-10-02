@@ -20,7 +20,9 @@ brought is a label until somebody writes its amount, and a label is not money pl
 before F9 is priced, so no existing work's readiness moves.) Slice E1 adds one over change orders:
  * a change must not wait more than seven calendar days for its decision (a change waiting is
  * something the plan does not know: its price and its date are not yet the plan's). A decided change
- * holds, as a made decision does. Later slices add rules as new rows here, without changing the
+ * holds, as a made decision does. Slice E2 adds one over the work itself: a work with money
+ * planned must say where the money comes from (at least one funding row) — "Where the money comes
+ * from is not written down yet". Later slices add rules as new rows here, without changing the
  * shape.
  *
  * What this module is not: text. It holds message keys, never English or Portuguese; the i18n
@@ -36,6 +38,7 @@ import {
   isPriced,
   type Activity,
   type Stage,
+  type Work,
   type WorkSnapshot,
 } from '../plan';
 import { stageOfLine } from '../money';
@@ -53,8 +56,11 @@ export type StageRuleId = 'stage.checks' | 'stage.money';
 /** The rules over change orders (slice E1). */
 export type ChangeRuleId = 'change.waiting';
 
+/** The rules over the work as a whole (slice E2). */
+export type WorkRuleId = 'work.funding';
+
 /** The rules that exist today. */
-export type RuleId = ActivityRuleId | DecisionRuleId | StageRuleId | ChangeRuleId;
+export type RuleId = ActivityRuleId | DecisionRuleId | StageRuleId | ChangeRuleId | WorkRuleId;
 
 /** What a missing row can be missing: a rule that failed, or the plan having nothing to test. */
 export type MissingId = RuleId | 'plan.activity';
@@ -72,6 +78,7 @@ export const READINESS_MESSAGE_KEYS = {
   'stage.checks': 'readiness.missing.stage.checks',
   'stage.money': 'readiness.missing.stage.money',
   'change.waiting': 'readiness.missing.change.waiting',
+  'work.funding': 'readiness.missing.work.funding',
   'plan.activity': 'readiness.missing.plan.activity',
 } as const satisfies Record<MissingId, string>;
 
@@ -87,6 +94,7 @@ export const RULE_LABEL_KEYS = {
   'stage.checks': 'readiness.rule.stage.checks',
   'stage.money': 'readiness.rule.stage.money',
   'change.waiting': 'readiness.rule.change.waiting',
+  'work.funding': 'readiness.rule.work.funding',
 } as const satisfies Record<RuleId, string>;
 
 /**
@@ -102,6 +110,7 @@ export const RULE_EXPLANATION_KEYS = {
   'stage.checks': 'readiness.explanation.stage.checks',
   'stage.money': 'readiness.explanation.stage.money',
   'change.waiting': 'readiness.explanation.change.waiting',
+  'work.funding': 'readiness.explanation.work.funding',
 } as const satisfies Record<RuleId, string>;
 
 /**
@@ -145,7 +154,10 @@ export type StageRule = RuleShape<StageRuleId, 'stage', Stage>;
  */
 export type ChangeRule = RuleShape<ChangeRuleId, 'change', ChangeOrderRow>;
 
-export type Rule = ActivityRule | DecisionRule | StageRule | ChangeRule;
+/** One thing the plan must know about the work as a whole: its one row is the work. */
+export type WorkRule = RuleShape<WorkRuleId, 'work', Work>;
+
+export type Rule = ActivityRule | DecisionRule | StageRule | ChangeRule | WorkRule;
 
 const linkedCache = new WeakMap<WorkSnapshot, ReadonlySet<string>>();
 
@@ -255,10 +267,31 @@ export const CHANGE_RULES: readonly ChangeRule[] = [
   },
 ];
 
+/** The work's priced money planned, in cents: what the funding rule asks about. */
+export function plannedCentsOf(plan: WorkSnapshot): number {
+  return plan.costLines.reduce((sum, line) => sum + (isPriced(line) ? line.amountCents : 0), 0);
+}
+
+/** The rules over the work as a whole, in the order their sentences are said. */
+export const WORK_RULES: readonly WorkRule[] = [
+  {
+    id: 'work.funding',
+    appliesTo: 'work',
+    // Only a work with money planned must say where it comes from: with none, there is nothing to
+    // fund, and the rule asks nothing.
+    applies: (_work, plan) => plannedCentsOf(plan) > 0,
+    // At least one funding row: where the money comes from is written down. Receipts alone are
+    // money that arrived, not a plan of where the rest comes from.
+    holds: (_work, plan) => plan.funding.length > 0,
+    messageKey: READINESS_MESSAGE_KEYS['work.funding'],
+  },
+];
+
 /** Every rule, in the order their sentences are said and their lines are listed. */
 export const RULES: readonly Rule[] = [
   ...ACTIVITY_RULES,
   ...DECISION_RULES,
   ...STAGE_RULES,
   ...CHANGE_RULES,
+  ...WORK_RULES,
 ];

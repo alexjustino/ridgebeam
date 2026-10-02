@@ -506,14 +506,27 @@ export interface SCurve {
   readonly unscheduled: readonly string[];
 }
 
-/** Split whole cents over n days as evenly as whole cents allow, the odd cents first. */
-function spread(amount: number, n: number): number[] {
+/**
+ * Split whole cents over n days as evenly as whole cents allow, the odd cents first. Shared by the
+ * S-curve and, since slice E2, by the runway's spread money.
+ */
+export function spread(amount: number, n: number): number[] {
+  return Array.from({ length: n }, (_, index) => spreadSum(amount, n, index, index + 1));
+}
+
+/**
+ * What `spread(amount, n)` puts on its days `from` to `to` (`to` excluded; days outside 0 to n − 1
+ * hold nothing), summed without making the list: the runway sums a week of a span that may be years
+ * long, run after run.
+ */
+export function spreadSum(amount: number, n: number, from: number, to: number): number {
+  const first = Math.max(0, from);
+  const end = Math.min(n, to);
+  if (end <= first) return 0;
   const share = Math.trunc(amount / n);
-  const rest = amount - share * n;
-  return Array.from(
-    { length: n },
-    (_, index) => share + (index < Math.abs(rest) ? Math.sign(rest) : 0),
-  );
+  const odd = Math.abs(amount - share * n);
+  const sign = Math.sign(amount - share * n);
+  return share * (end - first) + sign * Math.max(0, Math.min(end, odd) - first);
 }
 
 /**

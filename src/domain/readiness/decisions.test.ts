@@ -24,7 +24,8 @@ import {
 
 /**
  * Readiness on `today`, every stage given a check at each gate: these tests are about decisions, so
- * the stage rules are known and add two known and two must-know per stage.
+ * the stage rules are known and add two known and two must-know per stage, and the work's funding
+ * rule (E2) one known and one must-know to the plan.
  */
 const at = (plan: WorkSnapshot, today: string) => {
   const checked = withStageRules(plan);
@@ -72,10 +73,10 @@ const withDecisions = (plan: WorkSnapshot, ...decisions: WorkSnapshot['decisions
 });
 
 describe('readiness keeps its F0–F2 numbers for activities, each stage adding its own', () => {
-  it('reads one activity with a duration and no responsible as 1 of 2, and 3 of 4 with its stage', () => {
+  it('reads one activity with a duration and no responsible as 1 of 2, and 4 of 5 with its stage and its funding', () => {
     const one = snapshot({ stages: [stage('s', 1)], activities: [activity('a', 's', 1, 3)] });
     const measure = at(one, '2026-08-31');
-    expect(measure).toMatchObject({ known: 3, mustKnow: 4 });
+    expect(measure).toMatchObject({ known: 4, mustKnow: 5 });
     const activities = readinessByRule(measure).filter((rule) =>
       rule.ruleId.startsWith('activity.'),
     );
@@ -83,9 +84,9 @@ describe('readiness keeps its F0–F2 numbers for activities, each stage adding 
     expect(activities.reduce((sum, rule) => sum + rule.mustKnow, 0)).toBe(2);
   });
 
-  it('reads F2’s four linked activities with no responsible as 8 of 12, and 12 of 16 with two stages', () => {
+  it('reads F2’s four linked activities with no responsible as 8 of 12, and 13 of 17 with two stages and the funding', () => {
     const measure = at(F2, '2026-08-31');
-    expect(measure).toMatchObject({ known: 12, mustKnow: 16 });
+    expect(measure).toMatchObject({ known: 13, mustKnow: 17 });
     const activities = readinessByRule(measure).filter((rule) =>
       rule.ruleId.startsWith('activity.'),
     );
@@ -98,13 +99,13 @@ describe('readiness of decisions', () => {
   it('counts a decision in time as known twice: it has a deadline, and it is not overdue', () => {
     const plan = withDecisions(READY, decision('colour', 's2', 1, 1));
     // Finishes first starts on Fri 4 (D); one day of lead puts the deadline on Thu 3, still ahead.
-    expect(at(plan, '2026-09-01')).toMatchObject({ known: 18, mustKnow: 18, missing: [] });
+    expect(at(plan, '2026-09-01')).toMatchObject({ known: 19, mustKnow: 19, missing: [] });
   });
 
   it('says an overdue decision is not ready: "1 decision is overdue"', () => {
     const plan = withDecisions(READY, { ...decision('tile', 's1', 1, 10), name: 'Which tile' });
     const measure = at(plan, '2026-09-01');
-    expect(measure).toMatchObject({ known: 17, mustKnow: 18 });
+    expect(measure).toMatchObject({ known: 18, mustKnow: 19 });
     expect(measure.missing).toEqual([
       {
         ruleId: 'decision.timely',
@@ -127,7 +128,7 @@ describe('readiness of decisions', () => {
     );
     const measure = at(plan, '2030-01-01');
     // decision.deadline asks (and fails); decision.timely does not apply: decisions: 1 asked, 0 known.
-    expect(measure).toMatchObject({ known: 18, mustKnow: 19 });
+    expect(measure).toMatchObject({ known: 19, mustKnow: 20 });
     expect(measure.missing.map((row) => row.ruleId)).toEqual(['decision.deadline']);
     expect(sentenceParts(measure.missing)).toEqual([
       { key: 'readiness.missing.decision.deadline', count: 1, params: { count: 1 } },
@@ -159,7 +160,7 @@ describe('readiness of decisions', () => {
     const measure = at(plan, '2026-12-01');
     expect(measure.missing).toEqual([]);
     // late: deadline and timely both known; plants: deadline known (made), timely not asked.
-    expect(measure).toMatchObject({ known: 21, mustKnow: 21 });
+    expect(measure).toMatchObject({ known: 22, mustKnow: 22 });
   });
 
   it('lists a decision on a stage that is not in the plan, as having no deadline', () => {
@@ -220,6 +221,7 @@ describe('readiness rule by rule', () => {
       ['stage.checks', 3, 3],
       ['stage.money', 3, 3],
       ['change.waiting', 1, 2],
+      ['work.funding', 1, 1],
     ]);
   });
 
@@ -261,6 +263,7 @@ describe('readiness rule by rule', () => {
       ['activity.responsible', 1, false, true],
       ['stage.checks', 1, false, true],
       ['stage.money', 1, false, true],
+      ['work.funding', 1, false, true],
       ['activity.linked', 0, true, false],
       ['decision.deadline', 0, true, false],
       ['decision.timely', 0, true, false],
@@ -288,7 +291,7 @@ describe('readiness rule by rule', () => {
     expect(counts(byRule)).toEqual(counts(measure.rules));
     expect(byRule.reduce((sum, rule) => sum + rule.known, 0)).toBe(measure.known);
     expect(byRule.reduce((sum, rule) => sum + rule.mustKnow, 0)).toBe(measure.mustKnow);
-    expect(readinessFigure(measure).value).toBe(Math.min(99, Math.round((100 * 3) / 4)));
+    expect(readinessFigure(measure).value).toBe(Math.min(99, Math.round((100 * 4) / 5)));
   });
 
   it('adds up for an empty plan too, where only the plan-level row is missing', () => {

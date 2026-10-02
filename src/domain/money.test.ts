@@ -16,6 +16,8 @@ import {
   remainingOf,
   reversalDraft,
   sCurve,
+  spread,
+  spreadSum,
   stageOfLine,
   tradeOf,
   unpricedRows,
@@ -708,5 +710,33 @@ describe('a cost line not priced yet', () => {
     });
     expect(committedOf(withMoney, { kind: 'work' }).rows[0]!.priced).toBe(true);
     expect(paidOf(withMoney, { kind: 'work' }).rows[0]!.priced).toBe(true);
+  });
+});
+
+// ── Spreading money over days (shared with the runway since slice E2) ──────────
+
+describe('spreading whole cents over days', () => {
+  it('splits as evenly as whole cents allow, the odd cents first, and sums to the amount', () => {
+    expect(spread(10_03, 4)).toEqual([2_51, 2_51, 2_51, 2_50]);
+    expect(spread(-7, 3)).toEqual([-3, -2, -2]);
+    expect(spread(2, 5)).toEqual([1, 1, 0, 0, 0]);
+  });
+
+  it('sums any run of its days without making the list, exactly as the list sums', () => {
+    for (const [amount, n] of [
+      [10_03, 4],
+      [1_000_00, 7],
+      [-7, 3],
+      [2, 5],
+      [999_999, 13],
+    ] as const) {
+      const days = spread(amount, n);
+      for (let from = 0; from <= n; from += 1) {
+        for (let to = from; to <= n + 2; to += 1) {
+          const expected = days.slice(from, to).reduce((sum, each) => sum + each, 0);
+          expect(spreadSum(amount, n, from, to), `${amount}/${n} ${from}..${to}`).toBe(expected);
+        }
+      }
+    }
   });
 });
