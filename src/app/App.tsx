@@ -13,7 +13,7 @@ import { DecisionsPage } from '@/features/decisions/DecisionsPage';
 import { DiaryPage } from '@/features/diary/DiaryPage';
 import { MoneyPage } from '@/features/money/MoneyPage';
 import { DocumentsPage } from '@/features/documents/DocumentsPage';
-import { PlanPage } from '@/features/plan/PlanPage';
+import { PlanPage, type PlanTab } from '@/features/plan/PlanPage';
 import { ReportsPage, type ReportsFocus } from '@/features/reports/ReportsPage';
 import { SchedulePage } from '@/features/schedule/SchedulePage';
 import { SettingsPage, type SettingsFocus } from '@/features/settings/SettingsPage';
@@ -50,6 +50,10 @@ export function App({ settings }: { settings: Settings }) {
   // held until the plan has taken it, then let go, so the next visit opens as usual.
   const [planFocus, setPlanFocus] = useState<string | null>(null);
   const releasePlanFocus = useCallback(() => setPlanFocus(null), []);
+  // The tab another page asked the plan to open on (E1: the dashboard's Changes card): held until
+  // the plan has taken it, then let go, as the row above is.
+  const [planTab, setPlanTab] = useState<PlanTab | null>(null);
+  const releasePlanTab = useCallback(() => setPlanTab(null), []);
   // The row a count asked the Documents page to open filtered on (F7): one editing place, and a
   // count elsewhere that links to it already filtered.
   const [documentsFilter, setDocumentsFilter] = useState<string | null>(null);
@@ -94,6 +98,11 @@ export function App({ settings }: { settings: Settings }) {
       openBackup: () => {
         setSettingsFocus('backup');
         setDestination('settings');
+      },
+      openSchedule: () => setDestination('schedule'),
+      openChanges: () => {
+        setPlanTab('changes');
+        setDestination('plan');
       },
     }),
     [],
@@ -202,6 +211,8 @@ export function App({ settings }: { settings: Settings }) {
                       onCalendarOpen={setCalendarOpen}
                       initialFocus={planFocus}
                       onFocusTaken={releasePlanFocus}
+                      initialTab={planTab}
+                      onTabTaken={releasePlanTab}
                     />
                   )}
                   {!showsStart && destination === 'schedule' && snapshot !== null && (
