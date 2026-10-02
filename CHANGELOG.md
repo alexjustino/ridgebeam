@@ -965,3 +965,17 @@ person's act**, by WhatsApp, by e-mail or any other way. The product still sends
   by the product; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a file meant to be sent carries
   nothing that runs and nothing the reader did not need_; [`docs/RELEASE.md`](docs/RELEASE.md), the
   snapshot opened on a real phone; the glossary gains _owner's snapshot_ (_retrato da obra_).
+
+### Changed — the dependencies brought up to date
+
+- **Desktop host.** Tauri 2.12 (`tauri-build` 2.7, the log plugin 2.10 on both sides, `@tauri-apps/api`
+  and the CLI 2.12); **the crate now needs Rust 1.90**, which those three declare. `rusqlite` 0.40,
+  so the bundled SQLite moves from 3.46.0 to 3.53.2 — the forward-only migrations from every older
+  schema pass on it. `windows` 0.62, the version Tauri already uses, so the tree holds one copy;
+  reading the account's display name follows its new signature. `thiserror` 2.0.21.
+- **Interface tooling.** Vite 8 with `@vitejs/plugin-react` 6, which requires it; Vitest 5 with
+  `@vitest/coverage-v8` 5, which requires it exactly; `@types/node` 26.6.3. The Vite configuration
+  uses `import.meta.dirname` and references Vitest's config types. The built page is the same within
+  a percent.
+- **Workflows.** `actions/upload-artifact` 7 and `softprops/action-gh-release` 3, both on the Node 24
+  runtime.
