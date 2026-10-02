@@ -31,7 +31,9 @@ commitment's milestones are earned only by facts of the work, and a payment that
 ahead of the work is warned about before it is saved, never refused ([ADR-037](#adr-037)). The
 third, slice D3, writes the work's record for its owner — one PDF with the photos of the work
 hidden behind walls and floors, which a check can now require before it is answered yes
-([ADR-038](#adr-038)).
+([ADR-038](#adr-038)). The fourth, slice D4, writes the work as it stands for the owner to read on
+a phone — one HTML file with no script and nothing loaded from anywhere, which the person sends
+themselves ([ADR-039](#adr-039)).
 
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -73,6 +75,7 @@ hidden behind walls and floors, which a check can now require before it is answe
 | [036](#adr-036) | The owner widened 1.0 before first use                                                                                | Accepted — 2026-09-29, by Alex |
 | [037](#adr-037) | A payment plan is earned by facts, and paying ahead is warned, not refused                                            | Accepted — 2026-09-29          |
 | [038](#adr-038) | The handover book: the work's record for its owner, photos of hidden work required where it matters                   | Accepted — 2026-10-01          |
+| [039](#adr-039) | The owner's snapshot: one file with no script, rendered by the host, sent by the person                               | Accepted — 2026-10-02          |
 
 ---
 
@@ -2254,3 +2257,129 @@ the product prints what was typed and vouches for none of it, and a wrong note �
 its first page, and its gaps are listed before it is written; a person may still print it and file
 it as if it were final. A PDF document — a warranty scanned as PDF, a manual — is listed by name,
 never reproduced: the book points to it, and the work's folder keeps it.
+
+## ADR-039 — The owner's snapshot: one file with no script, rendered by the host, sent by the person {#adr-039}
+
+**Status.** Accepted — 2026-10-02.
+
+**Context.** The fourth differentiator ([ADR-036](#adr-036)). The owner of a small work is rarely
+where the product runs: they are at their own job, and at the end of the day they ask, by message,
+how the work is going. The answer they get is a sentence from memory, a screenshot of one number with
+none of its rows, or the weekly PDF, which a phone shows as a page to pinch and drag. The product
+already holds everything the answer needs — readiness, the finish and its chance, what comes next,
+the diary and its photos, the money — but it makes no network request ([ADR-006](#adr-006)) and has
+no account, so it cannot be the one that sends anything, and a phone app or a web app is outside 1.0
+(SPEC §2). An HTML file is the one format every phone opens in the browser it already has. It is
+also the one format that can carry a script, load an image from a server that logs who opened it,
+or post a form somewhere — whatever the product lets into it.
+
+**Decision.**
+
+- **One HTML file: the owner's snapshot.** Written from **Reports**, on a card of its own, **The
+  owner's snapshot**, which says what the file holds and what it does not, and that sending it is
+  the person's; the dashboard's header gains **Owner's snapshot…**, which goes to that card with the
+  focus on its path. The
+  file is saved to the `.html` path the person chose in the save dialog, through F10's write path —
+  whole or not at all, over an existing file only when the dialog asked ([ADR-031](#adr-031)) — and
+  **Open** shows it in the system's own browser, under F10's rule: only a file a report command
+  wrote in this session.
+- **The same document model, a second renderer.** The interface composes a report document of kind
+  `snapshot` (`src/features/reports/compose/snapshot.ts`) from the same domain selections and the
+  same dictionaries as every report; the host renders it to HTML (`src-tauri/src/report/html.rs`)
+  where it renders the others to PDF. A heading is a heading and a paragraph keeps its tone; a
+  **figure** is `<details><summary>label — value</summary>` with its rows in a list under it, so
+  every figure still opens onto its rows with no script, and a figure with no rows is the same line
+  opening onto nothing; a table is a `<table>` that scrolls
+  sideways on a narrow screen; a rule is a rule; a page break is ignored; a **Gantt** is an inline
+  SVG of bars with their text labels and a `<title>` on each bar; an **image** is a JPEG inside the
+  file as a `data:` URL. Nothing on the page comes from a second calculation.
+- **What it holds, in the owner's words** whatever lens is on, in the language on screen. Its title
+  is the glossary's term, _Owner's snapshot_ (_Retrato da obra_), and under it the work's name and
+  the day — _"as it stands on {day}"_. **Today**: the place; readiness as a figure, opening onto
+  what the plan still lacks, with the dashboard's own sentence under it; the finish date; and D1's
+  headline with what moves the finish most, or the sentence that every activity is counted as
+  certain ([ADR-035](#adr-035)). **The next two weeks** (below). **Lately on site**: the last five
+  effective diary entries, corrections applied, newest first, each with its note whole, what was
+  done, who was there by name, and at most two of its photos, captioned with the day and the
+  photo's file name, with how many more the day has. **Money**: planned, committed and paid, each
+  opening onto its lines, the commitments paid ahead of the work, and what is earned and not paid
+  now ([ADR-037](#adr-037)), with what those leave out. And a last line: _"Written by Ridgebeam on
+  {day}. A snapshot: it does not change when the work does."_ **Nothing else**: no person's phone
+  number or e-mail address and not the Windows account that wrote an entry — the handover book is
+  where contacts belong — no document, no baseline, no diary chain.
+- **The next two weeks** (`src/domain/reports/lookahead.ts`, pure, keys and no strings): the 14
+  calendar days from today, today included, read off the schedule as of today. A closed stage is
+  done and contributes nothing, and an activity the diary says is finished is neither starting nor
+  running. **Starting** — the activities whose scheduled start is in the window; **running** — those
+  that started before it and finish in it or after it, never the same activity twice; each with its
+  responsible and its stage. **People** — by the dashboard's own rule for the week (F10), applied to
+  the window: whoever answers for an activity starting or running, and whoever is put on a stage
+  that has started. **Decisions** — open ones that are overdue or whose deadline falls in the
+  window, most urgent first, each with its lead time and the day its stage needs it, so the page can
+  say _"to order by 12 Oct"_ ([ADR-017](#adr-017)). **Gates** — the start gate of a stage not yet
+  started whose first activity is scheduled in the window, and the close gate of a stage not closed
+  whose last activity is scheduled to finish in it, each with the items that hold it, unanswered or
+  answered no; a gate that would already pass is listed with none ([ADR-022](#adr-022)).
+  **Payments** — what falls due: each milestone not yet earned whose fact the schedule expects in
+  the window (an activity's scheduled finish, the stage's first start or last finish, the day agreed
+  for an advance agreed after today), less what money already paid ahead on its commitment covers;
+  and what is earned and not paid now, D2's own figure ([ADR-037](#adr-037)). Each is a figure with
+  its rows. A small Gantt of the window shows every activity starting or running, cut at the
+  window's edges and saying so. When the schedule places nothing at all, the figures are empty
+  because there is no schedule, and the page says that rather than calling the two weeks quiet.
+  Days are said as the owner says them, _"Monday 5 Oct"_.
+- **Nothing in it runs, and nothing is loaded.** Every string from the work is escaped, in text and
+  in attributes. The file declares its language (`<html lang="en">` or `lang="pt-BR"`), its
+  character set and a viewport, and carries a Content-Security-Policy in a `<meta>` element —
+  `default-src 'none'; img-src data:; style-src 'unsafe-inline'` — so a browser that honours it
+  will neither run a script nor load anything from anywhere, even if a hostile string got past the
+  escaping. The style is inline, in the file: one readable column, the system's own fonts, large
+  tap targets on every summary, print styles, and **light and dark following the reader's phone**
+  through `prefers-color-scheme`. The escape writes the five markup characters, and also `/ : = @ (`
+  and the backtick, as character references, so a hostile string can neither become markup nor
+  spell an address. Then, before the bytes are written, **the host checks them and refuses the
+  write** — as a bug in the product, and said so — unless the policy is there once, before what it
+  governs; every `src` is a base64 `data:image/jpeg` address; what remains holds none of `<script`,
+  an `on…=` attribute, `javascript:`, `vbscript:`, `http:`, `https:`, `//`, `<iframe`, `<object`,
+  `<embed`, `<link`, `<base`, `<form`, `@import`, `url(`, `expression(`, any other `data:` or
+  `<!--`; and the page is made only of its own elements and attributes. The rules are listed in
+  [`SECURITY.md`](../../SECURITY.md). The escaping, the policy and the check are three defences,
+  each tested on its own with deliberately hostile strings.
+- **Photos are resolved exactly as the handover book's**: by a 64-hex-digit hash a `document` row
+  of the open work names, read from its `documents/` under the documents' caps and checked against
+  their hash ([ADR-038](#adr-038)). Then they are **always re-encoded** — at most 1 024 pixels on
+  the long edge, JPEG at quality 78 — so no byte of the original, and none of its metadata, reaches
+  the file. One snapshot places at most **60 photos and 8 MiB of image data** — counted where they
+  are placed, since a page cannot reuse a photo without a script — and the file is at most
+  **12 MiB**; one past a cap is refused with a sentence and nothing is written.
+- **Ridgebeam writes the file; sending it is the person's act** — by WhatsApp, by e-mail, on a
+  memory stick. The product sends nothing, and nothing in either database records that a snapshot
+  was written.
+
+**Why.** The question an owner asks most is "how is it going?", and it is asked away from the desk;
+the answer that settles it is the dashboard's, rows and all, in their own words, on the phone in
+their hand. A file is the only way to give them that without an account, a server or a network
+request — the three things the product does not have. Rendering it from the same document model as
+the reports means the snapshot says what the screen says, in the same words
+([ADR-031](#adr-031)), and that the host, not the webview, writes the bytes another device will
+open. `<details>` is the one element that lets a figure open onto its rows without a script, so no
+script is needed — and a file that may be forwarded to people the person never meant to reach is
+safest when it can do nothing but be read.
+
+**Cost accepted.** **It is stale the moment the work changes**: a snapshot is the work on the day
+it was written, and an owner may read Tuesday's file on Friday as if it were Friday's. It cannot
+update itself — that would take a script or a server — so its last line says the day and that it
+does not change, and the next one has to be written and sent again. **Photos make it a few
+megabytes**: ten diary photos at 1 024 pixels come to a megabyte or two, and a messaging app may
+compress or refuse a large attachment; the caps keep it to a file a phone opens. **It holds the
+work's state, which the person chooses to share**: people's names, the diary's notes as they were
+typed, photos of somebody's home and what was paid. It carries no contact and no document, but it
+is not encrypted, has no password and does not expire, and whoever receives it can forward it; what
+to send and to whom is the person's decision, and once sent the product cannot take it back. **It
+is not the 1.2 "crew" sync**: nothing comes back from it — the owner cannot answer a decision,
+accept a gate or write in the diary through it — and two snapshots are two copies, never merged.
+**A phone's browser decides how it looks within the CSS it is given**: the system's fonts, how
+`<details>` opens and how a wide table scrolls differ from one browser to another, a viewer inside a
+messaging app may show it differently again, and a viewer that ignores the security policy still
+gets a file with nothing in it to run. No script also means no search, no filter and no sorting on
+the page: what it shows is what the composer put there.
