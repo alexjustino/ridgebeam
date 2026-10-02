@@ -1,0 +1,788 @@
+{
+  "ridgebeamTemplate": 1,
+  "id": "bathroom-renovation",
+  "version": 2,
+  "title": {
+    "en": "Bathroom renovation",
+    "pt-BR": "Reforma de banheiro"
+  },
+  "summary": {
+    "en": "A small bathroom taken back to its walls and floor and rebuilt: new pipes and points, waterproofing, tiles, fixtures and fittings. A starting point, not a quote: durations and lead times are ranges of working days for you to confirm with the people doing the work, and the cost lines have no prices.",
+    "pt-BR": "Um banheiro pequeno levado de volta às paredes e ao piso e refeito: tubulação e pontos novos, impermeabilização, revestimento, louças e metais. Um ponto de partida, não um orçamento: durações e prazos de entrega são faixas de dias úteis para você confirmar com quem vai fazer o serviço, e as linhas de custo não têm preço."
+  },
+  "rooms": [
+    {
+      "key": "bathroom",
+      "name": {
+        "en": "Bathroom",
+        "pt-BR": "Banheiro"
+      }
+    }
+  ],
+  "stages": [
+    {
+      "key": "bathroom-strip-out",
+      "name": {
+        "en": "Bathroom strip-out",
+        "pt-BR": "Demolição do banheiro"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the water supply to the bathroom shut off and tested?",
+            "pt-BR": "O registro de água do banheiro está fechado e testado?"
+          },
+          {
+            "en": "Is the circuit that feeds the bathroom switched off at the board and marked?",
+            "pt-BR": "O circuito que alimenta o banheiro está desligado no quadro e sinalizado?"
+          },
+          {
+            "en": "Are the floors and doors on the way out protected?",
+            "pt-BR": "O piso e as portas no caminho até a saída estão protegidos?"
+          },
+          {
+            "en": "Is there an agreed place for the debris skip or bags?",
+            "pt-BR": "Há um lugar combinado para a caçamba ou os sacos de entulho?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Are the walls and the floor down to a sound base, with nothing loose?",
+            "pt-BR": "Paredes e piso estão numa base firme, sem nada solto?"
+          },
+          {
+            "en": "Are the old pipe ends capped and dry?",
+            "pt-BR": "As pontas da tubulação antiga estão tampadas e secas?"
+          },
+          {
+            "en": "Has all the debris left the site?",
+            "pt-BR": "Todo o entulho já saiu da obra?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Strip-out labour",
+            "pt-BR": "Mão de obra de demolição"
+          }
+        },
+        {
+          "label": {
+            "en": "Debris removal",
+            "pt-BR": "Retirada de entulho"
+          },
+          "activity": "remove-debris"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "remove-fixtures",
+          "name": {
+            "en": "Remove the fixtures and fittings",
+            "pt-BR": "Retirar louças, metais e acessórios"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "remove-tiles",
+          "name": {
+            "en": "Remove the wall and floor tiles",
+            "pt-BR": "Remover o revestimento de parede e piso"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "remove-debris",
+          "name": {
+            "en": "Take the debris away",
+            "pt-BR": "Retirar o entulho"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        }
+      ]
+    },
+    {
+      "key": "bathroom-rough-in",
+      "name": {
+        "en": "Bathroom pipes and wiring",
+        "pt-BR": "Hidráulica e elétrica do banheiro"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the positions of the toilet, the basin, the shower and the outlets marked on the walls?",
+            "pt-BR": "As posições do vaso, da cuba, do chuveiro e das tomadas estão marcadas nas paredes?"
+          },
+          {
+            "en": "Are the pipes and fittings for the new layout on site?",
+            "pt-BR": "Os tubos e as conexões do novo layout estão na obra?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Did the new water pipes hold their pressure with no drop and no leak?",
+            "pt-BR": "A nova tubulação de água segurou a pressão sem queda e sem vazamento?"
+          },
+          {
+            "en": "Does every drain fall to its outlet, tested with water?",
+            "pt-BR": "Todo esgoto tem caimento até a saída, testado com água?"
+          },
+          {
+            "en": "Are the pipes and wiring photographed before the walls are closed?",
+            "pt-BR": "Os canos e a fiação foram fotografados antes de fechar as paredes?",
+            "photo": true
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Plumbing materials",
+            "pt-BR": "Material hidráulico"
+          }
+        },
+        {
+          "label": {
+            "en": "Electrical materials",
+            "pt-BR": "Material elétrico"
+          }
+        },
+        {
+          "label": {
+            "en": "Plumbing labour",
+            "pt-BR": "Mão de obra de hidráulica"
+          }
+        },
+        {
+          "label": {
+            "en": "Electrical labour",
+            "pt-BR": "Mão de obra de elétrica"
+          },
+          "activity": "electrical-points"
+        }
+      ],
+      "decisions": [
+        {
+          "key": "layout",
+          "name": {
+            "en": "Where the toilet, the basin and the shower go",
+            "pt-BR": "Onde ficam o vaso, a cuba e o chuveiro"
+          },
+          "leadDays": {
+            "min": 2,
+            "max": 5
+          },
+          "needs": "water-supply"
+        },
+        {
+          "key": "sanitary-ware",
+          "name": {
+            "en": "The toilet and the basin",
+            "pt-BR": "O vaso sanitário e a cuba"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 20
+          },
+          "needs": "water-supply"
+        }
+      ],
+      "activities": [
+        {
+          "key": "water-supply",
+          "name": {
+            "en": "Run the hot and cold water pipes",
+            "pt-BR": "Executar a tubulação de água fria e quente"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "drains",
+          "name": {
+            "en": "Run the drains",
+            "pt-BR": "Executar a tubulação de esgoto"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "electrical-points",
+          "name": {
+            "en": "Run the cables for the lights, the outlets and the fan",
+            "pt-BR": "Passar os cabos de iluminação, tomadas e exaustor"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "pressure-test",
+          "name": {
+            "en": "Pressure-test the pipes",
+            "pt-BR": "Testar a tubulação sob pressão"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "close-chases",
+          "name": {
+            "en": "Close the chases in the walls",
+            "pt-BR": "Fechar os rasgos nas paredes"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        }
+      ]
+    },
+    {
+      "key": "bathroom-waterproofing",
+      "name": {
+        "en": "Bathroom screed and waterproofing",
+        "pt-BR": "Contrapiso e impermeabilização do banheiro"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the pipes tested and the chases closed?",
+            "pt-BR": "A tubulação está testada e os rasgos estão fechados?"
+          },
+          {
+            "en": "Is the floor clean, dry and free of dust?",
+            "pt-BR": "O piso está limpo, seco e sem pó?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Did the floor hold water for the whole flood test, with no stain below or beside it?",
+            "pt-BR": "O piso segurou a água durante todo o teste de estanqueidade, sem mancha embaixo ou ao lado?"
+          },
+          {
+            "en": "Does the waterproofing turn up the walls around the shower?",
+            "pt-BR": "A impermeabilização sobe pelas paredes na área do box?"
+          },
+          {
+            "en": "Is the waterproofing photographed, turned up the walls, before the tiles cover it?",
+            "pt-BR": "A impermeabilização foi fotografada, subindo pelas paredes, antes de o revestimento cobri-la?",
+            "photo": true
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Screed",
+            "pt-BR": "Contrapiso"
+          },
+          "activity": "screed"
+        },
+        {
+          "label": {
+            "en": "Waterproofing materials",
+            "pt-BR": "Material de impermeabilização"
+          },
+          "activity": "membrane"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "screed",
+          "name": {
+            "en": "Lay the screed with a fall to the drain",
+            "pt-BR": "Executar o contrapiso com caimento para o ralo"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "membrane",
+          "name": {
+            "en": "Apply the waterproofing",
+            "pt-BR": "Aplicar a impermeabilização"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "flood-test",
+          "name": {
+            "en": "Flood test",
+            "pt-BR": "Teste de estanqueidade"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 3
+          },
+          "rooms": ["bathroom"]
+        }
+      ]
+    },
+    {
+      "key": "bathroom-tiling",
+      "name": {
+        "en": "Bathroom tiling",
+        "pt-BR": "Revestimento do banheiro"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Did the flood test pass?",
+            "pt-BR": "O teste de estanqueidade foi aprovado?"
+          },
+          {
+            "en": "Are all the tiles on site, from one batch, with some to spare?",
+            "pt-BR": "Todas as peças estão na obra, do mesmo lote, com sobra?"
+          },
+          {
+            "en": "Is the tile layout agreed, including where the cuts fall?",
+            "pt-BR": "A paginação está combinada, inclusive onde ficam os recortes?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Are the tiles level and even, with no hollow sound when tapped?",
+            "pt-BR": "O revestimento está nivelado e alinhado, sem som oco ao bater?"
+          },
+          {
+            "en": "Is the grout complete and clean?",
+            "pt-BR": "O rejunte está completo e limpo?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Tiles",
+            "pt-BR": "Revestimento cerâmico"
+          }
+        },
+        {
+          "label": {
+            "en": "Tile adhesive and grout",
+            "pt-BR": "Argamassa colante e rejunte"
+          }
+        },
+        {
+          "label": {
+            "en": "Tiling labour",
+            "pt-BR": "Mão de obra de assentamento"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "tiles",
+          "name": {
+            "en": "The wall and floor tiles",
+            "pt-BR": "O revestimento de parede e piso"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 20
+          },
+          "needs": "wall-tiles"
+        }
+      ],
+      "activities": [
+        {
+          "key": "wall-tiles",
+          "name": {
+            "en": "Tile the walls",
+            "pt-BR": "Assentar o revestimento das paredes"
+          },
+          "durationDays": {
+            "min": 3,
+            "max": 5
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "floor-tiles",
+          "name": {
+            "en": "Tile the floor",
+            "pt-BR": "Assentar o piso"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "grout",
+          "name": {
+            "en": "Grout the walls and the floor",
+            "pt-BR": "Rejuntar paredes e piso"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        }
+      ]
+    },
+    {
+      "key": "bathroom-fit-out",
+      "name": {
+        "en": "Bathroom fixtures and finishes",
+        "pt-BR": "Louças, metais e acabamentos do banheiro"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Has the grout cured?",
+            "pt-BR": "O rejunte já curou?"
+          },
+          {
+            "en": "Are the fixtures on site and checked for damage?",
+            "pt-BR": "As louças e os metais estão na obra e conferidos contra avaria?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Do all the taps, the shower and the toilet run with no leak?",
+            "pt-BR": "Todas as torneiras, o chuveiro e a descarga funcionam sem vazamento?"
+          },
+          {
+            "en": "Do all the lights, the outlets and the fan work?",
+            "pt-BR": "Todas as luzes, as tomadas e o exaustor funcionam?"
+          },
+          {
+            "en": "Is the sealant around the basin and the shower complete?",
+            "pt-BR": "A vedação em volta da cuba e do box está completa?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Sanitary ware and taps",
+            "pt-BR": "Louças e metais"
+          }
+        },
+        {
+          "label": {
+            "en": "Vanity cabinet",
+            "pt-BR": "Gabinete"
+          },
+          "activity": "install-vanity"
+        },
+        {
+          "label": {
+            "en": "Shower screen",
+            "pt-BR": "Box"
+          },
+          "activity": "install-screen"
+        },
+        {
+          "label": {
+            "en": "Light fittings and accessories",
+            "pt-BR": "Luminárias e acessórios"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "vanity",
+          "name": {
+            "en": "The vanity cabinet",
+            "pt-BR": "O gabinete do banheiro"
+          },
+          "leadDays": {
+            "min": 10,
+            "max": 30
+          },
+          "needs": "install-vanity"
+        },
+        {
+          "key": "taps",
+          "name": {
+            "en": "The taps and the shower",
+            "pt-BR": "As torneiras e o chuveiro"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 15
+          },
+          "needs": "install-shower"
+        },
+        {
+          "key": "screen",
+          "name": {
+            "en": "The shower screen, measured after tiling",
+            "pt-BR": "O box, medido depois do revestimento"
+          },
+          "leadDays": {
+            "min": 7,
+            "max": 15
+          },
+          "needs": "install-screen"
+        }
+      ],
+      "activities": [
+        {
+          "key": "install-vanity",
+          "name": {
+            "en": "Install the vanity and the basin",
+            "pt-BR": "Instalar o gabinete e a cuba"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "install-toilet",
+          "name": {
+            "en": "Install the toilet",
+            "pt-BR": "Instalar o vaso sanitário"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "install-shower",
+          "name": {
+            "en": "Install the shower and the taps",
+            "pt-BR": "Instalar o chuveiro e os metais"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "install-screen",
+          "name": {
+            "en": "Install the shower screen",
+            "pt-BR": "Instalar o box"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "electrical-fittings",
+          "name": {
+            "en": "Fit the lights, the outlets and the fan",
+            "pt-BR": "Instalar luminárias, tomadas e exaustor"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        }
+      ]
+    },
+    {
+      "key": "bathroom-handover",
+      "name": {
+        "en": "Bathroom cleaning and handover",
+        "pt-BR": "Limpeza e entrega do banheiro"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is every fixture installed and working?",
+            "pt-BR": "Todas as louças e os metais estão instalados e funcionando?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Did the owner walk the bathroom and agree the list of snags?",
+            "pt-BR": "O proprietário vistoriou o banheiro e aprovou a lista de pendências?"
+          },
+          {
+            "en": "Is every snag put right?",
+            "pt-BR": "Todas as pendências foram corrigidas?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Final cleaning",
+            "pt-BR": "Limpeza final"
+          },
+          "activity": "clean"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "clean",
+          "name": {
+            "en": "Final clean",
+            "pt-BR": "Limpeza final"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "walk-through",
+          "name": {
+            "en": "Walk-through and list of snags",
+            "pt-BR": "Vistoria e lista de pendências"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["bathroom"]
+        },
+        {
+          "key": "snags",
+          "name": {
+            "en": "Put the snags right",
+            "pt-BR": "Corrigir as pendências"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["bathroom"]
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "blocker": "bathroom-strip-out",
+      "blocked": "bathroom-rough-in",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-rough-in",
+      "blocked": "bathroom-waterproofing",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-waterproofing",
+      "blocked": "bathroom-tiling",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-tiling",
+      "blocked": "bathroom-fit-out",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-fit-out",
+      "blocked": "bathroom-handover",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-strip-out/remove-fixtures",
+      "blocked": "bathroom-strip-out/remove-tiles",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-strip-out/remove-tiles",
+      "blocked": "bathroom-strip-out/remove-debris",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-rough-in/water-supply",
+      "blocked": "bathroom-rough-in/pressure-test",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-rough-in/drains",
+      "blocked": "bathroom-rough-in/pressure-test",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-rough-in/pressure-test",
+      "blocked": "bathroom-rough-in/close-chases",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-rough-in/electrical-points",
+      "blocked": "bathroom-rough-in/close-chases",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-waterproofing/screed",
+      "blocked": "bathroom-waterproofing/membrane",
+      "lagDays": 3
+    },
+    {
+      "blocker": "bathroom-waterproofing/membrane",
+      "blocked": "bathroom-waterproofing/flood-test",
+      "lagDays": 1
+    },
+    {
+      "blocker": "bathroom-tiling/wall-tiles",
+      "blocked": "bathroom-tiling/floor-tiles",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-tiling/floor-tiles",
+      "blocked": "bathroom-tiling/grout",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-fit-out/install-shower",
+      "blocked": "bathroom-fit-out/install-screen",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-handover/clean",
+      "blocked": "bathroom-handover/walk-through",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-handover/walk-through",
+      "blocked": "bathroom-handover/snags",
+      "lagDays": 0
+    }
+  ]
+}

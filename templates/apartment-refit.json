@@ -1,0 +1,689 @@
+{
+  "ridgebeamTemplate": 1,
+  "id": "apartment-refit",
+  "version": 2,
+  "title": {
+    "en": "Apartment refit",
+    "pt-BR": "Reforma de apartamento"
+  },
+  "summary": {
+    "en": "A small flat refitted throughout: its bathroom and its kitchen, then walls, ceilings, paint, floors and doors, in a building with neighbours and rules. A starting point, not a quote: ranges of working days to confirm with the people doing the work, and cost lines with no prices.",
+    "pt-BR": "Um apartamento pequeno reformado por inteiro: banheiro e cozinha, depois paredes, forros, pintura, pisos e portas, num prédio com vizinhos e regras. Um ponto de partida, não um orçamento: faixas de dias úteis para confirmar com quem vai fazer o serviço, e linhas de custo sem preço."
+  },
+  "includes": ["bathroom-renovation", "kitchen-renovation"],
+  "rooms": [
+    {
+      "key": "living-room",
+      "name": {
+        "en": "Living room",
+        "pt-BR": "Sala"
+      }
+    },
+    {
+      "key": "bedrooms",
+      "name": {
+        "en": "Bedrooms",
+        "pt-BR": "Quartos"
+      }
+    },
+    {
+      "key": "hall",
+      "name": {
+        "en": "Hall and corridor",
+        "pt-BR": "Hall e corredor"
+      }
+    }
+  ],
+  "stages": [
+    {
+      "key": "flat-preparation",
+      "name": {
+        "en": "Protection and strip-out of the flat",
+        "pt-BR": "Proteção e demolição do apartamento"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Has the building management approved the works and the working hours?",
+            "pt-BR": "O condomínio autorizou a obra e os horários de trabalho?"
+          },
+          {
+            "en": "Were the neighbours told when the noisy days will be?",
+            "pt-BR": "Os vizinhos foram avisados sobre os dias de barulho?"
+          },
+          {
+            "en": "Is there an agreed place and time for the debris container?",
+            "pt-BR": "Há lugar e horário combinados para a caçamba de entulho?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Are the lift, the corridor and the entrance protected?",
+            "pt-BR": "O elevador, o corredor e a entrada estão protegidos?"
+          },
+          {
+            "en": "Are the old floors that are going removed, down to a sound base?",
+            "pt-BR": "Os pisos antigos que saem foram removidos, até uma base firme?"
+          },
+          {
+            "en": "Has all the debris left the building?",
+            "pt-BR": "Todo o entulho já saiu do prédio?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Protection of the common areas",
+            "pt-BR": "Proteção das áreas comuns"
+          },
+          "activity": "protect"
+        },
+        {
+          "label": {
+            "en": "Strip-out labour",
+            "pt-BR": "Mão de obra de demolição"
+          }
+        },
+        {
+          "label": {
+            "en": "Debris container",
+            "pt-BR": "Caçamba de entulho"
+          },
+          "activity": "remove-debris"
+        }
+      ],
+      "decisions": [
+        {
+          "key": "keep-or-remove",
+          "name": {
+            "en": "What stays and what goes",
+            "pt-BR": "O que fica e o que sai"
+          },
+          "leadDays": {
+            "min": 2,
+            "max": 5
+          },
+          "needs": "remove-floors"
+        }
+      ],
+      "activities": [
+        {
+          "key": "protect",
+          "name": {
+            "en": "Protect the common areas and what stays in the flat",
+            "pt-BR": "Proteger as áreas comuns e o que fica no apartamento"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "key": "remove-floors",
+          "name": {
+            "en": "Remove the old floors",
+            "pt-BR": "Remover os pisos antigos"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          },
+          "rooms": ["living-room", "bedrooms", "hall"]
+        },
+        {
+          "key": "remove-debris",
+          "name": {
+            "en": "Take the debris away",
+            "pt-BR": "Retirar o entulho"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          }
+        }
+      ]
+    },
+    {
+      "key": "flat-walls-ceilings",
+      "name": {
+        "en": "Walls and ceilings",
+        "pt-BR": "Paredes e forros"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the new position of every outlet and light point marked?",
+            "pt-BR": "A nova posição de cada tomada e ponto de luz está marcada?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Are the walls flat, with every crack and chase made good?",
+            "pt-BR": "As paredes estão planas, com cada trinca e rasgo recomposto?"
+          },
+          {
+            "en": "Is the wiring in the walls and above the ceilings photographed before they are closed?",
+            "pt-BR": "A fiação nas paredes e acima dos forros foi fotografada antes de fechá-los?",
+            "photo": true
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Electrical changes",
+            "pt-BR": "Alterações elétricas"
+          },
+          "activity": "move-points"
+        },
+        {
+          "label": {
+            "en": "Plaster repair",
+            "pt-BR": "Recuperação do reboco"
+          },
+          "activity": "plaster-repair"
+        },
+        {
+          "label": {
+            "en": "Plasterboard ceilings",
+            "pt-BR": "Forro de gesso"
+          },
+          "activity": "ceilings"
+        }
+      ],
+      "decisions": [
+        {
+          "key": "lighting",
+          "name": {
+            "en": "The lighting layout",
+            "pt-BR": "O projeto de iluminação"
+          },
+          "leadDays": {
+            "min": 3,
+            "max": 10
+          },
+          "needs": "move-points"
+        }
+      ],
+      "activities": [
+        {
+          "key": "move-points",
+          "name": {
+            "en": "Move outlets and light points",
+            "pt-BR": "Remanejar tomadas e pontos de luz"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          },
+          "rooms": ["living-room", "bedrooms", "hall"]
+        },
+        {
+          "key": "plaster-repair",
+          "name": {
+            "en": "Repair the plaster",
+            "pt-BR": "Recuperar o reboco"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          },
+          "rooms": ["living-room", "bedrooms", "hall"]
+        },
+        {
+          "key": "ceilings",
+          "name": {
+            "en": "Plasterboard ceilings",
+            "pt-BR": "Forro de gesso"
+          },
+          "durationDays": {
+            "min": 3,
+            "max": 6
+          },
+          "rooms": ["living-room", "bedrooms", "hall"]
+        }
+      ]
+    },
+    {
+      "key": "flat-painting",
+      "name": {
+        "en": "Painting",
+        "pt-BR": "Pintura"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the floors, the windows and the fittings covered?",
+            "pt-BR": "Os pisos, as janelas e os acabamentos estão cobertos?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Is the paint even, with no patch showing through?",
+            "pt-BR": "A pintura está uniforme, sem manchas aparecendo?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Paint and materials",
+            "pt-BR": "Tintas e materiais"
+          }
+        },
+        {
+          "label": {
+            "en": "Painting labour",
+            "pt-BR": "Mão de obra de pintura"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "colours",
+          "name": {
+            "en": "The paint colours",
+            "pt-BR": "As cores da pintura"
+          },
+          "leadDays": {
+            "min": 2,
+            "max": 7
+          },
+          "needs": "paint"
+        }
+      ],
+      "activities": [
+        {
+          "key": "prepare",
+          "name": {
+            "en": "Fill, sand and seal the walls and ceilings",
+            "pt-BR": "Emassar, lixar e selar paredes e forros"
+          },
+          "durationDays": {
+            "min": 3,
+            "max": 5
+          },
+          "rooms": ["living-room", "bedrooms", "hall"]
+        },
+        {
+          "key": "paint",
+          "name": {
+            "en": "Paint the walls and the ceilings",
+            "pt-BR": "Pintar paredes e forros"
+          },
+          "durationDays": {
+            "min": 3,
+            "max": 6
+          },
+          "rooms": ["living-room", "bedrooms", "hall"]
+        }
+      ]
+    },
+    {
+      "key": "flat-flooring",
+      "name": {
+        "en": "Floors",
+        "pt-BR": "Pisos"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the subfloor level, dry and clean?",
+            "pt-BR": "O contrapiso está nivelado, seco e limpo?"
+          },
+          {
+            "en": "Is the flooring on site, from one batch, with some to spare?",
+            "pt-BR": "O piso está na obra, do mesmo lote, com sobra?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Is the floor level, with no hollow sound and no gap at the edges?",
+            "pt-BR": "O piso está nivelado, sem som oco e sem folga nas bordas?"
+          },
+          {
+            "en": "Is the new floor covered until the work ends?",
+            "pt-BR": "O piso novo está protegido até o fim da obra?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Flooring",
+            "pt-BR": "Piso"
+          },
+          "activity": "lay-floor"
+        },
+        {
+          "label": {
+            "en": "Skirting",
+            "pt-BR": "Rodapés"
+          },
+          "activity": "skirting"
+        },
+        {
+          "label": {
+            "en": "Flooring labour",
+            "pt-BR": "Mão de obra de assentamento"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "flooring",
+          "name": {
+            "en": "The floor finish",
+            "pt-BR": "O acabamento do piso"
+          },
+          "leadDays": {
+            "min": 10,
+            "max": 25
+          },
+          "needs": "lay-floor"
+        }
+      ],
+      "activities": [
+        {
+          "key": "level-subfloor",
+          "name": {
+            "en": "Level the subfloor",
+            "pt-BR": "Regularizar o contrapiso"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          },
+          "rooms": ["living-room", "bedrooms", "hall"]
+        },
+        {
+          "key": "lay-floor",
+          "name": {
+            "en": "Lay the new floor",
+            "pt-BR": "Assentar o piso novo"
+          },
+          "durationDays": {
+            "min": 3,
+            "max": 6
+          },
+          "rooms": ["living-room", "bedrooms", "hall"]
+        },
+        {
+          "key": "skirting",
+          "name": {
+            "en": "Fit the skirting",
+            "pt-BR": "Instalar os rodapés"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["living-room", "bedrooms", "hall"]
+        }
+      ]
+    },
+    {
+      "key": "flat-doors",
+      "name": {
+        "en": "Doors and final touches",
+        "pt-BR": "Portas e arremates"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the door openings measured on the finished floor?",
+            "pt-BR": "Os vãos das portas foram medidos com o piso pronto?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Do all the doors open, close and latch freely?",
+            "pt-BR": "Todas as portas abrem, fecham e trancam sem forçar?"
+          },
+          {
+            "en": "Are the outlet and switch covers fitted and the final coat of paint touched up?",
+            "pt-BR": "Os espelhos de tomadas e interruptores estão instalados e a pintura retocada?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Internal doors",
+            "pt-BR": "Portas internas"
+          },
+          "activity": "install-doors"
+        },
+        {
+          "label": {
+            "en": "Outlet and switch covers",
+            "pt-BR": "Espelhos de tomadas e interruptores"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "doors",
+          "name": {
+            "en": "The internal doors",
+            "pt-BR": "As portas internas"
+          },
+          "leadDays": {
+            "min": 10,
+            "max": 30
+          },
+          "needs": "install-doors"
+        }
+      ],
+      "activities": [
+        {
+          "key": "install-doors",
+          "name": {
+            "en": "Hang the internal doors",
+            "pt-BR": "Instalar as portas internas"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          },
+          "rooms": ["living-room", "bedrooms", "hall"]
+        },
+        {
+          "key": "touch-up",
+          "name": {
+            "en": "Fit the covers and touch up the paint",
+            "pt-BR": "Instalar os espelhos e retocar a pintura"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["living-room", "bedrooms", "hall"]
+        }
+      ]
+    },
+    {
+      "key": "flat-handover",
+      "name": {
+        "en": "Cleaning and handover of the flat",
+        "pt-BR": "Limpeza e entrega do apartamento"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the bathroom and the kitchen handed over?",
+            "pt-BR": "O banheiro e a cozinha foram entregues?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Did the owner walk every room and agree the list of snags?",
+            "pt-BR": "O proprietário percorreu cada cômodo e aprovou a lista de pendências?"
+          },
+          {
+            "en": "Were the common areas handed back clean and undamaged?",
+            "pt-BR": "As áreas comuns foram devolvidas limpas e sem danos?"
+          },
+          {
+            "en": "Are the photos of the pipes and cables, the manuals and the warranties handed over?",
+            "pt-BR": "As fotos das tubulações e cabos, os manuais e as garantias foram entregues?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Final cleaning",
+            "pt-BR": "Limpeza final"
+          },
+          "activity": "clean"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "clean",
+          "name": {
+            "en": "Final clean",
+            "pt-BR": "Limpeza final"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          }
+        },
+        {
+          "key": "walk-through",
+          "name": {
+            "en": "Walk-through and list of snags",
+            "pt-BR": "Vistoria e lista de pendências"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "key": "snags",
+          "name": {
+            "en": "Put the snags right",
+            "pt-BR": "Corrigir as pendências"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 5
+          }
+        },
+        {
+          "key": "remove-protection",
+          "name": {
+            "en": "Remove the protection from the common areas",
+            "pt-BR": "Retirar a proteção das áreas comuns"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "blocker": "flat-preparation/protect",
+      "blocked": "flat-preparation/remove-floors",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-preparation/remove-floors",
+      "blocked": "flat-preparation/remove-debris",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-preparation/protect",
+      "blocked": "bathroom-strip-out",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-preparation/protect",
+      "blocked": "kitchen-strip-out",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-preparation",
+      "blocked": "flat-walls-ceilings",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-walls-ceilings",
+      "blocked": "flat-painting",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-painting",
+      "blocked": "flat-flooring",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-flooring",
+      "blocked": "flat-doors",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-doors",
+      "blocked": "flat-handover",
+      "lagDays": 0
+    },
+    {
+      "blocker": "bathroom-handover",
+      "blocked": "flat-handover",
+      "lagDays": 0
+    },
+    {
+      "blocker": "kitchen-handover",
+      "blocked": "flat-handover",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-walls-ceilings/move-points",
+      "blocked": "flat-walls-ceilings/ceilings",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-painting/prepare",
+      "blocked": "flat-painting/paint",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-flooring/level-subfloor",
+      "blocked": "flat-flooring/lay-floor",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-flooring/lay-floor",
+      "blocked": "flat-flooring/skirting",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-doors/install-doors",
+      "blocked": "flat-doors/touch-up",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-handover/clean",
+      "blocked": "flat-handover/walk-through",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-handover/walk-through",
+      "blocked": "flat-handover/snags",
+      "lagDays": 0
+    },
+    {
+      "blocker": "flat-handover/snags",
+      "blocked": "flat-handover/remove-protection",
+      "lagDays": 0
+    }
+  ]
+}

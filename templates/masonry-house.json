@@ -1,0 +1,1435 @@
+{
+  "ridgebeamTemplate": 1,
+  "id": "masonry-house",
+  "version": 2,
+  "title": {
+    "en": "Masonry house",
+    "pt-BR": "Casa térrea em alvenaria"
+  },
+  "summary": {
+    "en": "A small single-storey house in blockwork with a slab and a pitched roof, from setting out to handover. It assumes the drawings and the permit are done. A starting point, not a quote: ranges of working days to confirm with the engineer and the builder, and cost lines with no prices.",
+    "pt-BR": "Uma casa térrea pequena em alvenaria de blocos, com laje e telhado, da locação à entrega. Supõe o projeto e o alvará prontos. Um ponto de partida, não um orçamento: faixas de dias úteis para confirmar com o engenheiro e o construtor, e linhas de custo sem preço."
+  },
+  "rooms": [
+    {
+      "key": "living-room",
+      "name": {
+        "en": "Living room",
+        "pt-BR": "Sala"
+      }
+    },
+    {
+      "key": "kitchen",
+      "name": {
+        "en": "Kitchen",
+        "pt-BR": "Cozinha"
+      }
+    },
+    {
+      "key": "bathroom",
+      "name": {
+        "en": "Bathroom",
+        "pt-BR": "Banheiro"
+      }
+    },
+    {
+      "key": "bedrooms",
+      "name": {
+        "en": "Bedrooms",
+        "pt-BR": "Quartos"
+      }
+    },
+    {
+      "key": "laundry",
+      "name": {
+        "en": "Laundry",
+        "pt-BR": "Área de serviço"
+      }
+    }
+  ],
+  "stages": [
+    {
+      "key": "house-site",
+      "name": {
+        "en": "Site preparation",
+        "pt-BR": "Serviços preliminares"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the approved drawings and the permit on site?",
+            "pt-BR": "O projeto aprovado e o alvará estão na obra?"
+          },
+          {
+            "en": "Are the boundaries of the plot confirmed?",
+            "pt-BR": "Os limites do terreno estão confirmados?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Was the setting out checked against the drawings, with the diagonals measured?",
+            "pt-BR": "A locação foi conferida com o projeto, com as diagonais medidas?"
+          },
+          {
+            "en": "Is there water and power on site for the work?",
+            "pt-BR": "Há água e energia provisórias na obra?"
+          },
+          {
+            "en": "Is the site fenced, with a lockable store for materials?",
+            "pt-BR": "A obra está cercada, com um depósito que tranca para os materiais?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Clearing and levelling",
+            "pt-BR": "Limpeza e nivelamento do terreno"
+          },
+          "activity": "clear"
+        },
+        {
+          "label": {
+            "en": "Temporary water and power",
+            "pt-BR": "Ligações provisórias de água e energia"
+          },
+          "activity": "temp-services"
+        },
+        {
+          "label": {
+            "en": "Site hut, fence and store",
+            "pt-BR": "Barracão, tapume e depósito"
+          },
+          "activity": "site-hut"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "clear",
+          "name": {
+            "en": "Clear and level the plot",
+            "pt-BR": "Limpar e nivelar o terreno"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 5
+          }
+        },
+        {
+          "key": "temp-services",
+          "name": {
+            "en": "Temporary water and power",
+            "pt-BR": "Ligações provisórias de água e energia"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 10
+          }
+        },
+        {
+          "key": "site-hut",
+          "name": {
+            "en": "Site hut, fence and store",
+            "pt-BR": "Barracão, tapume e depósito"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          }
+        },
+        {
+          "key": "set-out",
+          "name": {
+            "en": "Set out the house",
+            "pt-BR": "Locação da obra"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          }
+        }
+      ]
+    },
+    {
+      "key": "house-foundations",
+      "name": {
+        "en": "Foundations",
+        "pt-BR": "Fundação"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Was the soil investigated and the foundation confirmed by the engineer?",
+            "pt-BR": "O solo foi investigado e a fundação confirmada pelo engenheiro?"
+          },
+          {
+            "en": "Is the setting out still in place and checked?",
+            "pt-BR": "A locação continua no lugar e conferida?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Did the engineer see the reinforcement before each pour?",
+            "pt-BR": "O engenheiro conferiu a armação antes de cada concretagem?"
+          },
+          {
+            "en": "Are the ground beams waterproofed before the walls start?",
+            "pt-BR": "As vigas baldrame estão impermeabilizadas antes de subir as paredes?"
+          },
+          {
+            "en": "Are the reinforcement and the waterproofed ground beams photographed before they are covered?",
+            "pt-BR": "As armaduras e as vigas baldrame impermeabilizadas foram fotografadas antes de serem cobertas?",
+            "photo": true
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Excavation",
+            "pt-BR": "Escavação"
+          },
+          "activity": "excavate"
+        },
+        {
+          "label": {
+            "en": "Concrete and steel",
+            "pt-BR": "Concreto e aço"
+          }
+        },
+        {
+          "label": {
+            "en": "Ground-beam waterproofing",
+            "pt-BR": "Impermeabilização do baldrame"
+          },
+          "activity": "waterproof-beams"
+        },
+        {
+          "label": {
+            "en": "Foundation labour",
+            "pt-BR": "Mão de obra de fundação"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "foundation-type",
+          "name": {
+            "en": "The type of foundation, after the soil investigation",
+            "pt-BR": "O tipo de fundação, depois da sondagem"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 15
+          },
+          "needs": "excavate"
+        }
+      ],
+      "activities": [
+        {
+          "key": "excavate",
+          "name": {
+            "en": "Excavate",
+            "pt-BR": "Escavação"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 5
+          }
+        },
+        {
+          "key": "footings",
+          "name": {
+            "en": "Footings",
+            "pt-BR": "Execução das sapatas"
+          },
+          "durationDays": {
+            "min": 3,
+            "max": 6
+          }
+        },
+        {
+          "key": "ground-beams",
+          "name": {
+            "en": "Ground beams",
+            "pt-BR": "Vigas baldrame"
+          },
+          "durationDays": {
+            "min": 4,
+            "max": 8
+          }
+        },
+        {
+          "key": "waterproof-beams",
+          "name": {
+            "en": "Waterproof the ground beams",
+            "pt-BR": "Impermeabilizar o baldrame"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "key": "backfill",
+          "name": {
+            "en": "Backfill and compact",
+            "pt-BR": "Reaterro e compactação"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          }
+        }
+      ]
+    },
+    {
+      "key": "house-walls",
+      "name": {
+        "en": "Walls and structure",
+        "pt-BR": "Alvenaria e estrutura"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the ground beams waterproofed and the trenches backfilled?",
+            "pt-BR": "O baldrame está impermeabilizado e as valas reaterradas?"
+          },
+          {
+            "en": "Are the door and window openings marked with their sizes?",
+            "pt-BR": "Os vãos de portas e janelas estão marcados com as medidas?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Are the walls plumb and square, checked with a level and a line?",
+            "pt-BR": "As paredes estão no prumo e no esquadro, conferidas com nível e linha?"
+          },
+          {
+            "en": "Did the engineer see the reinforcement before the ring beam was poured?",
+            "pt-BR": "O engenheiro conferiu a armação antes da concretagem da cinta?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Blocks and mortar",
+            "pt-BR": "Blocos e argamassa"
+          }
+        },
+        {
+          "label": {
+            "en": "Concrete and steel",
+            "pt-BR": "Concreto e aço"
+          }
+        },
+        {
+          "label": {
+            "en": "Bricklaying labour",
+            "pt-BR": "Mão de obra de alvenaria"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "windows-doors",
+          "name": {
+            "en": "The windows and doors, with their sizes",
+            "pt-BR": "As esquadrias, com as suas medidas"
+          },
+          "leadDays": {
+            "min": 15,
+            "max": 40
+          },
+          "needs": "lintels"
+        }
+      ],
+      "activities": [
+        {
+          "key": "walls-lower",
+          "name": {
+            "en": "Block walls up to the window sills",
+            "pt-BR": "Alvenaria até a altura do peitoril"
+          },
+          "durationDays": {
+            "min": 5,
+            "max": 10
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        },
+        {
+          "key": "lintels",
+          "name": {
+            "en": "Lintels and sills",
+            "pt-BR": "Vergas e contravergas"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        },
+        {
+          "key": "walls-upper",
+          "name": {
+            "en": "Block walls up to the top",
+            "pt-BR": "Alvenaria até o respaldo"
+          },
+          "durationDays": {
+            "min": 5,
+            "max": 10
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        },
+        {
+          "key": "columns",
+          "name": {
+            "en": "Columns",
+            "pt-BR": "Pilares"
+          },
+          "durationDays": {
+            "min": 3,
+            "max": 6
+          }
+        },
+        {
+          "key": "ring-beam",
+          "name": {
+            "en": "Ring beam",
+            "pt-BR": "Cinta de amarração"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          }
+        }
+      ]
+    },
+    {
+      "key": "house-slab",
+      "name": {
+        "en": "Slab",
+        "pt-BR": "Laje"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the props on firm ground, braced and checked?",
+            "pt-BR": "O escoramento está em chão firme, travado e conferido?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Did the engineer see the slab and its conduits before the pour?",
+            "pt-BR": "O engenheiro conferiu a laje e os eletrodutos antes da concretagem?"
+          },
+          {
+            "en": "Were the props left for the curing time the engineer set?",
+            "pt-BR": "O escoramento ficou pelo tempo de cura definido pelo engenheiro?"
+          },
+          {
+            "en": "Are the conduits and the reinforcement in the slab photographed before the pour?",
+            "pt-BR": "Os eletrodutos e a armadura da laje foram fotografados antes da concretagem?",
+            "photo": true
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Slab beams and blocks",
+            "pt-BR": "Vigotas e lajotas"
+          }
+        },
+        {
+          "label": {
+            "en": "Concrete",
+            "pt-BR": "Concreto"
+          },
+          "activity": "pour"
+        },
+        {
+          "label": {
+            "en": "Props and formwork",
+            "pt-BR": "Escoramento e fôrmas"
+          },
+          "activity": "formwork"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "formwork",
+          "name": {
+            "en": "Props and formwork",
+            "pt-BR": "Escoramento e fôrmas"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          }
+        },
+        {
+          "key": "slab-deck",
+          "name": {
+            "en": "Place the slab beams and blocks",
+            "pt-BR": "Montar a laje com vigotas e lajotas"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          }
+        },
+        {
+          "key": "slab-conduits",
+          "name": {
+            "en": "Place the conduits in the slab",
+            "pt-BR": "Posicionar os eletrodutos na laje"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "key": "pour",
+          "name": {
+            "en": "Pour the slab",
+            "pt-BR": "Concretagem da laje"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "key": "strike",
+          "name": {
+            "en": "Strike the props",
+            "pt-BR": "Retirar o escoramento"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      ]
+    },
+    {
+      "key": "house-roof",
+      "name": {
+        "en": "Roof",
+        "pt-BR": "Telhado"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the forecast dry for the days the covering goes on?",
+            "pt-BR": "A previsão é de tempo seco para os dias do telhamento?"
+          },
+          {
+            "en": "Are there anchor points and harnesses for everybody working at height?",
+            "pt-BR": "Há pontos de ancoragem e cintos para todos que trabalham em altura?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Did a hose test over the valleys and the flashings leave no water inside?",
+            "pt-BR": "O teste com mangueira nas águas-furtadas e nos rufos terminou sem nenhuma infiltração?"
+          },
+          {
+            "en": "Do the gutters drain, with no water standing in them?",
+            "pt-BR": "As calhas escoam, sem água parada?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Roof timber",
+            "pt-BR": "Madeiramento"
+          },
+          "activity": "roof-structure"
+        },
+        {
+          "label": {
+            "en": "Roof covering",
+            "pt-BR": "Telhas"
+          },
+          "activity": "lay-covering"
+        },
+        {
+          "label": {
+            "en": "Gutters and flashings",
+            "pt-BR": "Calhas e rufos"
+          },
+          "activity": "gutters"
+        },
+        {
+          "label": {
+            "en": "Roofing labour",
+            "pt-BR": "Mão de obra de telhado"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "covering",
+          "name": {
+            "en": "The roof covering material",
+            "pt-BR": "O material da cobertura"
+          },
+          "leadDays": {
+            "min": 10,
+            "max": 30
+          },
+          "needs": "roof-structure"
+        }
+      ],
+      "activities": [
+        {
+          "key": "roof-structure",
+          "name": {
+            "en": "Roof structure",
+            "pt-BR": "Estrutura do telhado"
+          },
+          "durationDays": {
+            "min": 3,
+            "max": 6
+          }
+        },
+        {
+          "key": "underlay",
+          "name": {
+            "en": "Lay the underlay",
+            "pt-BR": "Instalar a manta de subcobertura"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "key": "lay-covering",
+          "name": {
+            "en": "Lay the covering",
+            "pt-BR": "Assentar as telhas"
+          },
+          "durationDays": {
+            "min": 3,
+            "max": 6
+          }
+        },
+        {
+          "key": "gutters",
+          "name": {
+            "en": "Gutters and flashings",
+            "pt-BR": "Calhas e rufos"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          }
+        }
+      ]
+    },
+    {
+      "key": "house-services",
+      "name": {
+        "en": "Plumbing and electrical rough-in",
+        "pt-BR": "Instalações hidráulicas e elétricas"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the positions of every fixture, outlet and switch marked on the walls?",
+            "pt-BR": "As posições de cada louça, tomada e interruptor estão marcadas nas paredes?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Did the water pipes hold their pressure with no drop and no leak?",
+            "pt-BR": "A tubulação de água segurou a pressão sem queda e sem vazamento?"
+          },
+          {
+            "en": "Does every drain fall to the sewer or the septic tank, tested with water?",
+            "pt-BR": "Todo esgoto tem caimento até a rede ou a fossa, testado com água?"
+          },
+          {
+            "en": "Are the pipes and conduits photographed before the walls are rendered?",
+            "pt-BR": "Os canos e os eletrodutos foram fotografados antes do reboco das paredes?",
+            "photo": true
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Plumbing materials",
+            "pt-BR": "Material hidráulico"
+          }
+        },
+        {
+          "label": {
+            "en": "Electrical materials",
+            "pt-BR": "Material elétrico"
+          }
+        },
+        {
+          "label": {
+            "en": "Plumbing labour",
+            "pt-BR": "Mão de obra de hidráulica"
+          }
+        },
+        {
+          "label": {
+            "en": "Electrical labour",
+            "pt-BR": "Mão de obra de elétrica"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "sanitary-ware",
+          "name": {
+            "en": "The sanitary ware and the taps",
+            "pt-BR": "As louças e os metais"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 20
+          },
+          "needs": "water-drains"
+        },
+        {
+          "key": "points",
+          "name": {
+            "en": "Where each outlet, switch and light point goes",
+            "pt-BR": "Onde fica cada tomada, interruptor e ponto de luz"
+          },
+          "leadDays": {
+            "min": 2,
+            "max": 7
+          },
+          "needs": "conduits"
+        }
+      ],
+      "activities": [
+        {
+          "key": "water-drains",
+          "name": {
+            "en": "Water pipes and drains",
+            "pt-BR": "Água e esgoto"
+          },
+          "durationDays": {
+            "min": 4,
+            "max": 8
+          },
+          "rooms": ["kitchen", "bathroom", "laundry"]
+        },
+        {
+          "key": "sewer",
+          "name": {
+            "en": "Connect to the sewer or the septic tank",
+            "pt-BR": "Ligação à rede de esgoto ou à fossa"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 5
+          }
+        },
+        {
+          "key": "conduits",
+          "name": {
+            "en": "Conduits and boxes in the walls",
+            "pt-BR": "Eletrodutos e caixas nas paredes"
+          },
+          "durationDays": {
+            "min": 3,
+            "max": 6
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        },
+        {
+          "key": "pressure-test",
+          "name": {
+            "en": "Pressure-test the pipes",
+            "pt-BR": "Testar a tubulação sob pressão"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["kitchen", "bathroom", "laundry"]
+        }
+      ]
+    },
+    {
+      "key": "house-render",
+      "name": {
+        "en": "Render and screed",
+        "pt-BR": "Reboco e contrapiso"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the pipes tested and the conduits in place?",
+            "pt-BR": "A tubulação está testada e os eletrodutos no lugar?"
+          },
+          {
+            "en": "Is the roof on, so the render is not rained on?",
+            "pt-BR": "O telhado está pronto, para a chuva não pegar o reboco?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Is the render flat and plumb, with no hollow patches?",
+            "pt-BR": "O reboco está plano e no prumo, sem partes ocas?"
+          },
+          {
+            "en": "Did the wet areas hold water for the whole flood test?",
+            "pt-BR": "As áreas molhadas seguraram a água durante todo o teste de estanqueidade?"
+          },
+          {
+            "en": "Is the waterproofing of the wet areas photographed before the tiles cover it?",
+            "pt-BR": "A impermeabilização das áreas molhadas foi fotografada antes de o revestimento cobri-la?",
+            "photo": true
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Render",
+            "pt-BR": "Reboco"
+          },
+          "activity": "render"
+        },
+        {
+          "label": {
+            "en": "Screed",
+            "pt-BR": "Contrapiso"
+          },
+          "activity": "screed"
+        },
+        {
+          "label": {
+            "en": "Wet-area waterproofing",
+            "pt-BR": "Impermeabilização das áreas molhadas"
+          },
+          "activity": "waterproofing"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "render",
+          "name": {
+            "en": "Scratch coat and render, inside and out",
+            "pt-BR": "Chapisco e reboco, interno e externo"
+          },
+          "durationDays": {
+            "min": 8,
+            "max": 15
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        },
+        {
+          "key": "screed",
+          "name": {
+            "en": "Screed the floors",
+            "pt-BR": "Executar o contrapiso"
+          },
+          "durationDays": {
+            "min": 3,
+            "max": 6
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        },
+        {
+          "key": "waterproofing",
+          "name": {
+            "en": "Waterproof the wet areas",
+            "pt-BR": "Impermeabilizar as áreas molhadas"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 3
+          },
+          "rooms": ["kitchen", "bathroom", "laundry"]
+        }
+      ]
+    },
+    {
+      "key": "house-frames",
+      "name": {
+        "en": "Windows and doors",
+        "pt-BR": "Esquadrias"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Were the openings measured again before the windows and doors were made or bought?",
+            "pt-BR": "Os vãos foram medidos de novo antes de fazer ou comprar as esquadrias?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Do all the windows and doors open, close and lock freely?",
+            "pt-BR": "Todas as janelas e portas abrem, fecham e trancam sem forçar?"
+          },
+          {
+            "en": "Are the frames sealed against the rain on the outside?",
+            "pt-BR": "Os caixilhos estão vedados contra a chuva por fora?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Windows",
+            "pt-BR": "Janelas"
+          },
+          "activity": "windows"
+        },
+        {
+          "label": {
+            "en": "Doors and frames",
+            "pt-BR": "Portas e batentes"
+          },
+          "activity": "doors"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "windows",
+          "name": {
+            "en": "Install the windows",
+            "pt-BR": "Instalar as janelas"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        },
+        {
+          "key": "doors",
+          "name": {
+            "en": "Hang the doors",
+            "pt-BR": "Instalar as portas"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        }
+      ]
+    },
+    {
+      "key": "house-finishes",
+      "name": {
+        "en": "Floors, tiles and paint",
+        "pt-BR": "Pisos, revestimentos e pintura"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the tiles on site, from one batch, with some to spare?",
+            "pt-BR": "Os revestimentos estão na obra, do mesmo lote, com sobra?"
+          },
+          {
+            "en": "Is the render dry enough for tiles and paint?",
+            "pt-BR": "O reboco está seco o bastante para revestimento e pintura?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Are the floors level, with no hollow sound when tapped?",
+            "pt-BR": "Os pisos estão nivelados, sem som oco ao bater?"
+          },
+          {
+            "en": "Is the paint even, with no patch showing through?",
+            "pt-BR": "A pintura está uniforme, sem manchas aparecendo?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Floor and wall tiles",
+            "pt-BR": "Pisos e revestimentos"
+          }
+        },
+        {
+          "label": {
+            "en": "Tile adhesive and grout",
+            "pt-BR": "Argamassa colante e rejunte"
+          }
+        },
+        {
+          "label": {
+            "en": "Paint",
+            "pt-BR": "Tintas"
+          },
+          "activity": "paint"
+        },
+        {
+          "label": {
+            "en": "Tiling and painting labour",
+            "pt-BR": "Mão de obra de assentamento e pintura"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "tiles",
+          "name": {
+            "en": "The floor and wall tiles",
+            "pt-BR": "Os pisos e os revestimentos"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 20
+          },
+          "needs": "wall-tiles"
+        },
+        {
+          "key": "paint",
+          "name": {
+            "en": "The paint colours",
+            "pt-BR": "As cores da pintura"
+          },
+          "leadDays": {
+            "min": 2,
+            "max": 7
+          },
+          "needs": "paint"
+        }
+      ],
+      "activities": [
+        {
+          "key": "wall-tiles",
+          "name": {
+            "en": "Tile the walls of the wet areas",
+            "pt-BR": "Revestir as paredes das áreas molhadas"
+          },
+          "durationDays": {
+            "min": 4,
+            "max": 8
+          },
+          "rooms": ["kitchen", "bathroom", "laundry"]
+        },
+        {
+          "key": "floor-tiles",
+          "name": {
+            "en": "Lay the floors",
+            "pt-BR": "Assentar os pisos"
+          },
+          "durationDays": {
+            "min": 5,
+            "max": 10
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        },
+        {
+          "key": "grout",
+          "name": {
+            "en": "Grout",
+            "pt-BR": "Rejuntar"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 3
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        },
+        {
+          "key": "paint",
+          "name": {
+            "en": "Paint, inside and out",
+            "pt-BR": "Pintura interna e externa"
+          },
+          "durationDays": {
+            "min": 6,
+            "max": 12
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        }
+      ]
+    },
+    {
+      "key": "house-fit-out",
+      "name": {
+        "en": "Fixtures and connections",
+        "pt-BR": "Louças, metais e ligações"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Are the fixtures and fittings on site and checked for damage?",
+            "pt-BR": "As louças, os metais e os acabamentos estão na obra e conferidos contra avaria?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Do all the taps, the shower and the toilet run with no leak?",
+            "pt-BR": "Todas as torneiras, o chuveiro e a descarga funcionam sem vazamento?"
+          },
+          {
+            "en": "Was every circuit tested and labelled at the board?",
+            "pt-BR": "Cada circuito foi testado e identificado no quadro?"
+          },
+          {
+            "en": "Are the permanent water and power connected by the utilities?",
+            "pt-BR": "As ligações definitivas de água e energia foram feitas pelas concessionárias?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Sanitary ware and taps",
+            "pt-BR": "Louças e metais"
+          }
+        },
+        {
+          "label": {
+            "en": "Outlets, switches and lights",
+            "pt-BR": "Tomadas, interruptores e luminárias"
+          }
+        },
+        {
+          "label": {
+            "en": "Distribution board",
+            "pt-BR": "Quadro de distribuição"
+          },
+          "activity": "board"
+        },
+        {
+          "label": {
+            "en": "Utility connection fees",
+            "pt-BR": "Taxas de ligação das concessionárias"
+          },
+          "activity": "utilities"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "fixtures",
+          "name": {
+            "en": "Install the sanitary ware and the taps",
+            "pt-BR": "Instalar louças e metais"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 3
+          },
+          "rooms": ["kitchen", "bathroom", "laundry"]
+        },
+        {
+          "key": "electrical-fittings",
+          "name": {
+            "en": "Fit the outlets, the switches and the lights",
+            "pt-BR": "Instalar tomadas, interruptores e luminárias"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 3
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        },
+        {
+          "key": "board",
+          "name": {
+            "en": "Wire the board and test every circuit",
+            "pt-BR": "Montar o quadro e testar os circuitos"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "key": "utilities",
+          "name": {
+            "en": "Permanent water and power connections",
+            "pt-BR": "Ligações definitivas de água e energia"
+          },
+          "durationDays": {
+            "min": 5,
+            "max": 20
+          }
+        }
+      ]
+    },
+    {
+      "key": "house-handover",
+      "name": {
+        "en": "Cleaning and handover",
+        "pt-BR": "Limpeza e entrega"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is every snag the builder knows of put right?",
+            "pt-BR": "Todas as pendências conhecidas do construtor foram corrigidas?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Did the owner walk every room and agree the list of snags?",
+            "pt-BR": "O proprietário percorreu cada cômodo e aprovou a lista de pendências?"
+          },
+          {
+            "en": "Are the as-built drawings, the manuals and the warranties handed over?",
+            "pt-BR": "As plantas conforme construído, os manuais e as garantias foram entregues?"
+          },
+          {
+            "en": "Was the occupancy certificate asked for, where the town requires one?",
+            "pt-BR": "O habite-se foi solicitado, onde a prefeitura exige?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Final cleaning",
+            "pt-BR": "Limpeza final"
+          },
+          "activity": "clean"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "clean",
+          "name": {
+            "en": "Final clean",
+            "pt-BR": "Limpeza final"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        },
+        {
+          "key": "walk-through",
+          "name": {
+            "en": "Walk-through and list of snags",
+            "pt-BR": "Vistoria e lista de pendências"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["living-room", "kitchen", "bathroom", "bedrooms", "laundry"]
+        },
+        {
+          "key": "snags",
+          "name": {
+            "en": "Put the snags right",
+            "pt-BR": "Corrigir as pendências"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 5
+          }
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "blocker": "house-site",
+      "blocked": "house-foundations",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-foundations",
+      "blocked": "house-walls",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-walls",
+      "blocked": "house-slab",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-slab",
+      "blocked": "house-roof",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-walls",
+      "blocked": "house-services",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-roof",
+      "blocked": "house-render",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-services",
+      "blocked": "house-render",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-render",
+      "blocked": "house-frames",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-frames",
+      "blocked": "house-finishes",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-finishes",
+      "blocked": "house-fit-out",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-fit-out",
+      "blocked": "house-handover",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-site/clear",
+      "blocked": "house-site/set-out",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-foundations/excavate",
+      "blocked": "house-foundations/footings",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-foundations/footings",
+      "blocked": "house-foundations/ground-beams",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-foundations/ground-beams",
+      "blocked": "house-foundations/waterproof-beams",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-foundations/waterproof-beams",
+      "blocked": "house-foundations/backfill",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-walls/walls-lower",
+      "blocked": "house-walls/lintels",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-walls/lintels",
+      "blocked": "house-walls/walls-upper",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-walls/walls-upper",
+      "blocked": "house-walls/ring-beam",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-walls/columns",
+      "blocked": "house-walls/ring-beam",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-slab/formwork",
+      "blocked": "house-slab/slab-deck",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-slab/slab-deck",
+      "blocked": "house-slab/slab-conduits",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-slab/slab-conduits",
+      "blocked": "house-slab/pour",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-slab/pour",
+      "blocked": "house-slab/strike",
+      "lagDays": 15
+    },
+    {
+      "blocker": "house-roof/roof-structure",
+      "blocked": "house-roof/underlay",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-roof/underlay",
+      "blocked": "house-roof/lay-covering",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-roof/lay-covering",
+      "blocked": "house-roof/gutters",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-services/water-drains",
+      "blocked": "house-services/pressure-test",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-services/water-drains",
+      "blocked": "house-services/sewer",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-render/screed",
+      "blocked": "house-render/waterproofing",
+      "lagDays": 3
+    },
+    {
+      "blocker": "house-frames/windows",
+      "blocked": "house-frames/doors",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-finishes/wall-tiles",
+      "blocked": "house-finishes/floor-tiles",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-finishes/floor-tiles",
+      "blocked": "house-finishes/grout",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-finishes/grout",
+      "blocked": "house-finishes/paint",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-fit-out/board",
+      "blocked": "house-fit-out/utilities",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-handover/clean",
+      "blocked": "house-handover/walk-through",
+      "lagDays": 0
+    },
+    {
+      "blocker": "house-handover/walk-through",
+      "blocked": "house-handover/snags",
+      "lagDays": 0
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="64 88 384 336" fill="none" aria-hidden="true" focusable="false">
+  <!--
+    The monochrome mark: the same drawing as src-tauri/icons/ridgebeam.svg without its plate and
+    in one ink — currentColor — so the title bar and About colour it from the token layer, and it
+    reads the same on light, on dark and on paper. Two rafters meeting at the apex, the collar tie,
+    and the ridge beam as the one solid piece at the top.
+  -->
+  <path d="M96 392 L256 176 L416 392" stroke="currentColor" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M170 292 L342 292" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+  <rect x="196" y="112" width="120" height="60" rx="16" fill="currentColor"/>
+</svg>
