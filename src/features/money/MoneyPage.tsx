@@ -2,15 +2,18 @@ import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 
 import type { WorkSnapshot } from '@/domain/plan';
 import { useI18n } from '@/i18n/useI18n';
+import { useTerms } from '@/i18n/useTerm';
 import { InfoBar } from '@/ui/InfoBar';
 import { TabStrip } from '@/ui/TabStrip';
 
 import { ByStage } from './ByStage';
 import { ByTrade } from './ByTrade';
+import { Funding } from './Funding';
 import { Ledger } from './Ledger';
+import { RunwayCard } from './RunwayCard';
 import { SCurveChart } from './SCurveChart';
 
-type MoneyTab = 'by-stage' | 'by-trade' | 'ledger';
+type MoneyTab = 'by-stage' | 'by-trade' | 'ledger' | 'funding';
 
 /**
  * Money (slice F6): three facts from three sources — planned from cost lines, committed from the
@@ -18,6 +21,10 @@ type MoneyTab = 'by-stage' | 'by-trade' | 'ledger';
  * work's currency and in whole cents until the moment it becomes words (ADR-023, ADR-024). Three
  * arrangements of the same money: by stage, by trade, and the ledger itself; the S-curve of planned
  * against paid under them.
+ *
+ * Slice E2 adds the fourth tab, **Funding** — where the money comes from and what has arrived — and,
+ * above the tabs, **Will the money last?**: the week-by-week projection of what comes in against what
+ * goes out, said in one sentence before anything else on the page.
  *
  * Asked for from another page (D2: the Next question's "How is this commitment to be paid?"), it
  * opens By stage on that commitment's payment plan, open and focused; the request is then let go,
@@ -34,6 +41,7 @@ export function MoneyPage({
   onFocusTaken?: () => void;
 }) {
   const { t, describeError } = useI18n();
+  const term = useTerms();
   const panel = useId();
   const [tab, setTab] = useState<MoneyTab>('by-stage');
   // Held here until By stage has put the focus on it, then let go: coming back to the tab later
@@ -67,6 +75,8 @@ export function MoneyPage({
         </InfoBar>
       )}
 
+      <RunwayCard snapshot={snapshot} />
+
       <div data-testid="money-tabs">
         <TabStrip
           label={t('money.tabs')}
@@ -77,6 +87,7 @@ export function MoneyPage({
             { id: 'by-stage', label: t('money.tab.byStage') },
             { id: 'by-trade', label: t('money.tab.byTrade') },
             { id: 'ledger', label: t('money.tab.ledger') },
+            { id: 'funding', label: term('funding', { capital: true }) },
           ]}
         />
       </div>
@@ -97,6 +108,7 @@ export function MoneyPage({
         )}
         {tab === 'by-trade' && <ByTrade snapshot={snapshot} />}
         {tab === 'ledger' && <Ledger snapshot={snapshot} />}
+        {tab === 'funding' && <Funding snapshot={snapshot} outcome={outcome} />}
       </div>
 
       <SCurveChart snapshot={snapshot} />
