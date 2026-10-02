@@ -136,6 +136,11 @@ strip = true
 # `/DCTDecode` by `pdf-writer`; the JPEG marker walk that drops a photo's
 # metadata is this crate's own (`report::images`).
 #
+# D4 (the owner's snapshot) adds no crate and no feature: the page is written
+# by hand (`report::html`), its photos re-encoded by `image` and written into it
+# with `base64`, both already here; its SVG is checked in tests by a structural
+# walk, not by an XML crate.
+#
 # The widths of Helvetica and Helvetica-Bold (`report::winansi`) are numbers
 # from Adobe's Core14 AFM files, whose notice is carried in that module and in
 # NOTICE. No font file is embedded or shipped.

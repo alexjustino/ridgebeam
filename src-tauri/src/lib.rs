@@ -151,6 +151,19 @@
 //!   `care_note_move`, `care_note_remove`); `checks_add_defaults` takes the
 //!   usual checks that need a photo; `plan_apply` writes a draft check's
 //!   `needsPhoto`. No new crate, no new error kind, no new capability.
+//! - D4: the owner's snapshot. `report_html_write` renders a document of the
+//!   new kind `snapshot` as one self-contained HTML page (`report::html`):
+//!   every string escaped, a Content-Security-Policy that loads nothing but
+//!   the page's own photos and style and runs nothing, inline CSS for a phone
+//!   in light and dark, figures that open onto their rows with no script, the
+//!   schedule as an inline SVG. Its photos are found by hash as D3 finds them
+//!   and always re-encoded (1 024 px, quality 78); at most 60 of them, 8 MiB
+//!   of them and 12 MiB of file, refused with sentences. The page is verified
+//!   on its own bytes before it is written — no script, handler, address,
+//!   import, frame or element it is not made of — and a page that fails is
+//!   refused as a bug. Written through `files::save` (`.html`), opened by
+//!   `report_open` as any report. Sending it is the person's act. No new
+//!   crate, no new error kind, no new capability, no migration.
 
 pub mod commands;
 pub mod contract;
@@ -293,6 +306,7 @@ pub fn run() {
             commands::templates::template_read,
             commands::templates::template_write,
             commands::reports::report_pdf_write,
+            commands::reports::report_html_write,
             commands::reports::diary_export_pdf,
             commands::reports::diary_export_csv,
             commands::reports::work_export_json,

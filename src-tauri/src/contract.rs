@@ -80,6 +80,9 @@
 //!   document kinds (`warranty`, `manual`); care notes (`CareNote`,
 //!   `WorkSnapshot.careNotes`, by target and position). The report's `image`
 //!   block is `report::model::Block::Image`.
+//! - D4: the owner's snapshot. No new shape: `report_html_write` takes the
+//!   same `ReportDocument`, of the new kind `snapshot`, and answers
+//!   `WrittenFile` without `pages` (`{ path, bytes }`).
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -1427,7 +1430,7 @@ pub struct WrittenFile {
     pub path: String,
     /// Its size.
     pub bytes: u64,
-    /// How many pages, for a PDF; absent for a CSV or a JSON file.
+    /// How many pages, for a PDF; absent for a CSV, a JSON or an HTML file.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pages: Option<usize>,
 }
