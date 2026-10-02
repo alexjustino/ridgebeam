@@ -2,9 +2,11 @@ import {
   ChevronDown16Regular,
   ChevronRight16Regular,
   Dismiss20Regular,
+  DocumentGlobe20Regular,
 } from '@fluentui/react-icons';
 import { useCallback, useId, useMemo, useRef, useState } from 'react';
 
+import { useNavigation } from '@/app/navigation';
 import { useToday } from '@/app/today';
 import { decisionRows, decisionsDue, type DecisionDueRow } from '@/domain/decisions';
 
@@ -17,7 +19,6 @@ import {
   RULE_LABEL_KEYS,
   RULE_UNCOUNTED_KEY,
   RULES,
-  sentenceParts,
   type MissingId,
   type ReadinessRow,
   type RuleSummary,
@@ -28,7 +29,11 @@ import type { FinishProbabilityResult } from '@/domain/schedule/probability';
 import { slip } from '@/domain/schedule/slip';
 import { SlipFigure } from '@/features/schedule/SlipFigure';
 import { useFinishProbability } from '@/features/schedule/useFinishProbability';
-import { headlineText, readinessRowText } from '@/features/reports/compose/words';
+import {
+  headlineText,
+  readinessRowText,
+  readinessSentence,
+} from '@/features/reports/compose/words';
 import { RestoredNote } from '@/features/start/RestoredNote';
 import { TemplateNotes } from '@/features/templates/TemplateNotes';
 import type { MessageKey } from '@/i18n/en';
@@ -82,20 +87,17 @@ export function DashboardPage({
   closeError: string | null;
 }) {
   const i18n = useI18n();
-  const { t, tp, number } = i18n;
+  const { t, number } = i18n;
   const term = useTerms();
   const today = useToday();
+  const navigation = useNavigation();
   const title = useRef<HTMLHeadingElement>(null);
   const focusTitle = useCallback(() => title.current?.focus(), []);
   const scheduled = useMemo(() => schedule(snapshot), [snapshot]);
   const probability = useFinishProbability(snapshot, scheduled);
   const measure = readiness(snapshot, { schedule: scheduled, today });
   const figure = readinessFigure(measure);
-  const parts = sentenceParts(measure.missing);
-  const sentence =
-    parts.length === 0
-      ? t('readiness.complete')
-      : parts.map((part) => tp(part.key, part.count)).join(' ');
+  const sentence = readinessSentence(i18n, measure.missing);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-6">
@@ -109,14 +111,25 @@ export function DashboardPage({
             <p className="text-body text-fg-secondary">{snapshot.work.place}</p>
           )}
         </div>
-        <Button
-          icon={<Dismiss20Regular />}
-          data-testid="work-close"
-          onClick={onClose}
-          disabled={closing}
-        >
-          {t('shell.workClose')}
-        </Button>
+        {/* Stacked on a narrow window rather than wrapping one button alone (§4); the snapshot
+            goes to its card on Reports, where it says what the file holds before it is written. */}
+        <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-start">
+          <Button
+            icon={<DocumentGlobe20Regular />}
+            data-testid="dashboard-snapshot"
+            onClick={navigation.openSnapshot}
+          >
+            {t('dashboard.snapshot', { snapshot: term('snapshot', { capital: true }) })}
+          </Button>
+          <Button
+            icon={<Dismiss20Regular />}
+            data-testid="work-close"
+            onClick={onClose}
+            disabled={closing}
+          >
+            {t('shell.workClose')}
+          </Button>
+        </div>
       </header>
 
       {closeError !== null && (

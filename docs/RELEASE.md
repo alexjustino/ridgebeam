@@ -87,6 +87,13 @@ release that skipped a step is a release nobody can reason about afterwards.
      not reproduced. Print one page with photos on a real printer: they are sharp enough to find
      a pipe by. While a stage is still open, the first page says the book was written while the
      work was in progress;
+   - **write the owner's snapshot of a real work** with an activity starting this week, a decision
+     due within 14 days and a diary entry with a photo, and press **Open**: the system's browser shows
+     it. Then send it to a real phone yourself — by WhatsApp or by e-mail — and open it there, in light
+     and in dark: it reads as one column with no sideways scroll but inside a table, every figure
+     opens onto its rows with a tap, the photo shows, and the last line says the day and that it does
+     not change. Open the file in a text editor and search it for `<script` and `http`: neither is
+     there. Write it in Portuguese too and read the same on the phone;
    - **back up and restore a real work**: open a work with diary entries, a correction, photos
      and a PDF, and in **Settings → This work** press **Back up this work** and save the
      `.ridgebeam` file where the save dialog says. The sentence names the path, the size and how

@@ -240,6 +240,7 @@ describe('the optional question of a payment plan (D2)', () => {
               openDiary: () => undefined,
               openPlan: () => undefined,
               openPaymentPlan,
+              openSnapshot: () => undefined,
             }}
           >
             <NextQuestionCard

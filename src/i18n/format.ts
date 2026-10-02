@@ -22,6 +22,33 @@ export function formatDayShort(language: Language, day: string): string {
   return new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeZone: 'UTC' }).format(moment);
 }
 
+/**
+ * A `YYYY-MM-DD` day as the owner says a day of the next two weeks: its weekday, day and month —
+ * "Monday, Oct 5", "segunda-feira, 5 de out." — the year left out, because the days are this
+ * fortnight's (D4).
+ */
+export function formatDayWeekday(language: Language, day: string): string {
+  const moment = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(moment.getTime())) return day;
+  return new Intl.DateTimeFormat(language, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(moment);
+}
+
+/** A `YYYY-MM-DD` day as a narrow chart column names it: "Mon 5", "seg., 5". */
+export function formatDayColumn(language: Language, day: string): string {
+  const moment = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(moment.getTime())) return day;
+  return new Intl.DateTimeFormat(language, {
+    weekday: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(moment);
+}
+
 /** A `YYYY-MM-DD` day as its day and month in figures — "10/05", "05/10" — for a chart's column. */
 export function formatDayMonth(language: Language, day: string): string {
   const moment = new Date(`${day}T00:00:00Z`);

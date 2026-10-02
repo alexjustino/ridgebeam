@@ -1193,6 +1193,7 @@ export const ptBR: Dictionary = {
   'reports.path.pdf': 'Arquivo PDF',
   'reports.path.csv': 'Arquivo CSV',
   'reports.path.json': 'Arquivo JSON',
+  'reports.path.html': 'Arquivo HTML',
   'reports.choose': 'Escolher…',
   'reports.pathHint':
     'Um caminho completo, ou escolha um. Um arquivo que já existe só é substituído quando você o escolheu na janela.',
@@ -1200,6 +1201,7 @@ export const ptBR: Dictionary = {
   'reports.filter.pdf': 'Documento PDF',
   'reports.filter.csv': 'Arquivo CSV',
   'reports.filter.json': 'Arquivo JSON',
+  'reports.filter.html': 'Página da web',
   'reports.done.title': 'Gravado',
   'reports.done.pages.one': '{count} página',
   'reports.done.pages.other': '{count} páginas',
@@ -1211,6 +1213,7 @@ export const ptBR: Dictionary = {
   'reports.file.diary': '{work} diário',
   'reports.file.schedule': '{work} cronograma',
   'reports.file.handover': '{work} manual de entrega',
+  'reports.file.snapshot': '{work} retrato {day}',
 
   'reports.weekly.holds':
     'Um PDF de uma semana nas palavras do dono: os dias escritos e os dias úteis sem nada escrito, o que foi feito, quem esteve na obra, quanto o plano está pronto, quando termina e a chance de terminar até lá, as decisões a tomar, o dinheiro — com o que foi pago à frente da obra e o que é devido e não pago — e as etapas. Não traz as fotos, e anotações longas vêm encurtadas — o PDF do diário as traz inteiras.',
@@ -1396,7 +1399,55 @@ export const ptBR: Dictionary = {
     'O diário tem {count} entradas, de {from} a {to}. A cadeia dele é verificada toda vez que o diário é gravado em PDF.',
   'reports.handover.record.written': 'Este manual foi escrito em {day}.',
 
+  // ── The owner’s snapshot (D4) ─────────────────────────────────────────────
+  'reports.lookahead.figure.starting': 'Começam',
+  'reports.lookahead.figure.running': 'Em andamento',
+  'reports.lookahead.figure.people': 'Quem precisa estar lá',
+  'reports.lookahead.figure.decisions': 'Para decidir ou encomendar',
+  'reports.lookahead.figure.gates': 'Portões a seguir',
+  'reports.lookahead.figure.fallingDue': 'Pagamentos que vencem',
+  'reports.lookahead.gate.start': '{stage} começa em {day}: o portão de início',
+  'reports.lookahead.gate.close': '{stage} termina em {day}: o portão de fechamento',
+  'reports.snapshot.title': 'O {snapshot}',
+  'reports.snapshot.holds':
+    'Uma página da web para o dono, para abrir em qualquer celular ou computador: quanto o plano está pronto, quando termina e a chance de terminar até lá, as próximas duas semanas — o que começa, quem precisa estar lá, o que decidir ou encomendar, os portões e os pagamentos que vencem — as últimas entradas do diário com até duas fotos cada, e o dinheiro. Nada nela executa e nada é carregado de lugar nenhum. Ela não traz telefone nem e-mail de ninguém, nem os documentos, nem o cronograma inteiro.',
+  'reports.snapshot.sending':
+    'O Ridgebeam grava o arquivo e não envia nada: enviá-lo — por WhatsApp, por e-mail — é com você. O {snapshot} não muda quando a obra muda; grave um novo para enviar o que mudou.',
+  'reports.snapshot.write': 'Gravar o {snapshot}',
+  'reports.snapshot.subtitle': '{work} — como está em {day}',
+  'reports.snapshot.today': 'Hoje',
+  'reports.snapshot.responsible': '{responsible}: {name}',
+  'reports.snapshot.nobody': '{responsible}: ninguém ainda',
+  'reports.snapshot.starts': 'começa {day}, até {finish}',
+  'reports.snapshot.runs': 'em andamento, até {finish}',
+  'reports.snapshot.critical': 'decide a data de término',
+  'reports.snapshot.decideBy': 'decidir ou encomendar até {day}',
+  'reports.snapshot.leadTime.one': '{leadTime}: {count} dia útil, necessário em {day}',
+  'reports.snapshot.leadTime.other': '{leadTime}: {count} dias úteis, necessário em {day}',
+  'reports.snapshot.gate.noChecks': 'nada a verificar',
+  'reports.snapshot.gate.passed': 'todas as verificações respondidas',
+  'reports.snapshot.gate.holding.one': '{count} verificação ainda sem resposta: {items}',
+  'reports.snapshot.gate.holding.other': '{count} verificações ainda sem resposta: {items}',
+  'reports.snapshot.covered': '{amount} dele já pago adiantado',
+  'reports.snapshot.next.title': 'As próximas duas semanas',
+  'reports.snapshot.next.window': 'De {from} a {to}.',
+  'reports.snapshot.next.nothingPlaced':
+    'Ainda não há nada no calendário: o que segue está vazio porque o plano não tem datas, não porque as duas semanas estão calmas.',
+  'reports.snapshot.next.chart':
+    'Uma coluna para cada dia; uma barra cortada na borda continua além das duas semanas.',
+  'reports.snapshot.lately.title': 'Ultimamente na obra',
+  'reports.snapshot.lately.none': 'O diário ainda não tem nenhuma entrada.',
+  'reports.snapshot.lately.of':
+    'Os últimos {shown} de {all} dias escritos no diário; cada {entry} está inteira no diário.',
+  'reports.snapshot.lately.done': 'O que foi feito',
+  'reports.snapshot.lately.photo': '{day} — {name}',
+  'reports.snapshot.lately.morePhotos.one': 'Mais {count} foto deste dia está no diário.',
+  'reports.snapshot.lately.morePhotos.other': 'Mais {count} fotos deste dia estão no diário.',
+  'reports.snapshot.closing':
+    'Escrito pelo Ridgebeam em {day}. Um retrato: não muda quando a obra muda.',
+
   // ── A porta de entrada, completa (F10) ────────────────────────────────────
+  'dashboard.snapshot': '{snapshot}…',
   'dashboard.figure.weekEntries': 'Entradas nesta semana',
   'dashboard.figure.weekDaysWithoutEntry': 'Dias úteis sem entrada nesta semana',
   'dashboard.figure.onSite': 'Quem esteve na obra',

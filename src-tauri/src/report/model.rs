@@ -24,7 +24,7 @@
 //! On the wire (camelCase, `type` tags):
 //!
 //! ```text
-//! { kind: 'weekly' | 'diary' | 'schedule' | 'handover', title, subtitle,
+//! { kind: 'weekly' | 'diary' | 'schedule' | 'handover' | 'snapshot', title, subtitle,
 //!   pageSize: 'a4' | 'a4-landscape', language: 'en' | 'pt-BR',
 //!   blocks: [
 //!     { type: 'heading', level: 1 | 2, text }
@@ -37,6 +37,10 @@
 //!     { type: 'pageBreak' }
 //!     { type: 'image', hash, caption, size: 'full' | 'half' } ] }
 //! ```
+//!
+//! The same document is the owner's snapshot (D4, kind `snapshot`), rendered
+//! to one HTML page by `report::html` instead of laid out on paper: there
+//! `pageSize` and `pageBreak` mean nothing and are ignored.
 
 use serde::Deserialize;
 
@@ -78,6 +82,9 @@ pub enum ReportKind {
     Schedule,
     /// The handover book (D3): the work's record for its owner.
     Handover,
+    /// The owner's snapshot (D4): the work as it stands, one HTML page meant
+    /// to be sent by the person (`report::html`).
+    Snapshot,
 }
 
 /// How wide an image is printed: the line, or half of it — two half images in
@@ -509,6 +516,8 @@ pub mod tests {
         assert_eq!(portuguese.tag(), "pt-BR");
         assert!(serde_json::from_str::<Language>("\"fr\"").is_err());
         assert!(serde_json::from_str::<ReportKind>("\"invoice\"").is_err());
+        let snapshot: ReportKind = serde_json::from_str("\"snapshot\"").unwrap();
+        assert_eq!(snapshot, ReportKind::Snapshot);
     }
 
     fn refused(document: &ReportDocument) -> String {

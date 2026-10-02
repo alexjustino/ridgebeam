@@ -987,7 +987,7 @@ export interface ReportGanttRow {
   baselineLength: number | null;
 }
 
-export type ReportKind = 'weekly' | 'diary' | 'schedule' | 'handover';
+export type ReportKind = 'weekly' | 'diary' | 'schedule' | 'handover' | 'snapshot';
 
 /** What the host renders: a title for the page footer and the metadata, and the blocks. */
 export interface ReportDocument {
@@ -1016,6 +1016,26 @@ export function reportPdfWrite(
   createdAt: string,
 ): Promise<WrittenFile> {
   return invoke<WrittenFile>('report_pdf_write', {
+    path,
+    document,
+    overwrite,
+    created_at: createdAt,
+  });
+}
+
+/**
+ * The owner's snapshot (D4) as one self-contained HTML file: the same document model, rendered by the
+ * host to a page with no script and nothing loaded from anywhere (ADR-039). Photos named by hash are
+ * embedded re-encoded; the host verifies the bytes before it writes them. `.html` only; an existing
+ * file is replaced only with `overwrite`, as every report is.
+ */
+export function reportHtmlWrite(
+  path: string,
+  document: ReportDocument,
+  overwrite: boolean,
+  createdAt: string,
+): Promise<WrittenFile> {
+  return invoke<WrittenFile>('report_html_write', {
     path,
     document,
     overwrite,

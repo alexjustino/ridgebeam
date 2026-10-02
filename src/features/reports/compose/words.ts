@@ -9,7 +9,7 @@
 
 import type { DecisionRow } from '@/domain/decisions';
 import type { Weather } from '@/domain/diary';
-import type { MissingId, MissingRow } from '@/domain/readiness';
+import { sentenceParts, type MissingId, type MissingRow } from '@/domain/readiness';
 import type { Schedule, UnplacedReason } from '@/domain/schedule';
 import {
   PROBABILITY_MESSAGE_KEYS,
@@ -82,6 +82,22 @@ export function readinessRowText(
     });
   }
   return i18n.t(READINESS_ROW_KEYS[row.ruleId]);
+}
+
+/**
+ * The readiness sentence as the dashboard says it — "1 activity has no responsible. 2 activities
+ * have no duration." — from the same missing rows the figure counts, one pluralised key per rule; or
+ * that the plan knows everything it must know today. The dashboard and the owner's snapshot (D4)
+ * both say it from here, so the page sent to the owner and the screen cannot word it two ways.
+ */
+export function readinessSentence(
+  i18n: Pick<I18n, 't' | 'tp'>,
+  missing: readonly MissingRow[],
+): string {
+  const parts = sentenceParts(missing);
+  return parts.length === 0
+    ? i18n.t('readiness.complete')
+    : parts.map((part) => i18n.tp(part.key, part.count)).join(' ');
 }
 
 /** What each weather is called: in the diary's form, on every entry and on the page. */

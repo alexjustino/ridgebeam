@@ -753,6 +753,17 @@
       }
     },
     {
+      "key": "snapshot",
+      "en": {
+        "term": "owner's snapshot",
+        "sentence": "One web page, written as a file, that shows the work as it stands today: readiness, the finish and its chance, the next two weeks, the last diary entries with their photos, and the money. It opens in any phone's browser, runs nothing, and does not change when the work does. Sending it is your act; Ridgebeam sends nothing."
+      },
+      "pt-BR": {
+        "term": "retrato da obra",
+        "sentence": "Uma página da web, gravada como um arquivo, que mostra a obra como ela está hoje: prontidão, o término e a sua chance, as próximas duas semanas, as últimas entradas do diário com as fotos, e o dinheiro. Abre no navegador de qualquer celular, não executa nada e não muda quando a obra muda. Enviá-lo é um ato seu; o Ridgebeam não envia nada."
+      }
+    },
+    {
       "key": "export",
       "en": {
         "term": "export",

@@ -66,6 +66,7 @@ export const TERM_KEYS = [
   'export',
   'handoverBook',
   'careNote',
+  'snapshot',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];

@@ -44,7 +44,21 @@
 //! the JPEG streams embedded, each distinct photo once — refused with a
 //! sentence as soon as it is passed.
 //!
+//! **Two settings** (D4). A report printed as a PDF takes [`PRINTED`]: 1 600
+//! px, quality 82, the passthrough rule above. The owner's snapshot — a page
+//! meant to be sent from a phone — takes `report::html::SENT`: 1 024 px,
+//! quality 78, its own cap on the data, and **always re-encoded**, so not even
+//! a stripped original's bytes reach a file that leaves the machine. The
+//! resolution — the document row, the folder, the caps, the re-hash, the
+//! limits — is the same code for both ([`resolve_with`]).
+//!
 //! Nothing here writes a file or reaches the network.
+//!
+//! # Changelog of this module
+//!
+//! - D3: the module.
+//! - D4: [`Setting`]: the encode and the cap on the data are a setting;
+//!   [`PRINTED`] is D3's, unchanged.
 
 use std::collections::BTreeMap;
 use std::io::{Cursor, Read};
@@ -74,6 +88,32 @@ pub const MAX_IMAGE_BYTES: usize = 150 * 1024 * 1024;
 /// The sentence for a report whose images come to more than [`MAX_IMAGE_BYTES`].
 pub const TOO_MUCH_IMAGE_DATA: &str =
     "The photos of this report come to more than 150 MiB; a report holds at most 150 MiB of photos.";
+
+/// How the photos of one kind of file are prepared, and how much of them it
+/// holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Setting {
+    /// The longest edge, in pixels.
+    pub max_side: u32,
+    /// The JPEG quality a photo is re-encoded at.
+    pub quality: u8,
+    /// Whether a JPEG that already fits may go in as it is, without its
+    /// metadata (the passthrough rule); `false` re-encodes every photo.
+    pub pass_through: bool,
+    /// The most image data the file embeds, each distinct photo once.
+    pub max_bytes: usize,
+    /// The sentence when that is passed.
+    pub too_much: &'static str,
+}
+
+/// A report printed as a PDF (D3).
+pub const PRINTED: Setting = Setting {
+    max_side: MAX_SIDE,
+    quality: QUALITY,
+    pass_through: true,
+    max_bytes: MAX_IMAGE_BYTES,
+    too_much: TOO_MUCH_IMAGE_DATA,
+};
 
 /// The colour space of an embedded image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -126,17 +166,40 @@ pub fn any(blocks: &[Block]) -> bool {
 /// hold, a PDF, a file that is gone, changed, over a cap or unreadable; or
 /// for more than [`MAX_IMAGE_BYTES`] of image data.
 pub fn resolve(conn: &Connection, folder: &Path, blocks: &[Block]) -> Result<Images> {
-    resolve_within(conn, folder, blocks, MAX_IMAGE_BYTES)
+    resolve_with(conn, folder, blocks, &PRINTED)
 }
 
 /// [`resolve`] under a cap on the image data other than [`MAX_IMAGE_BYTES`] —
 /// so a test can reach the cap without writing 150 MiB of photos. The
 /// sentence names the product's cap: only a test passes another.
+#[cfg(test)]
 pub(crate) fn resolve_within(
     conn: &Connection,
     folder: &Path,
     blocks: &[Block],
     max_bytes: usize,
+) -> Result<Images> {
+    resolve_with(
+        conn,
+        folder,
+        blocks,
+        &Setting {
+            max_bytes,
+            ..PRINTED
+        },
+    )
+}
+
+/// [`resolve`], each photo prepared by `setting` and the data capped by it.
+///
+/// # Errors
+///
+/// As [`resolve`]; past `setting.max_bytes`, its own sentence.
+pub fn resolve_with(
+    conn: &Connection,
+    folder: &Path,
+    blocks: &[Block],
+    setting: &Setting,
 ) -> Result<Images> {
     let mut images = Images::new();
     let mut total = 0usize;
@@ -175,10 +238,11 @@ pub(crate) fn resolve_within(
                 "is a photo whose file is not the one recorded: it was changed outside Ridgebeam.",
             ));
         }
-        let embedded = prepare(&bytes).map_err(|why| refuse(&format!("is a photo that {why}.")))?;
+        let embedded = prepare_with(&bytes, setting)
+            .map_err(|why| refuse(&format!("is a photo that {why}.")))?;
         total += embedded.jpeg.len();
-        if total > max_bytes {
-            return Err(Error::InvalidInput(TOO_MUCH_IMAGE_DATA.into()));
+        if total > setting.max_bytes {
+            return Err(Error::InvalidInput(setting.too_much.into()));
         }
         images.insert(hash.clone(), embedded);
     }
@@ -281,6 +345,16 @@ fn limits() -> Limits {
 /// A reason, for bytes that are not an image this product keeps, a header
 /// over the side cap, or a file that cannot be decoded under the limits.
 pub fn prepare(bytes: &[u8]) -> std::result::Result<Embedded, String> {
+    prepare_with(bytes, &PRINTED)
+}
+
+/// [`prepare`] by `setting`: its long edge, its quality, and whether a JPEG
+/// that fits may pass through.
+///
+/// # Errors
+///
+/// As [`prepare`].
+pub fn prepare_with(bytes: &[u8], setting: &Setting) -> std::result::Result<Embedded, String> {
     let format = match intake::sniff(bytes) {
         Sniffed::Known(format) if format.is_image() => format,
         Sniffed::Known(_) => return Err("is a PDF, not an image".into()),
@@ -312,7 +386,7 @@ pub fn prepare(bytes: &[u8]) -> std::result::Result<Embedded, String> {
     let mut decoded = DynamicImage::from_decoder(decoder)
         .map_err(|_| "could not be decoded under the limits".to_string())?;
 
-    if format == Format::Jpeg && bytes.len() <= PASSTHROUGH_MAX_BYTES {
+    if setting.pass_through && format == Format::Jpeg && bytes.len() <= PASSTHROUGH_MAX_BYTES {
         if let Some(frame) = jpeg_frame(bytes) {
             let long = frame.width.max(frame.height);
             let fits = matches!(frame.marker, 0xC0..=0xC2)
@@ -320,7 +394,7 @@ pub fn prepare(bytes: &[u8]) -> std::result::Result<Embedded, String> {
                 && matches!(frame.components, 1 | 3)
                 && frame.width > 0
                 && frame.height > 0
-                && u32::from(long) <= MAX_SIDE
+                && u32::from(long) <= setting.max_side
                 && orientation == image::metadata::Orientation::NoTransforms
                 && u32::from(frame.width) == decoded.width()
                 && u32::from(frame.height) == decoded.height();
@@ -350,16 +424,18 @@ pub fn prepare(bytes: &[u8]) -> std::result::Result<Embedded, String> {
     let flat = on_white(decoded);
     let (w, h) = (flat.width(), flat.height());
     let long = w.max(h);
-    let flat = if long > MAX_SIDE {
-        let scale = f64::from(MAX_SIDE) / f64::from(long);
-        let nw = ((f64::from(w) * scale).round() as u32).clamp(1, MAX_SIDE);
-        let nh = ((f64::from(h) * scale).round() as u32).clamp(1, MAX_SIDE);
+    let side = setting.max_side;
+    let flat = if long > side {
+        let scale = f64::from(side) / f64::from(long);
+        let nw = ((f64::from(w) * scale).round() as u32).clamp(1, side);
+        let nh = ((f64::from(h) * scale).round() as u32).clamp(1, side);
         flat.resize_exact(nw, nh, image::imageops::FilterType::CatmullRom)
     } else {
         flat
     };
     let mut jpeg = Vec::new();
-    let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, QUALITY);
+    let mut encoder =
+        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, setting.quality);
     let (width, height) = (flat.width(), flat.height());
     if grey {
         encoder

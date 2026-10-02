@@ -1185,6 +1185,7 @@ export const en = {
   'reports.path.pdf': 'PDF file',
   'reports.path.csv': 'CSV file',
   'reports.path.json': 'JSON file',
+  'reports.path.html': 'HTML file',
   'reports.choose': 'Choose…',
   'reports.pathHint':
     'A full path, or choose one. A file that is already there is replaced only when you chose it in the dialog.',
@@ -1192,6 +1193,7 @@ export const en = {
   'reports.filter.pdf': 'PDF document',
   'reports.filter.csv': 'CSV file',
   'reports.filter.json': 'JSON file',
+  'reports.filter.html': 'Web page',
   'reports.done.title': 'Written',
   'reports.done.pages.one': '{count} page',
   'reports.done.pages.other': '{count} pages',
@@ -1203,6 +1205,7 @@ export const en = {
   'reports.file.diary': '{work} diary',
   'reports.file.schedule': '{work} schedule',
   'reports.file.handover': '{work} handover book',
+  'reports.file.snapshot': '{work} snapshot {day}',
 
   'reports.weekly.holds':
     'One PDF of a week in the owner’s words: the days written and the working days with nothing written, what was done, who was on site, how ready the plan is, when it ends and the chance of finishing by then, the decisions due, the money — with what was paid ahead of the work and what is earned and not paid — and the stages. It does not hold the photos, and long notes are shortened — the diary’s PDF has them whole.',
@@ -1385,7 +1388,55 @@ export const en = {
     'The diary holds {count} entries, from {from} to {to}. Its chain is verified each time the diary is written out as a PDF.',
   'reports.handover.record.written': 'This book was written on {day}.',
 
+  // ── The owner’s snapshot (D4) ─────────────────────────────────────────────
+  'reports.lookahead.figure.starting': 'Starting',
+  'reports.lookahead.figure.running': 'Under way',
+  'reports.lookahead.figure.people': 'Who must be there',
+  'reports.lookahead.figure.decisions': 'To decide or order',
+  'reports.lookahead.figure.gates': 'Gates coming up',
+  'reports.lookahead.figure.fallingDue': 'Payments falling due',
+  'reports.lookahead.gate.start': '{stage} starts on {day}: its start gate',
+  'reports.lookahead.gate.close': '{stage} ends on {day}: its close gate',
+  'reports.snapshot.title': 'The {snapshot}',
+  'reports.snapshot.holds':
+    'One web page for the owner, to open on any phone or computer: how ready the plan is, when it ends and the chance of finishing by then, the next two weeks — what starts, who must be there, what to decide or order, the gates and the payments falling due — the last diary entries with up to two photos each, and the money. Nothing in it runs and nothing is loaded from anywhere. It does not hold anybody’s phone or e-mail, the documents, or the whole schedule.',
+  'reports.snapshot.sending':
+    'Ridgebeam writes the file and sends nothing: sending it — by WhatsApp, by e-mail — is yours to do. The {snapshot} does not change when the work does; write a new one to send what changed.',
+  'reports.snapshot.write': 'Write the {snapshot}',
+  'reports.snapshot.subtitle': '{work} — as it stands on {day}',
+  'reports.snapshot.today': 'Today',
+  'reports.snapshot.responsible': '{responsible}: {name}',
+  'reports.snapshot.nobody': '{responsible}: nobody yet',
+  'reports.snapshot.starts': 'starts {day}, until {finish}',
+  'reports.snapshot.runs': 'under way, until {finish}',
+  'reports.snapshot.critical': 'it decides the finish date',
+  'reports.snapshot.decideBy': 'to decide or order by {day}',
+  'reports.snapshot.leadTime.one': '{leadTime}: {count} working day, needed on {day}',
+  'reports.snapshot.leadTime.other': '{leadTime}: {count} working days, needed on {day}',
+  'reports.snapshot.gate.noChecks': 'nothing to check',
+  'reports.snapshot.gate.passed': 'every check answered',
+  'reports.snapshot.gate.holding.one': '{count} check not answered yet: {items}',
+  'reports.snapshot.gate.holding.other': '{count} checks not answered yet: {items}',
+  'reports.snapshot.covered': '{amount} of it already paid ahead',
+  'reports.snapshot.next.title': 'The next two weeks',
+  'reports.snapshot.next.window': 'From {from} to {to}.',
+  'reports.snapshot.next.nothingPlaced':
+    'Nothing is on the calendar yet: what follows is empty because the plan has no dates, not because the two weeks are quiet.',
+  'reports.snapshot.next.chart':
+    'One column for each day; a bar cut at an edge goes on beyond the two weeks.',
+  'reports.snapshot.lately.title': 'Lately on site',
+  'reports.snapshot.lately.none': 'The diary has no entry yet.',
+  'reports.snapshot.lately.of':
+    'The last {shown} of {all} days written in the diary; each {entry} is whole in the diary.',
+  'reports.snapshot.lately.done': 'What was done',
+  'reports.snapshot.lately.photo': '{day} — {name}',
+  'reports.snapshot.lately.morePhotos.one': '{count} more photo of this day is in the diary.',
+  'reports.snapshot.lately.morePhotos.other': '{count} more photos of this day are in the diary.',
+  'reports.snapshot.closing':
+    'Written by Ridgebeam on {day}. A snapshot: it does not change when the work does.',
+
   // ── The front door, composed (F10) ─────────────────────────────────────────
+  'dashboard.snapshot': '{snapshot}…',
   'dashboard.figure.weekEntries': 'Entries this week',
   'dashboard.figure.weekDaysWithoutEntry': 'Working days without an entry this week',
   'dashboard.figure.onSite': 'Who was on site',

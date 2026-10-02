@@ -40,6 +40,8 @@ mod reports_tests;
 pub mod rooms;
 pub mod schedule;
 pub mod settings;
+#[cfg(test)]
+mod snapshot_tests;
 pub mod system;
 pub mod templates;
 #[cfg(test)]

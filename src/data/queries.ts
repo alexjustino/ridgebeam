@@ -47,6 +47,7 @@ import {
   diaryVerify,
   diaryExportCsv,
   diaryExportPdf,
+  reportHtmlWrite,
   reportOpen,
   reportPdfWrite,
   workExportJson,
@@ -483,12 +484,23 @@ export function useDiary(enabled: boolean) {
   return useQuery({ queryKey: keys.diary, queryFn: () => diaryList(), enabled });
 }
 
-/** Write one entry. The diary is read again; the plan is not touched, because it has not changed. */
+/**
+ * Write one entry. The diary is read again. So is the work's snapshot when the entry carries a
+ * photo: since F7 every photo copied in becomes a document of the work, and documents travel in
+ * the snapshot — left alone, Documents and every report composed from it would miss the photo
+ * until the next plan command (D4 found it: the owner's snapshot left the photo out).
+ */
 export function useAddEntry() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (draft: EntryDraft) => diaryEntryAdd(draft),
-    onSuccess: () => client.invalidateQueries({ queryKey: keys.diary }),
+    onSuccess: (_, draft) =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: keys.diary }),
+        ...(draft.photoPaths.length + draft.photoHashes.length > 0
+          ? [client.invalidateQueries({ queryKey: keys.work })]
+          : []),
+      ]),
   });
 }
 
@@ -791,6 +803,21 @@ export function useWriteReport() {
       document: ReportDocument;
       overwrite: boolean;
     }) => reportPdfWrite(path, document, overwrite, new Date().toISOString()),
+  });
+}
+
+/** The owner's snapshot (D4): a composed document, written by the host as one HTML file. */
+export function useWriteSnapshot() {
+  return useMutation({
+    mutationFn: ({
+      path,
+      document,
+      overwrite,
+    }: {
+      path: string;
+      document: ReportDocument;
+      overwrite: boolean;
+    }) => reportHtmlWrite(path, document, overwrite, new Date().toISOString()),
   });
 }
 
