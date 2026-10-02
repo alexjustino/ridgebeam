@@ -133,6 +133,14 @@ describe('E2 — will the money last: funds as plan, receipts as facts, a weekly
     await session.driver.execute(
       `document.querySelector('[data-testid="runway-card"]').scrollIntoView({ block: 'center' })`,
     );
+    // Bringing a tall card into view scrolls the content, never the window: the document is as tall
+    // as the window (found on E2's screenshots — visually hidden labels in an unpositioned scroll
+    // region stretched the document, and the whole window lifted).
+    expect(
+      await session.driver.execute<number[]>(
+        `return [window.scrollY, document.documentElement.scrollHeight - innerHeight]`,
+      ),
+    ).toEqual([0, 0]);
     await session.screenshot('e2-short-en');
   });
 
