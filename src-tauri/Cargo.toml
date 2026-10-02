@@ -68,7 +68,7 @@ lopdf = { version = "0.45", default-features = false }
 # The accent colour the desktop uses, read from the system (`os::accent`).
 # The accent colour (`os::accent`), and the account's display name, which signs
 # a diary entry (`os::account`) — the product has no accounts of its own.
-windows = { version = "0.58", features = [
+windows = { version = "0.62", features = [
     "UI_ViewManagement",
     "Foundation",
     "Win32_Foundation",
