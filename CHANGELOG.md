@@ -13,8 +13,9 @@ Nothing yet.
 
 The first release. Ridgebeam plans a building work — a bathroom, a kitchen, a roof, a house — for
 the engineer, the architect and the owner who is not either, on one Windows machine, with no
-account and no network. It is built in twelve slices, F0 to F11, and four differentiators, D1 to
-D4, each described below in the order it arrived.
+account and no network. It is built in twelve slices, F0 to F11, four differentiators, D1 to D4,
+and U1, which takes away the friction a first real week meets — each described below in the order
+it arrived, with the round of dependency updates that came between them.
 
 **What it does.** A work is a folder on the person's disk. Its plan is stages and activities on a
 working calendar, linked with lags, with the critical path and the finish date computed, and the
@@ -36,6 +37,9 @@ the owner ahead of the work is warned about before it is recorded (D2). When the
 handover book is one PDF the owner keeps — room by room, with the photos of hidden work taken before
 it was closed, which a check can require (D3). And the owner's snapshot is one HTML file, with
 nothing in it that runs or loads, that the person sends to anybody's phone themselves (D4).
+Photos and files dragged from Explorer onto the Diary or Documents are taken as if chosen, the diary
+ticks the last entry's people in one press, and the front door reminds — quietly, and never in
+place of the person — when the work has not been backed up (U1).
 
 **What it is not.** Not a signature and not legal proof: the diary's chain shows whether the file
 was changed outside the product, nothing more. Not a quote: the library carries ranges and no
