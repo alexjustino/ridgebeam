@@ -13,6 +13,7 @@ use rusqlite::Connection;
 use serde_json::json;
 
 use crate::commands::backup::*;
+use crate::commands::change_orders::{change_order_decide_with, change_order_raise_with};
 use crate::commands::checks::{check_answer_with, stage_start_with, AnswerDraft};
 use crate::commands::decisions::decision_make_with;
 use crate::commands::diary::{diary_entry_add_with, diary_list_with};
@@ -114,7 +115,8 @@ pub fn entries_of(archive: &[u8]) -> Vec<(String, Vec<u8>)> {
 /// the stage it opens started; a priced line; a commitment with its quote
 /// and its payment plan (D2);
 /// two payments with receipts and the reversal of one; the approval (baseline
-/// 1); a replanning closed by baseline 2; and a second replanning left open.
+/// 1); a replanning closed by baseline 2; a second replanning left open; and a
+/// change order raised and declined (E1).
 pub struct FullWork {
     pub db: Db,
     pub open: OpenWork,
@@ -347,6 +349,30 @@ pub fn a_full_work() -> FullWork {
     replan_open_with(&open, "The skip came late", AUTHOR).unwrap();
     take(&open);
     replan_open_with(&open, "The tiles are back-ordered", AUTHOR).unwrap();
+    // E1: a change order, raised and declined — the plan stays as it is.
+    let change = change_order_raise_with(
+        &open,
+        &from(json!({
+            "raisedOn": "2026-10-08", "title": "Heated floor", "askedBy": "other",
+            "askedByName": "The neighbour", "stageId": strip, "costCents": 250000
+        })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap()
+    .change_orders[0]
+        .id
+        .clone();
+    change_order_decide_with(
+        &open,
+        &from(json!({
+            "id": change, "outcome": "declined", "decidedOn": "2026-10-09",
+            "note": "Not in this budget."
+        })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap();
 
     let plan = work_get_with(&open).unwrap();
     assert_eq!(plan.baselines.len(), 2);

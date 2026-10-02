@@ -19,6 +19,9 @@ pub mod backup;
 #[cfg(test)]
 pub mod backup_tests;
 pub mod care_notes;
+pub mod change_orders;
+#[cfg(test)]
+mod change_orders_tests;
 pub mod checks;
 pub mod decisions;
 pub mod diary;

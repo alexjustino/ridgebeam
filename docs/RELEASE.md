@@ -131,6 +131,20 @@ release that skipped a step is a release nobody can reason about afterwards.
      file field. Write the backup there, go back to the dashboard, and the line is gone. Press **Not
      now** on another work and see it come back after a restart. In Portuguese the button reads
      _Fazer a cópia de segurança agora…_;
+   - **raise, approve and decline a change order** on an approved plan with an activity on the
+     critical path and no replanning open. Before approval, the Plan's **Changes** tab offers no
+     form and says why. After it, raise a change the owner asked for that adds an activity of 2
+     working days after the critical one, priced at 300: before it is saved, the form says it
+     finishes 2 working days later, with both dates and the money. Approve it: the dialog shows the
+     same impact and says what approving will do, and afterwards the replanning is open with the
+     reason _"Change order #1 — …"_, the new activity is in the plan with its link, and a cost line
+     _"Change order #1"_ is on its stage. Go to the Schedule and take the next baseline: its reason
+     names the change, and comparing it with the one before lists the change. Raise a second change
+     asked for by a person of the plan and decline it: nothing in the plan moves. Raise a third and
+     leave it waiting. The dashboard's **Changes** card reads +300 and +2 working days, each figure
+     opening onto its rows, and one change waiting; write the owner's snapshot and the weekly
+     report, and both say a change is waiting for a decision. Try to edit or remove a change: there
+     is no control that does it. Do it once in Portuguese, where a change order is an _aditivo_;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and

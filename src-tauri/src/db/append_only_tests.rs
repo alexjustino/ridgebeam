@@ -434,6 +434,8 @@ fn no_other_module_writes_a_baseline_table() {
         ("dependencies.rs", include_str!("dependencies.rs")),
         ("order.rs", include_str!("order.rs")),
         ("documents.rs", include_str!("documents.rs")),
+        ("change_orders.rs", include_str!("change_orders.rs")),
+        ("change_effects.rs", include_str!("change_effects.rs")),
     ];
     for (file, source) in sources {
         let product = source.split("#[cfg(test)]").next().unwrap_or(source);

@@ -45,6 +45,7 @@ import { FigureRow } from '@/ui/FigureRow';
 import { InfoBar } from '@/ui/InfoBar';
 
 import { BackupReminder } from './BackupReminder';
+import { ChangesCard } from './ChangesCard';
 import { DocumentsCard } from './DocumentsCard';
 import { MoneyCard } from './MoneyCard';
 import { NextQuestionCard } from './NextQuestionCard';
@@ -188,6 +189,8 @@ export function DashboardPage({
       <StagesCard snapshot={snapshot} />
 
       <MoneyCard snapshot={snapshot} />
+
+      <ChangesCard snapshot={snapshot} today={today} />
 
       <DocumentsCard snapshot={snapshot} />
 

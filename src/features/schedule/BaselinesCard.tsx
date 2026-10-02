@@ -4,6 +4,7 @@ import {
   compareBaselines,
   comparisonFigures,
   defaultPair,
+  explainedByChanges,
   type Comparison,
   type MoneyChange,
 } from '@/domain/baselines';
@@ -16,6 +17,13 @@ import { Card } from '@/ui/Card';
 import { InfoBar } from '@/ui/InfoBar';
 import { Select } from '@/ui/Select';
 
+import {
+  changeDaysText,
+  changeRowTitle,
+  changeStateText,
+  decidedImpactSentence,
+  moneyMoveText,
+} from '../plan/changeWords';
 import { useDaysText } from './days';
 
 /** How the summary line counts each of the comparison's figures, by the figure's id. */
@@ -26,6 +34,7 @@ const SUMMARY: Record<string, PluralBase> = {
   'baselines:activitiesRemoved': 'baselines.summary.activitiesRemoved',
   'baselines:stagesAdded': 'baselines.summary.stagesAdded',
   'baselines:stagesRemoved': 'baselines.summary.stagesRemoved',
+  'baselines:changes': 'baselines.summary.changes',
 };
 
 /**
@@ -58,7 +67,15 @@ export function BaselinesCard({ snapshot }: { snapshot: WorkSnapshot }) {
   if (baselines.length === 0) return null;
 
   const result =
-    pair === null ? null : compareBaselines(baselines, pair.a, pair.b, workingCalendarOf(snapshot));
+    pair === null
+      ? null
+      : compareBaselines(
+          baselines,
+          pair.a,
+          pair.b,
+          workingCalendarOf(snapshot),
+          snapshot.changeOrders,
+        );
 
   const name = (number: number) =>
     t('baselines.name', { baseline: term('baseline', { capital: true }), number });
@@ -157,7 +174,12 @@ export function BaselinesCard({ snapshot }: { snapshot: WorkSnapshot }) {
               </div>
             )}
             {result !== null && result.ok && (
-              <ComparisonView comparison={result.comparison} currency={currency} name={name} />
+              <ComparisonView
+                comparison={result.comparison}
+                currency={currency}
+                name={name}
+                changeOrders={snapshot.changeOrders}
+              />
             )}
           </div>
         )}
@@ -171,12 +193,17 @@ function ComparisonView({
   comparison,
   currency,
   name,
+  changeOrders,
 }: {
   comparison: Comparison;
   currency: string;
   name: (number: number) => string;
+  changeOrders: WorkSnapshot['changeOrders'];
 }) {
-  const { t, tp, day } = useI18n();
+  const i18n = useI18n();
+  const { t, tp, day } = i18n;
+  // What of the move the change orders approved between the two explain (E1), when any were.
+  const explained = comparison.changes.rows.length === 0 ? null : explainedByChanges(comparison);
   const term = useTerms();
   const days = useDaysText();
   const figures = comparisonFigures(comparison);
@@ -294,6 +321,34 @@ function ComparisonView({
       <Rows figure={comparison.stagesRemoved} attribute="data-compare-stage-removed">
         {(row) => <span className="font-semibold text-fg">{row.name}</span>}
       </Rows>
+
+      <Rows figure={comparison.changes} attribute="data-compare-change">
+        {(row) => {
+          const change = changeOrders.find((each) => each.id === row.changeOrderId);
+          return (
+            <>
+              <span className="font-semibold text-fg">{changeRowTitle(i18n, row)}</span>
+              <span aria-hidden="true"> — </span>
+              <span>
+                {change === undefined
+                  ? t('changes.state.approved', { day: day(row.decidedOn) })
+                  : t('baselines.row.change', {
+                      state: changeStateText(i18n, change),
+                      impact: decidedImpactSentence(i18n, change, currency) ?? '',
+                    })}
+              </span>
+            </>
+          );
+        }}
+      </Rows>
+      {explained !== null && (
+        <p data-testid="compare-changes" className="text-body text-fg">
+          {t('baselines.changes.explained', {
+            cost: moneyMoveText(i18n, explained.costCents, currency),
+            days: changeDaysText(i18n, explained.days),
+          })}
+        </p>
+      )}
 
       <p data-testid="compare-money" className="text-body text-fg">
         <MoneyText change={comparison.money} currency={currency} />

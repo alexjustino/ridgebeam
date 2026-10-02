@@ -17,14 +17,18 @@
  * defined"). Slice F6 adds the second: every stage has its money planned, at least one cost line
  * of its own or on one of its activities. Slice F9 makes that line a **priced** one: a line a template
 brought is a label until somebody writes its amount, and a label is not money planned. (Every line
-before F9 is priced, so no existing work's readiness moves.) Later slices add rules as new rows here, without changing
- * the shape.
+before F9 is priced, so no existing work's readiness moves.) Slice E1 adds one over change orders:
+ * a change must not wait more than seven calendar days for its decision (a change waiting is
+ * something the plan does not know: its price and its date are not yet the plan's). A decided change
+ * holds, as a made decision does. Later slices add rules as new rows here, without changing the
+ * shape.
  *
  * What this module is not: text. It holds message keys, never English or Portuguese; the i18n
  * tables turn a key and a count into "1 activity has no responsible." or "1 atividade não tem
  * responsável.".
  */
 
+import { waitsTooLong, type ChangeOrderRow } from '../changes';
 import type { DecisionRow } from '../decisions';
 import {
   hasDuration,
@@ -46,8 +50,11 @@ export type DecisionRuleId = 'decision.deadline' | 'decision.timely';
 /** The rules over stages. */
 export type StageRuleId = 'stage.checks' | 'stage.money';
 
+/** The rules over change orders (slice E1). */
+export type ChangeRuleId = 'change.waiting';
+
 /** The rules that exist today. */
-export type RuleId = ActivityRuleId | DecisionRuleId | StageRuleId;
+export type RuleId = ActivityRuleId | DecisionRuleId | StageRuleId | ChangeRuleId;
 
 /** What a missing row can be missing: a rule that failed, or the plan having nothing to test. */
 export type MissingId = RuleId | 'plan.activity';
@@ -64,6 +71,7 @@ export const READINESS_MESSAGE_KEYS = {
   'decision.timely': 'readiness.missing.decision.timely',
   'stage.checks': 'readiness.missing.stage.checks',
   'stage.money': 'readiness.missing.stage.money',
+  'change.waiting': 'readiness.missing.change.waiting',
   'plan.activity': 'readiness.missing.plan.activity',
 } as const satisfies Record<MissingId, string>;
 
@@ -78,6 +86,7 @@ export const RULE_LABEL_KEYS = {
   'decision.timely': 'readiness.rule.decision.timely',
   'stage.checks': 'readiness.rule.stage.checks',
   'stage.money': 'readiness.rule.stage.money',
+  'change.waiting': 'readiness.rule.change.waiting',
 } as const satisfies Record<RuleId, string>;
 
 /**
@@ -92,6 +101,7 @@ export const RULE_EXPLANATION_KEYS = {
   'decision.timely': 'readiness.explanation.decision.timely',
   'stage.checks': 'readiness.explanation.stage.checks',
   'stage.money': 'readiness.explanation.stage.money',
+  'change.waiting': 'readiness.explanation.change.waiting',
 } as const satisfies Record<RuleId, string>;
 
 /**
@@ -129,7 +139,13 @@ export type DecisionRule = RuleShape<DecisionRuleId, 'decision', DecisionRow>;
 /** One thing the plan must know about every stage. */
 export type StageRule = RuleShape<StageRuleId, 'stage', Stage>;
 
-export type Rule = ActivityRule | DecisionRule | StageRule;
+/**
+ * One thing the plan must know about every change order. The row is the change with how long it has
+ * waited already computed against today (`changeOrderRows`), so the rule needs no clock.
+ */
+export type ChangeRule = RuleShape<ChangeRuleId, 'change', ChangeOrderRow>;
+
+export type Rule = ActivityRule | DecisionRule | StageRule | ChangeRule;
 
 const linkedCache = new WeakMap<WorkSnapshot, ReadonlySet<string>>();
 
@@ -225,5 +241,24 @@ export const STAGE_RULES: readonly StageRule[] = [
   },
 ];
 
+/** The rules over change orders, in the order their sentences are said. */
+export const CHANGE_RULES: readonly ChangeRule[] = [
+  {
+    id: 'change.waiting',
+    appliesTo: 'change',
+    // Every change is asked, decided or not, as every decision is: a decided one is known. A waiting
+    // one whose wait cannot be counted (today is not a day) is not asked.
+    applies: (change) => change.state !== 'pending' || change.waitedDays !== null,
+    // Seven calendar days waited is still in time; the eighth is not (CHANGE_WAITING_LIMIT_DAYS).
+    holds: (change) => !waitsTooLong(change),
+    messageKey: READINESS_MESSAGE_KEYS['change.waiting'],
+  },
+];
+
 /** Every rule, in the order their sentences are said and their lines are listed. */
-export const RULES: readonly Rule[] = [...ACTIVITY_RULES, ...DECISION_RULES, ...STAGE_RULES];
+export const RULES: readonly Rule[] = [
+  ...ACTIVITY_RULES,
+  ...DECISION_RULES,
+  ...STAGE_RULES,
+  ...CHANGE_RULES,
+];

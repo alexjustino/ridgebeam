@@ -58,6 +58,8 @@ import {
   calendarSet,
   careNoteAdd,
   careNoteMove,
+  changeOrderDecide,
+  changeOrderRaise,
   careNoteRemove,
   careNoteUpdate,
   checkAdd,
@@ -130,6 +132,8 @@ import {
   type BaselineRowDraft,
   type CalendarDraft,
   type CareNoteTarget,
+  type ChangeOrderDecisionDraft,
+  type ChangeOrderDraft,
   type DecisionPatch,
   type EntryDraft,
   type Gate,
@@ -603,6 +607,16 @@ export function useUpdateCareNote() {
 
 export function useRemoveCareNote() {
   return useWorkCommand((id: string) => careNoteRemove(id));
+}
+
+// ── Change orders (E1) ───────────────────────────────────────────────────────
+
+export function useRaiseChange() {
+  return useWorkCommand((draft: ChangeOrderDraft) => changeOrderRaise(draft));
+}
+
+export function useDecideChange() {
+  return useWorkCommand((decision: ChangeOrderDecisionDraft) => changeOrderDecide(decision));
 }
 
 // ── People and money (F6) ────────────────────────────────────────────────────

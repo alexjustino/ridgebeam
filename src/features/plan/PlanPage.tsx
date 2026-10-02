@@ -13,13 +13,15 @@ import { TabStrip } from '@/ui/TabStrip';
 
 import { Breakdown } from './Breakdown';
 import { ByRoom } from './ByRoom';
+import { ChangesTab } from './ChangesTab';
 import { Checklist } from './Checklist';
 import { GatesTab } from './GatesTab';
 import { HandoverTab } from './HandoverTab';
 import { PeopleTab } from './PeopleTab';
 import type { Outcome } from './outcome';
 
-export type PlanTab = 'breakdown' | 'by-room' | 'checklist' | 'gates' | 'people' | 'handover';
+export type PlanTab =
+  'breakdown' | 'by-room' | 'checklist' | 'gates' | 'people' | 'handover' | 'changes';
 
 /**
  * The arrangement each lens opens on (ADR-014): the engineer's work breakdown, the architect's
@@ -48,6 +50,10 @@ const TAB_FOR_LENS: Record<LensChoice, PlanTab> = {
  * **Handover** (D3, decision 7) holds what the owner keeps when the work ends: the care notes of the
  * work, each room and each stage, and the hidden work — every check that needs its photo, with its
  * state — each leading to its item on the Gates tab.
+ *
+ * **Changes** (E1, decision 6) is the record of change orders once the plan is approved: each raised
+ * with who asked, its price and its impact on the finish computed before anybody decides, and decided
+ * once — approved, declined or withdrawn.
  */
 export function PlanPage({
   snapshot,
@@ -55,6 +61,8 @@ export function PlanPage({
   onCalendarOpen,
   initialFocus = null,
   onFocusTaken,
+  initialTab = null,
+  onTabTaken,
 }: {
   snapshot: WorkSnapshot;
   calendarOpen: boolean;
@@ -62,13 +70,16 @@ export function PlanPage({
   /** A row to open the breakdown on, focused — asked for from another page. */
   initialFocus?: string | null;
   onFocusTaken?: () => void;
+  /** A tab to open on — asked for from another page (E1: the dashboard's Changes card). */
+  initialTab?: PlanTab | null;
+  onTabTaken?: () => void;
 }) {
   const { t, describeError } = useI18n();
   const term = useTerms();
   const settings = useSettings();
   const lens = settings.data?.lens ?? DEFAULT_LENS;
   const [tab, setTab] = useState<PlanTab>(() =>
-    initialFocus === null ? TAB_FOR_LENS[lens] : 'breakdown',
+    initialTab !== null ? initialTab : initialFocus === null ? TAB_FOR_LENS[lens] : 'breakdown',
   );
   const [focusRow, setFocusRow] = useState<string | null>(initialFocus);
   const [focusCheck, setFocusCheck] = useState<string | null>(null);
@@ -81,6 +92,9 @@ export function PlanPage({
   useEffect(() => {
     if (initialFocus !== null) onFocusTaken?.();
   }, [initialFocus, onFocusTaken]);
+  useEffect(() => {
+    if (initialTab !== null) onTabTaken?.();
+  }, [initialTab, onTabTaken]);
 
   const outcome: Outcome = useMemo(
     () => ({
@@ -137,6 +151,7 @@ export function PlanPage({
             { id: 'gates', label: t('plan.tab.gates') },
             { id: 'people', label: t('plan.tab.people') },
             { id: 'handover', label: t('plan.tab.handover') },
+            { id: 'changes', label: t('plan.tab.changes') },
           ]}
         />
       </div>
@@ -164,6 +179,7 @@ export function PlanPage({
         )}
         {tab === 'people' && <PeopleTab snapshot={snapshot} />}
         {tab === 'handover' && <HandoverTab snapshot={snapshot} onGates={gates} />}
+        {tab === 'changes' && <ChangesTab snapshot={snapshot} />}
       </div>
 
       {/* Mounted only while open, so each opening starts from the plan as it is now. */}

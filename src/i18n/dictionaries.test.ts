@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { COMPARISON_LABEL_KEYS, COMPARISON_PROBLEM_KEYS } from '@/domain/baselines';
+import { CHANGE_LABEL_KEYS, CHANGE_PROBLEM_KEYS } from '@/domain/changes';
 import {
   DEFAULT_CHECK_KEYS,
   GATES_HELD_LABEL_KEY,
@@ -216,6 +217,8 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         ...Object.values(HANDOVER_GAP_KEYS),
         ...Object.values(HANDOVER_LABEL_KEYS),
         ...LOOKAHEAD_MESSAGE_KEYS,
+        ...Object.values(CHANGE_PROBLEM_KEYS),
+        ...Object.values(CHANGE_LABEL_KEYS),
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }

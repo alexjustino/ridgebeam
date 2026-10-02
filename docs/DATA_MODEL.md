@@ -684,6 +684,100 @@ time. **A target is not a foreign key** — one column cannot reference three ta
 removes the notes that name a room or a stage in the same transaction that removes it; nothing is
 left pointing at a target that is gone.
 
+### `change_order` and `change_order_decision` — insert-only (E1)
+
+After the plan is approved, a change of scope is a request on record: who asked, what changes, what
+it costs, and what it does to the finish, computed by the schedule before anybody decides
+(ADR-041). Two tables, both **insert-only**: a change is raised once and decided once, and neither
+row is ever edited or removed. A mistake is withdrawn and raised again, and the record keeps both.
+
+| `change_order`       | Type    | Meaning                                                                                                            |
+| -------------------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `id`                 | TEXT    | UUID v7                                                                                                            |
+| `number`             | INTEGER | 1, 2, … — the next after the highest already written; unique, never reused, so a withdrawn change keeps its number |
+| `raised_on`          | TEXT    | the ISO day it was raised                                                                                          |
+| `title`              | TEXT    | 1–200 characters, not blank — _Extra socket in the kitchen_                                                        |
+| `description`        | TEXT    | up to 2 000 characters, or `NULL`                                                                                  |
+| `asked_by`           | TEXT    | `owner`, `person` or `other`                                                                                       |
+| `asked_by_person_id` | TEXT    | the person of the plan who asked — required when `asked_by` is `person`, `NULL` otherwise; **not a foreign key**   |
+| `asked_by_name`      | TEXT    | the name of somebody outside the plan, 1–120 characters — required when `asked_by` is `other`, `NULL` otherwise    |
+| `stage_id`           | TEXT    | the stage the change lands on; **not a foreign key**                                                               |
+| `cost_cents`         | INTEGER | the price, signed — a change can save money; `NULL` for a change **not priced**, which is not 0                    |
+| `effects`            | TEXT    | a JSON array of effects (below), validated by the host when the change is raised                                   |
+| `author_name`        | TEXT    | the display name of the Windows account that raised it                                                             |
+| `created_at`         | TEXT    | UTC                                                                                                                |
+
+| `change_order_decision` | Type    | Meaning                                                                                                             |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `change_order_id`       | TEXT    | primary key — **one decision per change**; a decision on a change the work does not have is refused                 |
+| `outcome`               | TEXT    | `approved`, `declined` or `withdrawn`                                                                               |
+| `decided_on`            | TEXT    | the ISO day it was decided                                                                                          |
+| `note`                  | TEXT    | up to 2 000 characters, or `NULL`                                                                                   |
+| `finish_before`         | TEXT    | the finish date before the change, as the schedule said at the moment of deciding, or `NULL`                        |
+| `finish_after`          | TEXT    | the finish date with the change applied, as the schedule said at the moment of deciding, or `NULL`                  |
+| `days_delta`            | INTEGER | the working days between the two, signed, as the domain computed them at the moment of deciding and sent; or `NULL` |
+| `cost_cents`            | INTEGER | the change's price, copied from it                                                                                  |
+| `replanning_id`         | TEXT    | the replanning the approval opened or joined; `NULL` for a decline or a withdrawal                                  |
+| `author_name`           | TEXT    | the display name of the Windows account that decided it                                                             |
+| `created_at`            | TEXT    | UTC                                                                                                                 |
+
+**The effects.** `effects` holds a JSON array of at most 50 effects, each one of three kinds; an
+empty array is a change that is only money.
+
+```json
+[
+  { "kind": "add", "name": "Extra socket", "durationDays": 2, "after": "<activity id>" },
+  { "kind": "duration", "activityId": "<activity id>", "durationDays": 5 },
+  { "kind": "remove", "activityId": "<activity id>" }
+]
+```
+
+**`add`** is a new activity in the change's stage, named in 1–200 characters, of 1–3 650 working
+days, finish-to-start after `after` — an existing activity — or after none when `after` is `null`;
+**`duration`** sets an existing activity's duration, 1–3 650 working days; **`remove`** drops an
+activity, which narrows the scope. When the change is raised the host checks the kinds and the
+ranges; that every activity named exists and is not in a closed stage; that a new duration lies
+inside the activity's range, when it has one; that an activity a payment milestone is earned by is
+not removed; that no activity is named against itself — removed and changed, removed and followed,
+or changed twice; and that the change's stage exists and is not closed — and refuses the change with
+a sentence otherwise. It stores the array as it was validated and never computes a schedule from it:
+the impact is the domain's (`withEffects`, `changeImpact`).
+
+**Who asked, and where it lands, are not foreign keys.** A person removed from the plan, or a stage
+removed after the change was decided, leaves the change order as it was written; the interface says
+the person or the stage is no longer in the plan rather than losing the record.
+
+**The decision freezes the impact.** `finish_before`, `finish_after` and `days_delta` are the
+schedule as it was on the day of the decision: the interface's domain computes them and sends them,
+and the host stores them as the facts of that moment. They are never recomputed — the plan may move
+later for other reasons, and the record keeps what was known when somebody said yes.
+
+**What an approval writes.** In one transaction: a replanning opened with the reason _"Change order
+#N — {title}"_ when none is open (when one is, the change joins it and its reason is not rewritten);
+the effects applied as ordinary rows — an `activity` and its `dependency` added, an activity's
+duration changed, an activity removed — through the same functions the plan's commands use; a
+`cost_line` on the change's stage labelled _"Change order #N"_, with no activity, when the change is
+priced at 0 or more — a saving adds no line, since a planned amount is never negative, and the
+person lowers the plan's own lines by hand in the same replanning; and the decision, carrying the
+replanning's id. If any of it is refused, nothing is written. A decline or a withdrawal writes only
+the decision.
+
+**Insert-only, behind the host.** Migration 013 gives both tables the battery of migrations 003,
+007 and 009: triggers refuse `UPDATE` and `DELETE`, and a guard before insert refuses a key — or,
+for a change, a number — that is already there, so `INSERT OR REPLACE` cannot remove a row whether
+`recursive_triggers` is on or off; a change whose number is not the next one is refused too. Each
+raises `change order: append-only`. What the host refuses first with a sentence, the schema
+refuses again, so a file written by something else holds the same rules: a change raised before
+the plan is approved (`change order: plan not approved`); a decision for a change that is not
+there, dated before the change was raised, or carrying another price than the change's (`change
+order: decision`); an `effects` that is not a JSON array of at most 50; and a replanning named by
+anything but an approval, or an approval that names none. The Rust module that writes them
+(`db/change_orders.rs`) holds no `UPDATE`, `DELETE` or `REPLACE`, and a test reads its source to
+prove it. **Every figure is computed**: the tally — how
+many changes approved, declined, withdrawn and waiting, the price and the working days of the
+approved ones, and who asked them — is the domain's (`changeTally`), from these rows, each figure
+with its rows.
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -712,6 +806,7 @@ count of missing rows per rule, in the person's language.
 | `decision.timely`      | F3    | every decision whose deadline is known   | it is made, or its deadline is today or later                                                | "2 decisions are overdue."               |
 | `stage.checks`         | F5    | every stage                              | it has at least one check at its start gate and one at its close gate                        | "2 stages have no checks."               |
 | `stage.money`          | F6    | every stage                              | it has at least one **priced** cost line, its own or one of its activities' (priced from F9) | "2 stages have no money planned."        |
+| `change.waiting`       | E1    | every change order                       | it is decided, or it was raised 7 calendar days ago or less                                  | "1 change is waiting for a decision."    |
 
 A plan with no activity at all is not ready: it has one missing row, "The plan has no activity
 yet.", and a figure of 0 %. The nouns in the sentences follow the lens — the owner reads "job"
@@ -771,7 +866,8 @@ migration each database has been through, by number and name.
 - Every table that must never lose a row is insert-only: triggers refuse `UPDATE`, `DELETE`
   and `REPLACE`, and the Rust module that writes it contains no `UPDATE` or `DELETE` statement,
   by rule. **Shipped for the baselines (F2) and the diary (F4)**, whose entries also carry the
-  hash of the one before; the payments ledger (F6) follows the same pattern.
+  hash of the one before; the payments ledger (F6) and the change orders (E1) follow the same
+  pattern.
 - Text columns that a person types are bounded by `CHECK (length(...) <= n)` in the schema.
 
 ## Migrations
@@ -794,6 +890,7 @@ covered by a round-trip test that opens a work at version N-1 and migrates it wi
 | `010_templates.sql`                  | F9    | `activity.duration_min_days` and `.duration_max_days`; `decision.lead_min_days` and `.lead_max_days`; `work.template_id`, `.template_version` and `.template_title`; `cost_line` rebuilt with `amount_cents` nullable |
 | `011_payment_milestones.sql`         | D2    | `payment_milestone` with its `CHECK`s and its triggers: an activity of the commitment's stage, at most 100 % per commitment, and locked once a payment names the commitment                                           |
 | `012_handover.sql`                   | D3    | `stage_check.needs_photo` and the trigger that refuses a `yes` without a photo on such a check; `document` rebuilt with the kinds `warranty` and `manual`, its links set aside and restored; `care_note`              |
+| `013_change_orders.sql`              | E1    | `change_order` and `change_order_decision`, each with its `CHECK`s and the insert-only battery of migrations 003, 007 and 009                                                                                         |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its stages
 and activities migrates to schema 2 without loss, a work at schema 2 with rooms and quantities
@@ -809,6 +906,7 @@ with commitments, payments and a diary migrates to schema 11 with every amount k
 invented, the paid commitment's plan locked from the start — a reversal does not unlock it — and its
 chain still verifying, and a work at schema 11 with documents and their links migrates to schema 12
 with every document, id and link kept, every check not needing a photo and its chain still
+verifying, and a work at schema 12 migrates to schema 13 losing nothing, with its chain still
 verifying.
 
 **Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
@@ -867,6 +965,10 @@ and `care_note` starts empty: no answer, document or figure an earlier slice sho
 with no payment plan, which the domain reads as _not evaluated_ — never as earned, never as paid
 ahead — so no figure an earlier slice showed moves with the migration.
 
+**Migration 013 adds two tables and nothing else.** No existing row changes: a work migrated from
+schema 12 has no change order, so the tally is empty, readiness's new rule applies to nothing, and
+no figure an earlier slice showed moves with the migration.
+
 The migrations live in `src-tauri/work_migrations/`.
 
 ## A comparison, a what-if and a chance are computed, not stored
@@ -883,6 +985,12 @@ the durations, the ranges, the links, the calendar and the diary's actuals — e
 asks, seeded by a hash of those inputs so the same plan gives the same numbers
 ([ADR-035](architecture/ADR.md#adr-035)). No table holds a run, a seed or a chance, and the plan's
 own dates are the schedule's, untouched.
+
+A change order's impact (E1) is computed the same way as a what-if — its effects applied to a copy
+of the snapshot in memory (`withEffects`) and scheduled — every time a screen shows a change still
+waiting. Only the decision stores it, once: the finish before and after and the working days
+between them, as they were on the day somebody decided, never recomputed
+([ADR-041](architecture/ADR.md#adr-041)).
 
 ## Not yet in the schema
 
@@ -917,12 +1025,12 @@ field means, or removes one, takes the next number.
 }
 ```
 
-| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                                                                         |
-| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks — each saying whether it needs a photo — and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, the care notes, and the open replanning |
-| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                                                            |
+| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks — each saying whether it needs a photo — and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, the care notes, the change orders each with its decision or none, and the open replanning |
+| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                                                                                                              |
 
 Field names are camelCase, as the interface receives them; money is whole minor units, dates are
 `YYYY-MM-DD` and instants UTC, as everywhere in this model. Nothing is computed: no schedule, no

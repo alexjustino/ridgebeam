@@ -19,6 +19,9 @@ import type { Direction } from '@/domain/ordering';
 import type {
   Answer,
   CareTargetKind,
+  ChangeAskedBy,
+  ChangeEffect,
+  ChangeOrderOutcome,
   DocumentKind,
   Endpoint,
   Gate,
@@ -205,6 +208,13 @@ export const LIMITS = {
   hoursPerDay: 24,
   replanReason: 2000,
   careNote: 1000,
+  changeTitle: 200,
+  changeDescription: 2000,
+  changeAskedByName: 120,
+  changeNote: 2000,
+  changeEffects: 50,
+  /** An added activity's name: an activity's name, as the host keeps it. */
+  changeEffectName: 120,
 } as const;
 
 // ── The application ──────────────────────────────────────────────────────────
@@ -832,6 +842,55 @@ export function careNoteRemove(id: string): Promise<WorkSnapshot> {
 /** Within its target. */
 export function careNoteMove(id: string, direction: Direction): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('care_note_move', { id, direction });
+}
+
+// ── Change orders (E1) ───────────────────────────────────────────────────────
+//
+// A change order is raised on the record and decided once: approved, declined or withdrawn. Both
+// tables are insert-only (ADR-041): there is no command that edits or removes either, and there
+// never will be — a mistake is withdrawn and raised again. The impact a decision carries is the
+// schedule's, computed by the domain at the moment of deciding and sent as that day's fact; the
+// host never computes a schedule.
+
+/** A change as it is raised. */
+export interface ChangeOrderDraft {
+  /** `YYYY-MM-DD`: the day it is raised. */
+  raisedOn: string;
+  title: string;
+  description: string | null;
+  askedBy: ChangeAskedBy;
+  /** Set exactly when `askedBy` is `person`. */
+  askedByPersonId: string | null;
+  /** Set exactly when `askedBy` is `other`. */
+  askedByName: string | null;
+  stageId: string;
+  /** Signed: a change can save money; `null` when it is not priced. */
+  costCents: number | null;
+  effects: readonly ChangeEffect[];
+}
+
+export function changeOrderRaise(draft: ChangeOrderDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('change_order_raise', { draft });
+}
+
+/**
+ * The one decision on a change. `finishBefore`, `finishAfter` and `daysDelta` are the impact the
+ * domain computed as the person decided; an approval applies the effects inside the open replanning
+ * (or opens one naming the change) and adds its money as a cost line, in one transaction.
+ */
+export interface ChangeOrderDecisionDraft {
+  id: string;
+  outcome: ChangeOrderOutcome;
+  /** `YYYY-MM-DD`. */
+  decidedOn: string;
+  note: string | null;
+  finishBefore: string | null;
+  finishAfter: string | null;
+  daysDelta: number | null;
+}
+
+export function changeOrderDecide(decision: ChangeOrderDecisionDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('change_order_decide', { decision });
 }
 
 // ── People as contacts, documents and the folder (F7) ────────────────────────

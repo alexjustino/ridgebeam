@@ -83,6 +83,15 @@
 //! - D4: the owner's snapshot. No new shape: `report_html_write` takes the
 //!   same `ReportDocument`, of the new kind `snapshot`, and answers
 //!   `WrittenFile` without `pages` (`{ path, bytes }`).
+//! - E1: change orders (`ChangeOrder`, `ChangeOrderDecision`, `ChangeEffect`;
+//!   `WorkSnapshot.changeOrders`, by number, each with its decision or
+//!   `null`); `ChangeOrderDraft` (with `ChangeEffectDraft`, an effect as the
+//!   interface sends it) for `change_order_raise`, `ChangeOrderDecisionDraft`
+//!   for `change_order_decide`. An effect is tagged by `kind` — `add`,
+//!   `duration`, `remove` — and its fields are camelCase. Amounts are signed
+//!   whole minor units (`costCents`, `null` when not priced); days are working
+//!   days. The impact on the finish is not computed here: it is the domain's,
+//!   sent with the decision and kept as the fact of that moment.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -379,6 +388,187 @@ pub struct WorkSnapshot {
     /// Care notes (D3): the work's first, then each room's in the rooms'
     /// order, then each stage's in the stages' order; by position within each.
     pub care_notes: Vec<CareNote>,
+    /// Change orders (E1), by number, each with its decision or `null` while
+    /// it waits for one. Empty before the plan is approved: there are none.
+    pub change_orders: Vec<ChangeOrder>,
+}
+
+/// What a change does to the plan (E1), as data the schedule can compute.
+/// Tagged by `kind`; its fields are camelCase. Durations are whole working
+/// days, 1 to 3650.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum ChangeEffect {
+    /// A new activity in the change's stage, finish-to-start after `after`.
+    Add {
+        /// Its name, 1 to 120 characters.
+        name: String,
+        /// Its duration.
+        duration_days: i64,
+        /// The activity it starts after, or `null` for none.
+        after: Option<String>,
+    },
+    /// An existing activity's new duration.
+    Duration {
+        /// The activity.
+        activity_id: String,
+        /// Its new duration.
+        duration_days: i64,
+    },
+    /// An existing activity dropped — scope reduced.
+    Remove {
+        /// The activity.
+        activity_id: String,
+    },
+}
+
+/// A change order (E1, pt "aditivo"): a change somebody asked for, on record,
+/// with what it costs and what it does to the plan. Insert-only: a mistake is
+/// withdrawn and raised again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeOrder {
+    /// UUID v7.
+    pub id: String,
+    /// 1, 2, 3 … for the whole work, in the order raised.
+    pub number: i64,
+    /// The day it was raised, `YYYY-MM-DD`.
+    pub raised_on: String,
+    /// What changes, 1 to 200 characters.
+    pub title: String,
+    /// More words, up to 2000 characters; `null` when none.
+    pub description: Option<String>,
+    /// `owner`, `person` or `other`.
+    pub asked_by: String,
+    /// The person who asked — given exactly when `askedBy` is `person`. Not a
+    /// tie: a person removed later leaves the record as it was.
+    pub asked_by_person_id: Option<String>,
+    /// Who asked, by name — given exactly when `askedBy` is `other`.
+    pub asked_by_name: Option<String>,
+    /// The stage it lands in. Not a tie either.
+    pub stage_id: String,
+    /// What it costs, signed whole minor units (a change can save money);
+    /// `null` when it was not priced, which is not 0.
+    pub cost_cents: Option<i64>,
+    /// What it does to the plan, in order; empty for a change of money alone.
+    pub effects: Vec<ChangeEffect>,
+    /// The Windows account that raised it.
+    pub author_name: String,
+    /// When it was raised, UTC.
+    pub created_at: String,
+    /// How it was decided; `null` while it waits.
+    pub decision: Option<ChangeOrderDecision>,
+}
+
+/// The one decision on a change order (E1), with its impact as the schedule
+/// said it the moment it was decided.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeOrderDecision {
+    /// `approved`, `declined` or `withdrawn`.
+    pub outcome: String,
+    /// The day it was decided, `YYYY-MM-DD`.
+    pub decided_on: String,
+    /// Why, in the person's words; `null` when none.
+    pub note: Option<String>,
+    /// The finish before the change, as the schedule said that day; `null`
+    /// when it could not say.
+    pub finish_before: Option<String>,
+    /// The finish with the change, as the schedule said that day.
+    pub finish_after: Option<String>,
+    /// The working days the change moved the finish, signed; `null` when it
+    /// could not be counted.
+    pub days_delta: Option<i64>,
+    /// The change's money, copied from it; `null` when not priced.
+    pub cost_cents: Option<i64>,
+    /// The replanning the approval was written into; `null` unless approved.
+    pub replanning_id: Option<String>,
+    /// The Windows account that decided it.
+    pub author_name: String,
+    /// When it was decided, UTC.
+    pub created_at: String,
+}
+
+/// An effect as the interface sends it: the fields of every kind, each left
+/// out or `null` when the kind has none. Read by the host into a
+/// [`ChangeEffect`], so that a kind that is not one is a sentence, not a
+/// failure to deserialise.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeEffectDraft {
+    /// `add`, `duration` or `remove`.
+    pub kind: String,
+    /// `add`: the new activity's name.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// `add` and `duration`: whole working days, 1 to 3650.
+    #[serde(default)]
+    pub duration_days: Option<f64>,
+    /// `add`: the activity it starts after, or `null`.
+    #[serde(default)]
+    pub after: Option<String>,
+    /// `duration` and `remove`: the activity.
+    #[serde(default)]
+    pub activity_id: Option<String>,
+}
+
+/// A change order as the interface raises it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeOrderDraft {
+    /// `YYYY-MM-DD`, not after today.
+    pub raised_on: String,
+    /// What changes, 1 to 200 characters.
+    pub title: String,
+    /// More words, up to 2000 characters.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// `owner`, `person` or `other`.
+    pub asked_by: String,
+    /// When a person asked: their id.
+    #[serde(default)]
+    pub asked_by_person_id: Option<String>,
+    /// When somebody else asked: their name, 1 to 120 characters.
+    #[serde(default)]
+    pub asked_by_name: Option<String>,
+    /// The stage it lands in.
+    pub stage_id: String,
+    /// Signed whole minor units, or `null` when not priced.
+    #[serde(default)]
+    pub cost_cents: Option<f64>,
+    /// What it does to the plan, at most 50; empty for money alone.
+    #[serde(default)]
+    pub effects: Vec<ChangeEffectDraft>,
+}
+
+/// A decision as the interface sends it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeOrderDecisionDraft {
+    /// The change order's id.
+    pub id: String,
+    /// `approved`, `declined` or `withdrawn`.
+    pub outcome: String,
+    /// `YYYY-MM-DD`, not after today and not before it was raised.
+    pub decided_on: String,
+    /// Why, up to 2000 characters.
+    #[serde(default)]
+    pub note: Option<String>,
+    /// The finish before the change, as the schedule says it now.
+    #[serde(default)]
+    pub finish_before: Option<String>,
+    /// The finish with the change.
+    #[serde(default)]
+    pub finish_after: Option<String>,
+    /// The working days between them, signed and whole.
+    #[serde(default)]
+    pub days_delta: Option<f64>,
 }
 
 /// What the owner must know to look after the work — "Reseal the shower grout

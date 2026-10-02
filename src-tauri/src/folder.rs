@@ -1588,10 +1588,13 @@ mod tests {
             assert_eq!(migrations::WORK.current_version(&conn), 11);
         }
 
-        let state = open(scratch.path()).expect("a D2 work opens in D3");
+        let state = open(scratch.path()).expect("a D2 work opens in D3, and on to head");
         let conn = &state.conn;
 
-        assert_eq!(migrations::WORK.current_version(conn), 12);
+        assert_eq!(
+            migrations::WORK.current_version(conn),
+            migrations::WORK.target_version()
+        );
         assert_eq!(
             raw_rows(conn, documents_sql),
             documents_before,
@@ -1693,5 +1696,231 @@ mod tests {
         assert!(diary::verify(&again.conn).unwrap().intact);
         close(again);
         assert_eq!(files_in(scratch.path()), vec![intake::DOCUMENTS, WORK_FILE]);
+    }
+
+    /// The upgrade a person makes from D4: a work folder at schema 12 with an
+    /// approved plan — two activities, a link, a cost line, baseline 1 — a
+    /// replanning open, a payment, a care note and a diary. Opened by E1, it
+    /// gains `change_order` and `change_order_decision`, empty and guarded by
+    /// their triggers; every row it held is as it was and the chain still
+    /// verifies. A change raised on the migrated file and approved joins the
+    /// open replanning, which keeps its reason, and the next baseline closes it.
+    #[test]
+    fn a_work_folder_at_schema_twelve_with_an_approved_plan_gains_change_orders_and_keeps_every_row(
+    ) {
+        use crate::contract::ChangeEffect;
+        use crate::db::baselines::{self, Placement};
+        use crate::db::change_orders::{self, AskedBy, NewChangeOrder, NewDecision, Outcome};
+        use crate::db::dependencies::{self, End, Kind};
+        use crate::db::payments::{self, NewPayment};
+        use crate::db::{care_notes, diary, money, replanning};
+
+        let scratch = Scratch::create();
+        let bathroom = "00000000-0000-7000-8000-00000000000b";
+        let tiling = "00000000-0000-7000-8000-00000000000c";
+        let kept = [
+            "SELECT * FROM stage ORDER BY id",
+            "SELECT * FROM activity ORDER BY id",
+            "SELECT * FROM dependency ORDER BY id",
+            "SELECT * FROM cost_line ORDER BY id",
+            "SELECT * FROM payment ORDER BY seq",
+            "SELECT * FROM baseline ORDER BY number",
+            "SELECT * FROM baseline_activity ORDER BY baseline_id, activity_id",
+            "SELECT * FROM baseline_stage ORDER BY baseline_id, stage_id",
+            "SELECT * FROM replanning ORDER BY id",
+            "SELECT * FROM care_note ORDER BY id",
+            "SELECT approved_at FROM work",
+        ];
+
+        let (rows_before, diary_before, grout);
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 12).unwrap();
+            grout = db::work::add_activity(&conn, bathroom, "Grout").unwrap();
+            dependencies::add(
+                &conn,
+                &End {
+                    kind: Kind::Activity,
+                    id: tiling.into(),
+                },
+                &End {
+                    kind: Kind::Activity,
+                    id: grout.clone(),
+                },
+                0,
+            )
+            .unwrap();
+            money::add_cost_line(&conn, bathroom, Some(tiling), "Tiles", Some(120_000)).unwrap();
+            let placed = |id: &str, start: &str, finish: &str| Placement {
+                activity_id: id.into(),
+                start: Some(start.into()),
+                finish: Some(finish.into()),
+            };
+            baselines::take(
+                &conn,
+                &[
+                    placed(tiling, "2026-10-05", "2026-10-07"),
+                    Placement {
+                        activity_id: grout.clone(),
+                        start: None,
+                        finish: None,
+                    },
+                ],
+                Some("2026-10-07"),
+            )
+            .unwrap();
+            replanning::open(&conn, "Tiles arrive two weeks late", "Synthetic author").unwrap();
+            payments::append(
+                &conn,
+                &NewPayment {
+                    day: "2026-10-05".into(),
+                    person_id: None,
+                    stage_id: bathroom.into(),
+                    commitment_id: None,
+                    amount_cents: 30_000,
+                    what_for: Some("Advance".into()),
+                    receipt_hash: None,
+                    author_name: "Synthetic author".into(),
+                },
+            )
+            .unwrap();
+            care_notes::add(&conn, "stage", bathroom, "Reseal the grout once a year.").unwrap();
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    day: "2026-10-06".into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Tiles laid.".into()),
+                    weather: None,
+                    lost_day: false,
+                    hours: None,
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: Vec::new(),
+                    present: Vec::new(),
+                    photos: Vec::new(),
+                },
+            )
+            .unwrap();
+
+            rows_before = kept.map(|sql| raw_rows(&conn, sql));
+            diary_before = diary::list(&conn, None, None).unwrap();
+            assert_eq!(migrations::WORK.current_version(&conn), 12);
+        }
+
+        let state = open(scratch.path()).expect("a D4 work opens in E1, and on to head");
+        let conn = &state.conn;
+
+        assert_eq!(
+            migrations::WORK.current_version(conn),
+            migrations::WORK.target_version()
+        );
+        assert_eq!(
+            kept.map(|sql| raw_rows(conn, sql)),
+            rows_before,
+            "every row, as it was"
+        );
+        assert_eq!(diary::list(conn, None, None).unwrap(), diary_before);
+        assert!(diary::verify(conn).unwrap().intact, "the chain still holds");
+        for table in ["change_order", "change_order_decision"] {
+            assert_eq!(
+                raw_rows(conn, &format!("SELECT count(*) FROM {table}")),
+                vec!["Integer(0)"],
+                "`{table}` is there, and empty"
+            );
+        }
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT count(*) FROM sqlite_master WHERE type = 'trigger'
+                 AND tbl_name IN ('change_order', 'change_order_decision')"
+            ),
+            vec!["Integer(9)"],
+            "insert-only, numbered, after approval, matching its change"
+        );
+        assert!(raw_rows(conn, "PRAGMA foreign_key_check").is_empty());
+        let plan = db::work::snapshot(conn).unwrap();
+        assert!(plan.change_orders.is_empty());
+        assert_eq!(
+            plan.replanning.as_ref().unwrap().reason,
+            "Tiles arrive two weeks late"
+        );
+
+        // A change on the migrated file: raised, approved into the replanning
+        // already open, and closed by the next baseline with that reason.
+        change_orders::raise(
+            conn,
+            &NewChangeOrder {
+                raised_on: "2026-10-07".into(),
+                title: "Longer grout".into(),
+                description: None,
+                asked_by: AskedBy::Owner,
+                stage_id: bathroom.into(),
+                cost_cents: Some(5_000),
+                effects: vec![ChangeEffect::Duration {
+                    activity_id: grout.clone(),
+                    duration_days: 2,
+                }],
+                author_name: "Synthetic author".into(),
+            },
+        )
+        .unwrap();
+        let id = db::work::snapshot(conn).unwrap().change_orders[0]
+            .id
+            .clone();
+        change_orders::decide(
+            conn,
+            &NewDecision {
+                change_order_id: id,
+                outcome: Outcome::Approved,
+                decided_on: "2026-10-08".into(),
+                note: None,
+                finish_before: None,
+                finish_after: None,
+                days_delta: None,
+                author_name: "Synthetic author".into(),
+            },
+        )
+        .unwrap();
+        let plan = db::work::snapshot(conn).unwrap();
+        assert_eq!(
+            plan.activities
+                .iter()
+                .find(|a| a.id == grout)
+                .unwrap()
+                .duration_days,
+            Some(2)
+        );
+        assert!(plan.cost_lines.iter().any(|l| l.label == "Change order #1"));
+        let rows: Vec<Placement> = plan
+            .activities
+            .iter()
+            .map(|a| Placement {
+                activity_id: a.id.clone(),
+                start: None,
+                finish: None,
+            })
+            .collect();
+        assert_eq!(baselines::take(conn, &rows, None).unwrap(), 2);
+        let plan = db::work::snapshot(conn).unwrap();
+        assert_eq!(
+            plan.baselines[1].reason.as_deref(),
+            Some("Tiles arrive two weeks late")
+        );
+        close(state);
+
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        assert_eq!(
+            db::work::snapshot(&again.conn).unwrap().change_orders.len(),
+            1
+        );
+        assert!(diary::verify(&again.conn).unwrap().intact);
+        close(again);
+        assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
     }
 }

@@ -19,6 +19,15 @@
  * **Money not recorded is said, never counted as 0**: a baseline taken before money was recorded
  * has `plannedCents` `null`, and a comparison with it reads `'not recorded'`.
  *
+ * **The change orders approved between the two are listed too** (slice E1, `changes`): every change
+ * whose approval was recorded after the earlier baseline was taken, up to the moment the later one
+ * was (its decision's `createdAt`, a moment, against the baselines' `takenAt`; never the decision's
+ * day, which cannot be ordered against a moment). An approval writes into the plan inside a
+ * replanning, and the baseline that closes it is the first one taken after it, so this is exactly
+ * the set that baseline photographs. Declined and withdrawn changes changed nothing in the plan, so
+ * they are not listed. Their money and days (`explainedByChanges`) are what of the move the changes
+ * explain.
+ *
  * Every list is a counted figure carrying its rows (`figure.ts`): "3 dates moved · 1 activity added
  * · 1 stage removed". What this module is not: storage, the slip against the plan now (`slip.ts`),
  * or text. It performs no I/O.
@@ -26,7 +35,14 @@
 
 import { isIsoDay, workingDaysUntil, type WorkingCalendar } from './calendar';
 import { counted, type Figure, type ReportRow } from './figure';
-import { compareText, type Baseline, type BaselineRow, type BaselineStage } from './plan';
+import {
+  compareText,
+  type Baseline,
+  type BaselineRow,
+  type BaselineStage,
+  type ChangeAskedBy,
+  type ChangeOrder,
+} from './plan';
 
 // ── The pair ─────────────────────────────────────────────────────────────────
 
@@ -126,6 +142,19 @@ export interface StageChangeRow extends ReportRow {
   readonly plannedCents: number | null;
 }
 
+/** A change order approved between the two baselines, with what its decision froze. */
+export interface ChangeApprovedRow extends ReportRow {
+  readonly changeOrderId: string;
+  readonly number: number;
+  readonly askedBy: ChangeAskedBy;
+  /** `YYYY-MM-DD`, the day it was approved. */
+  readonly decidedOn: string;
+  /** Signed working days, as decided; `null` when it could not be counted. */
+  readonly daysDelta: number | null;
+  /** Signed cents, as decided; `null` when not priced. */
+  readonly costCents: number | null;
+}
+
 /** How far the finish date moved. */
 export interface FinishMove {
   readonly from: string | null;
@@ -146,6 +175,7 @@ export const COMPARISON_LABEL_KEYS = {
   activitiesRemoved: 'baselines.figure.activitiesRemoved',
   stagesAdded: 'baselines.figure.stagesAdded',
   stagesRemoved: 'baselines.figure.stagesRemoved',
+  changes: 'baselines.figure.changes',
 } as const;
 
 /** What changed between two baselines, the earlier first. */
@@ -162,6 +192,8 @@ export interface Comparison {
   readonly activitiesRemoved: Figure<ActivityChangeRow>;
   readonly stagesAdded: Figure<StageChangeRow>;
   readonly stagesRemoved: Figure<StageChangeRow>;
+  /** The change orders approved between the two, by number (slice E1). */
+  readonly changes: Figure<ChangeApprovedRow>;
   readonly money: MoneyChange;
   /** The reasons of the baselines after the earlier one, up to the later one, in number order. */
   readonly reasons: readonly string[];
@@ -187,13 +219,15 @@ function byId<Row>(rows: readonly Row[], idOf: (row: Row) => string): Map<string
 
 /**
  * Compare baselines `a` and `b`, by number, out of the work's `baselines`. The pair is put in order;
- * the same number twice, or a number the list does not hold, is refused. Never throws.
+ * the same number twice, or a number the list does not hold, is refused. `changeOrders` are the
+ * work's (none given, none listed). Never throws.
  */
 export function compareBaselines(
   baselines: readonly Baseline[],
   a: number,
   b: number,
   calendar: WorkingCalendar | null,
+  changeOrders: readonly ChangeOrder[] = [],
 ): ComparisonResult {
   if (sameBaseline(a, b)) {
     return {
@@ -332,6 +366,11 @@ export function compareBaselines(
         COMPARISON_LABEL_KEYS.stagesRemoved,
         stagesRemoved,
       ),
+      changes: counted(
+        'baselines:changes',
+        COMPARISON_LABEL_KEYS.changes,
+        changesBetween(changeOrders, earlier, later),
+      ),
       money:
         earlier.plannedCents === null || later.plannedCents === null
           ? 'not recorded'
@@ -344,6 +383,65 @@ export function compareBaselines(
       unexplained,
     },
   };
+}
+
+/**
+ * The change orders approved after `earlier` was taken and up to when `later` was, by number: the
+ * approvals the later baseline photographs.
+ */
+export function changesBetween(
+  changeOrders: readonly ChangeOrder[],
+  earlier: Baseline,
+  later: Baseline,
+): ChangeApprovedRow[] {
+  return changeOrders
+    .filter((change) => {
+      const decision = change.decision;
+      return (
+        decision !== null &&
+        decision.outcome === 'approved' &&
+        decision.createdAt > earlier.takenAt &&
+        decision.createdAt <= later.takenAt
+      );
+    })
+    .sort((x, y) => x.number - y.number || compareText(x.id, y.id))
+    .map((change) => ({
+      key: `change:${change.id}`,
+      itemId: change.id,
+      title: change.title,
+      day: change.decision!.decidedOn,
+      minutes: 0,
+      changeOrderId: change.id,
+      number: change.number,
+      askedBy: change.askedBy,
+      decidedOn: change.decision!.decidedOn,
+      daysDelta: change.decision!.daysDelta,
+      costCents: change.decision!.costCents,
+    }));
+}
+
+/**
+ * What of a comparison the change orders approved in it explain: their money and their working
+ * days, summed as decided (an unpriced change, or one whose days could not be counted, adds 0 and is
+ * counted in `unpriced` or `uncounted`). The rest of the move is the replanning's reasons'.
+ */
+export function explainedByChanges(comparison: Comparison): {
+  costCents: number;
+  days: number;
+  unpriced: number;
+  uncounted: number;
+} {
+  let costCents = 0;
+  let days = 0;
+  let unpriced = 0;
+  let uncounted = 0;
+  for (const row of comparison.changes.rows) {
+    if (row.costCents === null) unpriced += 1;
+    else costCents += row.costCents;
+    if (row.daysDelta === null) uncounted += 1;
+    else days += row.daysDelta;
+  }
+  return { costCents, days, unpriced, uncounted };
 }
 
 /** The fields every row of an activity found in both baselines shares. */
@@ -402,6 +500,7 @@ export function comparisonFigures(comparison: Comparison): Array<Figure<ReportRo
     comparison.activitiesRemoved,
     comparison.stagesAdded,
     comparison.stagesRemoved,
+    comparison.changes,
   ].filter((figure) => figure.rows.length > 0);
 }
 

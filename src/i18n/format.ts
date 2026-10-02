@@ -126,6 +126,18 @@ export function toCents(text: string): number | null {
   return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
 }
 
+/**
+ * The same, for an amount that may be negative — a change order that saves money (E1): `-150`,
+ * `-150.5`. A minus sign in front of an amount `toCents` reads, and nothing else; `-0` is 0.
+ */
+export function toSignedCents(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^-?\d+(\.\d{1,2})?$/.test(trimmed)) return null;
+  if (!trimmed.startsWith('-')) return toCents(trimmed);
+  const cents = toCents(trimmed.slice(1));
+  return cents === null ? null : cents === 0 ? 0 : -cents;
+}
+
 /** Whole cents as the plain major-unit text a number field holds: 120000 → `1200.00`. */
 export function fromCents(cents: number): string {
   const sign = cents < 0 ? '-' : '';

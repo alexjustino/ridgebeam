@@ -6,8 +6,8 @@
 plan is intent, the diary is fact, and the plan says what it does not yet know.**
 
 Stages and activities · Critical path on a working calendar · Decisions with computed deadlines ·
-Readiness · Append-only site diary · Check gates · Money · Templates that are plans · Reports ·
-Backup and restore · Three lenses, one model · English and Portuguese
+Readiness · Append-only site diary · Check gates · Money · Change orders · Templates that are
+plans · Reports · Backup and restore · Three lenses, one model · English and Portuguese
 
 No cloud. No account. No telemetry. A work is a folder you own.
 
@@ -18,13 +18,13 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F11, D1 to D4, and U1.** The product was named on
-> 2026-09-24 ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 — from the foundation
-> to backup, restore and polish — all four differentiators, D1 to D4, and a round of dependency
-> updates are in `develop`, and U1 — the friction a first real week meets, taken away before the
-> owner's first real work — lands there after them; all of it runs from source. There is no
-> published installer yet: that is F12, the release, whose branch is cut again from `develop` once
-> U1 is in. The [specification](docs/SPEC.md) says what
+> **Status: pre-release — slices F0 to F11, D1 to D4, U1 and E1; a second wave in progress.** The
+> product was named on 2026-09-24 ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 —
+> from the foundation to backup, restore and polish — all four differentiators, D1 to D4, a round of
+> dependency updates and U1 — the friction a first real week meets — are in `develop`, and so is E1,
+> change orders, the first of a second wave, E1 to E4, built there one slice at a time; all of it
+> runs from source. There is no published installer yet: that is F12, the release, whose branch is
+> cut again from `develop` once the second wave is in. The [specification](docs/SPEC.md) says what
 > 1.0.0 will be and what "done" means for every slice; [What exists today](#what-exists-today) says
 > exactly how far the code has got.
 
@@ -40,7 +40,17 @@ with the photos of hidden work taken before it was closed, which a check can req
 ([ADR-038](docs/architecture/ADR.md#adr-038)); and **D4, the owner's snapshot** — one
 self-contained HTML file that opens on any phone, which the person sends themselves; Ridgebeam still
 sends nothing ([ADR-039](docs/architecture/ADR.md#adr-039)).
-**All four are in `develop`.** The release branch is to be cut again from there after U1.
+**All four are in `develop`.**
+
+**A second wave, before the acceptance test.** The owner then asked for what would make the tool a
+necessity for a work that is managed and ends well, and the answer is the four ways a small work
+fails ([ADR-041](docs/architecture/ADR.md#adr-041)): **E1, nothing changes without a price and a
+date** — change orders, with their effect on the finish computed by the schedule before anybody
+decides; **E2, will the money last?** — funds against what the work will ask for, week by week;
+**E3, why is it late, and on whose account?** — each working day lost on the critical path
+attributed to its cause; and **E4, a work that ends well** — snags closed with a photo before the
+last milestone is earned. **E1 is in `develop`**; E2 to E4 follow, and the release branch is cut
+again after them.
 
 ## Why
 
@@ -89,8 +99,8 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F11**, the four differentiators, **D1** to **D4**, and **U1** — nothing after
-them:
+Slices **F0** to **F11**, the four differentiators, **D1** to **D4**, **U1**, and **E1**, the first
+of the second wave — nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -272,10 +282,24 @@ them:
   **the product still never backs up on its own**. And the owner's snapshot now lists decisions by
   the same 14-day rule as the weekly report, and no longer lists a gate with no checks
   ([ADR-040](docs/architecture/ADR.md#adr-040)).
-- **Readiness.** A figure that says how much of what the plan must know it does know, from seven
+- **Change orders (E1).** Once the plan is approved, a change is raised on the Plan's **Changes**
+  tab as a record: who asked — the owner, a person of the plan or somebody else by name — what
+  changes, as activities added, durations changed or activities removed, and what it costs, which
+  may be less than nothing or not priced yet. **What it does to the finish is computed by the
+  schedule as it is written**, before anybody decides — _"Finishes 3 working days later — on 14 Nov
+  instead of 11 Nov; costs $1,200.00 more."_ It is approved, declined or withdrawn once, and the
+  decision keeps the impact as it was that day. An approval opens the replanning — or joins the one
+  open — with the change already in the plan and its price as a cost line (a saving is lowered by
+  hand), and the next baseline is still yours to take. Nothing about a change is ever edited: a
+  mistake is withdrawn and raised again. The dashboard's **Changes** card, the weekly report and the
+  owner's snapshot say how much the work has grown, by how many working days, in how many changes
+  and at whose request, and what is waiting for a decision; a change left waiting more than a week
+  lowers readiness ([ADR-041](docs/architecture/ADR.md#adr-041)).
+- **Readiness.** A figure that says how much of what the plan must know it does know, from eight
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
-  gates and its money planned, with a priced line — that opens onto the rows it
+  gates and its money planned, with a priced line; every change order is decided within a week —
+  that opens onto the rows it
   counts and says in a sentence what is missing, in English and in Portuguese. Rule by rule on
   the dashboard, each with why it matters; the rules add up to the figure.
 - **The shell.** Dashboard, Plan, Schedule, Decisions, Diary, Money, Documents, Reports, Settings
@@ -287,15 +311,16 @@ them:
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-one binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **the release** (F12) — its branch cut again from `develop` once U1 is
-merged, an installer, tried on a clean machine, and a real work planned, run for a week and its
-weekly report read by somebody who is not an engineer.
+Not yet, and not pretended: **the rest of the second wave**, E2 to E4; and **the release** (F12) —
+its branch cut again from `develop` once the second wave is merged, an installer, tried on a clean
+machine, and a real work planned, run for a week and its weekly report read by somebody who is not
+an engineer.
 
 Not in 1.0, by decision rather than by schedule: files other than images and PDFs (no Word,
 spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a work; a
@@ -342,12 +367,12 @@ folder and never touches your own works.
 
 ## Roadmap
 
-| Release   | Theme               | Contents                                                                                                                                                                                                                                                                                                                                                                                           |
-| --------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1.0.0** | The plan            | the work, stages and activities, the schedule with critical path and baselines, decisions, readiness, the diary, checks, money, people, documents, replanning, templates and the library, three lenses, the dashboard, reports, print, backup and restore — and the four differentiators: the finish as a probability, payment milestones earned by facts, the handover book, the owner's snapshot |
-| 1.1.0     | The site            | the diary from a phone: a companion build of the same app for Android, writing into the same work folder                                                                                                                                                                                                                                                                                           |
-| 1.2.0     | The crew            | the work shared between the owner, the engineer and the contractors: file-based sync with conflict rules, a read-only owner view                                                                                                                                                                                                                                                                   |
-| 2.0       | Only if it earns it | quantities from drawings · price databases per region · IFC import · resource levelling · the network                                                                                                                                                                                                                                                                                              |
+| Release   | Theme               | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| --------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1.0.0** | The plan            | the work, stages and activities, the schedule with critical path and baselines, decisions, readiness, the diary, checks, money, people, documents, replanning, templates and the library, three lenses, the dashboard, reports, print, backup and restore — and the four differentiators: the finish as a probability, payment milestones earned by facts, the handover book, the owner's snapshot — and the second wave: change orders, the cash runway, the delay ledger, the snag list and retention |
+| 1.1.0     | The site            | the diary from a phone: a companion build of the same app for Android, writing into the same work folder                                                                                                                                                                                                                                                                                                                                                                                                |
+| 1.2.0     | The crew            | the work shared between the owner, the engineer and the contractors: file-based sync with conflict rules, a read-only owner view                                                                                                                                                                                                                                                                                                                                                                        |
+| 2.0       | Only if it earns it | quantities from drawings · price databases per region · IFC import · resource levelling · the network                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 Deliberately not in 1.0.0: accounts, sync, a phone or web app, BIM/IFC/CAD import, bills of
 quantities and price databases, invoicing and tax, resource levelling, dependencies other than

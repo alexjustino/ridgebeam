@@ -9,6 +9,8 @@ import type { DiaryEntry, DoneLine } from '../diary';
 import type {
   Activity,
   Baseline,
+  ChangeOrder,
+  ChangeOrderDecision,
   Decision,
   Dependency,
   Endpoint,
@@ -50,6 +52,7 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     payments: [],
     documents: [],
     careNotes: [],
+    changeOrders: [],
     ...parts,
   };
 }
@@ -253,6 +256,57 @@ export function takeBaseline(
       ...row,
       plannedCents: sum((line) => line.activityId === row.activityId),
     })),
+    ...parts,
+  };
+}
+
+/**
+ * A change order waiting for its decision: the owner asked, on `raisedOn`, in stage `stageId`, with
+ * no price and no effects unless `parts` say otherwise.
+ */
+export function changeOrder(
+  id: string,
+  number: number,
+  stageId: string,
+  raisedOn: string,
+  parts: Partial<ChangeOrder> = {},
+): ChangeOrder {
+  return {
+    id,
+    number,
+    raisedOn,
+    title: `Change ${id}`,
+    description: null,
+    askedBy: 'owner',
+    askedByPersonId: null,
+    askedByName: null,
+    stageId,
+    costCents: null,
+    effects: [],
+    authorName: 'Sample author',
+    createdAt: `${raisedOn}T12:00:00.000Z`,
+    decision: null,
+    ...parts,
+  };
+}
+
+/** A change order's decision on `decidedOn`, recorded that day at noon, nothing frozen unless said. */
+export function changeDecision(
+  outcome: ChangeOrderDecision['outcome'],
+  decidedOn: string,
+  parts: Partial<ChangeOrderDecision> = {},
+): ChangeOrderDecision {
+  return {
+    outcome,
+    decidedOn,
+    note: null,
+    finishBefore: null,
+    finishAfter: null,
+    daysDelta: null,
+    costCents: null,
+    replanningId: outcome === 'approved' ? 'replanning-1' : null,
+    authorName: 'Sample author',
+    createdAt: `${decidedOn}T12:00:00.000Z`,
     ...parts,
   };
 }
