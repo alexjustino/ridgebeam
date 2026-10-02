@@ -110,6 +110,18 @@ hostile. **Shipped for every document in F7** (ADR-025), on the pipeline F4 buil
   manifest is, in `fixtures/hostile/MANIFEST.json`, and a test fails when the generator drifts
   from it. Rewriting the manifest is a deliberate act: an ignored _bless_ test does it, and the
   change is reviewed like any other.
+- **A dropped file is a chosen file** (U1, ADR-040). Files dragged from Explorer onto the window
+  reach the interface as paths, through the webview's own drag-and-drop event — as the dialog's
+  paths do — and go through **exactly the same intake**: the same commands, typed by their bytes,
+  measured, copied by hash, refused with the same sentences. The interface first keeps only the
+  names that screen's dialog would offer — photo extensions on the Diary, photos and PDFs on
+  Documents — and leaves every other name out, saying so; that filter is a convenience, as the
+  dialog's is, never the control. The interface has no file-system access and cannot tell a folder
+  from a file: a folder whose name ends like a photo's reaches the host, which refuses it by name,
+  and a `.jpg` whose bytes are an executable is refused by the host as one chosen would be. A diary
+  photo dropped reaches the host only when the entry is saved, like a chosen one. Nothing new
+  reaches the host: no command, no capability and no file-system permission was added, and the
+  webview still cannot read a path.
 
 ## The diary and the baselines are append-only
 
@@ -538,10 +550,13 @@ used. There is no file-system permission, no HTTP permission and no asset protoc
 cannot read a path. The dialog plugin returns a path the person chose — a work folder, a document to
 attach, the new place of a moved work, a template to read, where to save one, where to save a
 report, an export or a backup, a backup to restore and the folder to restore it into — and only the
-host's own commands read or write there. The opener is a Rust dependency with no JavaScript
-permission: the host opens a document with the operating system's handler when the person clicks it,
-and a report or an export it wrote in this session when the person presses **Open** — and nothing
-else. The window is a single window with no remote content.
+host's own commands read or write there. A file dropped on the window gives the interface its path
+the same way, through the webview's drag-and-drop event under the event permission the window
+already had, and goes to the same commands as a chosen one (above, _Files are hostile_). The opener
+is a Rust dependency with no JavaScript permission: the host opens a document with the operating
+system's handler when the person clicks it, and a report or an export it wrote in this session when
+the person presses **Open** — and nothing else. The window is a single window with no remote
+content.
 
 ## Out of the threat model, stated plainly
 
