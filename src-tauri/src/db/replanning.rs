@@ -20,6 +20,7 @@
 //! # Changelog of this repository
 //!
 //! - F8: `refuse_if_plan_locked`, `open`, `current`, `open_reason`, `close`.
+//! - E1: `open_within`, for the change order whose approval opens one.
 
 use rusqlite::{params, Connection, OptionalExtension};
 
@@ -47,7 +48,7 @@ pub const ALREADY_OPEN: &str =
 /// # Errors
 ///
 /// [`Error::Database`] when the work row cannot be read.
-fn approved(conn: &Connection) -> Result<bool> {
+pub(crate) fn approved(conn: &Connection) -> Result<bool> {
     let approved_at: Option<String> =
         conn.query_row("SELECT approved_at FROM work WHERE id = 1", [], |row| {
             row.get(0)
@@ -79,19 +80,32 @@ pub fn refuse_if_plan_locked(conn: &Connection) -> Result<()> {
 /// [`Error::Database`] when the row is refused.
 pub fn open(conn: &Connection, reason: &str, author_name: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
-    if !approved(&tx)? {
+    open_within(&tx, reason, author_name)?;
+    tx.commit()?;
+    Ok(())
+}
+
+/// [`open`], inside a transaction the caller already holds and commits (E1:
+/// an approved change order opens the replanning it is written into, with its
+/// decision or not at all). Returns the replanning's id.
+///
+/// # Errors
+///
+/// As [`open`].
+pub fn open_within(tx: &Connection, reason: &str, author_name: &str) -> Result<String> {
+    if !approved(tx)? {
         return Err(Error::InvalidInput(NOT_APPROVED_YET.into()));
     }
-    if current(&tx)?.is_some() {
+    if current(tx)?.is_some() {
         return Err(Error::InvalidInput(ALREADY_OPEN.into()));
     }
+    let id = new_id();
     tx.execute(
         "INSERT INTO replanning (id, reason, opened_at, author_name) VALUES (?1, ?2, ?3, ?4)",
-        params![new_id(), reason, now(), author_name],
+        params![id, reason, now(), author_name],
     )?;
-    tx.commit()?;
     log::info!("a replanning was opened");
-    Ok(())
+    Ok(id)
 }
 
 /// The replanning that is open, or `None`.

@@ -164,6 +164,20 @@
 //!   refused as a bug. Written through `files::save` (`.html`), opened by
 //!   `report_open` as any report. Sending it is the person's act. No new
 //!   crate, no new error kind, no new capability, no migration.
+//! - E1: change orders. After the plan is approved, a change is raised on
+//!   record — who asked, the stage it lands in, its signed cost, its effects
+//!   (add an activity after another, change a duration, remove an activity) —
+//!   and decided once. Work migration 013 adds `change_order` and
+//!   `change_order_decision`, both insert-only by trigger (`change order:
+//!   append-only`, with `recursive_triggers` on and off), numbered max + 1,
+//!   refused before approval and for a decision that does not match its
+//!   change. An approval opens a replanning (`Change order #N — title`) or
+//!   joins the one open, writes the effects through the plan's own functions
+//!   and a cost line `Change order #N`, and records the decision — in one
+//!   transaction, or nothing. Two commands (`change_order_raise`,
+//!   `change_order_decide`). The impact on the finish is the domain's, sent
+//!   with the decision and kept. No new crate, no new error kind, no new
+//!   capability.
 
 pub mod commands;
 pub mod contract;
@@ -291,6 +305,8 @@ pub fn run() {
             commands::care_notes::care_note_update,
             commands::care_notes::care_note_move,
             commands::care_notes::care_note_remove,
+            commands::change_orders::change_order_raise,
+            commands::change_orders::change_order_decide,
             commands::documents::document_add,
             commands::documents::document_update,
             commands::documents::document_link,
