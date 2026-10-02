@@ -44,6 +44,7 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     payments: [],
     documents: [],
     careNotes: [],
+    changeOrders: [],
     ...parts,
   };
 }

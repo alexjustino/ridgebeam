@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { activity, decision, link, snapshot, stage, withStageRules } from '../__fixtures__/plan';
+import {
+  activity,
+  changeDecision,
+  changeOrder,
+  decision,
+  link,
+  snapshot,
+  stage,
+  withStageRules,
+} from '../__fixtures__/plan';
 import { traceable } from '../figure';
 import type { WorkSnapshot } from '../plan';
 import { schedule } from '../schedule';
@@ -183,12 +192,21 @@ describe('readiness of decisions', () => {
 });
 
 describe('readiness rule by rule', () => {
-  const plan = withDecisions(
-    { ...F2, people: PEOPLE, stages: [...F2.stages, stage('garden', 3, 'Garden')] },
-    decision('late', 's1', 1, 10),
-    decision('fine', 's2', 1, 0),
-    decision('plants', 'garden', 1, 0),
-  );
+  const plan = {
+    ...withDecisions(
+      { ...F2, people: PEOPLE, stages: [...F2.stages, stage('garden', 3, 'Garden')] },
+      decision('late', 's1', 1, 10),
+      decision('fine', 's2', 1, 0),
+      decision('plants', 'garden', 1, 0),
+    ),
+    // E1: one change decided, one waiting twelve days.
+    changeOrders: [
+      changeOrder('co1', 1, 's1', '2026-08-10', {
+        decision: changeDecision('declined', '2026-08-12'),
+      }),
+      changeOrder('co2', 2, 's2', '2026-08-20'),
+    ],
+  };
   const measure = at(plan, '2026-09-01');
   const rules = readinessByRule(measure);
 
@@ -201,6 +219,7 @@ describe('readiness rule by rule', () => {
       ['decision.timely', 1, 2],
       ['stage.checks', 3, 3],
       ['stage.money', 3, 3],
+      ['change.waiting', 1, 2],
     ]);
   });
 
@@ -245,6 +264,7 @@ describe('readiness rule by rule', () => {
       ['activity.linked', 0, true, false],
       ['decision.deadline', 0, true, false],
       ['decision.timely', 0, true, false],
+      ['change.waiting', 0, true, false],
     ]);
   });
 

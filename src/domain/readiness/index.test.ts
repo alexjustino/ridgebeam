@@ -47,6 +47,7 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     payments: [],
     documents: [],
     careNotes: [],
+    changeOrders: [],
     ...parts,
   };
 }
@@ -103,7 +104,7 @@ const activity = (
 });
 
 describe('the rule table', () => {
-  it('holds the F0 rules, F2’s linking rule, F3’s two decision rules and the F5 and F6 stage rules', () => {
+  it('holds the F0 rules, F2’s linking rule, F3’s two decision rules, the F5 and F6 stage rules and E1’s change rule', () => {
     expect(RULES.map((rule) => [rule.id, rule.appliesTo])).toEqual([
       ['activity.duration', 'activity'],
       ['activity.responsible', 'activity'],
@@ -112,6 +113,7 @@ describe('the rule table', () => {
       ['decision.timely', 'decision'],
       ['stage.checks', 'stage'],
       ['stage.money', 'stage'],
+      ['change.waiting', 'change'],
     ]);
     for (const rule of RULES) {
       expect(rule.messageKey).toBe(READINESS_MESSAGE_KEYS[rule.id]);

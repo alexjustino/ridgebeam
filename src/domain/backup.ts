@@ -12,8 +12,8 @@
  *
  * **What counts as a change** (`workChanges`): every moment the work records — a diary entry
  * written, a payment or a reversal, a check answered, a stage started or closed, a decision made,
- * a document added, a baseline taken, a replanning opened, a care note written, the plan approved,
- * the work created. These are the timestamps the snapshot and the diary carry. Editing a row of
+ * a document added, a baseline taken, a replanning opened, a care note written, a change order
+ * raised or decided, the plan approved, the work created. These are the timestamps the snapshot and the diary carry. Editing a row of
  * the plan in place (renaming an activity, changing a duration) leaves no timestamp, so it is not
  * seen: the reminder may come later than it could, never wrongly.
  *
@@ -95,6 +95,10 @@ export function workChanges(snapshot: WorkSnapshot, entries: readonly DiaryEntry
     ...snapshot.documents.map((document) => document.createdAt),
     ...snapshot.baselines.map((baseline) => baseline.takenAt),
     ...snapshot.careNotes.map((note) => note.createdAt),
+    ...snapshot.changeOrders.flatMap((change) => [
+      change.createdAt,
+      change.decision?.createdAt ?? null,
+    ]),
   ];
   let latest: string | null = null;
   for (const moment of moments) {

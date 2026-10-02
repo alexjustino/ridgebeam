@@ -405,6 +405,79 @@ export interface CareNote {
   readonly createdAt: string;
 }
 
+/** Who asked for a change: the owner, a person of the plan, or somebody named on the record. */
+export type ChangeAskedBy = 'owner' | 'person' | 'other';
+
+/**
+ * What a change does to the plan (slice E1), as data the schedule can compute: an activity added to
+ * the change's stage, finish-to-start after `after` (or after nothing); an existing activity's
+ * duration; an activity dropped. Durations are whole working days, 1 to 3 650.
+ */
+export type ChangeEffect =
+  | {
+      readonly kind: 'add';
+      readonly name: string;
+      readonly durationDays: number;
+      readonly after: string | null;
+    }
+  | { readonly kind: 'duration'; readonly activityId: string; readonly durationDays: number }
+  | { readonly kind: 'remove'; readonly activityId: string };
+
+/** How a change order was decided. Once, for good. */
+export type ChangeOrderOutcome = 'approved' | 'declined' | 'withdrawn';
+
+/**
+ * The decision on a change order: insert-only, one per change. The impact is **frozen** here as it
+ * was computed the moment it was decided (the plan may move later for other reasons).
+ */
+export interface ChangeOrderDecision {
+  readonly outcome: ChangeOrderOutcome;
+  /** `YYYY-MM-DD`. */
+  readonly decidedOn: string;
+  readonly note: string | null;
+  /** The finish before the change, and with it, as the schedule said that day. */
+  readonly finishBefore: string | null;
+  readonly finishAfter: string | null;
+  /** Working days the change moved the finish, signed; `null` when it could not be counted. */
+  readonly daysDelta: number | null;
+  /** The change's money, copied from it; `null` when it was not priced. */
+  readonly costCents: number | null;
+  /** The replanning the approval opened or joined; `null` unless approved. */
+  readonly replanningId: string | null;
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+}
+
+/**
+ * A change order (slice E1, pt "aditivo"): somebody asked for the work to change, on the record, with
+ * a price and the effects the schedule computes. Insert-only: a mistake is withdrawn and raised again.
+ */
+export interface ChangeOrder {
+  readonly id: string;
+  /** 1, 2, 3 …: the order changes were raised in. */
+  readonly number: number;
+  /** `YYYY-MM-DD`. */
+  readonly raisedOn: string;
+  readonly title: string;
+  readonly description: string | null;
+  readonly askedBy: ChangeAskedBy;
+  /** Set exactly when `askedBy` is `person`; not a tie: a person removed leaves the record. */
+  readonly askedByPersonId: string | null;
+  /** Set exactly when `askedBy` is `other`. */
+  readonly askedByName: string | null;
+  /** The stage it lands in. */
+  readonly stageId: string;
+  /** Signed (a change can save money); `null` when not priced. */
+  readonly costCents: number | null;
+  readonly effects: readonly ChangeEffect[];
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+  /** `null` while it waits for a decision. */
+  readonly decision: ChangeOrderDecision | null;
+}
+
 /** The whole plan of one work, as `work_get` returns it. */
 export interface WorkSnapshot {
   readonly work: Work;
@@ -427,6 +500,8 @@ export interface WorkSnapshot {
   readonly documents: readonly Document[];
   /** Every care note of the work, any target (slice D3). */
   readonly careNotes: readonly CareNote[];
+  /** Every change order of the work, each with its decision or `null` (slice E1). */
+  readonly changeOrders: readonly ChangeOrder[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────
