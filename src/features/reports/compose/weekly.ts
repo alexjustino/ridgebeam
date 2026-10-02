@@ -39,7 +39,16 @@ import {
   type Weekly,
 } from '@/domain/reports/weekly';
 import { CHANGE_LABEL_KEYS, changeTally, type ChangeTally } from '@/domain/changes';
+import { RUNWAY_LABEL_KEYS, type Runway, type RunwayChance } from '@/domain/runway';
 import { pendingText, percentText } from '@/features/money/paymentPlanWords';
+import {
+  runwayChanceText,
+  runwayMethodText,
+  runwayNotes,
+  runwayRowLine,
+  runwaySentenceText,
+  runwayValue,
+} from '@/features/money/runwayWords';
 import {
   askedByText,
   changeCostText,
@@ -256,6 +265,88 @@ export function changeTallyBlocks(
   ];
 }
 
+/** The runway and its chance, as the Money page computes them from the same three inputs. */
+export interface Cash {
+  readonly runway: Runway;
+  readonly chance: RunwayChance;
+}
+
+/**
+ * **Will the money last?** (E2), as both owner's documents print it: the heading, the sentence and
+ * the chance in natural frequencies (never a percentage: they are the owner's), then one figure — the
+ * week the money runs short, opening onto what comes in and goes out that week, or the money left at
+ * the end — and, when any, the money expected and late, which is not counted; then what the sentence
+ * leaves out and how the chance was computed.
+ */
+export function runwayBlocks(
+  i18n: I18n,
+  snapshot: WorkSnapshot,
+  cash: Cash,
+  level: 1 | 2,
+): ReportBlock[] {
+  const { t, number } = i18n;
+  const { runway, chance } = cash;
+  const currency = snapshot.work.currency;
+  const blocks: ReportBlock[] = [
+    { type: 'heading', level, text: t('money.runway.title') },
+    {
+      type: 'paragraph',
+      tone: 'strong',
+      text: shortened(runwaySentenceText(i18n, runway.sentence, currency), REPORT_LIMITS.text),
+    },
+    {
+      type: 'paragraph',
+      text: shortened(runwayChanceText(i18n, chance), REPORT_LIMITS.text),
+    },
+  ];
+  if (runway.state !== 'nothing') {
+    const shortWeek = runway.shortWeek;
+    blocks.push(
+      figure(
+        t(shortWeek === null ? RUNWAY_LABEL_KEYS.end : RUNWAY_LABEL_KEYS.short),
+        runwayValue(i18n, runway, currency),
+        shortWeek === null
+          ? []
+          : [
+              line(
+                t('money.runway.weekRange', {
+                  from: i18n.day(shortWeek.from),
+                  to: i18n.day(shortWeek.to),
+                }),
+                t('money.runway.shortBy', { amount: i18n.money(runway.shortBy ?? 0, currency) }),
+              ),
+              ...shortWeek.rows.map((each) =>
+                shortened(runwayRowLine(i18n, each, snapshot, currency), REPORT_LIMITS.text),
+              ),
+            ],
+      ),
+    );
+  }
+  const late = runway.figures.late;
+  if (late.value > 0) {
+    blocks.push(
+      figure(
+        t(RUNWAY_LABEL_KEYS.late),
+        number(late.value),
+        late.rows.map((each) =>
+          shortened(runwayRowLine(i18n, each, snapshot, currency), REPORT_LIMITS.text),
+        ),
+      ),
+    );
+  }
+  const facts = [...runwayNotes(i18n, runway, currency), runwayMethodText(i18n, chance)].filter(
+    (each): each is string => each !== null,
+  );
+  if (facts.length > 0) {
+    blocks.push({
+      type: 'paragraph',
+      tone: 'muted',
+      text: shortened(facts.join(' '), REPORT_LIMITS.text),
+    });
+  }
+  return blocks;
+}
+
 /**
  * The finish as a probability, as the page prints it: one figure, then what it rests on. The owner's
  * snapshot (D4) prints the same blocks.
@@ -307,7 +398,8 @@ export function probabilityBlocks(i18n: I18n, probability: FinishProbabilityResu
 /**
  * The weekly report for the selection `weekly`, in `i18n`'s language and the owner's words.
  * `scheduled` is the schedule the selection was made from, for why a finish is not known;
- * `probability` is `finishProbability` over the same plan, schedule and diary (D1).
+ * `probability` is `finishProbability` over the same plan, schedule and diary (D1); `cash` is the
+ * runway and its chance over the same three (E2), printed after the money when given.
  */
 export function composeWeekly(
   weekly: Weekly,
@@ -315,6 +407,7 @@ export function composeWeekly(
   scheduled: Pick<Schedule, 'finishDate' | 'cyclic' | 'unplaced'>,
   i18n: I18n,
   probability: FinishProbabilityResult,
+  cash: Cash | null = null,
 ): ReportDocument {
   const { t, tp, day, number, money } = i18n;
   const term = termsFor(i18n.language, 'owner');
@@ -496,6 +589,9 @@ export function composeWeekly(
       planRows(i18n, weekly.money.dueNow, snapshot, 'money.paymentPlan.dueNow.mark'),
     ),
   );
+
+  // E2: will the money last, in the same words as the Money page.
+  if (cash !== null) blocks.push(...runwayBlocks(i18n, snapshot, cash, 2));
 
   // ── Changes (E1) — once the plan is approved; before that there are none to report ──
   if (snapshot.work.approvedAt !== null) {

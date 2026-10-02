@@ -22,7 +22,9 @@
  *   its note whole, what was done, who was there, and at most `SNAPSHOT_PHOTOS_PER_ENTRY` of its
  *   photos — half width, captioned with the day and the file — and how many more it has;
  * - **money**: planned, committed, paid, the commitments paid ahead of the work and what is earned
- *   and not paid now (D2), and what those leave out;
+ *   and not paid now (D2), and what those leave out; then **will the money last?** (E2) — the
+ *   Money page's sentence, the chance in natural frequencies, the week it runs short with what comes
+ *   in and goes out that week (or the money left at the end), and the money expected and late;
  * - **changes** (E1), once the plan is approved: what waits for the owner's decision, each change
  *   with who asked and how long it has waited, and the standing tally — the approved changes' money
  *   and working days, with who asked;
@@ -51,6 +53,7 @@ import { aheadFigure, MILESTONE_LABEL_KEYS, paymentPlans, type PlanRow } from '@
 import { moneyOfWork, NOT_PRICED_KEY, type MoneyRow } from '@/domain/money';
 import type { WorkSnapshot } from '@/domain/plan';
 import { readiness, readinessFigure } from '@/domain/readiness';
+import { runway, runwayChance } from '@/domain/runway';
 import { diaryReport, type DiaryReportRow } from '@/domain/reports/diary';
 import {
   lookahead,
@@ -70,7 +73,7 @@ import { termsFor } from '@/i18n/terms';
 import type { I18n } from '@/i18n/useI18n';
 
 import { pieces, REPORT_LIMITS, shortened } from './document';
-import { changeTallyBlocks, probabilityBlocks } from './weekly';
+import { changeTallyBlocks, probabilityBlocks, runwayBlocks } from './weekly';
 import { decisionStatusText, finishText, readinessRowText, readinessSentence } from './words';
 
 /** How many diary entries "Lately on site" shows: the latest effective ones. */
@@ -534,6 +537,19 @@ function moneyBlocks(
   if (leftOut.length > 0) {
     blocks.push({ type: 'paragraph', tone: 'muted', text: leftOut.join(' ') });
   }
+  // E2: the same projection and the same seeded chance the Money page shows, from the same inputs.
+  const { scheduled } = input;
+  blocks.push(
+    ...runwayBlocks(
+      i18n,
+      snapshot,
+      {
+        runway: runway(snapshot, scheduled, entries, today),
+        chance: runwayChance(snapshot, scheduled, entries, today),
+      },
+      2,
+    ),
+  );
   return blocks;
 }
 

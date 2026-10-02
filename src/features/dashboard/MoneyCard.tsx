@@ -6,7 +6,9 @@ import {
   type OverCommittedRow,
 } from '@/domain/money';
 import type { WorkSnapshot } from '@/domain/plan';
+import { RUNWAY_LABEL_KEYS, type RunwayRow, type RunwayShortRow } from '@/domain/runway';
 import { pendingText, percentText, usePaymentPlans } from '@/features/money/paymentPlanWords';
+import { runwayRowLine, runwaySentenceText, useRunwayOnly } from '@/features/money/runwayWords';
 import { useI18n, type I18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
 import { Card } from '@/ui/Card';
@@ -24,6 +26,11 @@ const TOTALS = ['planned', 'committed', 'paid'] as const;
  * each with its excess and the milestone it waits for, and how much is **earned and not paid**, a
  * row per commitment. Under them, in words, what these two leave out: the commitments with no
  * payment plan, which are not evaluated, and the payments that name no commitment.
+ *
+ * And, from the funding (slice E2): **will the money last?** — a short value whose label says what
+ * it is: the week the money runs short (its Monday), opening onto that week and by how much, or the
+ * money left at the end, opening onto everything that comes in and goes out until then. The sentence
+ * under it is the Money page's, from the same call.
  */
 export function MoneyCard({ snapshot }: { snapshot: WorkSnapshot }) {
   const i18n = useI18n();
@@ -36,6 +43,7 @@ export function MoneyCard({ snapshot }: { snapshot: WorkSnapshot }) {
   const due = entries === null ? null : dueFigure(snapshot, entries, today);
   const currency = snapshot.work.currency;
   const commitmentOf = new Map(snapshot.commitments.map((each) => [each.id, each.label]));
+  const runway = useRunwayOnly(snapshot);
 
   return (
     <Card>
@@ -121,7 +129,45 @@ export function MoneyCard({ snapshot }: { snapshot: WorkSnapshot }) {
             />
           </>
         )}
+        {runway !== null &&
+          runway.state !== 'nothing' &&
+          (runway.shortWeek === null ? (
+            <FigureRow<RunwayRow>
+              testId="dashboard-runway"
+              size="title"
+              figure={runway.figures.end}
+              label={t(RUNWAY_LABEL_KEYS.end)}
+              value={money(runway.spare, currency)}
+              rowsLabel={t('money.runway.rows')}
+              renderRow={(row) => <span>{runwayRowLine(i18n, row, snapshot, currency)}</span>}
+            />
+          ) : (
+            <FigureRow<RunwayShortRow>
+              testId="dashboard-runway"
+              size="title"
+              figure={runway.figures.short}
+              label={t(RUNWAY_LABEL_KEYS.short)}
+              value={day(runway.shortWeek.from)}
+              rowsLabel={t('money.runway.rows')}
+              renderRow={(row) => (
+                <>
+                  <span className="font-semibold text-fg">
+                    {t('money.runway.weekRange', { from: day(row.from), to: day(row.to) })}
+                  </span>
+                  <span aria-hidden="true"> — </span>
+                  <span>
+                    {t('money.runway.shortBy', { amount: money(row.shortByCents, currency) })}
+                  </span>
+                </>
+              )}
+            />
+          ))}
       </div>
+      {runway !== null && runway.state !== 'nothing' && (
+        <p data-testid="dashboard-runway-sentence" className="mt-3 text-body text-fg">
+          {runwaySentenceText(i18n, runway.sentence, currency)}
+        </p>
+      )}
       {plans !== null && (plans.noPlan.value > 0 || plans.outside.value > 0) && (
         <p data-testid="money-not-evaluated" className="mt-3 text-caption text-fg-tertiary">
           {[
