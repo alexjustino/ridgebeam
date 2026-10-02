@@ -1030,3 +1030,72 @@ its own (ADR-040).
   nothing new reaches the host. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a drop zone is the
   window, and it says what a drop will do_. [`docs/RELEASE.md`](docs/RELEASE.md): files dropped from
   Explorer on the Diary and on Documents, "same people", and the reminder on a work never backed up.
+
+### Added in E1 — change orders
+
+The first slice of a second wave, admitted before the owner's acceptance test: four answers to the
+four ways a small work fails (ADR-041). The first is the work that grows by small changes nobody
+priced. After the plan is approved, **nothing changes without a price and a date**: a change order
+is a request on record — who asked, what changes, what it costs, and what it does to the finish,
+**computed by the schedule before anybody decides**. It is approved, declined or withdrawn once,
+and the decision freezes its impact. An approval opens the replanning with the change already in
+the plan and its price as a cost line, and the next baseline is still the person's to take. A
+standing tally says how much the work has grown, and who asked for it.
+
+- **Change orders** (`change_order`, migration 013). Raised from the Plan's new **Changes** tab once
+  the plan is approved — before that there are no change orders, because the plan is still being
+  written, and the form says so. Each has a number, #1, #2, … never reused; a title of up to 200
+  characters and an optional description; **who asked** — the owner, a person of the plan, or
+  somebody else by name; the stage it lands on; a **price** that may be negative, since a change can
+  save money, or left empty, which is _not priced_ and not 0; and its **effects** — **add** an
+  activity to the stage, with its name, its working days and the activity it follows; change an
+  activity's **duration**; **remove** an activity. At most 50; none at all is a change that is only
+  money. The host validates them when the change is raised — the kinds and ranges, a new duration
+  inside the activity's range, no activity in a closed stage, none named twice, none a payment
+  milestone is earned by removed — and never computes a schedule. Commands `change_order_raise` and
+  `change_order_decide`.
+- **The impact before the decision.** As the change is written, the form shows what it does —
+  _"Finishes 3 working days later — on 14 Nov instead of 11 Nov; costs $1,200.00 more."_ — worked
+  out by the same engine and the same delta as the Schedule's **What if**, from the effects applied
+  to a copy of the plan in memory (`withEffects`, `changeImpact`). An activity added off the
+  critical path moves the finish by no day, and the sentence says so. The dialogs that approve,
+  decline or withdraw show it again, with an optional note.
+- **One decision, frozen** (`change_order_decision`). Approved, declined or withdrawn, once, on a
+  day; the finish before and after and the working days between them are kept as the schedule said
+  them that day, with the price. A second decision, a decision on a change the work does not have,
+  and an approval before the plan is approved are refused with a sentence.
+- **An approval writes the change into the plan, inside a replanning, all or nothing.** With no
+  replanning open it opens one with the reason _"Change order #N — {title}"_; with one open, the
+  change joins it. The effects go through the plan's own functions, with their own refusals — one
+  refused and nothing is written — and a change priced at 0 or more adds a cost line _"Change order
+  #N"_ on its stage; a saving adds none, since a planned amount is never negative, and the plan's
+  own lines are lowered by hand in the same replanning. The screen says that the replanning is open
+  with the change applied and that the next baseline is the person's to take, and offers to go to
+  the Schedule. A decline or a withdrawal writes the decision and nothing else.
+- **The tally, each figure with its rows** (`changeTally`). **Changes approved** (money), **Days
+  added by changes** (working days) and **Waiting for a decision**, each row saying how long that
+  change has waited — on a new **Changes** card on the dashboard, not shown before approval; in the
+  weekly report, the changes decided that week and those waiting; and in the owner's snapshot, what
+  waits for the owner's decision, with the tally. A comparison of two baselines lists the change
+  orders decided between them (`Comparison.changes`).
+- **Readiness learns one rule.** A change order waiting more than 7 calendar days for a decision is
+  something the plan does not know — in the owner's words, _a change is waiting for your decision_.
+- **Insert-only.** Neither table can be edited or emptied: triggers refuse `UPDATE`, `DELETE` and
+  `REPLACE`, with `recursive_triggers` on and off, and the module that writes them holds no such
+  statement, which a test reads its source to prove. A mistake is withdrawn and raised again, and
+  the record keeps both. A work at schema 12 migrates to 13 losing nothing, its chain still
+  verifying.
+- **Documentation.** ADR-041, which admits the second wave — E1 change orders, E2 funding and the
+  cash runway, E3 the delay ledger, E4 the snag list and retention — and records E1, with its costs:
+  a change order is immutable, and a mistake is withdrawn and raised again; the impact frozen at the
+  decision is that day's schedule, and the plan may move later for other reasons; an approval writes
+  into the plan inside a replanning the person still has to close; "who asked" is a record, not a
+  signature; the price is planned money, not an agreement, and a saving is not written into the
+  plan; three kinds of effect are not every change. [`docs/SPEC.md`](docs/SPEC.md) gains the
+  addendum that admits E1 to E4. [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md): migration 013, both
+  tables, their triggers and the effects JSON. [`SECURITY.md`](SECURITY.md): the effects are data
+  validated by the host — kinds, ranges, ids — no SQL comes from the interface, and both tables are
+  insert-only. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _an impact is shown before a
+  decision, always_. [`docs/RELEASE.md`](docs/RELEASE.md): raise a change, see its impact, approve
+  it into the replanning, take the baseline, decline another, and read the tally on the dashboard
+  and in the snapshot. The glossary gains _change order_ (_aditivo_).
