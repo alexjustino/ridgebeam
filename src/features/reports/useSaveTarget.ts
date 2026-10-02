@@ -6,14 +6,16 @@ import { useI18n } from '@/i18n/useI18n';
 
 /**
  * The kinds of file a command writes, each its own extension: the three a report command writes
- * (decision 8), and the backup (F11), which follows the same rule.
+ * (decision 8), the owner's snapshot as one HTML page (D4), and the backup (F11), which follows the
+ * same rule.
  */
-export type FileKind = 'pdf' | 'csv' | 'json' | 'ridgebeam';
+export type FileKind = 'pdf' | 'csv' | 'json' | 'html' | 'ridgebeam';
 
 const FILTER_KEYS: Record<FileKind, MessageKey> = {
   pdf: 'reports.filter.pdf',
   csv: 'reports.filter.csv',
   json: 'reports.filter.json',
+  html: 'reports.filter.html',
   ridgebeam: 'backup.filter',
 };
 
@@ -21,6 +23,7 @@ export const PATH_KEYS: Record<FileKind, MessageKey> = {
   pdf: 'reports.path.pdf',
   csv: 'reports.path.csv',
   json: 'reports.path.json',
+  html: 'reports.path.html',
   ridgebeam: 'backup.path',
 };
 

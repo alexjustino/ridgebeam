@@ -111,6 +111,59 @@
 //!   work's last backup (`backup_last`); `diagnostics` lists the migrations
 //!   applied and `diagnostics_summary` is Diagnostics as plain text. No new
 //!   error kind, no new capability.
+//! - D1: "When will it really finish?" The finish as a probability is the
+//!   domain's alone (a seeded simulation over each activity's range); the
+//!   host's part is the input. `activity_update` takes an activity's range on
+//!   any activity — the optimistic and the pessimistic duration, both or
+//!   neither, 1 to 3650, the optimistic not above the pessimistic, and a
+//!   change to the duration or the range that leaves the duration outside it
+//!   refused with a sentence naming the range. The range is not locked after
+//!   approval: a baseline does not record it. Nothing the simulation computes
+//!   is stored. No migration (F9's columns), no new command, no new error
+//!   kind, no new capability.
+//! - D2: "Am I paying ahead of the work?" A commitment gains a payment plan:
+//!   milestones, each a share of its amount in basis points, earned by a fact
+//!   of the work — an advance, the stage started, an activity finished, the
+//!   stage closed — never a date. Work migration 011 adds `payment_milestone`,
+//!   with its rules in the schema behind the host's sentences: at most 100 %
+//!   per commitment, an activity of the commitment's stage exactly when the
+//!   trigger is an activity's finish, and nothing added, changed, moved or
+//!   removed once a payment (a reversal included) names the commitment. Five
+//!   commands (`milestone_add`, `milestone_update`, `milestone_move`,
+//!   `milestone_remove`, `milestones_usual`); an activity a milestone is
+//!   earned by is not removed. What is earned, due and paid ahead — and the
+//!   warning before a payment ahead of the work, which never refuses it — is
+//!   the domain's. No new error kind, no new capability.
+//! - D3: the handover book. A report may print photos: the `image` block
+//!   names a file by its SHA-256 — never a path — and the host finds it only
+//!   among the open work's documents, inside its own `documents/`, reads it
+//!   under the F7 caps (its hash checked again), decodes it under
+//!   `image::Limits`, shrinks it to 1 600 px on the long edge and embeds it as
+//!   JPEG at quality 82 (`report::images`); a small JPEG that already fits is
+//!   embedded byte for byte. At most 400 photos and 150 MiB of photo data per
+//!   report, refused with a sentence; a PDF document is never printed as an
+//!   image. The `handover` kind joins the reports. Work migration 012 adds a
+//!   check's `needs_photo` — a "yes" without a photo on such a check is
+//!   refused with a sentence and by the schema — rebuilds `document` for two
+//!   more kinds (`warranty`, `manual`) with every row and link kept, and adds
+//!   `care_note`, removed with its room or stage in the same transaction. Five
+//!   commands (`check_needs_photo`, `care_note_add`, `care_note_update`,
+//!   `care_note_move`, `care_note_remove`); `checks_add_defaults` takes the
+//!   usual checks that need a photo; `plan_apply` writes a draft check's
+//!   `needsPhoto`. No new crate, no new error kind, no new capability.
+//! - D4: the owner's snapshot. `report_html_write` renders a document of the
+//!   new kind `snapshot` as one self-contained HTML page (`report::html`):
+//!   every string escaped, a Content-Security-Policy that loads nothing but
+//!   the page's own photos and style and runs nothing, inline CSS for a phone
+//!   in light and dark, figures that open onto their rows with no script, the
+//!   schedule as an inline SVG. Its photos are found by hash as D3 finds them
+//!   and always re-encoded (1 024 px, quality 78); at most 60 of them, 8 MiB
+//!   of them and 12 MiB of file, refused with sentences. The page is verified
+//!   on its own bytes before it is written — no script, handler, address,
+//!   import, frame or element it is not made of — and a page that fails is
+//!   refused as a bug. Written through `files::save` (`.html`), opened by
+//!   `report_open` as any report. Sending it is the person's act. No new
+//!   crate, no new error kind, no new capability, no migration.
 
 pub mod commands;
 pub mod contract;
@@ -216,6 +269,7 @@ pub fn run() {
             commands::checks::check_move,
             commands::checks::check_remove,
             commands::checks::checks_add_defaults,
+            commands::checks::check_needs_photo,
             commands::checks::check_answer,
             commands::checks::stage_start,
             commands::checks::stage_close,
@@ -228,6 +282,15 @@ pub fn run() {
             commands::money::commitment_remove,
             commands::money::payment_add,
             commands::money::payment_reverse,
+            commands::milestones::milestone_add,
+            commands::milestones::milestone_update,
+            commands::milestones::milestone_move,
+            commands::milestones::milestone_remove,
+            commands::milestones::milestones_usual,
+            commands::care_notes::care_note_add,
+            commands::care_notes::care_note_update,
+            commands::care_notes::care_note_move,
+            commands::care_notes::care_note_remove,
             commands::documents::document_add,
             commands::documents::document_update,
             commands::documents::document_link,
@@ -243,6 +306,7 @@ pub fn run() {
             commands::templates::template_read,
             commands::templates::template_write,
             commands::reports::report_pdf_write,
+            commands::reports::report_html_write,
             commands::reports::diary_export_pdf,
             commands::reports::diary_export_csv,
             commands::reports::work_export_json,

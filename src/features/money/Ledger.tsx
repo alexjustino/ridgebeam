@@ -9,6 +9,7 @@ import { useId, useState, type FormEvent } from 'react';
 import { useToday } from '@/app/today';
 import { LIMITS } from '@/data/commands';
 import { useAddPayment, useReversePayment } from '@/data/queries';
+import { paymentPreview, type PaymentPreview } from '@/domain/milestones';
 import {
   reversalDraft,
   validatePayment,
@@ -29,6 +30,8 @@ import { Input } from '@/ui/Input';
 import { Modal } from '@/ui/Modal';
 import { Select } from '@/ui/Select';
 import { TextArea } from '@/ui/TextArea';
+
+import { aheadWarningText, usePaymentPlans } from './paymentPlanWords';
 
 const PROBLEM_KEYS: Record<PaymentProblem['code'], MessageKey> = {
   'invalid-day': 'diary.problem.invalidDay',
@@ -54,6 +57,12 @@ const PROBLEM_KEYS: Record<PaymentProblem['code'], MessageKey> = {
  * stage, who was paid, what it was for and its receipt. A payment is never edited: a mistake is
  * reversed — a new, negative payment that names it and says why, once per payment (ADR-023). The
  * domain checks a payment before the host is asked; the host refuses what it must in its words.
+ *
+ * **A warning comes before the act it warns about** (slice D2, decision 4): while a payment naming a
+ * commitment is typed, the form shows what that commitment's payment plan has earned, what was paid
+ * and what would be paid, due and ahead after it (`paymentPreview`), and — when it would put the
+ * owner ahead of the work — a caution that says by how much, and which milestone is not earned yet.
+ * **Record the payment** stays pressable: money is a fact, and whether to pay is the person's.
  */
 export function Ledger({ snapshot }: { snapshot: WorkSnapshot }) {
   const { t } = useI18n();
@@ -126,6 +135,20 @@ function PaymentForm({
   const [receipt, setReceipt] = useState<string | null>(null);
   const stages = stagesInOrder(snapshot);
   const commitments = snapshot.commitments.filter((each) => each.stageId === stageId);
+  const { entries } = usePaymentPlans(snapshot);
+  const typed = toCents(amount);
+  const preview: PaymentPreview | null =
+    entries === null || commitmentId === '' || typed === null || typed <= 0
+      ? null
+      : paymentPreview(snapshot, entries, today, {
+          day,
+          stageId: stageId === '' ? null : stageId,
+          personId: personId === '' ? null : personId,
+          commitmentId,
+          amountCents: typed,
+          whatFor: whatFor.trim(),
+          reversesSeq: null,
+        });
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -312,6 +335,9 @@ function PaymentForm({
             </div>
           )}
         </div>
+        {preview !== null && preview.kind !== 'none' && (
+          <PaymentPreviewLines preview={preview} snapshot={snapshot} />
+        )}
         {problem.length > 0 && (
           <div data-testid="payment-problem">
             <InfoBar severity="caution" title={t('money.payment.problem')}>
@@ -336,6 +362,69 @@ function PaymentForm({
         </div>
       </form>
     </Card>
+  );
+}
+
+/**
+ * Where the payment being typed leaves its commitment's payment plan, and the warning when it puts
+ * the owner ahead of the work. Computed from the domain's preview; nothing here adds up money.
+ */
+function PaymentPreviewLines({
+  preview,
+  snapshot,
+}: {
+  preview: Exclude<PaymentPreview, { kind: 'none' }>;
+  snapshot: WorkSnapshot;
+}) {
+  const i18n = useI18n();
+  const { t, money } = i18n;
+  const currency = snapshot.work.currency;
+  const label = snapshot.commitments.find((each) => each.id === preview.commitmentId)?.label ?? '';
+  const warning = aheadWarningText(i18n, preview, currency);
+
+  return (
+    <>
+      <div
+        data-testid="payment-preview"
+        className="flex flex-col gap-0.5 rounded-md border border-stroke-subtle bg-layer px-3 py-2"
+      >
+        {preview.kind === 'no-plan' ? (
+          <p className="text-body text-fg-secondary">
+            {t('money.paymentPreview.noPlan', { commitment: label })}
+          </p>
+        ) : (
+          <>
+            <p className="text-caption font-semibold text-fg-secondary">
+              {t('money.paymentPreview.title', { commitment: preview.label })}
+            </p>
+            <p className="text-body text-fg tabular-nums">
+              {t('money.paymentPreview.line', {
+                earned: money(preview.earnedCents, currency),
+                paid: money(preview.paidCents, currency),
+                after: money(preview.paidAfterCents, currency),
+              })}
+            </p>
+            <p className="text-body text-fg-secondary">
+              {preview.aheadAfterCents > 0
+                ? t('money.paymentPreview.aheadAfter', {
+                    ahead: money(preview.aheadAfterCents, currency),
+                  })
+                : preview.dueAfterCents > 0
+                  ? t('money.paymentPreview.due', { due: money(preview.dueAfterCents, currency) })
+                  : t('money.paymentPreview.even')}
+            </p>
+          </>
+        )}
+      </div>
+      {warning !== null && (
+        <div data-testid="payment-ahead-warning">
+          <InfoBar severity="caution" title={t('money.paymentPreview.warningTitle')}>
+            <p>{warning}</p>
+            <p className="mt-1">{t('money.paymentPreview.decision')}</p>
+          </InfoBar>
+        </div>
+      )}
+    </>
   );
 }
 

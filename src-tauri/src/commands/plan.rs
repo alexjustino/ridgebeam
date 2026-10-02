@@ -24,6 +24,14 @@
 //!   `activity_remove`, `activity_move`, and `activity_update` when it gives
 //!   another name or another duration. People, an activity's responsible,
 //!   rooms and quantity stay free.
+//! - D1: `activity_update` takes an activity's range — the optimistic and the
+//!   pessimistic duration, both or neither, 1 to 3650, the optimistic not
+//!   above the pessimistic, the duration (held or sent) not outside them. A
+//!   duration edit that would fall outside the range is refused with a
+//!   sentence naming it; nothing widens it. The range is not locked after
+//!   approval: a baseline does not record it.
+//! - D2: `activity_remove` refuses an activity a payment milestone is earned
+//!   by, with a sentence: change or remove the milestone first.
 
 use std::collections::BTreeSet;
 
@@ -131,13 +139,16 @@ pub fn activity_add(
     activity_add_with(&open, &stage_id, &name)
 }
 
-/// Change an activity's name, duration or responsible. A field left out is
-/// left alone; `null` clears it.
+/// Change an activity's name, duration, responsible, quantity, unit or range.
+/// A field left out is left alone; `null` clears it. The range's two ends are
+/// sent together or not at all.
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] for a value that does not fit, or an activity or a
-/// person not in this work; and the errors of every work command.
+/// [`Error::InvalidInput`] for a value that does not fit, a range with one end,
+/// a range upside down, a duration and a range that leave the duration outside
+/// the range, or an activity or a person not in this work; and the errors of
+/// every work command.
 ///
 /// [`Error::PlanApproved`] when the plan is approved and no replanning is
 /// open, and the patch gives the activity another name or another duration.
@@ -154,8 +165,8 @@ pub fn activity_update(
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] for an activity not in this work, and the errors of
-/// every work command.
+/// [`Error::InvalidInput`] for an activity not in this work, or one a payment
+/// milestone is earned by (D2), and the errors of every work command.
 ///
 /// [`Error::PlanApproved`] when the plan is approved and no replanning is
 /// open.
@@ -328,10 +339,12 @@ pub fn activity_update_with(
             .as_ref()
             .map(|unit| validate::unit(unit.as_deref()))
             .transpose()?,
+        range: validate::duration_range(patch.duration_min_days, patch.duration_max_days)?,
     };
     change_work(open, |conn| {
         // A baseline records an activity's name and duration; its responsible,
-        // rooms and quantity are not in one, and stay free after approval.
+        // rooms, quantity and range are not in one, and stay free after
+        // approval. A range is an estimate of uncertainty, not the plan (D1).
         if changes_what_a_baseline_records(conn, id, &change)? {
             refuse_if_plan_locked(conn)?;
         }
@@ -340,7 +353,9 @@ pub fn activity_update_with(
 }
 
 /// Whether `change` would give the activity another name or another duration.
-/// An activity not in this work is not refused here: the update says so.
+/// An activity not in this work is not refused here: the update says so. The
+/// range is deliberately not asked (D1): the lock's list is what a baseline
+/// records, and a baseline does not record a range.
 fn changes_what_a_baseline_records(
     conn: &rusqlite::Connection,
     id: &str,

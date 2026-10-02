@@ -472,6 +472,8 @@ export const ptBR: Dictionary = {
   'checks.default.close.photosTaken': 'As fotos foram tiradas',
   'checks.default.close.ownerWalked': 'O dono percorreu tudo',
   'checks.default.close.wasteRemoved': 'Sobras e entulho foram retirados',
+  'checks.default.close.hiddenWorkPhotographed':
+    'Os canos e a fiação foram fotografados antes de fechar as paredes',
   'checks.figure.planned': 'Etapas planejadas',
   'checks.figure.started': 'Etapas iniciadas',
   'checks.figure.closed': 'Etapas fechadas',
@@ -518,6 +520,13 @@ export const ptBR: Dictionary = {
   'gates.confirm.closeTitle': 'Fechar “{name}”?',
   'gates.confirm.closeBody': 'Uma etapa fechada fica só para leitura até ser reaberta.',
   'gates.refused': 'Isso não foi guardado',
+  'gates.problem.needsPhoto':
+    'Esta verificação pede uma foto do serviço antes de ele ser fechado. Adicione a foto e depois responda Sim.',
+  'gates.needsPhoto.box': 'Pede foto',
+  'gates.needsPhoto.label': '{name} pede uma foto do serviço antes de ele ser fechado',
+  'gates.needsPhoto.open': 'Um Sim pede a sua foto',
+  'gates.needsPhoto.mark': 'Pede uma foto do serviço antes de ele ser fechado',
+  'gates.needsPhoto.yesWithout': 'Respondida Sim sem foto, antes de a foto ser pedida.',
   'readiness.missing.stage.checks.one': '{count} etapa não tem verificações.',
   'readiness.missing.stage.checks.other': '{count} etapas não têm verificações.',
   'readiness.rule.stage.checks': 'Etapas com verificações',
@@ -580,9 +589,9 @@ export const ptBR: Dictionary = {
   'money.payment.noCommitment': 'Nenhum',
   'money.payment.amount': 'Valor',
   'money.payment.what': 'Para quê',
-  'money.payment.receipt': 'Recibo (uma imagem)',
+  'money.payment.receipt': 'Recibo (uma imagem ou um PDF)',
   'money.payment.receiptHint':
-    'Um recibo é uma foto ou um escaneamento salvo como imagem; recibos em PDF chegam com os documentos, mais tarde.',
+    'Um recibo é uma foto, um escaneamento ou um PDF. Ele é copiado para a pasta da obra e listado com os documentos.',
   'money.payment.save': 'Registrar o pagamento',
   'money.payment.problem': 'O pagamento não foi registrado',
   'money.payment.chooseStage': 'Escolha…',
@@ -650,6 +659,35 @@ export const ptBR: Dictionary = {
   'plan.person.contactNote':
     'Guardado neste computador e nunca usado para contatar ninguém: o Ridgebeam não tem rede.',
   'plan.tab.people': 'Pessoas',
+  'plan.tab.handover': 'Entrega',
+  'handover.lead':
+    'O que o dono guarda quando a obra termina, impresso no {book}: como cuidar da obra e as fotos do que paredes e pisos vão esconder. As notas não são o plano: podem ser escritas e mudadas a qualquer momento.',
+  'handover.work.title': 'Para a obra toda',
+  'handover.work.description': 'Onde as coisas ficam e o que fazer uma vez por ano.',
+  'handover.rooms.title': 'Para cada {room}',
+  'handover.rooms.description': 'O que saber para cuidar de cada um.',
+  'handover.rooms.none':
+    'O plano ainda não tem {room}. Adicione na estrutura e depois escreva as notas aqui.',
+  'handover.stages.title': 'Para cada {stage}',
+  'handover.stages.description': 'Do que cada parte da obra precisa ao longo dos anos.',
+  'handover.stages.none': 'O plano ainda não tem {stage}.',
+  'handover.care.none': 'Nenhuma nota ainda.',
+  'handover.care.field': 'Nota {position}: {name}',
+  'handover.care.placeholder': 'Refazer o rejunte do box uma vez por ano.',
+  'handover.care.empty': 'Escreva a nota primeiro.',
+  'handover.care.emptied': 'Uma nota não fica vazia: para tirá-la, pressione Remover.',
+  'handover.care.added': 'Nota adicionada: {name}.',
+  'handover.care.removed': 'Nota removida: {name}.',
+  'handover.hidden.title': 'Serviço escondido',
+  'handover.hidden.description':
+    'As verificações que pedem uma foto do serviço antes de ele ser fechado — os canos antes da parede, os fios antes do reboco. São respondidas na aba Portões.',
+  'handover.hidden.none':
+    'Nenhuma verificação pede foto ainda. Na aba Portões, marque “Pede foto” numa verificação de serviço que vai ficar escondido.',
+  'handover.hidden.yesPhoto': 'Sim, com a foto · {author} · {day}',
+  'handover.hidden.yesWithout':
+    'Sim, sem foto · {author} · {day} — respondida antes de a foto ser pedida',
+  'handover.hidden.open': 'Abrir em Portões',
+  'handover.hidden.openNamed': 'Abrir na aba Portões: {name}',
   'people.lead':
     'Todos na obra: o ofício, as etapas em que são esperados, os dias em que o diário os tem na obra e o que ainda se deve a eles.',
   'people.days.none': '0 dias na obra',
@@ -682,6 +720,8 @@ export const ptBR: Dictionary = {
   'document.kind.permit': 'Licença',
   'document.kind.receipt': 'Recibo',
   'document.kind.contract': 'Contrato',
+  'document.kind.warranty': 'Garantia',
+  'document.kind.manual': 'Manual',
   'document.kind.otherKind': 'Outro',
   'documents.filter.kind': 'Tipo',
   'documents.filter.allKinds': 'Todos os tipos',
@@ -714,6 +754,8 @@ export const ptBR: Dictionary = {
   'documents.figure.permit': 'Licenças',
   'documents.figure.receipt': 'Recibos',
   'documents.figure.contract': 'Contratos',
+  'documents.figure.warranty': 'Garantias',
+  'documents.figure.manual': 'Manuais',
   'documents.figure.other': 'Outros documentos',
   'documents.target.stage': '{name}',
   'documents.target.activity': '{name}',
@@ -1062,6 +1104,11 @@ export const ptBR: Dictionary = {
     'Escolha o arquivo, ou digite o caminho dele, terminando em .json.',
   'plan.range': '{min}–{max}',
   'plan.range.hint': 'Faixa {range}',
+  'plan.range.legend': '{range} (dias úteis)',
+  'plan.range.min': 'Otimista',
+  'plan.range.max': 'Pessimista',
+  'plan.range.both': 'Dê as duas pontas, ou apague as duas.',
+  'plan.invalid.range': 'Cada ponta é um número inteiro de dias úteis, de 1 a {max}.',
   'plan.checklist.range': '{range} dias úteis, uma faixa',
   'plan.stages.emptyTemplate':
     'Uma etapa é um capítulo da obra — demolição, instalações, revestimento. Adicione a primeira acima, ou comece de um {template}: um ponto de partida com faixas, não um orçamento.',
@@ -1146,6 +1193,7 @@ export const ptBR: Dictionary = {
   'reports.path.pdf': 'Arquivo PDF',
   'reports.path.csv': 'Arquivo CSV',
   'reports.path.json': 'Arquivo JSON',
+  'reports.path.html': 'Arquivo HTML',
   'reports.choose': 'Escolher…',
   'reports.pathHint':
     'Um caminho completo, ou escolha um. Um arquivo que já existe só é substituído quando você o escolheu na janela.',
@@ -1153,6 +1201,7 @@ export const ptBR: Dictionary = {
   'reports.filter.pdf': 'Documento PDF',
   'reports.filter.csv': 'Arquivo CSV',
   'reports.filter.json': 'Arquivo JSON',
+  'reports.filter.html': 'Página da web',
   'reports.done.title': 'Gravado',
   'reports.done.pages.one': '{count} página',
   'reports.done.pages.other': '{count} páginas',
@@ -1163,9 +1212,11 @@ export const ptBR: Dictionary = {
   'reports.file.weekly': '{work} semanal {week}',
   'reports.file.diary': '{work} diário',
   'reports.file.schedule': '{work} cronograma',
+  'reports.file.handover': '{work} manual de entrega',
+  'reports.file.snapshot': '{work} retrato {day}',
 
   'reports.weekly.holds':
-    'Um PDF de uma semana nas palavras do dono: os dias escritos e os dias úteis sem nada escrito, o que foi feito, quem esteve na obra, quanto o plano está pronto, quando termina, as decisões a tomar, o dinheiro e as etapas. Não traz as fotos, e anotações longas vêm encurtadas — o PDF do diário as traz inteiras.',
+    'Um PDF de uma semana nas palavras do dono: os dias escritos e os dias úteis sem nada escrito, o que foi feito, quem esteve na obra, quanto o plano está pronto, quando termina e a chance de terminar até lá, as decisões a tomar, o dinheiro — com o que foi pago à frente da obra e o que é devido e não pago — e as etapas. Não traz as fotos, e anotações longas vêm encurtadas — o PDF do diário as traz inteiras.',
   'reports.week': 'Semana',
   'reports.weekly.write': 'Gravar o relatório semanal',
   'reports.weekly.waiting': 'Lendo o diário…',
@@ -1270,8 +1321,133 @@ export const ptBR: Dictionary = {
   'reports.json.holds':
     'A obra inteira e cada entrada do diário com seus hashes, em JSON, para outro programa ler. Não traz os arquivos em si: documentos e fotos são nomeados pelo hash.',
   'reports.json.write': 'Gravar o JSON',
+  'reports.handover.figure.gaps': 'O que o manual ainda não tem',
+  'reports.handover.section.other': 'No resto da obra',
+  'reports.handover.gap.hiddenWithoutPhoto': 'Serviço escondido respondido Sim sem foto — “{name}”',
+  'reports.handover.gap.hiddenUnanswered': 'Serviço escondido sem resposta e sem foto — “{name}”',
+  'reports.handover.gap.stageOpen': '{name}: {stage} ainda em aberto.',
+  'reports.handover.gap.roomWithoutPhoto': '{name}: nenhuma foto ainda.',
+  'reports.handover.gap.noWarrantyOrManual':
+    'Nenhuma garantia e nenhum manual entre os documentos.',
+  'reports.handover.gap.noCareNote': 'Nenhum {note} escrito ainda.',
+  'reports.handover.title': 'O {book}',
+  'reports.handover.holds':
+    'Um PDF para o dono guardar: cômodo por cômodo o que foi feito e quando, as decisões tomadas com as respostas, as fotos do serviço escondido, os documentos pelo nome, quem fez o quê e como cuidar de tudo. Não traz o dinheiro nem o cronograma — eles têm relatórios próprios.',
+  'reports.handover.write': 'Gravar o {book}',
+  'reports.handover.gaps.one': '{count} lacuna',
+  'reports.handover.gaps.other': '{count} lacunas',
+  'reports.handover.gaps.none': 'Nada faltando',
+  'reports.handover.gaps.sentence.one':
+    'O {book} tem {count} lacuna. Ele pode ser gravado assim mesmo: a primeira página diz o que falta.',
+  'reports.handover.gaps.sentence.other':
+    'O {book} tem {count} lacunas. Ele pode ser gravado assim mesmo: a primeira página diz o que falta.',
+  'reports.handover.gaps.nothing': 'Não falta nada no {book} que o Ridgebeam consiga ver.',
+  'reports.handover.gaps.rows': 'O que falta no manual',
+  'reports.handover.inProgressNote':
+    'Ainda há {stage} em aberto: a primeira página vai dizer que o manual foi escrito com a obra em andamento.',
+  'reports.handover.inProgress': 'Escrito enquanto a obra estava em andamento.',
+  'reports.handover.cover.started': 'Começou em {day}.',
+  'reports.handover.cover.finished': 'Terminou em {day}.',
+  'reports.handover.cover.notFinished': 'Ainda não terminou: a obra está em andamento.',
+  'reports.handover.reading.byRoom':
+    'Cada {room} tem as suas páginas: o que foi feito e quando, as decisões tomadas, as fotos do serviço escondido e do diário, e como cuidar dele. Depois os documentos, quem fez o quê e como cuidar da obra toda. Dinheiro e cronograma não estão neste manual.',
+  'reports.handover.reading.byStage':
+    'Cada {stage} tem as suas páginas: o que foi feito e quando, as decisões tomadas, as fotos do serviço escondido e do diário, e como cuidar dela. Depois os documentos, quem fez o quê e como cuidar da obra toda. Dinheiro e cronograma não estão neste manual.',
+  'reports.handover.cover.people': 'As pessoas, por {trade}',
+  'reports.handover.sections.none': 'Nada no plano ainda.',
+  'reports.handover.done.label': 'O que foi feito',
+  'reports.handover.done.value.one': '{done} de {all} concluída',
+  'reports.handover.done.value.other': '{done} de {all} concluídas',
+  'reports.handover.done.on': 'concluída em {day}',
+  'reports.handover.decisions.label': 'Decisões tomadas',
+  'reports.handover.decisions.noAnswer': 'tomada, sem nada anotado',
+  'reports.handover.hidden.title': 'Serviço escondido, fotografado antes de ser fechado',
+  'reports.handover.hidden.none': 'Nenhuma foto de serviço escondido aqui.',
+  'reports.handover.hidden.caption': '{check} — {stage}, {day}',
+  'reports.handover.photos.title': 'Fotos do diário',
+  'reports.handover.photos.none': 'Nenhuma foto do diário aqui.',
+  'reports.handover.photos.caption': '{activity}, {day}',
+  'reports.handover.photos.notShown.one': 'Mais {count} foto está no diário e na pasta da obra.',
+  'reports.handover.photos.notShown.other':
+    'Mais {count} fotos estão no diário e na pasta da obra.',
+  'reports.handover.photos.overCap.one':
+    'O manual imprime no máximo {max} fotos: mais {count} foto está na pasta da obra.',
+  'reports.handover.photos.overCap.other':
+    'O manual imprime no máximo {max} fotos: mais {count} fotos estão na pasta da obra.',
+  'reports.handover.care.title': 'Como cuidar',
+  'reports.handover.care.none': 'Nenhuma nota aqui.',
+  'reports.handover.care.on': '{name}: {text}',
+  'reports.handover.care.work': 'Cuidados com a obra toda',
+  'reports.handover.documents.reading':
+    'Os arquivos estão na pasta da obra; cada um é nomeado aqui para ser encontrado.',
+  'reports.handover.documents.file': '{title} ({file})',
+  'reports.handover.documents.added': 'adicionado em {day}',
+  'reports.handover.documents.attached': 'anexado a {targets}',
+  'reports.handover.people.title': 'Quem fez o quê',
+  'reports.handover.people.names': 'Quem',
+  'reports.handover.people.noTrade': 'Não informado',
+  'reports.handover.people.none': 'Ninguém está no plano.',
+  'reports.handover.people.contact': 'Contato',
+  'reports.handover.people.stages': 'Trabalhou em',
+  'reports.handover.people.days': 'Dias na obra',
+  'reports.handover.people.noStages': 'nada no diário',
+  'reports.handover.record.title': 'O registro',
+  'reports.handover.record.empty': 'O diário ainda não tem nenhuma entrada.',
+  'reports.handover.record.summary.one':
+    'O diário tem {count} entrada, de {from} a {to}. A cadeia dele é verificada toda vez que o diário é gravado em PDF.',
+  'reports.handover.record.summary.other':
+    'O diário tem {count} entradas, de {from} a {to}. A cadeia dele é verificada toda vez que o diário é gravado em PDF.',
+  'reports.handover.record.written': 'Este manual foi escrito em {day}.',
+
+  // ── The owner’s snapshot (D4) ─────────────────────────────────────────────
+  'reports.lookahead.figure.starting': 'Começam',
+  'reports.lookahead.figure.running': 'Em andamento',
+  'reports.lookahead.figure.people': 'Quem precisa estar lá',
+  'reports.lookahead.figure.decisions': 'Para decidir ou encomendar',
+  'reports.lookahead.figure.gates': 'Portões a seguir',
+  'reports.lookahead.figure.fallingDue': 'Pagamentos que vencem',
+  'reports.lookahead.gate.start': '{stage} começa em {day}: o portão de início',
+  'reports.lookahead.gate.close': '{stage} termina em {day}: o portão de fechamento',
+  'reports.snapshot.title': 'O {snapshot}',
+  'reports.snapshot.holds':
+    'Uma página da web para o dono, para abrir em qualquer celular ou computador: quanto o plano está pronto, quando termina e a chance de terminar até lá, as próximas duas semanas — o que começa, quem precisa estar lá, o que decidir ou encomendar, os portões e os pagamentos que vencem — as últimas entradas do diário com até duas fotos cada, e o dinheiro. Nada nela executa e nada é carregado de lugar nenhum. Ela não traz telefone nem e-mail de ninguém, nem os documentos, nem o cronograma inteiro.',
+  'reports.snapshot.sending':
+    'O Ridgebeam grava o arquivo e não envia nada: enviá-lo — por WhatsApp, por e-mail — é com você. O {snapshot} não muda quando a obra muda; grave um novo para enviar o que mudou.',
+  'reports.snapshot.write': 'Gravar o {snapshot}',
+  'reports.snapshot.subtitle': '{work} — como está em {day}',
+  'reports.snapshot.today': 'Hoje',
+  'reports.snapshot.responsible': '{responsible}: {name}',
+  'reports.snapshot.nobody': '{responsible}: ninguém ainda',
+  'reports.snapshot.starts': 'começa {day}, até {finish}',
+  'reports.snapshot.runs': 'em andamento, até {finish}',
+  'reports.snapshot.critical': 'decide a data de término',
+  'reports.snapshot.decideBy': 'decidir ou encomendar até {day}',
+  'reports.snapshot.leadTime.one': '{leadTime}: {count} dia útil, necessário em {day}',
+  'reports.snapshot.leadTime.other': '{leadTime}: {count} dias úteis, necessário em {day}',
+  'reports.snapshot.gate.noChecks': 'nada a verificar',
+  'reports.snapshot.gate.passed': 'todas as verificações respondidas',
+  'reports.snapshot.gate.holding.one': '{count} verificação ainda sem resposta: {items}',
+  'reports.snapshot.gate.holding.other': '{count} verificações ainda sem resposta: {items}',
+  'reports.snapshot.covered': '{amount} dele já pago adiantado',
+  'reports.snapshot.next.title': 'As próximas duas semanas',
+  'reports.snapshot.next.window': 'De {from} a {to}.',
+  'reports.snapshot.next.nothingPlaced':
+    'Ainda não há nada no calendário: o que segue está vazio porque o plano não tem datas, não porque as duas semanas estão calmas.',
+  'reports.snapshot.next.chart':
+    'Uma coluna para cada dia; uma barra cortada na borda continua além das duas semanas.',
+  'reports.snapshot.lately.title': 'Ultimamente na obra',
+  'reports.snapshot.lately.none': 'O diário ainda não tem nenhuma entrada.',
+  'reports.snapshot.lately.of':
+    'Os últimos {shown} de {all} dias escritos no diário; cada {entry} está inteira no diário.',
+  'reports.snapshot.lately.done': 'O que foi feito',
+  'reports.snapshot.lately.photo': '{day} — {name}',
+  'reports.snapshot.lately.morePhotos.one': 'Mais {count} foto deste dia está no diário.',
+  'reports.snapshot.lately.morePhotos.other': 'Mais {count} fotos deste dia estão no diário.',
+  'reports.snapshot.closing':
+    'Escrito pelo Ridgebeam em {day}. Um retrato: não muda quando a obra muda.',
 
   // ── A porta de entrada, completa (F10) ────────────────────────────────────
+  'dashboard.snapshot': '{snapshot}…',
   'dashboard.figure.weekEntries': 'Entradas nesta semana',
   'dashboard.figure.weekDaysWithoutEntry': 'Dias úteis sem entrada nesta semana',
   'dashboard.figure.onSite': 'Quem esteve na obra',
@@ -1414,4 +1590,206 @@ export const ptBR: Dictionary = {
   'nextQuestion.allSkipped.one': 'A {count} pergunta que restava foi pulada por agora.',
   'nextQuestion.allSkipped.other': 'As {count} perguntas que restavam foram puladas por agora.',
   'nextQuestion.askAgain': 'Perguntar de novo as puladas',
+  'nextQuestion.ask.most':
+    'Quanto {name} pode levar, no máximo, em dias úteis? O plano diz {days}.',
+  'nextQuestion.optional':
+    'Opcional — o plano não fica faltando nada sem ela; ela dá ao término uma faixa de onde sortear.',
+  'nextQuestion.field.most': 'O máximo, em dias úteis — a ponta pessimista da sua {range}',
+  'nextQuestion.hint.most':
+    'A duração fica como a ponta otimista; só você sabe quanto ela pode atrasar.',
+  'nextQuestion.invalid.most': 'O máximo é um número inteiro de dias úteis, de {min} a {max}.',
+
+  // ── D1: quando termina de verdade ─────────────────────────────────────────
+  'schedule.probability.title': 'Quando termina de verdade?',
+  'schedule.probability.lead':
+    'A data do plano toma cada duração como certa. Aqui as durações otimista e pessimista de cada atividade são levadas em conta, e o cronograma é simulado muitas vezes para dizer quão provável é cada data.',
+  'schedule.probability.frequency.none': 'quase nenhuma chance',
+  'schedule.probability.frequency.underOne': 'menos de 1 em 10 chances',
+  'schedule.probability.frequency.inTen': '{n} em 10 chances',
+  'schedule.probability.frequency.every': '10 em 10 chances',
+  'schedule.probability.headline': '{chance} de terminar até {date}',
+  'schedule.probability.engineer': '{sentence} (P{percentile})',
+  'schedule.probability.sameDay.p50':
+    '{date} também é o dia até o qual metade das simulações tinha terminado: elas se concentram ali.',
+  'schedule.probability.sameDay.p90':
+    '{date} também é o dia até o qual 9 em 10 simulações tinham terminado: elas se concentram ali.',
+  'schedule.probability.engineer.percentile': '{sentence} (P{percentile})',
+  'schedule.probability.engineer.percent': '{sentence} — {percent} das simulações',
+  'schedule.probability.engineer.after': '{sentence} São {percent} das simulações.',
+  'schedule.probability.planChance': 'A data do plano, {date}, tem {chance}.',
+  'schedule.probability.baselineChance': 'A data da linha de base {number}, {date}, tem {chance}.',
+  'schedule.probability.allCertain':
+    'Toda atividade é contada como certa, então o término é a data do plano. Dê às atividades uma duração otimista e uma pessimista para ver a chance.',
+  'schedule.probability.certainCount':
+    'Atividades contadas como certas — o mesmo número de dias em todas as simulações: {certain} de {total}.',
+  'schedule.probability.unplacedCount':
+    'Atividades sem duração nem faixa, deixadas de fora das simulações: {unplaced}.',
+  'schedule.probability.method':
+    '{runs} simulações deste cronograma com as faixas dadas; com semente fixa, então o mesmo plano dá os mesmos números.',
+  'schedule.probability.capped':
+    'Este plano é grande, então foram feitas {runs} simulações em vez de {max}.',
+  'schedule.probability.leftOut':
+    'Cada atividade é sorteada sozinha: um mês de chuva que atrasa tudo de uma vez não está nas simulações.',
+  'schedule.probability.note': 'Nada aqui é guardado, e nada aqui muda as datas do plano.',
+  'schedule.probability.criticalIn': 'crítica em {n} de 10 simulações',
+  'schedule.probability.criticalNever': 'nunca crítica nas simulações',
+  'schedule.probability.criticalUnderOne': 'crítica em menos de 1 de 10 simulações',
+  'schedule.probability.short': '{n} em 10',
+  'schedule.probability.short.underOne': 'menos de 1 em 10',
+  'schedule.probability.figure.p80': 'O término, como chance',
+  'schedule.probability.figure.plan': 'A data do plano, como chance',
+  'schedule.probability.figure.baseline': 'A data da linha de base, como chance',
+  'schedule.probability.figure.criticality': 'Com que frequência cada atividade é crítica',
+  'schedule.probability.problem.invalidCalendar':
+    'Nenhuma chance pode ser dada: não dá para contar com o calendário de trabalho.',
+  'schedule.probability.problem.invalidStart':
+    'Nenhuma chance pode ser dada: a data de início não é um dia.',
+  'schedule.probability.problem.cyclic':
+    'Nenhuma chance pode ser dada: as ligações fazem um ciclo.',
+  'schedule.probability.problem.nothingPlaced':
+    'Nenhuma chance pode ser dada ainda: nenhuma atividade tem duração nem faixa.',
+  'schedule.probability.rows': 'Do que a chance depende',
+  'schedule.probability.row.driver': 'a sua faixa move o término',
+  'schedule.probability.row.certain': 'contada como certa',
+  'schedule.probability.row.correlation': 'correlação de postos {value}',
+  'schedule.probability.dates': 'A chance de terminar até outras datas',
+  'schedule.probability.chart.title': 'Chance de ter terminado, por data',
+  'schedule.probability.chart.description':
+    'Nenhuma simulação terminou antes de {earliest}; todas tinham terminado até {latest}.',
+  'schedule.probability.legend.curve': 'A chance de ter terminado até cada dia: a linha contínua',
+  'schedule.probability.legend.plan': 'A data do plano: a linha tracejada',
+  'schedule.probability.legend.headline': 'A data com {chance}: a linha pontilhada',
+  'schedule.probability.table': 'Chance de ter terminado, semana a semana',
+  'schedule.probability.table.by': 'Até',
+  'schedule.probability.table.chance': 'Chance',
+  'schedule.probability.table.percent': 'Parte das simulações',
+  'schedule.probability.drivers': 'O que mais move o término',
+  'schedule.probability.drivers.lead':
+    'As atividades cuja faixa mais move a data de término, da mais forte para a mais fraca.',
+  'schedule.probability.drivers.none':
+    'Nenhuma faixa move o término com clareza: as faixas dadas são estreitas, ou longe do caminho crítico.',
+  'schedule.probability.driver.range': '{range} dias úteis, mais provável {mode}',
+  'schedule.criticality.toggle': 'Sombrear cada barra pela frequência com que é crítica',
+  'schedule.legend.criticality':
+    'Sombra vermelha: com que frequência é crítica nas simulações — mais forte é mais vezes, e a fração está ao lado do nome',
+  'schedule.bar.criticality': '{sentence}, {critical}',
+
+  // ── D2: estou pagando à frente da obra? ───────────────────────────────────
+  'money.milestone.trigger.advance':
+    'Um sinal — no dia em que foi combinado, antes de qualquer trabalho',
+  'money.milestone.trigger.stageStarted': 'Quando a etapa começa',
+  'money.milestone.trigger.activityFinished': 'Quando uma atividade termina',
+  'money.milestone.trigger.stageClosed': 'Quando a etapa é encerrada',
+  'money.milestone.pending.advance': '{name} ainda não foi combinado.',
+  'money.milestone.pending.stageStarted': '{name} ainda não começou.',
+  'money.milestone.pending.activityFinished': '{name} ainda não terminou.',
+  'money.milestone.pending.stageClosed': '{name} ainda não foi encerrada.',
+  'money.milestone.state.earned': 'devido desde {day}',
+  'money.milestone.state.notYet': 'ainda não',
+  'money.paymentPlan.sum': '{planned} no plano; {rest} ainda fora do plano.',
+  'money.paymentPlan.sumWhole': '{planned} no plano.',
+  'money.paymentPlan.figure.earned': 'Devido pela obra',
+  'money.paymentPlan.figure.paid': 'Pago nele',
+  'money.paymentPlan.figure.due': 'A pagar agora',
+  'money.paymentPlan.figure.ahead': 'Pago à frente da obra',
+  'money.paymentPlan.figure.paidAhead': 'Pago à frente da obra',
+  'money.paymentPlan.figure.dueNow': 'Devido e não pago',
+  'money.paymentPlan.figure.noPlan': 'Compromissos sem plano de pagamento',
+  'money.paymentPlan.figure.outside': 'Pagamentos sem compromisso',
+  'money.paymentPreview.ahead':
+    'Este pagamento deixa você {amount} à frente da obra em {commitment}: devido até agora {earned} — {next} ({share}) ainda não é devido: {pending}',
+  'money.paymentPreview.aheadNoNext':
+    'Este pagamento deixa você {amount} à frente da obra em {commitment}: devido até agora {earned} — todos os marcos já são devidos, e o resto do valor não está no plano de pagamento.',
+  'money.milestone.problem.unknownCommitment': 'Esse compromisso não está mais no plano.',
+  'money.milestone.problem.unknownMilestone': 'Esse marco não está mais no plano de pagamento.',
+  'money.milestone.problem.locked':
+    'Um pagamento cita este compromisso, então o plano de pagamento fica como está.',
+  'money.milestone.problem.labelEmpty': 'Dê um nome ao marco.',
+  'money.milestone.problem.labelTooLong': 'O nome é longo demais: no máximo 120 caracteres.',
+  'money.milestone.problem.invalidShare':
+    'Uma parte é uma porcentagem acima de 0 e no máximo 100, com no máximo uma casa decimal.',
+  'money.milestone.problem.overPlan':
+    'Isso passa o plano de pagamento de 100 % do compromisso: restam {available} para ele.',
+  'money.milestone.problem.invalidTrigger': 'Escolha o que o torna devido.',
+  'money.milestone.problem.activityRequired': 'Escolha a atividade cujo término o torna devido.',
+  'money.milestone.problem.activityNotAllowed':
+    'Só um marco devido por um término cita uma atividade.',
+  'money.milestone.problem.unknownActivity': 'Essa atividade não está mais no plano.',
+  'money.milestone.problem.activityOfAnotherStage':
+    'Essa atividade é de outra etapa, não da etapa do compromisso.',
+  'money.paymentPlan.usual.started': 'Início da etapa',
+  'money.paymentPlan.usual.finished': 'Última atividade concluída',
+  'money.paymentPlan.usual.closed': 'Etapa encerrada',
+  'money.paymentPlan.usual.note':
+    'Uma divisão comum — 30 % quando a etapa começa, 40 % quando a última atividade termina, 30 % quando ela é encerrada. Não é um conselho: mude para o que foi combinado.',
+  'money.paymentPlan.toggle': 'Plano de pagamento',
+  'money.paymentPlan.summary.none': 'nenhum ainda',
+  'money.paymentPlan.summary.one': '{count} marco · {share} no plano',
+  'money.paymentPlan.summary.other': '{count} marcos · {share} no plano',
+  'money.paymentPlan.lead':
+    'Cada marco passa a ser devido por um fato da obra, nunca por uma data: a etapa começar, uma atividade terminar no diário, a etapa ser encerrada — ou, para um sinal, o dia em que foi combinado.',
+  'money.paymentPlan.none':
+    'Ainda sem plano de pagamento. Até ter um, ninguém pode dizer se pagar este compromisso é pagar à frente da obra.',
+  'money.paymentPlan.locked':
+    'Um pagamento cita este compromisso, então o plano de pagamento fica como está: um plano reescrito depois de pagar esconderia o pagamento à frente da obra.',
+  'money.paymentPlan.closedStage':
+    '{stage} está encerrada, e este plano de pagamento ainda pode mudar: dinheiro não é uma mudança do plano.',
+  'money.paymentPlan.usual': 'Adicionar o plano usual',
+  'money.paymentPlan.usual.noActivity':
+    'O plano usual paga 40 % quando a última atividade da etapa termina, e {stage} ainda não tem atividade: adicione uma no Plano primeiro.',
+  'money.paymentPlan.usual.done': 'O plano usual foi adicionado: três marcos.',
+  'money.paymentPlan.milestones': 'Marcos de {name}',
+  'money.milestone.when.advance': 'um sinal, ao combinar — pago antes de qualquer trabalho',
+  'money.milestone.when.stageStarted': 'quando {name} começar',
+  'money.milestone.when.activityFinished': 'quando {name} terminar',
+  'money.milestone.when.stageClosed': 'quando {name} for encerrada',
+  'money.milestone.goneActivity': 'uma atividade que não está mais no plano',
+  'money.milestone.share': '{share} · {amount}',
+  'money.milestone.labelOf': 'Nome de {name}',
+  'money.milestone.shareOf': 'Parte de {name}, em %',
+  'money.milestone.remove': 'Remover: {name}',
+  'money.milestone.removed': '{name} saiu do plano de pagamento.',
+  'money.milestone.added': '{name} entrou no plano de pagamento.',
+  'money.milestone.add.label': 'Marco',
+  'money.milestone.add.share': 'Parte, em %',
+  'money.milestone.add.trigger': 'Devido quando',
+  'money.milestone.add.activity': 'Qual atividade',
+  'money.milestone.add.chooseActivity': 'Escolha a atividade…',
+  'money.milestone.add': 'Adicionar marco',
+  'money.milestone.advanceNote':
+    'Um sinal é pago antes de qualquer trabalho: é dinheiro à frente da obra, de propósito.',
+  'money.milestone.noActivities':
+    '{stage} ainda não tem atividade: adicione uma no Plano para pagar pelo término dela.',
+  'money.paymentPlan.rows.earned': 'Os marcos alcançados',
+  'money.paymentPlan.rows.due': 'O devido, menos o que foi pago nele',
+  'money.paymentPlan.row.milestone': 'marco, {share}',
+  'money.paymentPlan.paidAhead.mark': '{amount} à frente da obra',
+  'money.paymentPlan.dueNow.mark': '{amount} devido e não pago',
+  'money.paymentPlan.noPlan.mark': 'Sem plano de pagamento — não avaliado',
+  'money.paymentPreview.title': 'Diante do plano de pagamento de {commitment}',
+  'money.paymentPreview.line':
+    'Devido até agora {earned} · pago até agora {paid} · pago depois deste pagamento {after}',
+  'money.paymentPreview.even':
+    'Depois deste pagamento, o que foi pago é o que a obra já tornou devido.',
+  'money.paymentPreview.due': 'Depois deste pagamento, {due} fica devido e não pago.',
+  'money.paymentPreview.aheadAfter': 'Depois deste pagamento, {ahead} fica pago à frente da obra.',
+  'money.paymentPreview.noPlan':
+    '{commitment} não tem plano de pagamento, então não dá para dizer se este pagamento está à frente da obra.',
+  'money.paymentPreview.warningTitle': 'À frente da obra',
+  'money.paymentPreview.decision': 'Você ainda pode registrá-lo: pagar ou não é uma decisão sua.',
+  'nextQuestion.ask.paymentPlan': 'Como {label} vai ser pago?',
+  'nextQuestion.openPaymentPlan': 'Abrir o plano de pagamento',
+  'nextQuestion.optional.paymentPlan':
+    'Opcional — o plano não fica faltando nada sem isto; um plano de pagamento diz quando pagar é pagar à frente da obra.',
+  'nextQuestion.hint.paymentPlan':
+    'O plano de pagamento abre em Dinheiro, por etapa: diga que fato da obra torna devida cada parte.',
+  'dashboard.paidAhead.rows': 'Os compromissos pagos à frente da obra',
+  'dashboard.dueNow.rows': 'Os compromissos com dinheiro devido e não pago',
+  'dashboard.money.noPlan.one':
+    '{count} compromisso não tem plano de pagamento, então não é avaliado.',
+  'dashboard.money.noPlan.other':
+    '{count} compromissos não têm plano de pagamento, então não são avaliados.',
+  'dashboard.money.outside.one': '{count} pagamento não cita compromisso, então fica fora disto.',
+  'dashboard.money.outside.other':
+    '{count} pagamentos não citam compromisso, então ficam fora disto.',
 };

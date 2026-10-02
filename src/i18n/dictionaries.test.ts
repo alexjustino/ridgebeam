@@ -11,6 +11,7 @@ import { DASHBOARD_LABEL_KEYS, WEEK_DAY_STATUS_KEYS } from '@/domain/dashboard';
 import { DECISIONS_DUE_LABEL_KEY } from '@/domain/decisions';
 import { DONE_LABEL_KEYS } from '@/domain/diary';
 import { DOCUMENTS_LABEL_KEYS, TARGET_KINDS } from '@/domain/documents';
+import { MILESTONE_MESSAGE_KEYS } from '@/domain/milestones';
 import { MONEY_LABEL_KEYS, NOT_PRICED_KEY, OVER_COMMITTED_LABEL_KEY } from '@/domain/money';
 import {
   READINESS_LABEL_KEY,
@@ -20,9 +21,16 @@ import {
   RULE_UNCOUNTED_KEY,
 } from '@/domain/readiness';
 import { DIARY_ROW_STATUS_KEYS } from '@/domain/reports/diary';
+import { HANDOVER_GAP_KEYS, HANDOVER_LABEL_KEYS } from '@/domain/reports/handover';
+import { LOOKAHEAD_MESSAGE_KEYS } from '@/domain/reports/lookahead';
 import { SCHEDULE_BLOCKED_KEYS } from '@/domain/reports/schedule';
 import { WEEKLY_LABEL_KEYS, WEEKLY_PROBLEM_KEYS } from '@/domain/reports/weekly';
-import { QUESTION_MESSAGE_KEYS } from '@/domain/questions';
+import {
+  OPTIONAL_QUESTION_MESSAGE_KEYS,
+  PAYMENT_PLAN_QUESTION_KEYS,
+  QUESTION_MESSAGE_KEYS,
+} from '@/domain/questions';
+import { PROBABILITY_MESSAGE_KEYS } from '@/domain/schedule/probability';
 import { SLIP_LABEL_KEY } from '@/domain/schedule/slip';
 import { WHAT_IF_LABEL_KEY, WHAT_IF_PROBLEM_KEYS } from '@/domain/schedule/whatIf';
 import { LANGUAGES as LANGUAGE_CHOICES } from '@/domain/settings';
@@ -202,11 +210,44 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         STAGES_READY_LABEL_KEY,
         RULE_UNCOUNTED_KEY,
         ...Object.values(QUESTION_MESSAGE_KEYS),
+        ...Object.values(OPTIONAL_QUESTION_MESSAGE_KEYS),
+        ...MILESTONE_MESSAGE_KEYS,
+        ...Object.values(PAYMENT_PLAN_QUESTION_KEYS),
+        ...Object.values(HANDOVER_GAP_KEYS),
+        ...Object.values(HANDOVER_LABEL_KEYS),
+        ...LOOKAHEAD_MESSAGE_KEYS,
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }
     },
   );
+});
+
+describe('the finish as a probability, in both languages (D1)', () => {
+  /** Every key of a nested table of keys, flattened. */
+  const keysOf = (table: object): string[] =>
+    Object.values(table).flatMap((value) =>
+      typeof value === 'string' ? [value] : keysOf(value as object),
+    );
+
+  it.each(LANGUAGES)('%s carries every sentence the simulation hands the interface', (language) => {
+    const dictionary = DICTIONARIES[language] as Record<string, string>;
+    const keys = keysOf(PROBABILITY_MESSAGE_KEYS);
+    expect(keys.length).toBeGreaterThan(20);
+    for (const key of keys) expect(dictionary[key], `${language} ${key}`).toBeTruthy();
+  });
+
+  it('says a chance in natural frequencies: "N in 10" and "N em 10"', () => {
+    const frequency = PROBABILITY_MESSAGE_KEYS.frequency['in-ten'];
+    expect(translate(DICTIONARIES.en, frequency, { n: 8 })).toBe('8 in 10 chances');
+    expect(translate(DICTIONARIES['pt-BR'], frequency, { n: 8 })).toBe('8 em 10 chances');
+    expect(
+      translate(DICTIONARIES['pt-BR'], PROBABILITY_MESSAGE_KEYS.headline, {
+        chance: '8 em 10 chances',
+        date: '14 de novembro de 2026',
+      }),
+    ).toBe('8 em 10 chances de terminar até 14 de novembro de 2026');
+  });
 });
 
 describe('what a template says, in both languages (F9)', () => {

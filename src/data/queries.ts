@@ -47,6 +47,7 @@ import {
   diaryVerify,
   diaryExportCsv,
   diaryExportPdf,
+  reportHtmlWrite,
   reportOpen,
   reportPdfWrite,
   workExportJson,
@@ -55,12 +56,17 @@ import {
   dependencyRemove,
   dependencyUpdate,
   calendarSet,
+  careNoteAdd,
+  careNoteMove,
+  careNoteRemove,
+  careNoteUpdate,
   checkAdd,
   checkAnswer,
   checkMove,
   checkRemove,
   checkRename,
   checksAddDefaults,
+  checkSetNeedsPhoto,
   personRemove,
   personUpdate,
   personSetStages,
@@ -77,6 +83,11 @@ import {
   commitmentAdd,
   commitmentRemove,
   commitmentUpdate,
+  milestoneAdd,
+  milestoneMove,
+  milestoneRemove,
+  milestoneUpdate,
+  milestonesUsual,
   costLineAdd,
   costLineRemove,
   costLineUpdate,
@@ -118,9 +129,13 @@ import {
   type CostLinePatch,
   type BaselineRowDraft,
   type CalendarDraft,
+  type CareNoteTarget,
   type DecisionPatch,
   type EntryDraft,
   type Gate,
+  type MilestoneDraft,
+  type MilestonePatch,
+  type UsualMilestoneLabels,
   type PaymentDraftWire,
   type PersonPatch,
   type PlanToApply,
@@ -357,7 +372,7 @@ export function useRemoveRoom() {
 }
 
 /** A move names what moves: a stage, an activity inside its stage, or a room. */
-export type MoveKind = 'stage' | 'activity' | 'room' | 'decision' | 'check';
+export type MoveKind = 'stage' | 'activity' | 'room' | 'decision' | 'check' | 'careNote';
 
 const MOVES: Record<MoveKind, (id: string, direction: Direction) => Promise<WorkSnapshot>> = {
   stage: stageMove,
@@ -365,6 +380,7 @@ const MOVES: Record<MoveKind, (id: string, direction: Direction) => Promise<Work
   room: roomMove,
   decision: decisionMove,
   check: checkMove,
+  careNote: careNoteMove,
 };
 
 export function useMove() {
@@ -468,12 +484,23 @@ export function useDiary(enabled: boolean) {
   return useQuery({ queryKey: keys.diary, queryFn: () => diaryList(), enabled });
 }
 
-/** Write one entry. The diary is read again; the plan is not touched, because it has not changed. */
+/**
+ * Write one entry. The diary is read again. So is the work's snapshot when the entry carries a
+ * photo: since F7 every photo copied in becomes a document of the work, and documents travel in
+ * the snapshot — left alone, Documents and every report composed from it would miss the photo
+ * until the next plan command (D4 found it: the owner's snapshot left the photo out).
+ */
 export function useAddEntry() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (draft: EntryDraft) => diaryEntryAdd(draft),
-    onSuccess: () => client.invalidateQueries({ queryKey: keys.diary }),
+    onSuccess: (_, draft) =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: keys.diary }),
+        ...(draft.photoPaths.length + draft.photoHashes.length > 0
+          ? [client.invalidateQueries({ queryKey: keys.work })]
+          : []),
+      ]),
   });
 }
 
@@ -512,8 +539,17 @@ export function useRemoveCheck() {
 
 export function useAddDefaultChecks() {
   return useWorkCommand(
-    ({ stageId, start, close }: { stageId: string; start: string[]; close: string[] }) =>
-      checksAddDefaults(stageId, start, close),
+    ({
+      stageId,
+      start,
+      close,
+      needsPhoto,
+    }: {
+      stageId: string;
+      start: string[];
+      close: string[];
+      needsPhoto: string[];
+    }) => checksAddDefaults(stageId, start, close, needsPhoto),
   );
 }
 
@@ -535,6 +571,12 @@ export function useAnswerCheck() {
   );
 }
 
+export function useSetNeedsPhoto() {
+  return useWorkCommand(({ id, needsPhoto }: { id: string; needsPhoto: boolean }) =>
+    checkSetNeedsPhoto(id, needsPhoto),
+  );
+}
+
 export function useStartStage() {
   return useWorkCommand((id: string) => stageStart(id));
 }
@@ -545,6 +587,22 @@ export function useCloseStage() {
 
 export function useReopenStage() {
   return useWorkCommand((id: string) => stageReopen(id));
+}
+
+// ── Care notes (D3) ──────────────────────────────────────────────────────────
+
+export function useAddCareNote() {
+  return useWorkCommand(({ target, text }: { target: CareNoteTarget; text: string }) =>
+    careNoteAdd(target, text),
+  );
+}
+
+export function useUpdateCareNote() {
+  return useWorkCommand(({ id, text }: { id: string; text: string }) => careNoteUpdate(id, text));
+}
+
+export function useRemoveCareNote() {
+  return useWorkCommand((id: string) => careNoteRemove(id));
 }
 
 // ── People and money (F6) ────────────────────────────────────────────────────
@@ -602,6 +660,35 @@ export function useAddPayment() {
 export function useReversePayment() {
   return useWorkCommand(({ seq, note }: { seq: number; note: string }) =>
     paymentReverse(seq, note),
+  );
+}
+
+// ── A commitment's payment plan (D2) ─────────────────────────────────────────
+
+export function useAddMilestone() {
+  return useWorkCommand((draft: MilestoneDraft) => milestoneAdd(draft));
+}
+
+export function useUpdateMilestone() {
+  return useWorkCommand(({ id, patch }: { id: string; patch: MilestonePatch }) =>
+    milestoneUpdate(id, patch),
+  );
+}
+
+export function useMoveMilestone() {
+  return useWorkCommand(({ id, direction }: { id: string; direction: Direction }) =>
+    milestoneMove(id, direction),
+  );
+}
+
+export function useRemoveMilestone() {
+  return useWorkCommand((id: string) => milestoneRemove(id));
+}
+
+export function useUsualMilestones() {
+  return useWorkCommand(
+    ({ commitmentId, labels }: { commitmentId: string; labels: UsualMilestoneLabels }) =>
+      milestonesUsual(commitmentId, labels),
   );
 }
 
@@ -716,6 +803,21 @@ export function useWriteReport() {
       document: ReportDocument;
       overwrite: boolean;
     }) => reportPdfWrite(path, document, overwrite, new Date().toISOString()),
+  });
+}
+
+/** The owner's snapshot (D4): a composed document, written by the host as one HTML file. */
+export function useWriteSnapshot() {
+  return useMutation({
+    mutationFn: ({
+      path,
+      document,
+      overwrite,
+    }: {
+      path: string;
+      document: ReportDocument;
+      overwrite: boolean;
+    }) => reportHtmlWrite(path, document, overwrite, new Date().toISOString()),
   });
 }
 

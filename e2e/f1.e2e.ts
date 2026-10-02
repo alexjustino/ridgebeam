@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, go, openRecent, startSession, type Session } from './session';
 import { Keys } from './webdriver';
 
 /**
@@ -206,7 +206,7 @@ describe('F1 — the plan: rooms, quantities, arrangements, order, and the lens'
     await go(session, 'dashboard');
     await click(session, 'work-close');
     await driver.waitForElement('[data-testid="start"]');
-    await (await driver.waitForElement('[data-testid="recent-work"]')).click();
+    await openRecent(session);
     await go(session, 'plan');
     await tab(session, 'breakdown');
     expect(await numbering(session)).toEqual(['1', '1.1', '2']);

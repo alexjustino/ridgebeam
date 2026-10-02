@@ -9,10 +9,17 @@
 
 import type { DecisionRow } from '@/domain/decisions';
 import type { Weather } from '@/domain/diary';
-import type { MissingId, MissingRow } from '@/domain/readiness';
+import { sentenceParts, type MissingId, type MissingRow } from '@/domain/readiness';
 import type { Schedule, UnplacedReason } from '@/domain/schedule';
+import {
+  PROBABILITY_MESSAGE_KEYS,
+  type DateChance,
+  type Driver,
+  type NaturalFrequency,
+} from '@/domain/schedule/probability';
 import type { SlipRow } from '@/domain/schedule/slip';
 import type { MessageKey } from '@/i18n/en';
+import { capitalised } from '@/i18n/terms';
 import type { I18n } from '@/i18n/useI18n';
 
 /** A signed number of working days, as a person says it: "2 days", "0 days", "3 days early". */
@@ -77,6 +84,22 @@ export function readinessRowText(
   return i18n.t(READINESS_ROW_KEYS[row.ruleId]);
 }
 
+/**
+ * The readiness sentence as the dashboard says it — "1 activity has no responsible. 2 activities
+ * have no duration." — from the same missing rows the figure counts, one pluralised key per rule; or
+ * that the plan knows everything it must know today. The dashboard and the owner's snapshot (D4)
+ * both say it from here, so the page sent to the owner and the screen cannot word it two ways.
+ */
+export function readinessSentence(
+  i18n: Pick<I18n, 't' | 'tp'>,
+  missing: readonly MissingRow[],
+): string {
+  const parts = sentenceParts(missing);
+  return parts.length === 0
+    ? i18n.t('readiness.complete')
+    : parts.map((part) => i18n.tp(part.key, part.count)).join(' ');
+}
+
 /** What each weather is called: in the diary's form, on every entry and on the page. */
 export const WEATHER_KEYS: Record<Weather, MessageKey> = {
   sun: 'diary.weather.sun',
@@ -129,4 +152,103 @@ export function slipRowText(i18n: Pick<I18n, 't' | 'tp' | 'day'>, row: SlipRow):
     case 'placed':
       return i18n.t('slip.row.placed', { current: i18n.day(row.currentFinish ?? '') });
   }
+}
+
+/** A chance in natural frequencies, as the domain floors it: "8 in 10 chances", "almost no chance". */
+export function frequencyText(
+  i18n: Pick<I18n, 't' | 'number'>,
+  frequency: Pick<NaturalFrequency, 'messageKey' | 'params'>,
+): string {
+  return i18n.t(frequency.messageKey as MessageKey, { n: i18n.number(frequency.params.n) });
+}
+
+/** The same, short, for a column or a cell: "8 in 10", "under 1 in 10". */
+export function frequencyShort(
+  i18n: Pick<I18n, 't' | 'number'>,
+  frequency: Pick<NaturalFrequency, 'kind' | 'n'>,
+): string {
+  return frequency.kind === 'under-one'
+    ? i18n.t('schedule.probability.short.underOne')
+    : i18n.t('schedule.probability.short', { n: i18n.number(frequency.n) });
+}
+
+/** A share as the engineer reads it, floored as the words are: "83 %". */
+export function frequencyPercent(
+  i18n: Pick<I18n, 't' | 'number'>,
+  frequency: Pick<NaturalFrequency, 'percent'>,
+): string {
+  return i18n.t('figure.percent', { value: i18n.number(frequency.percent) });
+}
+
+/**
+ * The finish as a probability, in one sentence (D1, decision 5): "8 in 10 chances of finishing by
+ * 14 November 2026" — the owner's and the architect's; the engineer's adds which percentile it is,
+ * "(P80)". Opening a sentence, so its first letter is a capital whatever the frequency.
+ */
+export function headlineText(
+  i18n: Pick<I18n, 't' | 'number' | 'day' | 'language'>,
+  at: Pick<DateChance, 'date' | 'frequency'>,
+  engineer: { percentile: number } | null = null,
+): string {
+  const sentence = capitalised(
+    i18n.language,
+    i18n.t(PROBABILITY_MESSAGE_KEYS.headline, {
+      chance: frequencyText(i18n, at.frequency),
+      date: i18n.day(at.date),
+    }),
+  );
+  return engineer === null
+    ? sentence
+    : i18n.t('schedule.probability.engineer', {
+        sentence,
+        percentile: i18n.number(engineer.percentile),
+      });
+}
+
+/** "The plan's date, 2 October 2026, has 3 in 10 chances." */
+export function planChanceText(
+  i18n: Pick<I18n, 't' | 'number' | 'day'>,
+  at: Pick<DateChance, 'date' | 'frequency'>,
+): string {
+  return i18n.t(PROBABILITY_MESSAGE_KEYS.planChance, {
+    date: i18n.day(at.date),
+    chance: frequencyText(i18n, at.frequency),
+  });
+}
+
+/** "Baseline 1's date, 30 September 2026, has 1 in 10 chances." */
+export function baselineChanceText(
+  i18n: Pick<I18n, 't' | 'number' | 'day'>,
+  at: Pick<DateChance, 'date' | 'frequency'> & { readonly number: number },
+): string {
+  return i18n.t(PROBABILITY_MESSAGE_KEYS.baselineChance, {
+    number: i18n.number(at.number),
+    date: i18n.day(at.date),
+    chance: frequencyText(i18n, at.frequency),
+  });
+}
+
+/** A driver's range in words: "2–4 working days, likeliest 3". */
+export function driverRangeText(
+  i18n: Pick<I18n, 't' | 'number'>,
+  driver: Pick<Driver, 'min' | 'mode' | 'max'>,
+): string {
+  return i18n.t('schedule.probability.driver.range', {
+    range: i18n.t('plan.range', { min: i18n.number(driver.min), max: i18n.number(driver.max) }),
+    mode: i18n.number(Math.round(driver.mode * 10) / 10),
+  });
+}
+
+/**
+ * How often an activity was critical in the runs: "critical in 8 of 10 runs", floored as every
+ * frequency is — and, at the two ends a floor would blur, "never critical in the runs" and
+ * "critical in fewer than 1 of 10 runs".
+ */
+export function criticalText(
+  i18n: Pick<I18n, 't' | 'number'>,
+  frequency: Pick<NaturalFrequency, 'kind' | 'n'>,
+): string {
+  if (frequency.kind === 'none') return i18n.t('schedule.probability.criticalNever');
+  if (frequency.kind === 'under-one') return i18n.t('schedule.probability.criticalUnderOne');
+  return i18n.t(PROBABILITY_MESSAGE_KEYS.criticalIn, { n: i18n.number(frequency.n) });
 }

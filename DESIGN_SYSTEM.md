@@ -437,6 +437,41 @@ breaks one is not merged.
   sums money on its own: every money figure comes from the domain with its rows (ADR-024), and
   a negative amount — a reversal, a variance — reads with its sign **and** in words ("reversed",
   "under"), never by colour alone. _Over committed_ is a mark in words with the excess beside it.
+- **A warning comes before the act it warns about.** When the product can see that an act will put
+  the person somewhere they would not choose to be — a payment that runs ahead of the work — it says
+  so on the form, as the person types, before the button that does it is pressed, and never only in
+  a report afterwards. The form shows what the act would change, live, as figures from the domain —
+  on the Ledger, a panel under the fields (`payment-preview`) with what the commitment has earned so
+  far, what has been paid and what would be paid after this payment, and whether that leaves money
+  due, the two even, or money paid ahead. When the act crosses the line, a caution `InfoBar`
+  (`payment-ahead-warning`) titled _Ahead of the work_ says it in one sentence with the amount, the
+  commitment, what is earned and the next milestone with what it waits for — _"This payment puts you
+  R$ 500,00 ahead of the work on Tiler's quote: earned so far R$ 300,00 — Tiles laid (40 %) is not
+  earned yet: Lay the tiles is not finished yet."_ — and a second line that gives the decision back:
+  _"You can still record it: whether to pay is yours to decide."_ **A warning is not a refusal**:
+  the button stays enabled and keeps its label, **Record the payment**, because the act is the
+  person's to decide and, once done, a fact; the record keeps it and marks it afterwards, as _over
+  committed_ is marked. The sentence comes from the domain's preview (`paymentPreview`), never from
+  a component's own arithmetic. It never warns about undoing — a reversal is not warned about — and
+  a commitment with no payment plan is not warned about either: the panel says that whether the
+  payment is ahead cannot be said. It is never colour alone: the caution tone, the `InfoBar`'s icon
+  and the sentence, each enough on its own (ADR-037).
+- **A payment plan says what earns it, and since when.** A commitment's **Payment plan** is a
+  disclosure under it on Money → By stage, open by default while the commitment has none. A
+  milestone reads with its share and its amount, the fact that earns it in words — _when Tiling
+  starts_, _when Lay the tiles is finished_, _when Tiling closes_, _an advance, on agreeing — paid
+  before any work_ — and its state from the domain: _earned on 3 Oct_ or _not yet_. Nothing on the
+  screen marks a milestone earned; the diary and the gates do. An advance says plainly that it is
+  money ahead of the work, on purpose. A plan that does not reach 100 % says how much is in it and
+  how much is not — _"70 % in the plan; 30 % not in the plan yet."_ — never a total that pretends
+  the rest is covered; a commitment with no plan says it has none and is not evaluated, neither
+  ahead nor behind. **Add the usual plan** carries its sentence beside it: a common split, not
+  advice — change it to what you agreed. Once a payment names the commitment, the plan is shown as
+  it is, with the sentence that says why — a plan rewritten after paying would hide being ahead of
+  the work — and no control that would change it; a closed stage does not lock it, and the plan says
+  so. Paid ahead and money due are marks on the commitment in words with the amount — _"R$ 500,00
+  ahead of the work"_ in the danger tone with an error icon, _"R$ 300,00 earned and not paid"_ as
+  information with an info icon — never colour alone.
 - **A chart says what it left out.** A chart is a picture of rows the product also shows as a
   table. The S-curve of planned against paid draws two lines told apart by colour **and** by dash,
   with a legend in words; it is `role="img"` with a sentence naming both totals and the last day,
@@ -474,6 +509,27 @@ breaks one is not merged.
   buttons under a sentence that counts the activities with a range and no duration; they write only
   those, and announce what they did. No screen averages, rounds or picks an end on its own; a
   number the product chose would read as the template's promise (ADR-029).
+- **A probability is said as N in 10, in words.** A chance the product computes — the finish by a
+  date, the plan's own date met, how often an activity is critical — is said as a natural frequency
+  in a sentence: _"8 in 10 chances of finishing by 14 November 2026"_, _"The plan's date, 2
+  October, has 3 in 10 chances."_, _"critical in 6 of 10 runs"_. The sentence is whole tenths, in
+  every lens, because "8 in 10" is what a person with no training in statistics reads correctly and
+  a bare "80 %" is read as a promise. **Tenths are floored, never rounded** — 0.79 is "7 in 10" — so
+  the words never promise more than the runs showed; "10 in 10" only when every run finished by
+  then, "fewer than 1 in 10" below a tenth, and "almost no chance" when no run did, never
+  "impossible". The engineer's lens adds the percentile — _(P80)_ — and the share of the runs in
+  percent, floored the same way, beside the sentence and never in place of it. The words come from
+  the domain (`naturalFrequency`), never from a component's own arithmetic, so a sentence and its
+  percentage cannot disagree (§2, _two readings of one fact agree_). A chance is never colour alone
+  and never a gauge that looks like a score. Where nothing gives a chance — no activity has a range
+  — the card shows the plan's date and says in words that _every activity is counted as certain_,
+  and how to give a range; it never shows "10 in 10" as though the plan were sure. The method is on
+  the page with the result: how many runs, from which ranges, seeded so the same plan gives the same
+  numbers, fewer runs on a large plan said as such, and what the runs leave out — _each activity is
+  drawn on its own_. The simulation's own guesses stay inside it: an activity with a range and no
+  duration is drawn around the middle of its range, and no screen shows that middle as a duration
+  (_a range is shown as a range until a person picks_, above). And a chance never moves the plan:
+  the Gantt's dates, the slip and the deadlines stay the plan's (ADR-035).
 - **A template is labelled a starting point, never a quote.** Wherever a template is offered — the
   Start screen's picker, **Start from a template…** on an empty breakdown — its preview says what
   it holds in counted words (stages, activities, decisions, checks) and says, in a sentence that is
@@ -486,15 +542,16 @@ breaks one is not merged.
   list of its problems in sentences, each saying where in the file it is — never "invalid file".
 - **A report says what the screen says, in the same words.** A PDF is composed from the rows the
   screen shows, by the same domain selections, through the same `t()` and the same dictionaries —
-  never from a second calculation and never from words written for paper only (ADR-031). A figure
-  on the page carries its rows under it, as it opens onto them on the screen. The weekly report is
-  in the **owner's** words whatever lens is on, because it is the owner's report; the diary and the
+  never from a second calculation and never from words written for paper only (ADR-031). A figure on
+  the page carries its rows under it, as it opens onto them on the screen. The weekly report is in
+  the **owner's** words whatever lens is on, because it is the owner's report; the diary and the
   schedule follow the lens and the language on screen. A string the page cannot print is a defect
   the encoder test finds before a person does: the three stand-ins (→ `->`, ≥ `>=`, ≤ `<=`) are the
-  only difference allowed, and a `?` fails the gate. What the page leaves out it says in words —
-  photos are counted and said to be in the work's folder, a note shortened in a row is whole in the
-  diary's PDF — and each card on **Reports** says in one line what its file holds **and what it
-  does not**, and after writing names the path and offers **Open**.
+  only difference allowed, and a `?` fails the gate. What the page leaves out it says in words — the
+  weekly report and the diary count photos and say they are in the work's folder, a note shortened
+  in a row is whole in the diary's PDF, and the handover book, which prints its photos, names each
+  PDF document without reproducing it — and each card on **Reports** says in one line what its file
+  holds **and what it does not**, and after writing names the path and offers **Open**.
 - **The plan asks one question at a time.** While a work's plan still has open questions — an
   activity with a range and no duration, an activity with nobody responsible, a cost line not priced
   yet, a decision not made that is overdue or due within 14 calendar days — the dashboard's first
@@ -508,7 +565,11 @@ breaks one is not merged.
   is asked of a closed stage, which the host would refuse to change. The order is the domain's
   (`nextQuestion`), never the screen's. The breakdown stays where it is: the card is a way in for
   the person who does not know where to start, never the only way to answer, and never a second
-  editor with rules of its own (ADR-034).
+  editor with rules of its own (ADR-034). After every other question, and only then, the card
+  may ask one that is **optional** — _"What is the most Rebuild could take, in working days? The plan says 4."_ — of an activity on the critical path with a duration and no range; it is marked
+  optional, it is not in the "3 of 22 answered" count, because the plan lacks nothing without it,
+  and its answer gives the activity a range from its duration to the answer, so no optimism is
+  invented (ADR-035).
 - **An empty week is printed, and says it is empty.** A week with no diary entry still makes a
   weekly report: its **first line**, in strong type, says that nothing was written and how many
   working days are over with nothing written — _"No diary entry this week: 3 working days are over
@@ -518,6 +579,35 @@ breaks one is not merged.
   drops a section because it has nothing in it — a figure with nothing to count is printed with its
   zero — and never leaves a reader unable to tell an empty week from a page that failed to print
   (SPEC R2).
+- **A book says what it still lacks before it is printed.** A document meant to be kept as the
+  record — the handover book — is never written silently incomplete. Its card on **Reports** shows,
+  before the button that writes it, a counted figure of its gaps (`handover-gaps`) that opens onto
+  its rows like any other figure — _"The book has 4 gaps"_, then each one by name: a check that
+  needs a photo answered without one, a check that needs a photo not answered, a stage not closed, a
+  room with no photo, no warranty or manual at all, no care note. **The gaps do not disable the
+  button**: an owner may want the book halfway through, so writing stays the person's decision, as a
+  warning is not a refusal (above). And what the screen said, the page says: a book written while
+  any stage is open says on its first page that it was _written while the work was in progress_, and
+  that page prints the same gaps, with their rows. The book is in the **owner's** words whatever
+  lens is on, like the weekly report. A photo in it is captioned with what it shows — the check or
+  the activity, and the day — and a photo of hidden work is printed full width, others two to a row.
+  A care note is printed as the person wrote it, and never offered by the product as advice. Where a
+  check needs a photo, its photo field is open from the start and the Gates tab says why, so nobody
+  learns of the rule from a refusal (ADR-038).
+- **A file meant to be sent carries nothing that runs and nothing the reader did not need.** The
+  owner's snapshot is read on somebody else's phone, in a browser the product never sees, and may be
+  forwarded from there. So it has **no script, no link and nothing loaded from anywhere**: a figure
+  opens onto its rows through `<details>` and `<summary>`, which need none, and the summary is a tap
+  target at least 44 pixels tall; the style is inline, in the system's own fonts, one readable
+  column at most 42 rem wide, a wide table scrolling sideways inside its own box rather than the
+  page; **light and dark follow the reader's phone** through `prefers-color-scheme`, never a toggle;
+  and printed, its figures are shown open where the browser allows. It holds what the owner needs to
+  know where the work stands and **nothing else**: no phone number, no e-mail address, no document,
+  no control that would suggest it can be answered. Its words are the screen's, in the owner's lens
+  and the language on screen, and its **last line says the day it was written and that it does not
+  change when the work does**, because a file that looks live will be read as if it were. The card
+  that writes it says what it holds and what it does not, and that **sending it is the person's**;
+  the product offers no Send button, because it sends nothing (ADR-039).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
@@ -635,7 +725,11 @@ A native capability that is unavailable must be _seen_ to be unavailable.
   value is not wrong, the plan is closed to it — so the control goes back to the value the plan
   holds and the sentence under it says why and how to open it ("The plan is approved. To change
   it, replan it with a reason first."). Keeping the typed value there would show a plan that says
-  one thing on screen and another in the work (ADR-027).
+  one thing on screen and another in the work (ADR-027). **A refused range is the second (D1):**
+  an optimistic–pessimistic pair is two fields saved as one value, and a refusal leaves one end
+  typed against the other held — a pair the work never had. So both fields go back to the range
+  the work holds, and the host's sentence under the pair names the range and the duration it must
+  hold (ADR-035).
 
 Silence is the bug. A disabled button with no reason is a defect report somebody else has to
 write.

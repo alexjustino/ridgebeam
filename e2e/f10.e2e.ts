@@ -1,10 +1,10 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { inflateSync } from 'node:zlib';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { pdfText as readPdfText } from './pdf';
 import { chooseLanguage, go, startSession, type Session } from './session';
 
 /**
@@ -58,58 +58,10 @@ async function more(session: Session): Promise<void> {
   await session.driver.waitForElement(t('entry-note'));
 }
 
-const WIN_ANSI = new TextDecoder('windows-1252');
-
-/** A PDF literal string `( … )`, its escapes undone, its bytes read as WinAnsi. */
-function decodeLiteral(literal: string): string {
-  const bytes = literal
-    .slice(1, -1)
-    .replace(/\\([0-7]{1,3})/g, (_, octal: string) => String.fromCharCode(parseInt(octal, 8)))
-    .replace(/\\([\\()])/g, '$1')
-    .replace(/\\n/g, '\n');
-  return WIN_ANSI.decode(Buffer.from(bytes, 'latin1'));
-}
-
-/** A PDF hex string `< … >`, its bytes read as WinAnsi. */
-function decodeHex(hex: string): string {
-  const digits = hex.slice(1, -1).replace(/\s+/g, '');
-  return WIN_ANSI.decode(Buffer.from(digits.length % 2 ? `${digits}0` : digits, 'hex'));
-}
-
-/** The words a PDF shows: every content stream inflated, every string operand collected. */
+/** The words a PDF shows, read back from disk by the shared third reader (e2e/pdf.ts). */
 function pdfText(file: string): { text: string; raw: string } {
   const bytes = readFileSync(file);
-  const raw = bytes.toString('latin1');
-  const parts: string[] = [];
-  const stream = /stream\r?\n/g;
-  let match: RegExpExecArray | null;
-  while ((match = stream.exec(raw)) !== null) {
-    const start = match.index + match[0].length;
-    const end = raw.indexOf('endstream', start);
-    if (end < 0) break;
-    let body = bytes.subarray(start, end);
-    try {
-      body = inflateSync(body);
-    } catch {
-      // Not compressed, or not a content stream: read it as it is.
-    }
-    const content = body.toString('latin1');
-    // One shown line is a `Tj` of one string, or a `TJ` array of literal and hex strings (the
-    // host writes a line with any non-ASCII character that way). The strings of one array are one
-    // line, joined with nothing between them; lines are joined with a space.
-    const token =
-      /\[((?:\((?:\\[\s\S]|[^\\)])*\)|<[0-9A-Fa-f\s]*>|[^\]])*)\]\s*TJ|(\((?:\\[\s\S]|[^\\)])*\))\s*Tj/g;
-    let shown: RegExpExecArray | null;
-    while ((shown = token.exec(content)) !== null) {
-      const strings = shown[1] ?? shown[2] ?? '';
-      const line = (strings.match(/\((?:\\[\s\S]|[^\\)])*\)|<[0-9A-Fa-f\s]*>/g) ?? [])
-        .map((each) => (each.startsWith('<') ? decodeHex(each) : decodeLiteral(each)))
-        .join('');
-      parts.push(line);
-    }
-    stream.lastIndex = end;
-  }
-  return { text: parts.join(' ').replace(/\s+/g, ' '), raw };
+  return { text: readPdfText(bytes), raw: bytes.toString('latin1') };
 }
 
 async function write(

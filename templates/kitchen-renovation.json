@@ -1,7 +1,7 @@
 {
   "ridgebeamTemplate": 1,
   "id": "kitchen-renovation",
-  "version": 1,
+  "version": 2,
   "title": {
     "en": "Kitchen renovation",
     "pt-BR": "Reforma de cozinha"
@@ -146,8 +146,9 @@
             "pt-BR": "Cada eletrodoméstico de maior potência tem um circuito próprio?"
           },
           {
-            "en": "Were photos taken of the pipes and cables before the walls were closed?",
-            "pt-BR": "Foram tiradas fotos dos tubos e cabos antes de fechar as paredes?"
+            "en": "Are the pipes, the gas line and the wiring photographed before the walls are closed?",
+            "pt-BR": "Os canos, a tubulação de gás e a fiação foram fotografados antes de fechar as paredes?",
+            "photo": true
           }
         ]
       },

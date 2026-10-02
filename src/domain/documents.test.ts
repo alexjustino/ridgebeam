@@ -7,6 +7,7 @@ import {
   detachedLinks,
   documentCounts,
   documentsFigure,
+  DOCUMENTS_LABEL_KEYS,
   documentsOf,
   linksOf,
   targetKey,
@@ -57,6 +58,7 @@ const PLAN = snapshot({
       amountCents: 1,
       agreedOn: '2026-08-28',
       documentHash: null,
+      milestones: [],
     },
   ],
   payments: [
@@ -179,8 +181,11 @@ describe('filing by kind', () => {
       'permit',
       'receipt',
       'contract',
+      'warranty',
+      'manual',
       'other',
     ]);
+    expect(groups.warranty).toEqual([]);
     expect(groups.drawing.map((d) => d.id)).toEqual(['drawing']);
     expect(groups.permit).toEqual([]);
   });
@@ -222,6 +227,16 @@ describe('checking changes before the host is asked', () => {
   it('accepts a title and a kind', () => {
     expect(validateDocumentPatch({ title: 'Floor plan, ground', kind: 'drawing' })).toEqual([]);
     expect(validateDocumentPatch({})).toEqual([]);
+  });
+
+  it('knows the two kinds the owner keeps for later: a warranty and a manual', () => {
+    expect(validateDocumentPatch({ kind: 'warranty' })).toEqual([]);
+    expect(validateDocumentPatch({ kind: 'manual' })).toEqual([]);
+    expect(documentsFigure(PLAN, 'warranty')).toMatchObject({
+      label: 'documents.figure.warranty',
+      value: 0,
+    });
+    expect(DOCUMENTS_LABEL_KEYS.manual).toBe('documents.figure.manual');
   });
 
   it('refuses an empty title, one over 200 characters, and a kind it does not know', () => {

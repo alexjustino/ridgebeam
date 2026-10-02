@@ -12,7 +12,7 @@ words, in [`GLOSSARY.md`](GLOSSARY.md).
 <work folder>/
   work.sqlite3        the work: plan, calendar, people, diary, baselines, money
   documents/          every file the work owns — photos, receipts, quotes, drawings, permits,
-                      contracts — named <sha-256>.<ext>
+                      contracts, warranties, manuals — named <sha-256>.<ext>
   thumbnails/         a 320 px JPEG of each image, named <sha-256>.jpg; none for a PDF
 ```
 
@@ -109,19 +109,19 @@ on (F7).
 | `started_at` | TEXT    | UTC, when the person started it — the start gate passed; `NULL` while planned; never changed once set (F5) |
 | `closed_at`  | TEXT    | UTC, when the person closed it — the close gate passed; only on a started stage; cleared by a reopen (F5)  |
 
-| `activity`          | Type    | Meaning                                                                                                         |
-| ------------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
-| `id`                | TEXT    | UUID v7                                                                                                         |
-| `stage_id`          | TEXT    | `REFERENCES stage ON DELETE CASCADE`                                                                            |
-| `position`          | INTEGER | order inside the stage, unique per stage                                                                        |
-| `name`              | TEXT    | not empty                                                                                                       |
-| `duration_days`     | INTEGER | working days, `NULL` until known, `> 0` once set                                                                |
-| `responsible_id`    | TEXT    | `REFERENCES person ON DELETE SET NULL`, `NULL` until known                                                      |
-| `created_at`        | TEXT    | UTC                                                                                                             |
-| `quantity`          | REAL    | how much of the activity there is — 12 (m² of tile); `NULL` or `>= 0`, a number and never text (F1)             |
-| `unit`              | TEXT    | the quantity's unit as the person writes it — `m²`, `m`, `un`; 1–16 characters, and only beside a quantity (F1) |
-| `duration_min_days` | INTEGER | the lower end of the range of working days a template gave, 1–3650; `NULL` when none was given (F9)             |
-| `duration_max_days` | INTEGER | the upper end, from the lower end to 3650; set exactly when `duration_min_days` is (F9)                         |
+| `activity`          | Type    | Meaning                                                                                                                                                       |
+| ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                | TEXT    | UUID v7                                                                                                                                                       |
+| `stage_id`          | TEXT    | `REFERENCES stage ON DELETE CASCADE`                                                                                                                          |
+| `position`          | INTEGER | order inside the stage, unique per stage                                                                                                                      |
+| `name`              | TEXT    | not empty                                                                                                                                                     |
+| `duration_days`     | INTEGER | working days, `NULL` until known, `> 0` once set                                                                                                              |
+| `responsible_id`    | TEXT    | `REFERENCES person ON DELETE SET NULL`, `NULL` until known                                                                                                    |
+| `created_at`        | TEXT    | UTC                                                                                                                                                           |
+| `quantity`          | REAL    | how much of the activity there is — 12 (m² of tile); `NULL` or `>= 0`, a number and never text (F1)                                                           |
+| `unit`              | TEXT    | the quantity's unit as the person writes it — `m²`, `m`, `un`; 1–16 characters, and only beside a quantity (F1)                                               |
+| `duration_min_days` | INTEGER | the lower — optimistic — end of the activity's range of working days, 1–3650, as a template gave it (F9) or a person typed it (D1); `NULL` when there is none |
+| `duration_max_days` | INTEGER | the upper — pessimistic — end, from the lower end to 3650; set exactly when `duration_min_days` is (F9)                                                       |
 
 **Order is explicit.** `position` is 1, 2, 3 … with no gaps — among stages, and among the
 activities of one stage, and among rooms. The host renumbers them 1 … n in the same transaction as
@@ -143,10 +143,28 @@ template's range and **no duration**: `duration_days` stays `NULL` while the ran
 is written only by a person — typed, or taken from every range at once, its lower or its upper end
 (`ranges_take`, which writes only activities with a range and no duration, outside a closed
 stage, and is locked after approval like any duration edit). A range given as a point — which only
-a file may carry — is applied as the duration too. The range is not constrained to hold the
-duration: a person who knows better types what they know. The two ends are both set or both
-`NULL`, a `CHECK` on the second column, because a column's `CHECK` may name a column added before
-it and not one added after.
+a file may carry — is applied as the duration too. The two ends are both set or both `NULL`, a
+`CHECK` on the second column, because a column's `CHECK` may name a column added before it and not
+one added after.
+
+**Any activity can have a range, and approval does not lock it** (D1, ADR-035). From D1 the range
+is the activity's **optimistic** and **pessimistic** duration, edited in the breakdown on every
+activity — not only one a template brought — through `activity_update`, whose patch carries
+`durationMinDays` and `durationMaxDays` together or not at all: both left out leaves the range
+alone, both `null` clears it, two numbers set it, each a whole number of working days from 1 to
+3650 and the optimistic not above the pessimistic (a point, both ends equal, is a range). The host
+refuses one end on its own, a fraction, 0, a value past 3650 and an upside-down range, each with a
+sentence. **A change that would leave the duration outside the range is refused** — a duration
+typed outside it, or a range sent that does not hold the duration — with a sentence naming the
+range; nothing widens or clears a range on its own, and the fix is one patch, the range or both
+together. Only a change is asked: a duration an activity already held outside its range before D1
+(F9 allowed it) is not refused when its name or its responsible changes. **The range is not in the
+lock's list** ([ADR-027](architecture/ADR.md#adr-027)): a baseline records an activity's name and
+duration, never its range, so an approved plan with no replanning open still takes a new range,
+while a new duration is refused as before. An activity of a closed stage takes no change at all, a
+range included. The range feeds the finish's probability, which the domain computes and nothing
+stores ([ADR-035](architecture/ADR.md#adr-035)); there is no migration — the columns and their
+`CHECK`s are F9's (migration 010).
 
 **There is no progress column, and there never will be.** Progress is derived from the diary
 (slice F4).
@@ -444,9 +462,19 @@ in the host (`stage_closed`) until it is reopened.
 | `gate`        | TEXT    | `start` or `close`                                  |
 | `position`    | INTEGER | order at its gate, unique per stage and gate, 1 … n |
 | `name`        | TEXT    | the question, 1–200 characters, not blank           |
+| `needs_photo` | INTEGER | 0 or 1: a `yes` needs a photo (D3); 0 by default    |
 | `created_at`  | TEXT    | UTC                                                 |
 
 The table is `stage_check` and not `check`: CHECK is a reserved word in SQL.
+
+**A check can need a photo** (D3, ADR-038). `needs_photo` marks a question about work that is
+about to be hidden — the pipes and wiring before a wall is closed, the waterproofing before it is
+tiled. A `yes` on it with no `photo_hash` is refused by the host with a sentence, and by the
+trigger `check_answer_needs_photo` after it (`checks: needs a photo`); `no`, and `na` with its
+reason, are accepted without one. The flag is set on the Gates tab, or by a template whose check
+says `"photo": true`, and changed only while the stage is not closed. Answers given before the flag
+was set — or before migration 012 — stay as they are: they are facts, and the handover book lists a
+`yes` without its photo among what it lacks.
 
 | `check_answer` | Type    | Meaning                                                                      |
 | -------------- | ------- | ---------------------------------------------------------------------------- |
@@ -545,6 +573,57 @@ thousands a house has; a much larger ledger would need a query of its own.
 the sum of its rows; _over committed_ where paid exceeds committed for a stage or a commitment,
 or a payment names no commitment.
 
+### `payment_milestone` — a commitment's payment plan (D2)
+
+A commitment may carry a **payment plan**: milestones, each a share of its amount earned by a fact
+of the work, never by a date (ADR-037).
+
+| `payment_milestone` | Type    | Meaning                                                                                                                                    |
+| ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                | TEXT    | UUID v7                                                                                                                                    |
+| `commitment_id`     | TEXT    | `REFERENCES commitment ON DELETE CASCADE`                                                                                                  |
+| `position`          | INTEGER | 1 … n within the commitment, renumbered in the same transaction as a move or a removal                                                     |
+| `label`             | TEXT    | 1–120 characters, not blank — _Tiles laid_                                                                                                 |
+| `share_bp`          | INTEGER | the share of the commitment's amount in basis points, 1–10 000 — "30 %" is 3 000                                                           |
+| `trigger`           | TEXT    | the fact that earns it: `advance`, `stage_started`, `activity_finished` or `stage_closed`                                                  |
+| `activity_id`       | TEXT    | `REFERENCES activity`, with no action; required when `trigger` is `activity_finished`, `NULL` otherwise — a `CHECK` holds the two together |
+| `created_at`        | TEXT    | UTC                                                                                                                                        |
+
+**The triggers are facts.** `advance` is earned the day the commitment was agreed
+(`commitment.agreed_on`); `stage_started` the day the stage passed its start gate
+(`stage.started_at`, F5); `stage_closed` the day it passed its close gate (`stage.closed_at`), and a
+stage reopened has none, so it un-earns it; `activity_finished` the first day an effective diary
+entry finished the activity, corrections applied (F4), so a correction that takes the finish back
+un-earns it. A fact dated after today is not a fact yet. **Nothing records that a milestone was
+earned**: the domain reads it from those facts every time (`src/domain/milestones.ts`), so there is
+no column to set and none to tamper with.
+
+**What the schema holds, behind the host.** The host refuses each of these first, with a sentence,
+and the migration's triggers refuse them again, so a file written by something else holds the same
+rules: the shares of one commitment summing past 10 000 (`money: payment plan over 100 %`); an
+`activity_finished` milestone naming an activity of another stage than the commitment's (`money:
+milestone activity`); and **any insert, change or removal once a payment names the commitment** — a
+reversal included — (`money: payment plan locked`), as a change to the commitment itself is refused
+(F6). A closed stage does not refuse a milestone: a payment plan is money, not a plan edit, and no
+baseline records it, so an approved plan's lock (ADR-027) does not cover it either.
+
+**What goes with what.** A milestone goes with its commitment (`ON DELETE CASCADE`), which can
+itself be removed only while nothing was paid against it. The activity a milestone names is
+referenced with no action: the host refuses to remove an activity a milestone is earned by, with a
+sentence, and the foreign key refuses it after. A stage nothing was paid on, removed whole, takes
+its activities, its commitments and their milestones in the same statement. The lookups by
+commitment use the index of `UNIQUE (commitment_id, position)`; `idx_payment_milestone_activity`
+serves the check an activity's removal makes.
+
+**Every figure is computed.** Earned, paid, due now (earned − paid, when positive) and ahead of the
+work (paid − earned, when positive) are the domain's, per commitment, per stage and for the work,
+each with its rows (ADR-024); due and ahead are summed commitment by commitment and never netted
+across them. A milestone's amount is its share of the commitment's cents, rounded half up in exact
+integer arithmetic (`milestoneCents`); in a plan of exactly 10 000 the last milestone takes the
+remainder, so the plan sums to the commitment's amount exactly, and a plan below it is rounded
+milestone by milestone. A commitment with no milestones is not evaluated — counted and listed as
+having no payment plan; payments on no commitment are outside the question, and counted.
+
 ### `document` and `document_link` — the files the work owns (F7)
 
 A document is a file the work owns: copied into `documents/`, typed by its bytes, never parsed
@@ -559,7 +638,7 @@ same bytes again links the row again instead of copying the file twice.
 | `media_type`      | TEXT    | `image/jpeg`, `image/png`, `image/gif`, `image/webp`, `image/bmp` or `application/pdf`; `NULL` only as below |
 | `bytes`           | INTEGER | the size; `NULL` only as below                                                                               |
 | `width`, `height` | INTEGER | an image's dimensions, both or neither; always `NULL` for a PDF, which is never parsed                       |
-| `kind`            | TEXT    | `photo`, `quote`, `drawing`, `permit`, `receipt`, `contract` or `other` — editable                           |
+| `kind`            | TEXT    | `photo`, `quote`, `drawing`, `permit`, `receipt`, `contract`, `warranty`, `manual` or `other` — editable     |
 | `title`           | TEXT    | 1–200 characters — editable                                                                                  |
 | `added_on`        | TEXT    | the ISO day it was added                                                                                     |
 | `author_name`     | TEXT    | the display name of the Windows account that added it                                                        |
@@ -580,6 +659,30 @@ document — and the diary's own rows are never touched.
 **Where the bytes are checked.** The diary's chain covers each photo's hash in its rows; it does
 not read the files. `documents_verify` does: it reads every file in `documents/`, compares it
 with its row's `file_hash`, and lists mismatches, rows whose file is missing, and orphans.
+
+`warranty` and `manual` arrived in D3 (migration 012), so that the handover book can list what the
+owner keeps for the years after the work under their own headings.
+
+### `care_note` — what the owner must know to look after the work (D3)
+
+A care note is a sentence the owner keeps for later — _"Reseal the shower grout once a year"_,
+_"The stopcock is under the sink"_ — on the whole work, a room or a stage, in an order the person
+sets. The handover book prints them where they belong (ADR-038).
+
+| `care_note`   | Type    | Meaning                                                                          |
+| ------------- | ------- | -------------------------------------------------------------------------------- |
+| `id`          | TEXT    | UUID v7                                                                          |
+| `target_kind` | TEXT    | `work`, `room` or `stage`                                                        |
+| `target_id`   | TEXT    | the room's or the stage's id; for the work, the work's own id                    |
+| `position`    | INTEGER | 1 … n among the notes of one target, `UNIQUE (target_kind, target_id, position)` |
+| `text`        | TEXT    | 1–1 000 characters, not blank — as the person wrote it                           |
+| `created_at`  | TEXT    | UTC                                                                              |
+
+**Not the plan.** A care note is not something a baseline records, so an approved plan does not
+lock it and a closed stage does not refuse it: it can be written, changed, moved or removed at any
+time. **A target is not a foreign key** — one column cannot reference three tables — so the host
+removes the notes that name a room or a stage in the same transaction that removes it; nothing is
+left pointing at a target that is gone.
 
 ## Nothing is stored per lens, or per arrangement
 
@@ -689,17 +792,24 @@ covered by a round-trip test that opens a work at version N-1 and migrates it wi
 | `008_documents.sql`                  | F7    | `person.phone`, `.email`, `.note`, `.availability`; `person_stage`; `document`; `document_link`; the backfill of every file already in the folder                                                                     |
 | `009_replanning.sql`                 | F8    | `replanning` with its written-once triggers; `baseline.planned_cents` and `baseline_activity.planned_cents`; `baseline_stage` with its insert-only triggers; the backfill of every earlier baseline's stages          |
 | `010_templates.sql`                  | F9    | `activity.duration_min_days` and `.duration_max_days`; `decision.lead_min_days` and `.lead_max_days`; `work.template_id`, `.template_version` and `.template_title`; `cost_line` rebuilt with `amount_cents` nullable |
+| `011_payment_milestones.sql`         | D2    | `payment_milestone` with its `CHECK`s and its triggers: an activity of the commitment's stage, at most 100 % per commitment, and locked once a payment names the commitment                                           |
+| `012_handover.sql`                   | D3    | `stage_check.needs_photo` and the trigger that refuses a `yes` without a photo on such a check; `document` rebuilt with the kinds `warranty` and `manual`, its links set aside and restored; `care_note`              |
 
-Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its
-stages and activities migrates to schema 2 without loss, a work at schema 2 with rooms and
-quantities migrates to schema 3 the same way, a work at schema 3 with dependencies and a
-baseline migrates to schema 4, a work at schema 4 with decisions migrates to schema 5, a work at schema 5 with diary entries
-migrates to schema 6 with its chain still verifying, and a work at schema 6 with checks and
-answers migrates to schema 7 the same way, and a work at schema 7 with photos, receipts and
-quotes migrates to schema 8 with a document for each and its chain still verifying, and a work
-at schema 8 with two baselines migrates to schema 9 with their stages rebuilt, their money not
-recorded and its chain still verifying, and a work at schema 9 with cost lines, a baseline and a
-diary entry migrates to schema 10 with every amount and id kept and its chain still verifying.
+Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its stages
+and activities migrates to schema 2 without loss, a work at schema 2 with rooms and quantities
+migrates to schema 3 the same way, a work at schema 3 with dependencies and a baseline migrates to
+schema 4, a work at schema 4 with decisions migrates to schema 5, a work at schema 5 with diary
+entries migrates to schema 6 with its chain still verifying, and a work at schema 6 with checks and
+answers migrates to schema 7 the same way, and a work at schema 7 with photos, receipts and quotes
+migrates to schema 8 with a document for each and its chain still verifying, and a work at schema 8
+with two baselines migrates to schema 9 with their stages rebuilt, their money not recorded and its
+chain still verifying, and a work at schema 9 with cost lines, a baseline and a diary entry migrates
+to schema 10 with every amount and id kept and its chain still verifying, and a work at schema 10
+with commitments, payments and a diary migrates to schema 11 with every amount kept, no milestone
+invented, the paid commitment's plan locked from the start — a reversal does not unlock it — and its
+chain still verifying, and a work at schema 11 with documents and their links migrates to schema 12
+with every document, id and link kept, every check not needing a photo and its chain still
+verifying.
 
 **Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
 where it came from, one row per hash in this order of precedence: a diary photo (kind `photo`,
@@ -737,9 +847,29 @@ transaction. No table, trigger or view refers to `cost_line`, so dropping it rem
 anything points at, and each copied row is checked against `stage` and `activity` as it is
 inserted. A failure anywhere rolls the whole migration back and the file stays at version 9.
 
+**Migration 012's rebuild of `document`.** SQLite cannot change a `CHECK` on a column, so the
+table is rebuilt to take the two new kinds, the way migration 010 rebuilt `cost_line` — with one
+more step, because a table points at it: `document_link.document_id` references `document` with
+`ON DELETE CASCADE`, and with `foreign_keys = ON` dropping `document` would delete every link with
+it. So every link is first copied, as it is, into a holding table with no reference, and
+`document_link` is dropped, which drops its index; `document_012` is created with every column,
+`CHECK` and default exactly as migration 008 wrote them but the kind rule, and every document is
+copied across as it is — id, hash, name, type, size, dimensions, kind, title, day, author and the
+moment it was written — so the ids the interface and the links know stay the ids; `document` is
+dropped and `document_012` renamed `document`; `document_link` is created again exactly as
+migration 008 wrote it, and the links are copied back, each checked against `document` as it is
+inserted; the holding table is dropped and the index created again under the name it had. Neither
+table carried a trigger or a view. A failure anywhere rolls the whole migration back and the file
+stays at version 11. `stage_check.needs_photo` is added as 0 for every check already in the file,
+and `care_note` starts empty: no answer, document or figure an earlier slice showed changes.
+
+**Migration 011 adds a table and nothing else.** No existing row changes: every commitment starts
+with no payment plan, which the domain reads as _not evaluated_ — never as earned, never as paid
+ahead — so no figure an earlier slice showed moves with the migration.
+
 The migrations live in `src-tauri/work_migrations/`.
 
-## A comparison and a what-if are computed, not stored
+## A comparison, a what-if and a chance are computed, not stored
 
 Nothing in the schema records the comparison of two baselines: the domain computes it from their
 rows every time (`compareBaselines`, ADR-028) — dates moved, durations changed, activities and
@@ -747,6 +877,12 @@ stages added and removed by id, the money, and the reasons of the baselines betw
 what-if is never written at all: the domain applies its durations and lags to a copy of the
 snapshot in memory (`withOverrides`), and **Clear**, leaving the Schedule or a restart forgets
 it.
+
+The finish as a probability (D1) is not stored either: the domain simulates it from the snapshot —
+the durations, the ranges, the links, the calendar and the diary's actuals — every time a screen
+asks, seeded by a hash of those inputs so the same plan gives the same numbers
+([ADR-035](architecture/ADR.md#adr-035)). No table holds a run, a seed or a chance, and the plan's
+own dates are the schedule's, untouched.
 
 ## Not yet in the schema
 
@@ -781,12 +917,12 @@ field means, or removes one, takes the next number.
 }
 ```
 
-| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                |
-| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                       |
-| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, and the open replanning |
-| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                   |
+| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                                                                         |
+| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks — each saying whether it needs a photo — and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, the care notes, and the open replanning |
+| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                                                            |
 
 Field names are camelCase, as the interface receives them; money is whole minor units, dates are
 `YYYY-MM-DD` and instants UTC, as everywhere in this model. Nothing is computed: no schedule, no
@@ -810,7 +946,10 @@ file that restores the work exactly, files included — is the next section.
 
 **Reports are files, not rows.** Nothing in either database records that a report or an export
 was written, where, or when. The set of files written in a session, which **Open** may open, is
-kept in the host's memory and forgotten when the application closes.
+kept in the host's memory and forgotten when the application closes. The owner's snapshot (D4) is
+one more such file: an HTML page rendered from the same report model, holding the work as it stood
+when it was written, and nothing records that it was written or sent
+([ADR-039](architecture/ADR.md#adr-039)).
 
 ## A backup — the `.ridgebeam` format (F11)
 

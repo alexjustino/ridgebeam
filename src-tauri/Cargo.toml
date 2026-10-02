@@ -39,7 +39,8 @@ base64 = "0.22"
 # Photos are hostile files. Default features off: only the five formats a photo
 # may arrive as are compiled in, each a decoder reachable from a file, and every
 # one is used under `image::Limits` after the header has been read and capped
-# (SECURITY.md, "Files are hostile"). JPEG is also the thumbnail's encoder.
+# (SECURITY.md, "Files are hostile"). JPEG is also the thumbnail's encoder, and
+# the encoder of a photo printed in a report (D3, `report::images`).
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp"] }
 # Opening a photo with the operating system's own handler, on a click. Used as a
 # Rust library only (`open_path`): the plugin is not registered, so it adds no
@@ -129,6 +130,16 @@ strip = true
 # The `zip` crate was measured — 8.6.0 (MIT, rust-version 1.88) with only
 # `deflate-flate2` would add `zip` and `typed-path` (MIT OR Apache-2.0) — and
 # not taken: see the module's own reasons.
+#
+# D3 (the handover book) adds no crate and no feature: a photo in a report is
+# decoded and re-encoded by `image` with the features above, and embedded as
+# `/DCTDecode` by `pdf-writer`; the JPEG marker walk that drops a photo's
+# metadata is this crate's own (`report::images`).
+#
+# D4 (the owner's snapshot) adds no crate and no feature: the page is written
+# by hand (`report::html`), its photos re-encoded by `image` and written into it
+# with `base64`, both already here; its SVG is checked in tests by a structural
+# walk, not by an XML crate.
 #
 # The widths of Helvetica and Helvetica-Bold (`report::winansi`) are numbers
 # from Adobe's Core14 AFM files, whose notice is carried in that module and in

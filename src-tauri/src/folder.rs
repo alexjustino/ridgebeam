@@ -1110,10 +1110,13 @@ mod tests {
             assert_eq!(migrations::WORK.current_version(&conn), 9);
         }
 
-        let state = open(scratch.path()).expect("an F8 work opens in F9");
+        let state = open(scratch.path()).expect("an F8 work opens in F9, and on to head");
         let conn = &state.conn;
 
-        assert_eq!(migrations::WORK.current_version(conn), 10);
+        assert_eq!(
+            migrations::WORK.current_version(conn),
+            migrations::WORK.target_version()
+        );
         assert_eq!(raw_rows(conn, lines), lines_before, "every line, as it was");
         assert_eq!(
             baselines.map(|sql| raw_rows(conn, sql)),
@@ -1217,5 +1220,478 @@ mod tests {
         assert!(diary::verify(&again.conn).unwrap().intact);
         close(again);
         assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
+    }
+
+    /// The upgrade a person makes from D1: a work folder at schema 10 with
+    /// money — a cost line, two commitments, one paid against (a payment and
+    /// its reversal) and one not — and a diary entry. Opened by D2, it gains
+    /// `payment_milestone`, empty: every commitment reads "no payment plan",
+    /// and nothing already written moves. The paid commitment's plan is fixed
+    /// from the start — the reversal does not unfix it — and the unpaid one
+    /// takes the usual plan. The diary chain still verifies.
+    #[test]
+    fn a_work_folder_at_schema_ten_with_money_and_a_diary_gains_payment_plans_and_keeps_every_row()
+    {
+        use crate::db::{diary, milestones};
+
+        let scratch = Scratch::create();
+        let bathroom = "00000000-0000-7000-8000-00000000000b";
+        let tiling = "00000000-0000-7000-8000-00000000000c";
+        let paid = "00000000-0000-7000-8000-0000000000d1";
+        let unpaid = "00000000-0000-7000-8000-0000000000d2";
+        let money = [
+            "SELECT * FROM cost_line ORDER BY id",
+            "SELECT * FROM commitment ORDER BY id",
+            "SELECT * FROM payment ORDER BY seq",
+            "SELECT id, name, trade FROM person ORDER BY id",
+        ];
+
+        let (money_before, diary_before);
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 10).unwrap();
+            conn.execute_batch(&format!(
+                "UPDATE person SET trade = 'Tiler';
+                 INSERT INTO cost_line (id, stage_id, activity_id, label, amount_cents, created_at)
+                 VALUES ('00000000-0000-7000-8000-0000000000c1', '{bathroom}', '{tiling}',
+                         'Tiles', 120000, '2026-09-20T10:00:00.000Z'),
+                        ('00000000-0000-7000-8000-0000000000c2', '{bathroom}', NULL,
+                         'Grout', NULL, '2026-09-20T10:00:01.000Z');
+                 INSERT INTO commitment (id, stage_id, person_id, label, amount_cents, agreed_on,
+                                         created_at)
+                 VALUES ('{paid}', '{bathroom}', '00000000-0000-7000-8000-00000000000a',
+                         'Tiler''s quote', 100000, '2026-10-01', '2026-10-01T09:00:00.000Z'),
+                        ('{unpaid}', '{bathroom}', NULL, 'Plumber''s quote', 50000,
+                         '2026-10-02', '2026-10-02T09:00:00.000Z');
+                 INSERT INTO payment (id, seq, day, person_id, stage_id, commitment_id,
+                                      amount_cents, what_for, author_name, created_at)
+                 VALUES ('00000000-0000-7000-8000-0000000000e1', 1, '2026-10-03',
+                         '00000000-0000-7000-8000-00000000000a', '{bathroom}', '{paid}', 30000,
+                         'Advance', 'Synthetic author', '2026-10-03T09:00:00.000Z');
+                 INSERT INTO payment (id, seq, day, person_id, stage_id, commitment_id,
+                                      amount_cents, what_for, reverses_seq, author_name,
+                                      created_at)
+                 VALUES ('00000000-0000-7000-8000-0000000000e2', 2, '2026-10-04',
+                         '00000000-0000-7000-8000-00000000000a', '{bathroom}', '{paid}', -30000,
+                         'Paid by mistake.', 1, 'Synthetic author',
+                         '2026-10-04T09:00:00.000Z');"
+            ))
+            .expect("a D1 work's money");
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    day: "2026-10-06".into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Tiles laid.".into()),
+                    weather: None,
+                    lost_day: false,
+                    hours: None,
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: vec![crate::contract::DoneLine {
+                        activity_id: tiling.into(),
+                        state: "finished".into(),
+                        quantity: None,
+                        note: None,
+                    }],
+                    present: Vec::new(),
+                    photos: Vec::new(),
+                },
+            )
+            .unwrap();
+            money_before = money.map(|sql| raw_rows(&conn, sql));
+            diary_before = diary::list(&conn, None, None).unwrap();
+            assert_eq!(migrations::WORK.current_version(&conn), 10);
+            assert_eq!(
+                raw_rows(
+                    &conn,
+                    "SELECT count(*) FROM sqlite_master WHERE name = 'payment_milestone'"
+                ),
+                vec!["Integer(0)"]
+            );
+        }
+
+        let state = open(scratch.path()).expect("a D1 work opens in D2");
+        let conn = &state.conn;
+
+        assert_eq!(
+            migrations::WORK.current_version(conn),
+            migrations::WORK.target_version()
+        );
+        assert_eq!(
+            money.map(|sql| raw_rows(conn, sql)),
+            money_before,
+            "every row of money, as it was"
+        );
+        assert_eq!(diary::list(conn, None, None).unwrap(), diary_before);
+        let report = diary::verify(conn).unwrap();
+        assert_eq!((report.entries, report.intact), (1, true));
+
+        let plan = db::work::snapshot(conn).unwrap();
+        let commitments: Vec<(&str, bool, usize)> = plan
+            .commitments
+            .iter()
+            .map(|c| (c.id.as_str(), c.locked, c.milestones.len()))
+            .collect();
+        assert_eq!(
+            commitments,
+            vec![(paid, true, 0), (unpaid, false, 0)],
+            "no payment plan yet, on either; the paid one stays paid"
+        );
+        assert_eq!(
+            serde_json::to_value(&plan.commitments[1]).unwrap()["milestones"],
+            serde_json::json!([])
+        );
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT name FROM sqlite_master WHERE tbl_name = 'payment_milestone'
+                 AND type IN ('index', 'trigger') AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            ),
+            [
+                "idx_payment_milestone_activity",
+                "payment_milestone_activity_insert",
+                "payment_milestone_activity_update",
+                "payment_milestone_locked_delete",
+                "payment_milestone_locked_insert",
+                "payment_milestone_locked_update",
+                "payment_milestone_sum_insert",
+                "payment_milestone_sum_update",
+            ]
+            .map(|name| format!("Text(\"{name}\")"))
+        );
+
+        assert_eq!(
+            milestones::add_usual(conn, paid, ["Start", "Laid", "Closed"])
+                .unwrap_err()
+                .to_string(),
+            milestones::PLAN_LOCKED,
+            "a payment and its reversal name it: fixed from the start"
+        );
+        let refused = conn
+            .execute(
+                &format!(
+                    "INSERT INTO payment_milestone (id, commitment_id, position, label, share_bp,
+                                                    trigger, created_at)
+                     VALUES ('00000000-0000-7000-8000-0000000000f1', '{paid}', 1, 'Advance',
+                             3000, 'advance', 't')"
+                ),
+                [],
+            )
+            .unwrap_err();
+        assert!(refused.to_string().contains("money: payment plan locked"));
+        milestones::add_usual(conn, unpaid, ["Start", "Laid", "Closed"]).unwrap();
+        let plan = db::work::snapshot(conn).unwrap();
+        assert_eq!(
+            plan.commitments[1]
+                .milestones
+                .iter()
+                .map(|m| (m.share_bp, m.activity_id.as_deref()))
+                .collect::<Vec<_>>(),
+            vec![(3_000, None), (4_000, Some(tiling)), (3_000, None)]
+        );
+        assert!(raw_rows(conn, "PRAGMA foreign_key_check").is_empty());
+        close(state);
+
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        assert_eq!(
+            db::work::snapshot(&again.conn).unwrap().commitments[1]
+                .milestones
+                .len(),
+            3
+        );
+        assert!(diary::verify(&again.conn).unwrap().intact);
+        close(again);
+        assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
+    }
+
+    /// The upgrade a person makes from D2: a work folder at schema 11 with
+    /// documents — a diary photo linked to its entry, an answer's photo to its
+    /// stage, a receipt to its payment, a permit PDF to the work and to a stage,
+    /// and one attached to nothing — checks with answers, and a diary. Opened by
+    /// D3, `document` is rebuilt under `foreign_keys = ON` for two more kinds:
+    /// every document keeps its id and every column, every link is still there
+    /// and still cascades, the index is back under its name, nothing of the
+    /// rebuild is left behind, and there was no trigger on either table to lose.
+    /// Every check reads "needs no photo", no care note exists yet, and the
+    /// diary chain still verifies.
+    #[test]
+    fn a_work_folder_at_schema_eleven_with_documents_and_links_rebuilds_its_documents_and_keeps_every_row(
+    ) {
+        use crate::db::{check_answers, checks, diary, documents};
+        use crate::files::intake::{self, Format};
+
+        let scratch = Scratch::create();
+        let folder_documents = scratch.path().join(intake::DOCUMENTS);
+        std::fs::create_dir(&folder_documents).unwrap();
+        let file = |bytes: Vec<u8>, format: Format| -> (String, i64) {
+            let hash = intake::sha256_hex(&bytes);
+            std::fs::write(
+                folder_documents.join(format!("{hash}.{}", format.extension())),
+                &bytes,
+            )
+            .unwrap();
+            (hash, bytes.len() as i64)
+        };
+        let (photo, photo_bytes) = file(intake::tests::png(64, 48), Format::Png);
+        let (inspection, inspection_bytes) = file(intake::tests::jpeg(40, 30), Format::Jpeg);
+        let (permit, permit_bytes) = file(
+            crate::commands::documents::tests::minimal_pdf(),
+            Format::Pdf,
+        );
+        let (loose, loose_bytes) = file(intake::tests::png(8, 8), Format::Png);
+        let stage = "00000000-0000-7000-8000-00000000000b";
+        let documents_sql = "SELECT * FROM document ORDER BY id";
+        let links_sql = "SELECT * FROM document_link ORDER BY document_id, target_kind, target_id";
+        let triggers_sql = "SELECT name FROM sqlite_master WHERE type = 'trigger'
+                            AND tbl_name IN ('document', 'document_link') ORDER BY name";
+
+        let (documents_before, links_before, triggers_before, checks_before, diary_before);
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 11).unwrap();
+            let work_id: String = conn
+                .query_row("SELECT work_id FROM work", [], |r| r.get(0))
+                .unwrap();
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    day: "2026-10-05".into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Pipes in.".into()),
+                    weather: None,
+                    lost_day: false,
+                    hours: None,
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: Vec::new(),
+                    present: Vec::new(),
+                    photos: vec![crate::contract::Photo {
+                        file_hash: photo.clone(),
+                        file_name: "pipes.png".into(),
+                        bytes: photo_bytes,
+                        width: 64,
+                        height: 48,
+                        thumbnail: false,
+                    }],
+                },
+            )
+            .unwrap();
+            let check =
+                checks::add(&conn, stage, checks::Gate::Close, "Pipes photographed?").unwrap();
+            check_answers::append(
+                &conn,
+                &check_answers::NewAnswer {
+                    check_id: check.clone(),
+                    answer: "yes".into(),
+                    reason: None,
+                    photo_hash: Some(inspection.clone()),
+                    author_name: "Synthetic inspector".into(),
+                },
+            )
+            .unwrap();
+            checks::add(&conn, stage, checks::Gate::Start, "Water off?").unwrap();
+            let target = |kind: &str, id: &str| crate::contract::DocumentTarget {
+                target_kind: kind.into(),
+                target_id: id.into(),
+            };
+            let record =
+                |hash: &str,
+                 name: &str,
+                 format: Format,
+                 bytes: i64,
+                 size,
+                 kind,
+                 target: Option<&crate::contract::DocumentTarget>| {
+                    documents::record(
+                        &conn,
+                        &documents::NewDocument {
+                            file_hash: hash,
+                            file_name: name,
+                            format,
+                            bytes,
+                            size,
+                            kind,
+                            added_on: "2026-10-05",
+                            author_name: "Synthetic author",
+                        },
+                        target,
+                    )
+                    .unwrap()
+                };
+            record(
+                &photo,
+                "pipes.png",
+                Format::Png,
+                photo_bytes,
+                Some((64, 48)),
+                "photo",
+                Some(&target("entry", "1")),
+            );
+            record(
+                &inspection,
+                "inspection.jpg",
+                Format::Jpeg,
+                inspection_bytes,
+                Some((40, 30)),
+                "photo",
+                Some(&target("stage", stage)),
+            );
+            record(
+                &permit,
+                "permit.pdf",
+                Format::Pdf,
+                permit_bytes,
+                None,
+                "permit",
+                Some(&target("work", &work_id)),
+            );
+            record(
+                &permit,
+                "permit.pdf",
+                Format::Pdf,
+                permit_bytes,
+                None,
+                "permit",
+                Some(&target("stage", stage)),
+            );
+            record(
+                &loose,
+                "loose.png",
+                Format::Png,
+                loose_bytes,
+                Some((8, 8)),
+                "other",
+                None,
+            );
+
+            documents_before = raw_rows(&conn, documents_sql);
+            links_before = raw_rows(&conn, links_sql);
+            triggers_before = raw_rows(&conn, triggers_sql);
+            checks_before = raw_rows(
+                &conn,
+                "SELECT id, stage_id, gate, position, name, created_at FROM stage_check ORDER BY id",
+            );
+            diary_before = diary::list(&conn, None, None).unwrap();
+            assert_eq!(documents_before.len(), 4);
+            assert_eq!(links_before.len(), 4, "the permit is linked twice");
+            assert_eq!(migrations::WORK.current_version(&conn), 11);
+        }
+
+        let state = open(scratch.path()).expect("a D2 work opens in D3");
+        let conn = &state.conn;
+
+        assert_eq!(migrations::WORK.current_version(conn), 12);
+        assert_eq!(
+            raw_rows(conn, documents_sql),
+            documents_before,
+            "every document, as it was"
+        );
+        assert_eq!(
+            raw_rows(conn, links_sql),
+            links_before,
+            "every link, as it was"
+        );
+        assert_eq!(
+            raw_rows(conn, triggers_sql),
+            triggers_before,
+            "no trigger, before or after"
+        );
+        assert!(triggers_before.is_empty());
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT id, stage_id, gate, position, name, created_at FROM stage_check ORDER BY id"
+            ),
+            checks_before
+        );
+        assert_eq!(
+            raw_rows(conn, "SELECT DISTINCT needs_photo FROM stage_check"),
+            vec!["Integer(0)"],
+            "no check already in a file needs a photo"
+        );
+        assert_eq!(diary::list(conn, None, None).unwrap(), diary_before);
+        let report = diary::verify(conn).unwrap();
+        assert_eq!(
+            (report.entries, report.intact),
+            (1, true),
+            "the chain still holds"
+        );
+
+        // The rebuild left nothing behind, and the index is back.
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT count(*) FROM sqlite_master WHERE name IN ('document_012', 'document_link_012')"
+            ),
+            vec!["Integer(0)"]
+        );
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_document%'"
+            ),
+            vec!["Text(\"idx_document_link_target\")"]
+        );
+        assert!(raw_rows(conn, "PRAGMA foreign_key_check").is_empty());
+        assert_eq!(raw_rows(conn, "PRAGMA foreign_keys"), vec!["Integer(1)"]);
+        assert_eq!(
+            raw_rows(conn, "SELECT count(*) FROM care_note"),
+            vec!["Integer(0)"]
+        );
+
+        let plan = db::work::snapshot(conn).unwrap();
+        let permit_row = plan
+            .documents
+            .iter()
+            .find(|d| d.file_hash == permit)
+            .unwrap();
+        assert_eq!(permit_row.links.len(), 2);
+        assert!(plan.checks.iter().all(|c| !c.needs_photo));
+
+        // The two new kinds are taken; a kind that is not one is still refused.
+        for kind in ["warranty", "manual"] {
+            db::documents::update(conn, &permit_row.id, None, Some(kind)).unwrap();
+        }
+        let refused = conn
+            .execute(
+                "UPDATE document SET kind = 'invoice' WHERE id = ?1",
+                [&permit_row.id],
+            )
+            .unwrap_err();
+        assert!(refused.to_string().contains("CHECK"), "{refused}");
+        // A link to a document that is not there is refused; removing a
+        // document still takes its links with it.
+        let refused = conn
+            .execute(
+                "INSERT INTO document_link (document_id, target_kind, target_id)
+                 VALUES ('00000000-0000-7000-8000-0000000000ff', 'work', 'x')",
+                [],
+            )
+            .unwrap_err();
+        assert!(refused.to_string().contains("FOREIGN KEY"), "{refused}");
+        conn.execute("DELETE FROM document WHERE id = ?1", [&permit_row.id])
+            .unwrap();
+        assert_eq!(
+            raw_rows(conn, links_sql).len(),
+            2,
+            "the cascade survived the rebuild"
+        );
+        close(state);
+
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        assert!(diary::verify(&again.conn).unwrap().intact);
+        close(again);
+        assert_eq!(files_in(scratch.path()), vec![intake::DOCUMENTS, WORK_FILE]);
     }
 }

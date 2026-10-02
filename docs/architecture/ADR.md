@@ -23,42 +23,59 @@ prices ([ADR-029](#adr-029)), and a work goes back out as a template ([ADR-030](
 F11 gives the template its voice: a plan started from one asks what it does not yet know, one
 question at a time ([ADR-034](#adr-034)).
 
-| #               | Decision                                                                                                             | Status                         |
-| --------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| [001](#adr-001) | The product is named Ridgebeam                                                                                       | Accepted — 2026-09-24, by Alex |
-| [002](#adr-002) | Tauri 2 with a deliberately thin Rust host                                                                           | Accepted — 2026-09-25          |
-| [003](#adr-003) | The domain layer is pure TypeScript                                                                                  | Accepted — 2026-09-25          |
-| [004](#adr-004) | A work is a folder, and the application keeps a small database of its own                                            | Accepted — 2026-09-25          |
-| [005](#adr-005) | Fluent is the visual language, with one icon set                                                                     | Accepted — 2026-09-25          |
-| [006](#adr-006) | No network, no telemetry                                                                                             | Accepted — 2026-09-25          |
-| [007](#adr-007) | Strings are data in two languages, and the glossary is data too                                                      | Accepted — 2026-09-25          |
-| [008](#adr-008) | Readiness is a measure, not a feeling                                                                                | Accepted — 2026-09-25          |
-| [009](#adr-009) | The plan has no progress command                                                                                     | Accepted — 2026-09-25          |
-| [010](#adr-010) | End-to-end tests drive the real binary                                                                               | Accepted — 2026-09-25          |
-| [011](#adr-011) | Accessibility is gated, not reviewed                                                                                 | Accepted — 2026-09-25          |
-| [012](#adr-012) | Installers are not code-signed in 1.0.0                                                                              | Accepted — 2026-09-25          |
-| [013](#adr-013) | Settings are a closed list of keys the host owns                                                                     | Accepted — 2026-09-25          |
-| [014](#adr-014) | A lens is a vocabulary table over the glossary, and an arrangement; nothing is stored per lens                       | Accepted — 2026-09-25          |
-| [015](#adr-015) | One scheduling engine: Tessera's, copied literally and extended with the working calendar, lags and baselines        | Accepted — 2026-09-25          |
-| [016](#adr-016) | Baselines are insert-only from the first one                                                                         | Accepted — 2026-09-25          |
-| [017](#adr-017) | A decision's deadline is computed, never stored                                                                      | Accepted — 2026-09-25          |
-| [018](#adr-018) | Readiness is explained rule by rule, and the rules sum to the figure                                                 | Accepted — 2026-09-25          |
-| [019](#adr-019) | The diary is append-only with a hash chain, and a correction is a new entry                                          | Accepted — 2026-09-25          |
-| [020](#adr-020) | Progress is derived from the diary, in states, never as an invented number                                           | Accepted — 2026-09-25          |
-| [021](#adr-021) | Photos are copied by the host under caps and shown as data URLs                                                      | Accepted — 2026-09-25          |
-| [022](#adr-022) | A stage's gates are answered facts, and a closed stage is closed                                                     | Accepted — 2026-09-27          |
-| [023](#adr-023) | Money is three facts with three sources, in minor units, and the ledger is append-only                               | Accepted — 2026-09-27          |
-| [024](#adr-024) | Every money figure carries its rows, and paid over committed is flagged, not refused                                 | Accepted — 2026-09-27          |
-| [025](#adr-025) | A document is a file the work owns, typed by its bytes, deduplicated by its hash, and never parsed                   | Accepted — 2026-09-27          |
-| [026](#adr-026) | A person is a contact with stages, and presence comes from the diary                                                 | Accepted — 2026-09-27          |
-| [027](#adr-027) | An approved plan is locked until somebody says why: a replanning is a row, closed only by the next baseline          | Accepted — 2026-09-28          |
-| [028](#adr-028) | Any two baselines compare in the domain; a what-if is never written                                                  | Accepted — 2026-09-28          |
-| [029](#adr-029) | A template is data, applied once as the work's own plan, with ranges and no prices                                   | Accepted — 2026-09-28          |
-| [030](#adr-030) | A work exports as a template with its numbers stripped or kept                                                       | Accepted — 2026-09-28          |
-| [031](#adr-031) | A report is a document the interface composes and the host renders, in standard fonts, and a second reader checks it | Accepted — 2026-09-28          |
-| [032](#adr-032) | The diary export verifies the chain when it is written, and a CSV never carries a formula                            | Accepted — 2026-09-28          |
-| [033](#adr-033) | A backup is one ZIP with a manifest; restore makes a new folder and proves it byte for byte                          | Accepted — 2026-09-28          |
-| [034](#adr-034) | The plan asks one question at a time                                                                                 | Accepted — 2026-09-28          |
+Before its first use, the product's owner widened 1.0 with four differentiators, set out with their
+cost in [ADR-036](#adr-036). The first, slice D1, gives the finish as a probability as well as a
+date, from the ranges a person gives and without touching the plan's own dates
+([ADR-035](#adr-035)). The second, slice D2, ties each payment to the work it pays for: a
+commitment's milestones are earned only by facts of the work, and a payment that would put the owner
+ahead of the work is warned about before it is saved, never refused ([ADR-037](#adr-037)). The
+third, slice D3, writes the work's record for its owner — one PDF with the photos of the work
+hidden behind walls and floors, which a check can now require before it is answered yes
+([ADR-038](#adr-038)). The fourth, slice D4, writes the work as it stands for the owner to read on
+a phone — one HTML file with no script and nothing loaded from anywhere, which the person sends
+themselves ([ADR-039](#adr-039)).
+
+| #               | Decision                                                                                                              | Status                         |
+| --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| [001](#adr-001) | The product is named Ridgebeam                                                                                        | Accepted — 2026-09-24, by Alex |
+| [002](#adr-002) | Tauri 2 with a deliberately thin Rust host                                                                            | Accepted — 2026-09-25          |
+| [003](#adr-003) | The domain layer is pure TypeScript                                                                                   | Accepted — 2026-09-25          |
+| [004](#adr-004) | A work is a folder, and the application keeps a small database of its own                                             | Accepted — 2026-09-25          |
+| [005](#adr-005) | Fluent is the visual language, with one icon set                                                                      | Accepted — 2026-09-25          |
+| [006](#adr-006) | No network, no telemetry                                                                                              | Accepted — 2026-09-25          |
+| [007](#adr-007) | Strings are data in two languages, and the glossary is data too                                                       | Accepted — 2026-09-25          |
+| [008](#adr-008) | Readiness is a measure, not a feeling                                                                                 | Accepted — 2026-09-25          |
+| [009](#adr-009) | The plan has no progress command                                                                                      | Accepted — 2026-09-25          |
+| [010](#adr-010) | End-to-end tests drive the real binary                                                                                | Accepted — 2026-09-25          |
+| [011](#adr-011) | Accessibility is gated, not reviewed                                                                                  | Accepted — 2026-09-25          |
+| [012](#adr-012) | Installers are not code-signed in 1.0.0                                                                               | Accepted — 2026-09-25          |
+| [013](#adr-013) | Settings are a closed list of keys the host owns                                                                      | Accepted — 2026-09-25          |
+| [014](#adr-014) | A lens is a vocabulary table over the glossary, and an arrangement; nothing is stored per lens                        | Accepted — 2026-09-25          |
+| [015](#adr-015) | One scheduling engine: Tessera's, copied literally and extended with the working calendar, lags and baselines         | Accepted — 2026-09-25          |
+| [016](#adr-016) | Baselines are insert-only from the first one                                                                          | Accepted — 2026-09-25          |
+| [017](#adr-017) | A decision's deadline is computed, never stored                                                                       | Accepted — 2026-09-25          |
+| [018](#adr-018) | Readiness is explained rule by rule, and the rules sum to the figure                                                  | Accepted — 2026-09-25          |
+| [019](#adr-019) | The diary is append-only with a hash chain, and a correction is a new entry                                           | Accepted — 2026-09-25          |
+| [020](#adr-020) | Progress is derived from the diary, in states, never as an invented number                                            | Accepted — 2026-09-25          |
+| [021](#adr-021) | Photos are copied by the host under caps and shown as data URLs                                                       | Accepted — 2026-09-25          |
+| [022](#adr-022) | A stage's gates are answered facts, and a closed stage is closed                                                      | Accepted — 2026-09-27          |
+| [023](#adr-023) | Money is three facts with three sources, in minor units, and the ledger is append-only                                | Accepted — 2026-09-27          |
+| [024](#adr-024) | Every money figure carries its rows, and paid over committed is flagged, not refused                                  | Accepted — 2026-09-27          |
+| [025](#adr-025) | A document is a file the work owns, typed by its bytes, deduplicated by its hash, and never parsed                    | Accepted — 2026-09-27          |
+| [026](#adr-026) | A person is a contact with stages, and presence comes from the diary                                                  | Accepted — 2026-09-27          |
+| [027](#adr-027) | An approved plan is locked until somebody says why: a replanning is a row, closed only by the next baseline           | Accepted — 2026-09-28          |
+| [028](#adr-028) | Any two baselines compare in the domain; a what-if is never written                                                   | Accepted — 2026-09-28          |
+| [029](#adr-029) | A template is data, applied once as the work's own plan, with ranges and no prices                                    | Accepted — 2026-09-28          |
+| [030](#adr-030) | A work exports as a template with its numbers stripped or kept                                                        | Accepted — 2026-09-28          |
+| [031](#adr-031) | A report is a document the interface composes and the host renders, in standard fonts, and a second reader checks it  | Accepted — 2026-09-28          |
+| [032](#adr-032) | The diary export verifies the chain when it is written, and a CSV never carries a formula                             | Accepted — 2026-09-28          |
+| [033](#adr-033) | A backup is one ZIP with a manifest; restore makes a new folder and proves it byte for byte                           | Accepted — 2026-09-28          |
+| [034](#adr-034) | The plan asks one question at a time                                                                                  | Accepted — 2026-09-28          |
+| [035](#adr-035) | The finish is also a probability: ranges, a seeded simulation, natural frequencies, and the plan's own date untouched | Accepted — 2026-09-29          |
+| [036](#adr-036) | The owner widened 1.0 before first use                                                                                | Accepted — 2026-09-29, by Alex |
+| [037](#adr-037) | A payment plan is earned by facts, and paying ahead is warned, not refused                                            | Accepted — 2026-09-29          |
+| [038](#adr-038) | The handover book: the work's record for its owner, photos of hidden work required where it matters                   | Accepted — 2026-10-01          |
+| [039](#adr-039) | The owner's snapshot: one file with no script, rendered by the host, sent by the person                               | Accepted — 2026-10-02          |
 
 ---
 
@@ -1877,3 +1894,502 @@ cannot reorder it; a decision falling due tomorrow waits behind every unanswered
 readiness and the Decisions list show it as overdue or due all the same. A decision is asked only
 within 14 calendar days of its deadline, so the count grows as deadlines come near. And the card
 asks what readiness already counts; it adds no rule and no figure of its own.
+
+## ADR-035 — The finish is also a probability: ranges, a seeded simulation, natural frequencies, and the plan's own date untouched {#adr-035}
+
+**Status.** Accepted — 2026-09-29.
+
+**Context.** The plan's finish date is one number, computed from one duration per activity
+([ADR-015](#adr-015)). A site is not one number: the tiler who says three days means two to five,
+and every person who has built once knows that the date on the plan is the date on which nothing
+goes wrong. The product already held the raw material of an honest answer — a template brings every
+duration as a **range** ([ADR-029](#adr-029)) — and set it aside the moment a person typed a
+number. The question an owner actually asks, "when will it really finish?", had no answer but the
+plan's date, and the question an engineer asks, "how sure is that?", had none at all. Three shapes
+were weighed. **PERT's three-point formula** gives a mean and a spread along one path, and is wrong
+exactly where it matters: when two paths are close, the finish is the later of the two, which the
+formula cannot see. **A buffer** added to the finish is a number the product would invent. **A
+simulation** of the same schedule, run many times with durations drawn from the ranges the person
+gave, sees every path, and can say what it assumed.
+
+**Decision.**
+
+- **Ranges are the input, and any activity can have one.** `duration_min_days` and
+  `duration_max_days` (F9's columns, [`DATA_MODEL.md`](../DATA_MODEL.md)) are edited on every
+  activity in the breakdown, as **Optimistic** and **Pessimistic** working days beside the duration,
+  through `activity_update`: both or neither, whole, 1 to 3 650, the optimistic not above the
+  pessimistic — both ends equal is a range of one number. A change that would leave the duration
+  outside the range — a duration typed outside it, or a range that does not hold it — is refused
+  with a sentence naming the range; nothing widens or clears a range on its own. **A range is not
+  locked by approval**: a baseline does not record it, and it is an estimate of how uncertain the
+  plan is, not the plan. The lock's list ([ADR-027](#adr-027)) is explicit and does not gain it; a
+  duration stays locked as before, and an activity of a closed stage takes no change at all.
+- **The model** (`activityModel`). An activity with a range and a duration is a triangular
+  distribution — the optimistic end, the duration as the most likely, the pessimistic end. With a
+  range and no duration, the most likely is the middle of the range, inside the simulation only:
+  nothing is written, and the breakdown still shows no duration
+  ([`DESIGN_SYSTEM.md`](../../DESIGN_SYSTEM.md) §8). A duration that lies outside its range — only a
+  plan from before D1 can hold one, a template's 2 to 4 with a 5 typed later — **widens the range to
+  take it in**, 2 to 5 peaking at 5, inside the simulation only: both are things somebody said, and
+  the file keeps them as they are. Everything else is **certain** — the same duration in every run:
+  a duration with no range, and a range of one number. With neither a duration nor a range,
+  an activity is not placed, as the schedule already does, and the result counts it. Lags are
+  certain. A drawn duration is rounded to the nearest whole working day, a half up, never below one.
+  **Nothing invents uncertainty**: no activity gains a range the person did not give, and the page
+  says how many activities are counted as certain.
+- **What has happened is not drawn.** An activity the diary says is finished is certain at the
+  working days it really took, its first entry to its finish, both counted. An activity of a closed
+  stage is certain at its duration. An activity the diary says is started keeps only what is left
+  of its range: it has already taken the working days from its first entry to its last, so the
+  triangle is cut there and no run gives it fewer; one already past its pessimistic end is certain
+  at what it has taken. The diary's own rules say what started and finished mean.
+- **The engine is the schedule's.** `src/domain/schedule/probability.ts`, pure, takes the network
+  the schedule computes over — the same edges and the same topological order, extracted from the
+  critical-path engine as `network()` and now used by both, so the two cannot disagree about what
+  comes first — and then, run by run, draws the durations, passes forward to the finish and
+  backward to the activities with no float in that run, exactly as the schedule's own passes do.
+  The working-day offsets become dates on the calendar once, at the end. The existing schedule
+  tests pass unchanged.
+- **Seeded, so the same plan gives the same numbers.** The draws come from `mulberry32`, a small
+  seeded generator in the domain, and the seed is an FNV-1a hash of what the runs depend on: the
+  start date, the working days, the holidays, every activity's model and every link with its lag.
+  Opening the work again, on any machine, gives the same numbers; changing any of those gives new
+  ones. There is no "run again" that would let a person shop for a better answer.
+- **Runs.** `PROBABILITY_RUNS`, 2 000. Each run passes over every activity and every link twice,
+  forward and back, and one simulation may pass over 40 million in all (`PROBABILITY_WORK_BUDGET`):
+  a plan of up to 10 000 activities and links together gets every run, and a larger one gets as many
+  as fit, rounded down to a hundred and never fewer than 200 (`runsFor`) — and the page says it was
+  capped. The budget was set from the benchmark's work of 2 000 activities, 400 of them ranged, and
+  3 000 links, which gets all 2 000 runs; the largest plan that still does stays near 300 ms on the
+  development machine. The number of runs is always on the page, with the method.
+- **What it answers.** The chance of finishing by any date (`chanceBy`); the first dates by which
+  half, eight tenths and nine tenths of the runs had finished (P50, P80, P90); the chance of the
+  plan's own finish date, and of the latest baseline's; each activity's **criticality index** — the
+  share of runs in which it had no float; and the **drivers** — the activities with a range whose
+  drawn duration moves the finish most, by Spearman's rank correlation over the runs, five at most,
+  and only those above 0.1 and above three standard errors of a correlation of nothing
+  (3 / √(runs − 1)), so that noise is never named. Nothing is simulated — and the page says why —
+  when the calendar or the start date cannot be counted on, the links hold a loop, or no activity
+  has a duration or a range.
+- **A chance is a figure with its rows, of a new kind.** The figure contract gains the unit
+  `chance`: `hits` of `runs`, its value exactly `hits / runs`. A probability is not a sum, so its
+  rows are not its parts: they are **what it depends on**, each with its role — the drivers, with
+  their rank correlation, then the activities counted as certain. The P80, the plan's date and the
+  baseline's date carry those rows; the criticality figure's rows are every activity simulated,
+  each with its index. `traceable` holds all of it.
+- **Said in natural frequencies, in words.** The headline is the P80 date and the chance of
+  finishing by it — "8 in 10 chances of finishing by 14 November 2026" — in whole tenths, in every
+  lens; the engineer also sees P80 and the percentage. **Tenths are floored, never rounded**: a
+  chance of 0.79 is "7 in 10", so the words never promise more than the runs showed, and "10 in 10"
+  is said only when every run finished by then. Below a tenth and above nothing is "fewer than 1 in
+  10"; no run at all is never "impossible", because runs cannot prove never. The percentage is
+  floored the same way, so the two never disagree. When nothing has a range, the card says that
+  every activity is counted as certain, so the finish is the plan's date, and how to give a range.
+  A method line is always there — how many runs, from which ranges, seeded — with what the runs
+  leave out.
+- **Where it shows, and what it never touches.** A card on the Schedule, **When will it really
+  finish?**, after the finish and the baseline: the headline, the P50 and P90, the plan's and the
+  baseline's chances, a chart of the chance of having finished by each day with a table of weekly
+  rows as its reading, the drivers, the counts and the method. On the Gantt, whenever a range makes
+  the runs differ, every bar's accessible name ends "critical in N of 10 runs", and **Shade each bar
+  by how often it is critical** shades it — a choice for the visit, stored nowhere. One line on the
+  dashboard's finish card; one figure in the weekly report, in the owner's words, with no
+  percentage. And, after every other question, an optional one: "What is the most it could take?"
+  of a critical activity with a duration and no range — outside the count, and answered as a range
+  from its duration to the answer, so it can only run late. **Nothing about the simulation is
+  stored** — not a run, not a seed, not a result — and it changes none of the plan's dates: the
+  Gantt's bars, the slip, the deadlines and the baselines are the plan's, as they were.
+
+**Why.** A range is what a person can honestly say about a duration, and a simulation is the one
+way to combine ranges over a network in which the finish is the latest of several paths. Seeding it
+makes the answer a fact about the plan rather than a roll of dice: two people looking at the same
+work see the same chance. Natural frequencies — "8 in 10" — are what a person with no training in
+statistics reads correctly; a bare "80 %" is read as a promise, and "P80" as jargon. Keeping the
+result out of the file keeps the plan the one thing a person changes on purpose.
+
+**Cost accepted.** **The triangle is a choice, not a truth**: real durations can run longer on the
+right than a triangle allows, and a person who chose another shape would get other numbers. **A
+range is a person's guess**, and the simulation is exactly as good as the guesses; it says so, and
+never makes one up. **Activities are drawn independently of each other**: a rainy month slows every
+outdoor activity at once, a late delivery holds three trades, and the simulation does not know it —
+when causes are shared, the real spread is wider than the one shown. **Runs are capped** on a
+plan of more than 10 000 activities and links, so the tails there are rougher. **Flooring says less
+than it could**: a chance of 0.79 reads "7 in 10", never "8 in 10" — a careful answer, and sometimes
+a pessimistic one. Ranges are not in the baseline, so the chance a plan had on the day it was
+approved cannot be read back later, and a range changed after approval is recorded nowhere. And the
+plan's own date keeps its place on every screen: a person who reads only the Gantt never learns
+that the date has a chance.
+
+## ADR-036 — The owner widened 1.0 before first use {#adr-036}
+
+**Status.** Accepted — 2026-09-29, by Alex.
+
+**Context.** The specification closes 1.0.0 with a rule: nothing enters it without something
+leaving it (SPEC §2). Slices F0 to F11 were built to that closed list, and the release, F12, was
+prepared on a branch of its own. Before using the product on a work of his own, its owner asked
+what would set it apart from every other small-works tool, and the squad proposed four answers to
+questions those tools leave to guesswork.
+
+**Decision.** The rule is set aside once, by the product's owner, on 2026-09-29. 1.0.0 gains four
+differentiators, each a slice gated as F0 to F11 were — gates green, the end-to-end suite on the
+real binary, both themes and both languages captured, the documentation and the decisions written,
+one pull request into `develop`:
+
+1. **D1 — "When will it really finish?"** The finish as a probability from each activity's range,
+   in natural frequencies ([ADR-035](#adr-035)).
+2. **D2 — "Am I paying ahead of the work?"** Payment plans with milestones earned only by facts — a
+   gate passed, an activity finished in the diary — and a flag when paid runs ahead of earned.
+3. **D3 — The handover book.** One PDF the owner keeps: what was done room by room, every decision,
+   photos of hidden work taken before it was closed, permits, warranties, receipts, who did what,
+   and the maintenance notes.
+4. **D4 — The owner's snapshot.** One self-contained HTML file, with no script, that opens on any
+   phone or browser — sent by the person; the product still sends nothing.
+
+The release branch is not merged: the four land in `develop` first, one slice at a time, and the
+release is cut again from there. Nothing else in the specification changes — no network, no
+account, no AI, one machine, every figure with its rows, the diary and the baselines append-only,
+two languages, three lenses.
+
+**Why.** The first real work is the proof the specification asks for (F12), and the owner is the
+one person who can say that the product is not yet the one worth proving on it. Each of the four
+answers a question an owner or an engineer asks on a real site, and that the tools they already
+know leave to guesswork.
+
+**Cost accepted.** **The first use comes later**: four slices now stand between the product and the
+real work F12 was waiting for. **A larger surface to prove**: every screen, figure and file the four
+add is one more thing to test, capture, translate and keep true, and the release checklist grows
+with them. The specification's own rule was the guard against exactly this (R9); it is the owner
+who set it aside, once and by name, and a fifth differentiator would need a record of its own.
+
+## ADR-037 — A payment plan is earned by facts, and paying ahead is warned, not refused {#adr-037}
+
+**Status.** Accepted — 2026-09-29.
+
+**Context.** Slice F6 answers what was planned, what was agreed and what was paid, and flags a
+payment that goes past what was agreed ([ADR-023](#adr-023), [ADR-024](#adr-024)). It does not see
+the mistake an owner makes most often on a small work, which is not paying too much but paying too
+soon: half of the tiler's quote before a tile is laid, then a quarter more "for material", and three
+quarters of the job paid while a fifth of it is done. Paid is still under committed, so nothing is
+flagged, and the owner has lost the one thing that keeps a contractor coming back. The tools an
+owner already knows attach a **date** to each instalment; a date says when money is expected, not
+whether the work it pays for is there. The product already records the facts that say so — a stage's
+start and close gates ([ADR-022](#adr-022)) and an activity finished in the diary
+([ADR-020](#adr-020)) — and set them beside the money without joining the two.
+
+**Decision.**
+
+- **A commitment carries a payment plan of milestones.** A **milestone** is a label, a share of the
+  commitment's amount in **basis points** — whole hundredths of a percent, so "30 %" is 3 000 and
+  "12.5 %" is 1 250 — and the fact that earns it, in an order the person sets (`payment_milestone`,
+  migration 011, [`DATA_MODEL.md`](../DATA_MODEL.md)). The shares of one commitment sum to **at
+  most** 100 %; what is left is said on the screen as not in the plan yet, never assumed.
+- **A milestone is earned by a fact, never by a date or a tick.** Four triggers, a closed list:
+  **advance** — earned the day the commitment was agreed, before any work; **stage started** — the
+  commitment's stage passed its start gate; **activity finished** — an effective diary entry
+  finished that activity, corrections applied, and the activity must belong to the commitment's
+  stage; **stage closed** — the stage passed its close gate. A milestone is earned **on** the day of
+  its fact, and the screen says since when. It follows the fact both ways: a stage reopened un-earns
+  its "stage closed", and a correction that takes back a finish un-earns its "activity finished".
+  There is no control that marks a milestone earned, as there is none that sets progress
+  ([ADR-009](#adr-009)). An activity a milestone is earned by cannot be removed while the milestone
+  names it: the host refuses with a sentence, and the foreign key refuses it after.
+- **Four figures per commitment, each with its rows** (`src/domain/milestones.ts`, pure, in cents,
+  [ADR-024](#adr-024)). **Earned** — the milestones reached, each a row with its fact and its day;
+  **paid** — F6's payments on the commitment, reversals applied; **due now** — earned minus paid
+  when that is positive; **ahead of the work** — paid minus earned when that is positive. Per stage
+  and for the work they are the sums, with a row per commitment, and the dashboard counts the
+  commitments paid ahead. **Due and ahead are never netted across commitments**: a commitment paid
+  ahead does not pay what another has earned, so a stage can show money due and money paid ahead at
+  once, each with its own rows. A milestone's amount is its share of the commitment's cents, rounded
+  half up in exact integer arithmetic (`milestoneCents`); in a plan of exactly 100 % the last
+  milestone takes the remainder, so the plan adds up to the commitment's amount to the cent. A fact
+  dated after today is not a fact yet: an advance on a commitment agreed for next week is not earned
+  this week.
+- **A commitment with no plan is not evaluated.** It is neither earned nor unearned: it is counted
+  and listed as having no payment plan, and nothing is assumed about it; what was paid on it is
+  still shown, and a payment on it is never warned about. A payment that names no commitment is
+  outside the question altogether, and a line says how many there are.
+- **The warning comes before the payment.** The Ledger's payment form shows, as the person types,
+  what the commitment has earned so far, what has been paid, and what would be paid, due and ahead
+  after this payment (`paymentPreview`). When the payment would put the owner ahead of the work, a
+  caution says so before **Record the payment** is pressed, with the amount, the commitment and the
+  next milestone not yet earned. **The button is not disabled**: money paid is a fact, and the
+  decision is the person's. A reversal is never warned about.
+- **The plan is locked once money has moved.** From the first payment that names a commitment — a
+  reversal included — its milestones cannot be added, changed, moved or removed; the host refuses
+  with `invalid_input` and a sentence, as it refuses a change to the commitment itself
+  ([ADR-023](#adr-023)), and triggers in the schema refuse it again (`money: payment plan locked`);
+  the screen shows the plan as it is, with the sentence that says why and no control that would
+  change it. This is not the approved plan's lock ([ADR-027](#adr-027)): a payment plan is an
+  agreement, not something a baseline records, so no replanning opens it, and a closed stage does
+  not refuse it — money is not a plan edit.
+- **A usual plan, offered, not advised.** On a commitment with no milestones, **Add the usual plan**
+  fills three — 30 % when the stage starts, 40 % when the stage's last activity is finished, 30 %
+  when the stage closes — with labels in the person's language, each editable, and the screen says
+  it is a common split, not advice. It is refused, with a sentence, on a commitment that already has
+  a plan, and — since the middle one names the stage's last activity by position — on a stage with
+  no activity yet. The split is data in the host (`USUAL_SPLIT`) and the domain, not a rule.
+- **Where it shows.** On Money, by stage: each commitment's **Payment plan**, its earned and due
+  figures, and a mark in words when it is paid ahead or has money due. On the Ledger, the preview
+  and the warning. On the dashboard's money card, how many commitments are paid ahead and how much
+  is earned and not paid, with a sentence under them for the commitments with no plan and the
+  payments on no commitment. In the weekly report, the same two figures in the owner's words. And,
+  last and optional, the **Next question** asks how a commitment with no plan is to be paid — only
+  while no money has moved on it, since after that its plan can no longer be written — and answers
+  by opening that commitment's plan, not inline ([ADR-034](#adr-034)). **Nothing is stored but the
+  milestones**: earned, due and ahead are computed from the snapshot every time. Readiness does not
+  change.
+
+**Why.** A fact of the work is the only thing both sides of a payment can check: the diary and the
+gates are the record the product already keeps, and tying money to them makes "is the work there?"
+a question with an answer rather than an argument. A warning that arrives with the payment form, not
+in a report the week after, is the only one that can change what happens. And refusing the payment
+would push an agreed advance, or an honest favour to a good contractor, out of the ledger and into a
+notebook — the reason F6 flags and never refuses ([ADR-024](#adr-024)).
+
+**Cost accepted.** **A fact can be recorded late, and the milestone is earned late**: the product
+knows the work only through the diary and the gates, so a payment made the day the tiles were laid,
+with the diary written on Friday, reads as ahead until then. **An advance is money before work**, by
+definition; the product says so plainly on every advance and counts what it earns, rather than
+forbidding what many contracts require. **The plan locks after the first payment**: a renegotiated
+split cannot be written over the old one, so a renegotiation is a new commitment, and the old one
+keeps its amount and its record as they were paid. **Payments on no commitment are not evaluated**:
+money paid outside a commitment is counted and said, but nobody can say whether it was ahead of
+anything. A commitment with no plan is likewise not judged. **An activity a paid commitment's
+milestone names can never be removed**: the milestone is locked, and it holds the activity with it —
+the plan keeps the fact it was paid against. A milestone is earned whole or not at all — a share of
+an activity's quantities in the diary does not earn a share of its milestone. And a share rounded to
+the cent is not always the share a person's calculator gives: in a 100 % plan the last milestone
+takes the remainder, and may differ from its own share by up to half a cent for each milestone
+before it.
+
+## ADR-038 — The handover book: the work's record for its owner, photos of hidden work required where it matters {#adr-038}
+
+**Status.** Accepted — 2026-10-01.
+
+**Context.** The third differentiator ([ADR-036](#adr-036)). At the end of a work the owner is left
+with a folder of receipts, a phone full of photos and what the builder remembers to say on the way
+out. Years later somebody drills into a wall to hang a shelf and finds the pipe nobody photographed,
+or a shower leaks under a tile and nobody knows whether the floor was waterproofed, who did it or
+whether it is still under warranty. Everything that would have answered those questions passed
+through the product — the diary, the gates, the decisions, the documents, the people — but F10's
+reports are about a week or about the record, and none of them carries a photo: they count an
+entry's photos and say they are in the work's folder ([ADR-031](#adr-031)). A gate can already ask
+"were photos taken before the walls were closed?", and a "yes" with no photo answered it.
+
+**Decision.**
+
+- **One PDF for the owner: the handover book.** Written from **Reports**, in the owner's words
+  whatever lens is on, in the language on screen. Its content is selected by the domain
+  (`src/domain/reports/handover.ts`, pure, keys and no strings) and composed into blocks by the
+  interface (`src/features/reports/compose/handover.ts`), as every report is. A **first page** —
+  "Written while the work was in progress" first, in strong type, while any stage is open; the
+  place, the start, the day the last stage closed or that the work is in progress, the template it
+  started from, what the book holds and what it does not, **what it still lacks** with its rows,
+  and the people by trade. Then **one section per room**, in room order — or one per stage when the
+  work has no rooms, and, when it has rooms, a last section for what touches none, so nothing done
+  is left out — with what was done and when (the finished activities and the day the diary says
+  they finished), the decisions made with their answers and days, **the photos of hidden work**,
+  every one, full width, captioned with the check, its stage and the day; the diary's other photos
+  of the section's activities, two to a row, at most six per section, the latest per activity
+  first, and how many more are in the work's folder; and the care notes. Then the **documents** by
+  kind — permits, warranties, manuals, contracts, receipts — each by its title and file name, the
+  day it was added and what it is attached to; **who did what** — everyone in the plan with their
+  trade, phone and e-mail, the stages the diary saw them on and their days on site; the care notes
+  for the whole work, and any whose room or stage is gone, said so; and last, **the record**: how
+  many entries the diary holds, from which day to which, that its chain is verified whenever the
+  diary is written out as a PDF, and the day the book was written. The book does not claim a
+  verification it did not make: the diary's own export carries that block ([ADR-032](#adr-032)).
+  It holds no money and no schedule — they have their own reports.
+- **Photos in a PDF.** The report model gains an **image** block — a hash, a caption, and a size,
+  `full` or `half`; two half-size images in a row sit side by side. The interface names a photo
+  **only by its hash**, 64 lowercase hexadecimal digits; anything else is refused before a file is
+  looked for. The host (`src-tauri/src/report/images.rs`) accepts a hash only when a `document` row
+  of the open work names it, and only an image — a PDF among the documents is listed by name and
+  never embedded, and an image block naming one is refused; reads the original from the work's own
+  `documents/` and nowhere else, under the documents' caps (25 MiB, 12 000 × 12 000), and checks
+  that its bytes still hash to the name — a file changed outside Ridgebeam is refused; decodes it
+  under the `image` crate's limits, turns it the way the camera said, lays any transparency on
+  white, scales it to at most **1 600 pixels** on its long edge and embeds it as JPEG at quality 82.
+  A JPEG that is already what the page needs — at most 1 600 pixels, 8 bits, grey or colour, not
+  turned, at most 4 MiB, and decoding like any other — is embedded **as it is**, byte for byte. A
+  document holds at most **400 image blocks and 150 MiB of image data** (each distinct photo counted
+  once), and the host refuses one past either with a sentence; the composer never sends more than
+  400 — past that, the photos that come later in the book are left out and the book says how many,
+  in words. An image block whose hash the work does not hold is refused, not skipped. The second
+  reader counts the embedded images in `cargo test`, and checks their size and filter.
+- **Hidden work needs its photo.** A gate check can **need a photo** (`stage_check.needs_photo`,
+  migration 012): a "yes" on it without a photo is refused by the host — _"This check needs a photo
+  of the work before it is closed."_ — and "no" or "not applicable, with a reason" are not. The
+  Gates tab turns it on or off for each check while the stage is not closed, and a check that needs
+  a photo shows its photo field open. The usual checks and the library's templates gain one
+  close-gate check that needs a photo on each stage that closes a wall or a floor over pipes,
+  wiring or waterproofing, and the template format gains an optional `"photo": true` on a check.
+- **Two more kinds of document**: `warranty` and `manual`, so the book can list them under their own
+  headings. Migration 012 rebuilds `document` to widen its `CHECK`, keeping every row with its id,
+  every link and the index, and setting the links aside first so that dropping the old table does
+  not cascade into them.
+- **Care notes.** A sentence of up to 1 000 characters on the work, a room or a stage — _"Reseal the
+  shower grout once a year"_, _"The stopcock is under the sink"_ — in an order the person sets
+  (`care_note`, migration 012). They are editable at any time, approved plan or not: they are not
+  the plan. A room or a stage removed takes its notes with it.
+- **The book says what it still lacks.** Before writing, the Reports card shows a counted figure
+  with its rows ([ADR-024](#adr-024)) of what the book would be missing: checks that need a photo
+  and were answered without one (only an answer from before this slice can be), checks that need a
+  photo and are not answered, stages not closed, rooms with no photo, no warranty or manual at all,
+  no care note. **Writing is allowed anyway**: an owner may want the book halfway through. When any
+  stage is still open, the book's first page says it was written while the work was in progress.
+- **Where it lives.** The Plan gains a **Handover** tab — the care notes of the work, each room and
+  each stage, and every check that needs a photo with its state and its photo; Reports gains the
+  card **The handover book**. The dashboard says nothing new: the book is for the end.
+
+**Why.** The owner keeps the work for decades and the people who built it are gone in weeks; the
+book is the part of the record that has to outlive both the product and the builder, so it is a
+PDF that opens anywhere and carries the photos itself, not a pointer into a folder. A photo of a
+pipe is worth something only if it was taken before the wall was closed, and the gate is the one
+moment the product knows the wall is about to be closed — so that is where the photo is asked for,
+and a "yes" without one is not a yes. Resolving an image only by hash, inside the open work, keeps
+the report command from becoming a way to read any file on the machine into a PDF.
+
+**Cost accepted.** **Photos make a large PDF**: a book with a few hundred photos runs to tens of
+megabytes, even scaled to 1 600 pixels — the caps are there so it stays a file a person can keep and
+copy, and nothing past them is dropped without a word: photos past 400 are counted and said to be in
+the work's folder, and a book past 150 MiB of photos is refused with a sentence. **A photo required
+for a "yes" can be taken after the wall is closed, and the product cannot tell**: it checks that a
+photo is attached, not what it shows or when it was taken; the book prints the day the check was
+answered under the photo, and the honesty of the photo is the person's. **A photo's metadata is
+left behind, and so is its colour profile**: a book is handed to other people, so a JPEG embedded as
+it is loses its EXIF (which may say where it was taken), XMP and comments, keeping only what decoding
+needs, and a re-encoded image carries none; the cost is that a photo with a wide colour profile
+prints a little less true. The original in the work folder keeps everything. **Care notes are the person's words, not advice**:
+the product prints what was typed and vouches for none of it, and a wrong note — the wrong stopcock
+— is printed as faithfully as a right one. **A book written mid-work is incomplete and says so** on
+its first page, and its gaps are listed before it is written; a person may still print it and file
+it as if it were final. A PDF document — a warranty scanned as PDF, a manual — is listed by name,
+never reproduced: the book points to it, and the work's folder keeps it.
+
+## ADR-039 — The owner's snapshot: one file with no script, rendered by the host, sent by the person {#adr-039}
+
+**Status.** Accepted — 2026-10-02.
+
+**Context.** The fourth differentiator ([ADR-036](#adr-036)). The owner of a small work is rarely
+where the product runs: they are at their own job, and at the end of the day they ask, by message,
+how the work is going. The answer they get is a sentence from memory, a screenshot of one number with
+none of its rows, or the weekly PDF, which a phone shows as a page to pinch and drag. The product
+already holds everything the answer needs — readiness, the finish and its chance, what comes next,
+the diary and its photos, the money — but it makes no network request ([ADR-006](#adr-006)) and has
+no account, so it cannot be the one that sends anything, and a phone app or a web app is outside 1.0
+(SPEC §2). An HTML file is the one format every phone opens in the browser it already has. It is
+also the one format that can carry a script, load an image from a server that logs who opened it,
+or post a form somewhere — whatever the product lets into it.
+
+**Decision.**
+
+- **One HTML file: the owner's snapshot.** Written from **Reports**, on a card of its own, **The
+  owner's snapshot**, which says what the file holds and what it does not, and that sending it is
+  the person's; the dashboard's header gains **Owner's snapshot…**, which goes to that card with the
+  focus on its path. The
+  file is saved to the `.html` path the person chose in the save dialog, through F10's write path —
+  whole or not at all, over an existing file only when the dialog asked ([ADR-031](#adr-031)) — and
+  **Open** shows it in the system's own browser, under F10's rule: only a file a report command
+  wrote in this session.
+- **The same document model, a second renderer.** The interface composes a report document of kind
+  `snapshot` (`src/features/reports/compose/snapshot.ts`) from the same domain selections and the
+  same dictionaries as every report; the host renders it to HTML (`src-tauri/src/report/html.rs`)
+  where it renders the others to PDF. A heading is a heading and a paragraph keeps its tone; a
+  **figure** is `<details><summary>label — value</summary>` with its rows in a list under it, so
+  every figure still opens onto its rows with no script, and a figure with no rows is the same line
+  opening onto nothing; a table is a `<table>` that scrolls
+  sideways on a narrow screen; a rule is a rule; a page break is ignored; a **Gantt** is an inline
+  SVG of bars with their text labels and a `<title>` on each bar; an **image** is a JPEG inside the
+  file as a `data:` URL. Nothing on the page comes from a second calculation.
+- **What it holds, in the owner's words** whatever lens is on, in the language on screen. Its title
+  is the glossary's term, _Owner's snapshot_ (_Retrato da obra_), and under it the work's name and
+  the day — _"as it stands on {day}"_. **Today**: the place; readiness as a figure, opening onto
+  what the plan still lacks, with the dashboard's own sentence under it; the finish date; and D1's
+  headline with what moves the finish most, or the sentence that every activity is counted as
+  certain ([ADR-035](#adr-035)). **The next two weeks** (below). **Lately on site**: the last five
+  effective diary entries, corrections applied, newest first, each with its note whole, what was
+  done, who was there by name, and at most two of its photos, captioned with the day and the
+  photo's file name, with how many more the day has. **Money**: planned, committed and paid, each
+  opening onto its lines, the commitments paid ahead of the work, and what is earned and not paid
+  now ([ADR-037](#adr-037)), with what those leave out. And a last line: _"Written by Ridgebeam on
+  {day}. A snapshot: it does not change when the work does."_ **Nothing else**: no person's phone
+  number or e-mail address and not the Windows account that wrote an entry — the handover book is
+  where contacts belong — no document, no baseline, no diary chain.
+- **The next two weeks** (`src/domain/reports/lookahead.ts`, pure, keys and no strings): the 14
+  calendar days from today, today included, read off the schedule as of today. A closed stage is
+  done and contributes nothing, and an activity the diary says is finished is neither starting nor
+  running. **Starting** — the activities whose scheduled start is in the window; **running** — those
+  that started before it and finish in it or after it, never the same activity twice; each with its
+  responsible and its stage. **People** — by the dashboard's own rule for the week (F10), applied to
+  the window: whoever answers for an activity starting or running, and whoever is put on a stage
+  that has started. **Decisions** — open ones that are overdue or whose deadline falls in the
+  window, most urgent first, each with its lead time and the day its stage needs it, so the page can
+  say _"to order by 12 Oct"_ ([ADR-017](#adr-017)). **Gates** — the start gate of a stage not yet
+  started whose first activity is scheduled in the window, and the close gate of a stage not closed
+  whose last activity is scheduled to finish in it, each with the items that hold it, unanswered or
+  answered no; a gate that would already pass is listed with none ([ADR-022](#adr-022)).
+  **Payments** — what falls due: each milestone not yet earned whose fact the schedule expects in
+  the window (an activity's scheduled finish, the stage's first start or last finish, the day agreed
+  for an advance agreed after today), less what money already paid ahead on its commitment covers;
+  and what is earned and not paid now, D2's own figure ([ADR-037](#adr-037)). Each is a figure with
+  its rows. A small Gantt of the window shows every activity starting or running, cut at the
+  window's edges and saying so. When the schedule places nothing at all, the figures are empty
+  because there is no schedule, and the page says that rather than calling the two weeks quiet.
+  Days are said as the owner says them, _"Monday 5 Oct"_.
+- **Nothing in it runs, and nothing is loaded.** Every string from the work is escaped, in text and
+  in attributes. The file declares its language (`<html lang="en">` or `lang="pt-BR"`), its
+  character set and a viewport, and carries a Content-Security-Policy in a `<meta>` element —
+  `default-src 'none'; img-src data:; style-src 'unsafe-inline'` — so a browser that honours it
+  will neither run a script nor load anything from anywhere, even if a hostile string got past the
+  escaping. The style is inline, in the file: one readable column, the system's own fonts, large
+  tap targets on every summary, print styles, and **light and dark following the reader's phone**
+  through `prefers-color-scheme`. The escape writes the five markup characters, and also `/ : = @ (`
+  and the backtick, as character references, so a hostile string can neither become markup nor
+  spell an address. Then, before the bytes are written, **the host checks them and refuses the
+  write** — as a bug in the product, and said so — unless the policy is there once, before what it
+  governs; every `src` is a base64 `data:image/jpeg` address; what remains holds none of `<script`,
+  an `on…=` attribute, `javascript:`, `vbscript:`, `http:`, `https:`, `//`, `<iframe`, `<object`,
+  `<embed`, `<link`, `<base`, `<form`, `@import`, `url(`, `expression(`, any other `data:` or
+  `<!--`; and the page is made only of its own elements and attributes. The rules are listed in
+  [`SECURITY.md`](../../SECURITY.md). The escaping, the policy and the check are three defences,
+  each tested on its own with deliberately hostile strings.
+- **Photos are resolved exactly as the handover book's**: by a 64-hex-digit hash a `document` row
+  of the open work names, read from its `documents/` under the documents' caps and checked against
+  their hash ([ADR-038](#adr-038)). Then they are **always re-encoded** — at most 1 024 pixels on
+  the long edge, JPEG at quality 78 — so no byte of the original, and none of its metadata, reaches
+  the file. One snapshot places at most **60 photos and 8 MiB of image data** — counted where they
+  are placed, since a page cannot reuse a photo without a script — and the file is at most
+  **12 MiB**; one past a cap is refused with a sentence and nothing is written.
+- **Ridgebeam writes the file; sending it is the person's act** — by WhatsApp, by e-mail, on a
+  memory stick. The product sends nothing, and nothing in either database records that a snapshot
+  was written.
+
+**Why.** The question an owner asks most is "how is it going?", and it is asked away from the desk;
+the answer that settles it is the dashboard's, rows and all, in their own words, on the phone in
+their hand. A file is the only way to give them that without an account, a server or a network
+request — the three things the product does not have. Rendering it from the same document model as
+the reports means the snapshot says what the screen says, in the same words
+([ADR-031](#adr-031)), and that the host, not the webview, writes the bytes another device will
+open. `<details>` is the one element that lets a figure open onto its rows without a script, so no
+script is needed — and a file that may be forwarded to people the person never meant to reach is
+safest when it can do nothing but be read.
+
+**Cost accepted.** **It is stale the moment the work changes**: a snapshot is the work on the day
+it was written, and an owner may read Tuesday's file on Friday as if it were Friday's. It cannot
+update itself — that would take a script or a server — so its last line says the day and that it
+does not change, and the next one has to be written and sent again. **Photos make it a few
+megabytes**: ten diary photos at 1 024 pixels come to a megabyte or two, and a messaging app may
+compress or refuse a large attachment; the caps keep it to a file a phone opens. **It holds the
+work's state, which the person chooses to share**: people's names, the diary's notes as they were
+typed, photos of somebody's home and what was paid. It carries no contact and no document, but it
+is not encrypted, has no password and does not expire, and whoever receives it can forward it; what
+to send and to whom is the person's decision, and once sent the product cannot take it back. **It
+is not the 1.2 "crew" sync**: nothing comes back from it — the owner cannot answer a decision,
+accept a gate or write in the diary through it — and two snapshots are two copies, never merged.
+**A phone's browser decides how it looks within the CSS it is given**: the system's fonts, how
+`<details>` opens and how a wide table scrolls differ from one browser to another, a viewer inside a
+messaging app may show it differently again, and a viewer that ignores the security policy still
+gets a file with nothing in it to run. No script also means no search, no filter and no sorting on
+the page: what it shows is what the composer put there.

@@ -74,9 +74,20 @@ export interface Person {
   readonly stageIds: readonly string[];
 }
 
-/** What a document is, as the person files it. */
+/**
+ * What a document is, as the person files it. `warranty` and `manual` (slice D3) are what the owner
+ * keeps for the years after the work: the handover book lists them by name.
+ */
 export type DocumentKind =
-  'photo' | 'quote' | 'drawing' | 'permit' | 'receipt' | 'contract' | 'other';
+  | 'photo'
+  | 'quote'
+  | 'drawing'
+  | 'permit'
+  | 'receipt'
+  | 'contract'
+  | 'warranty'
+  | 'manual'
+  | 'other';
 
 /** What a document can be attached to. */
 export type TargetKind =
@@ -127,6 +138,30 @@ export interface CostLine {
   readonly amountCents: number | null;
 }
 
+/**
+ * The fact of the work a milestone is earned by (slice D2): never a date, never a tick. `advance`:
+ * the day the commitment was agreed (a "sinal", paid before any work); `stage_started`: the stage's
+ * start gate passed; `activity_finished`: an effective diary entry finished the activity;
+ * `stage_closed`: the close gate passed (a reopened stage un-earns it).
+ */
+export type MilestoneTrigger = 'advance' | 'stage_started' | 'activity_finished' | 'stage_closed';
+
+/**
+ * One step of a commitment's payment plan (slice D2): a share of the commitment's amount, earned by
+ * a fact of the work. The shares of a commitment sum to at most 10 000 basis points (100 %).
+ */
+export interface Milestone {
+  readonly id: string;
+  /** Order inside the commitment's plan. */
+  readonly position: number;
+  readonly label: string;
+  /** Basis points of the commitment's amount, 1 to 10 000: "30 %" is 3 000. */
+  readonly shareBp: number;
+  readonly trigger: MilestoneTrigger;
+  /** The activity whose finish earns it: set exactly when `trigger` is `activity_finished`. */
+  readonly activityId: string | null;
+}
+
 /** Money committed: a quote or contract accepted, for a stage, usually with one trade. */
 export interface Commitment {
   readonly id: string;
@@ -138,6 +173,11 @@ export interface Commitment {
   /** `YYYY-MM-DD`. */
   readonly agreedOn: string;
   readonly documentHash: string | null;
+  /**
+   * Its payment plan, in position order (slice D2); empty when it has none, which is "no payment
+   * plan", never "nothing earned".
+   */
+  readonly milestones: readonly Milestone[];
 }
 
 /**
@@ -188,6 +228,11 @@ export interface Check {
   /** Order inside its stage and gate. */
   readonly position: number;
   readonly name: string;
+  /**
+   * Hidden work (slice D3): a `yes` needs its photo, taken before the work is covered — the pipes
+   * before the wall is closed. The host refuses a `yes` without one; `no` and `na` need none.
+   */
+  readonly needsPhoto: boolean;
 }
 
 /** `na` is "not applicable", and always carries its reason. */
@@ -336,6 +381,30 @@ export interface Replanning {
   readonly authorName: string;
 }
 
+/** What a care note is about: the whole work, one room, or one stage. */
+export type CareTargetKind = 'work' | 'room' | 'stage';
+
+/** The same type under the name the care-note commands use. */
+export type CareNoteTargetKind = CareTargetKind;
+
+/**
+ * What the owner must know to look after the work once it is done (slice D3): "Reseal the shower
+ * grout once a year", "The stopcock is under the sink". Not the plan: editable any time, never
+ * locked by approval; removed by the host with the room or stage it names.
+ */
+export interface CareNote {
+  readonly id: string;
+  readonly targetKind: CareTargetKind;
+  /** The room's or the stage's id; for the work, the work's id. */
+  readonly targetId: string;
+  /** Order among the notes of one target. */
+  readonly position: number;
+  /** At most 1 000 characters, as the person wrote it. */
+  readonly text: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+}
+
 /** The whole plan of one work, as `work_get` returns it. */
 export interface WorkSnapshot {
   readonly work: Work;
@@ -356,6 +425,8 @@ export interface WorkSnapshot {
   readonly commitments: readonly Commitment[];
   readonly payments: readonly Payment[];
   readonly documents: readonly Document[];
+  /** Every care note of the work, any target (slice D3). */
+  readonly careNotes: readonly CareNote[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────
@@ -448,6 +519,17 @@ export function decisionsInOrder(snapshot: WorkSnapshot): Decision[] {
 export function decisionsOf(snapshot: WorkSnapshot, stageId: string): Decision[] {
   return snapshot.decisions
     .filter((decision) => decision.stageId === stageId)
+    .sort((a, b) => a.position - b.position || compareText(a.id, b.id));
+}
+
+/** The care notes of one target (the work, a room or a stage), by position, then by id. */
+export function careNotesOf(
+  snapshot: WorkSnapshot,
+  targetKind: CareTargetKind,
+  targetId: string,
+): CareNote[] {
+  return snapshot.careNotes
+    .filter((note) => note.targetKind === targetKind && note.targetId === targetId)
     .sort((a, b) => a.position - b.position || compareText(a.id, b.id));
 }
 

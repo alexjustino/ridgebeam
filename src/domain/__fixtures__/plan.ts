@@ -49,6 +49,7 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     commitments: [],
     payments: [],
     documents: [],
+    careNotes: [],
     ...parts,
   };
 }
@@ -179,8 +180,22 @@ export function withStageRules(plan: WorkSnapshot): WorkSnapshot {
   return {
     ...plan,
     checks: plan.stages.flatMap((each) => [
-      { id: `${each.id}-start`, stageId: each.id, gate: 'start' as const, position: 1, name: 'S' },
-      { id: `${each.id}-close`, stageId: each.id, gate: 'close' as const, position: 1, name: 'C' },
+      {
+        id: `${each.id}-start`,
+        stageId: each.id,
+        gate: 'start' as const,
+        position: 1,
+        name: 'S',
+        needsPhoto: false,
+      },
+      {
+        id: `${each.id}-close`,
+        stageId: each.id,
+        gate: 'close' as const,
+        position: 1,
+        name: 'C',
+        needsPhoto: false,
+      },
     ]),
     costLines: plan.stages.map((each) => ({
       id: `${each.id}-cost`,

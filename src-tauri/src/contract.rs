@@ -65,6 +65,24 @@
 //!   `BackupLast`); the migrations a database has been through
 //!   (`MigrationApplied`, `AppDiagnostics.migrations`,
 //!   `WorkDiagnostics.migrations`). `diagnostics_summary` answers plain text.
+//! - D1: an activity's range is editable on any activity
+//!   (`ActivityPatch.durationMinDays`, `.durationMaxDays`: sent together or
+//!   not at all, `null` for both clears it). `Activity` is unchanged: the
+//!   fields F9 added now say the optimistic and the pessimistic duration,
+//!   whoever gave them.
+//! - D2: a commitment's payment plan (`Milestone`, `Commitment.milestones`,
+//!   by position, empty when none; `MilestonePatch`; `UsualLabels`, the words
+//!   `milestones_usual` writes). A share is whole basis points (`shareBp`,
+//!   3000 is 30 %). Nothing earned, due or ahead crosses the boundary: it is
+//!   the domain's, computed every time.
+//! - D3: the handover book. A check may need its photo (`Check.needsPhoto`,
+//!   `CheckDraft.needsPhoto` — optional, `false` when left out); two more
+//!   document kinds (`warranty`, `manual`); care notes (`CareNote`,
+//!   `WorkSnapshot.careNotes`, by target and position). The report's `image`
+//!   block is `report::model::Block::Image`.
+//! - D4: the owner's snapshot. No new shape: `report_html_write` takes the
+//!   same `ReportDocument`, of the new kind `snapshot`, and answers
+//!   `WrittenFile` without `pages` (`{ path, bytes }`).
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -294,10 +312,12 @@ pub struct Activity {
     pub name: String,
     /// Working days; `null` until somebody knows.
     pub duration_days: Option<i64>,
-    /// The lower end of the range a template gave, in working days; `null`
-    /// when there is none. Set with `durationMaxDays`, or neither.
+    /// The lower — optimistic — end of its range, in working days, as a
+    /// template gave it or a person typed it (D1); `null` when there is none.
+    /// Set with `durationMaxDays`, or neither.
     pub duration_min_days: Option<i64>,
-    /// The upper end of that range, never below the lower; `null` with it.
+    /// The upper — pessimistic — end of that range, never below the lower;
+    /// `null` with it.
     pub duration_max_days: Option<i64>,
     /// The person responsible; `null` until somebody is.
     pub responsible_id: Option<String>,
@@ -356,6 +376,30 @@ pub struct WorkSnapshot {
     /// The replanning that is open, or `null`. While the plan is approved and
     /// this is `null`, the plan is locked (`plan_approved`).
     pub replanning: Option<Replanning>,
+    /// Care notes (D3): the work's first, then each room's in the rooms'
+    /// order, then each stage's in the stages' order; by position within each.
+    pub care_notes: Vec<CareNote>,
+}
+
+/// What the owner must know to look after the work — "Reseal the shower grout
+/// once a year" — on the work, a room or a stage (D3). Not the plan: editable
+/// at any time.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct CareNote {
+    /// UUID v7.
+    pub id: String,
+    /// `work`, `room` or `stage`.
+    pub target_kind: String,
+    /// The room's or the stage's id; for the work, its `workId`.
+    pub target_id: String,
+    /// Its order among its target's notes: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// What it says, 1 to 1 000 characters.
+    pub text: String,
+    /// When it was written, UTC.
+    pub created_at: String,
 }
 
 /// An approved plan being changed, and why. Opened with a reason; closed only
@@ -414,7 +458,8 @@ pub struct Document {
     pub width: Option<i64>,
     /// Its height in pixels, for an image; `null` for a PDF.
     pub height: Option<i64>,
-    /// `photo`, `quote`, `drawing`, `permit`, `receipt`, `contract` or `other`.
+    /// `photo`, `quote`, `drawing`, `permit`, `receipt`, `contract`,
+    /// `warranty`, `manual` or `other`.
     pub kind: String,
     /// Its title — the file name until somebody changes it.
     pub title: String,
@@ -566,8 +611,70 @@ pub struct Commitment {
     /// none.
     pub document_hash: Option<String>,
     /// Whether a payment names it — from then on it cannot be changed or
-    /// removed.
+    /// removed, and neither can its payment plan.
     pub locked: bool,
+    /// Its payment plan (D2), by position; empty when it has none — "no
+    /// payment plan", which the domain never assumes earned or not.
+    pub milestones: Vec<Milestone>,
+}
+
+/// One milestone of a commitment's payment plan (D2): a share of its amount,
+/// earned by a fact of the work — never a date, never a tick. What is earned
+/// is the domain's, computed from the stage's lifecycle and the diary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct Milestone {
+    /// UUID v7.
+    pub id: String,
+    /// Its order in the plan: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// What it is, in the person's words.
+    pub label: String,
+    /// Its share of the commitment's amount, in basis points: 1 to 10 000
+    /// ("30 %" is 3000). A plan's shares add up to at most 10 000.
+    pub share_bp: i64,
+    /// The fact that earns it: `advance` (the day the commitment was agreed),
+    /// `stage_started`, `activity_finished` or `stage_closed`.
+    pub trigger: String,
+    /// The activity whose finish earns it — given exactly when the trigger is
+    /// `activity_finished`, and of the commitment's stage; `null` otherwise.
+    pub activity_id: Option<String>,
+}
+
+/// A change to a milestone, while nothing is paid against its commitment. A
+/// field left out is left alone. The milestone the patch leaves must still
+/// name an activity exactly when its trigger is `activity_finished`: moving
+/// away from that trigger sends `activityId: null` with it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MilestonePatch {
+    /// A new label.
+    #[serde(default)]
+    pub label: Option<String>,
+    /// A new share, whole basis points, 1 to 10 000.
+    #[serde(default)]
+    pub share_bp: Option<f64>,
+    /// A new trigger.
+    #[serde(default)]
+    pub trigger: Option<String>,
+    /// Absent: unchanged. `null`: none. A string: an activity of the
+    /// commitment's stage.
+    #[serde(default, deserialize_with = "present")]
+    pub activity_id: Option<Option<String>>,
+}
+
+/// The labels of the usual payment plan, in the person's language — the
+/// interface's words, written as they are sent (each checked as a label).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsualLabels {
+    /// The 30 % earned when the stage starts.
+    pub started: String,
+    /// The 40 % earned when the stage's last activity is finished.
+    pub finished: String,
+    /// The 30 % earned when the stage closes.
+    pub closed: String,
 }
 
 /// A change to a commitment, while nothing is paid against it. A field left
@@ -671,6 +778,9 @@ pub struct Check {
     pub position: i64,
     /// The question, at most 200 characters.
     pub name: String,
+    /// Whether a "yes" must carry a photo of the work (D3): hidden work,
+    /// photographed before it is closed.
+    pub needs_photo: bool,
 }
 
 /// One answer to a check — a fact, never rewritten.
@@ -898,6 +1008,16 @@ pub struct ActivityPatch {
     /// characters, and only beside a quantity.
     #[serde(default, deserialize_with = "present")]
     pub unit: Option<Option<String>>,
+    /// The optimistic end of the activity's range (D1). Sent with
+    /// `durationMaxDays` or not at all: both absent, unchanged; both `null`,
+    /// no range; two numbers, whole working days from 1 to 3650, this one not
+    /// above the other, and the duration — held, or sent beside them — not
+    /// outside them. Not locked by approval: a baseline does not record it.
+    #[serde(default, deserialize_with = "present")]
+    pub duration_min_days: Option<Option<f64>>,
+    /// The pessimistic end of the range, with `durationMinDays` (D1).
+    #[serde(default, deserialize_with = "present")]
+    pub duration_max_days: Option<Option<f64>>,
 }
 
 /// What was done to one activity on the day, as the interface sends it.
@@ -1158,6 +1278,9 @@ pub struct CheckDraft {
     pub gate: String,
     /// The question, at most 200 characters.
     pub name: String,
+    /// Whether a "yes" must carry a photo (D3); `false` when left out.
+    #[serde(default)]
+    pub needs_photo: bool,
 }
 
 /// A cost line of a [`StageDraft`].
@@ -1307,7 +1430,7 @@ pub struct WrittenFile {
     pub path: String,
     /// Its size.
     pub bytes: u64,
-    /// How many pages, for a PDF; absent for a CSV or a JSON file.
+    /// How many pages, for a PDF; absent for a CSV, a JSON or an HTML file.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pages: Option<usize>,
 }
@@ -1432,6 +1555,39 @@ mod tests {
             serde_json::from_value(json!({ "quantity": 12, "unit": "m²" })).unwrap();
         assert_eq!(set.quantity, Some(Some(12.0)));
         assert_eq!(set.unit, Some(Some("m²".into())));
+    }
+
+    #[test]
+    fn a_range_in_a_patch_tells_left_out_from_null_from_a_number() {
+        let left_out: ActivityPatch = serde_json::from_value(json!({ "name": "Tiling" })).unwrap();
+        assert_eq!(
+            (left_out.duration_min_days, left_out.duration_max_days),
+            (None, None)
+        );
+
+        let cleared: ActivityPatch =
+            serde_json::from_value(json!({ "durationMinDays": null, "durationMaxDays": null }))
+                .unwrap();
+        assert_eq!(
+            (cleared.duration_min_days, cleared.duration_max_days),
+            (Some(None), Some(None))
+        );
+
+        let set: ActivityPatch =
+            serde_json::from_value(json!({ "durationMinDays": 2, "durationMaxDays": 4 })).unwrap();
+        assert_eq!(
+            (set.duration_min_days, set.duration_max_days),
+            (Some(Some(2.0)), Some(Some(4.0)))
+        );
+
+        let half: ActivityPatch =
+            serde_json::from_value(json!({ "durationMinDays": 2.5, "durationMaxDays": 4 }))
+                .unwrap();
+        assert_eq!(
+            half.duration_min_days,
+            Some(Some(2.5)),
+            "a fraction arrives, so the host can refuse it with a sentence"
+        );
     }
 
     #[test]

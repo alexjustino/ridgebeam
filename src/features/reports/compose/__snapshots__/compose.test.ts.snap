@@ -357,6 +357,14 @@ exports[`the documents, in en > composes the weekly document the same way every 
       "value": "0 days",
     },
     {
+      "label": "When will it really finish?",
+      "rows": [
+        "Every activity is counted as certain, so the finish is the plan’s date. Give activities an optimistic and a pessimistic duration to see the chance.",
+      ],
+      "type": "figure",
+      "value": "September 4, 2026",
+    },
+    {
       "label": "Decisions overdue or due in the next 14 calendar days",
       "rows": [
         "Cor do azulejo — Acabamento — August 18, 2026 — Overdue by 31 working days",
@@ -399,6 +407,18 @@ exports[`the documents, in en > composes the weekly document the same way every 
       ],
       "type": "figure",
       "value": "R$200.00",
+    },
+    {
+      "label": "Paid ahead of the work",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Earned and not paid",
+      "rows": [],
+      "type": "figure",
+      "value": "R$0.00",
     },
     {
       "level": 2,
@@ -813,6 +833,14 @@ exports[`the documents, in pt-BR > composes the weekly document the same way eve
       "value": "0 dias",
     },
     {
+      "label": "Quando termina de verdade?",
+      "rows": [
+        "Toda atividade é contada como certa, então o término é a data do plano. Dê às atividades uma duração otimista e uma pessimista para ver a chance.",
+      ],
+      "type": "figure",
+      "value": "4 de setembro de 2026",
+    },
+    {
       "label": "Decisões atrasadas ou com prazo nos próximos 14 dias corridos",
       "rows": [
         "Cor do azulejo — Acabamento — 18 de agosto de 2026 — Atrasada há 31 dias úteis",
@@ -855,6 +883,18 @@ exports[`the documents, in pt-BR > composes the weekly document the same way eve
       ],
       "type": "figure",
       "value": "R$ 200,00",
+    },
+    {
+      "label": "Pago à frente da obra",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Devido e não pago",
+      "rows": [],
+      "type": "figure",
+      "value": "R$ 0,00",
     },
     {
       "level": 2,

@@ -31,6 +31,11 @@ export type GanttRow =
       state: 'not-started' | 'started' | 'finished';
       /** The days the diary says it really took, when they fall on the chart. */
       actual: { x: number; width: number } | null;
+      /**
+       * How often it was critical in the finish simulation (D1), 0..1, with the same share in words
+       * — "8 in 10" — for the label column; `null` when nothing in the plan has a range.
+       */
+      criticality: { index: number; words: string } | null;
     };
 
 /* Drawing units of the SVG's own coordinate system — the chart's geometry, not CSS. */
@@ -39,6 +44,24 @@ const ROW = 30;
 const BAR = 16;
 const LABEL = 240;
 const AXIS = 40;
+
+/**
+ * The shade a bar takes for how often it is critical, in tenths: the `--state-danger` token at a
+ * step of opacity, never the accent (DESIGN_SYSTEM §8). Whole class names, so the build keeps them.
+ */
+const SHADE = [
+  'opacity-0',
+  'opacity-10',
+  'opacity-20',
+  'opacity-30',
+  'opacity-40',
+  'opacity-50',
+  'opacity-60',
+  'opacity-70',
+  'opacity-80',
+  'opacity-90',
+  'opacity-100',
+] as const;
 
 /**
  * The Gantt chart, drawn from a layout it is given.
@@ -50,8 +73,21 @@ const AXIS = 40;
  * shaded across every row. Each bar is one Tab stop, in the chart's reading order, and says its
  * whole row in a sentence; the bands, the shading and the arrows are decoration and are hidden
  * from assistive technology.
+ *
+ * `shade` (D1) draws how often each activity was critical in the finish simulation: a band of the
+ * danger colour over the bar, stronger the more often, **and** the share in words at the end of
+ * the label column — "8 in 10" — so the shade is never the only reading. The bar's sentence says
+ * it whether the shade is on or not.
  */
-export function Gantt({ view, label }: { view: GanttView; label: string }) {
+export function Gantt({
+  view,
+  label,
+  shade = false,
+}: {
+  view: GanttView;
+  label: string;
+  shade?: boolean;
+}) {
   const { language } = useI18n();
   const arrowhead = useId();
   const width = LABEL + view.columns.length * DAY;
@@ -63,6 +99,7 @@ export function Gantt({ view, label }: { view: GanttView; label: string }) {
   const day = new Intl.DateTimeFormat(language, { day: 'numeric', timeZone: 'UTC' });
   const month = new Intl.DateTimeFormat(language, { month: 'short', timeZone: 'UTC' });
   const at = (date: string) => new Date(`${date}T00:00:00Z`);
+  const shaded = (row: GanttRow & { kind: 'bar' }) => shade && row.criticality !== null;
 
   return (
     <div
@@ -165,8 +202,19 @@ export function Gantt({ view, label }: { view: GanttView; label: string }) {
               className="group focus:outline-none"
             >
               <text x={16} y={y + ROW / 2 + 5} className="fill-fg-secondary text-body">
-                {row.label.length > 30 ? `${row.label.slice(0, 29)}…` : row.label}
+                {shaded(row) ? clipped(row.label, 20) : clipped(row.label, 30)}
               </text>
+              {shaded(row) && (
+                <text
+                  x={LABEL - 8}
+                  y={y + ROW / 2 + 5}
+                  textAnchor="end"
+                  data-criticality={row.criticality!.index}
+                  className="fill-fg text-caption font-semibold"
+                >
+                  {row.criticality!.words}
+                </text>
+              )}
               {row.baseline !== null && (
                 <rect
                   x={LABEL + row.baseline.x * DAY}
@@ -189,6 +237,16 @@ export function Gantt({ view, label }: { view: GanttView; label: string }) {
                     : 'fill-accent-subtle stroke-accent [stroke-width:1]'
                 }
               />
+              {shaded(row) && (
+                <rect
+                  x={x + 1}
+                  y={barY}
+                  width={w - 2}
+                  height={BAR}
+                  rx={3}
+                  className={`fill-danger ${SHADE[Math.round(row.criticality!.index * 10)] ?? 'opacity-0'}`}
+                />
+              )}
               {/* What the diary says (ADR-020): finished fills a band across the bar and ticks
                   its end; started marks the bar's first day. Words say the same in the
                   bar's sentence — the shape is never the only reading. */}
@@ -258,4 +316,9 @@ export function Gantt({ view, label }: { view: GanttView; label: string }) {
       </svg>
     </div>
   );
+}
+
+/** A name cut to fit the label column, marked with "…". */
+function clipped(text: string, limit: number): string {
+  return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 }

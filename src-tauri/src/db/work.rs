@@ -34,6 +34,14 @@
 //!   stages they are expected on; the snapshot carries documents.
 //! - F8: the snapshot carries the open replanning. The lock on an approved
 //!   plan is `db::replanning`'s, asked by the commands before they call here.
+//! - D1: `update_activity` writes an activity's range (`ActivityChange.range`,
+//!   both ends in one statement) and refuses a change to the duration or the
+//!   range that leaves the duration outside it. No migration: the columns and
+//!   their `CHECK`s are F9's (work migration 010).
+//! - D2: an activity a payment milestone is earned by is not removed
+//!   (`db::milestones`); the snapshot's commitments carry their payment plans.
+//! - D3: the snapshot carries care notes; a stage's removal takes its care
+//!   notes with it, in the same transaction.
 
 use std::collections::HashMap;
 
@@ -42,8 +50,8 @@ use rusqlite::{params, Connection, OptionalExtension};
 use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, WorkSnapshot};
 use crate::db::order::{ACTIVITIES, STAGES};
 use crate::db::{
-    baselines, check_answers, checks, decisions, dependencies, documents, money, payments,
-    replanning,
+    baselines, care_notes, check_answers, checks, decisions, dependencies, documents, milestones,
+    money, payments, replanning,
 };
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
@@ -285,6 +293,7 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         payments: payments::list(conn)?,
         documents: documents::list(conn)?,
         replanning: replanning::current(conn)?,
+        care_notes: care_notes::list(conn)?,
     })
 }
 
@@ -501,6 +510,7 @@ pub fn remove_stage(conn: &Connection, id: &str) -> Result<()> {
     dependencies::remove_naming_stage(&tx, id)?;
     let changed = tx.execute("DELETE FROM stage WHERE id = ?1", [id])?;
     found(changed, STAGE_NOT_FOUND)?;
+    care_notes::remove_for(&tx, "stage", id)?;
     STAGES.close_gaps(&tx, None)?;
     tx.commit()?;
     Ok(())
@@ -541,24 +551,54 @@ pub struct ActivityChange {
     pub quantity: Option<Option<f64>>,
     /// A new unit, or none. Already trimmed; an empty one is none.
     pub unit: Option<Option<String>>,
+    /// A new range, optimistic end first, or none (D1). Each end already a
+    /// duration and the first not above the second
+    /// (`validate::duration_range`).
+    pub range: Option<Option<(i64, i64)>>,
 }
 
 /// The sentence for a unit with no quantity beside it.
 pub const UNIT_WITHOUT_QUANTITY: &str =
     "A unit needs a quantity: say how much before saying in what.";
 
+/// The sentence for a duration outside its activity's range (D1), naming both.
+pub fn duration_outside_range(duration: i64, min: i64, max: i64) -> String {
+    let unit = if max == 1 {
+        "working day"
+    } else {
+        "working days"
+    };
+    let one = if duration == 1 {
+        "working day"
+    } else {
+        "working days"
+    };
+    format!(
+        "A duration of {duration} {one} is outside the range of {min} to {max} {unit}: \
+         the duration lies between the optimistic and the pessimistic ends."
+    )
+}
+
 /// Change an activity.
 ///
 /// # Errors
 ///
 /// [`Error::InvalidInput`] when the activity, or the person named responsible,
-/// is not in this work.
+/// is not in this work; and when a change to the duration or the range would
+/// leave the duration outside the range ([`duration_outside_range`]).
 pub fn update_activity(conn: &Connection, id: &str, change: &ActivityChange) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     if !exists(&tx, "SELECT 1 FROM activity WHERE id = ?1", id)? {
         return Err(Error::InvalidInput(ACTIVITY_NOT_FOUND.into()));
     }
     refuse_if_activity_closed(&tx, id)?;
+    refuse_if_duration_leaves_range(&tx, id, change)?;
+    if let Some(range) = change.range {
+        tx.execute(
+            "UPDATE activity SET duration_min_days = ?2, duration_max_days = ?3 WHERE id = ?1",
+            params![id, range.map(|(min, _)| min), range.map(|(_, max)| max)],
+        )?;
+    }
     if let Some(name) = &change.name {
         tx.execute(
             "UPDATE activity SET name = ?2 WHERE id = ?1",
@@ -593,6 +633,45 @@ pub fn update_activity(conn: &Connection, id: &str, change: &ActivityChange) -> 
     Ok(())
 }
 
+/// Refuse a change to the duration or the range that leaves a duration outside
+/// a range (D1).
+///
+/// Only a change is asked: a patch that touches neither, or sends what is
+/// held, passes whatever the row holds — a duration typed outside a range
+/// before D1 (F9 allowed it) is not refused when the name or the responsible
+/// changes, nor when the same values are sent again. A duration edit outside
+/// the range is refused rather than widening the range or clearing it: either
+/// would change an estimate the person gave without their saying so, and the
+/// fix is one patch — the range, or both together.
+fn refuse_if_duration_leaves_range(
+    conn: &Connection,
+    id: &str,
+    change: &ActivityChange,
+) -> Result<()> {
+    if change.duration_days.is_none() && change.range.is_none() {
+        return Ok(());
+    }
+    let (held_duration, held_min, held_max): (Option<i64>, Option<i64>, Option<i64>) = conn
+        .query_row(
+            "SELECT duration_days, duration_min_days, duration_max_days FROM activity
+             WHERE id = ?1",
+            [id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+    let held_range = held_min.zip(held_max);
+    let duration = change.duration_days.unwrap_or(held_duration);
+    let range = change.range.unwrap_or(held_range);
+    if (duration, range) == (held_duration, held_range) {
+        return Ok(());
+    }
+    match (duration, range) {
+        (Some(duration), Some((min, max))) if duration < min || duration > max => Err(
+            Error::InvalidInput(duration_outside_range(duration, min, max)),
+        ),
+        _ => Ok(()),
+    }
+}
+
 /// The quantity and unit an activity will hold after `change`.
 ///
 /// A unit sent explicitly is taken as sent. A quantity cleared without a unit
@@ -624,11 +703,13 @@ fn quantity_and_unit(
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] when the activity is not in this work.
+/// [`Error::InvalidInput`] when the activity is not in this work, or a payment
+/// milestone is earned by its finish (D2).
 pub fn remove_activity(conn: &Connection, id: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     let stage = ACTIVITIES.scope_of(&tx, id)?;
     refuse_if_activity_closed(&tx, id)?;
+    milestones::refuse_if_activity_earns(&tx, id)?;
     dependencies::remove_naming_activity(&tx, id)?;
     tx.execute("DELETE FROM activity WHERE id = ?1", [id])?;
     ACTIVITIES.close_gaps(&tx, stage.as_deref())?;
@@ -762,6 +843,8 @@ pub(crate) mod tests {
             "person_stage",
             "document",
             "document_link",
+            "payment_milestone",
+            "care_note",
         ] {
             let found: i64 = conn
                 .query_row(

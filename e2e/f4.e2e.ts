@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, go, openRecent, startSession, type Session } from './session';
 
 /**
  * Slice F4's proof of done, against the real binary:
@@ -243,7 +243,7 @@ describe('F4 — the diary: append-only, chained, corrected, and the source of p
     await session.restart();
     const { driver } = session;
     await driver.waitForElement(t('start'));
-    await (await driver.waitForElement(t('recent-work'))).click();
+    await openRecent(session);
     await go(session, 'diagnostics');
     await click(session, t('diary-verify'));
     const status = await text(session, t('chain-status'));

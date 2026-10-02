@@ -13,7 +13,7 @@
  *
  * - **Both** (a `file` and the `library`): the structure; kebab-case keys, unique in their scope;
  *   rooms, activities, needs and link endpoints that resolve; includes that name library templates,
- *   neither the template itself nor a cycle; at least one stage, its own or an include's; no link
+ *   neither the template itself nor a cycle; a check's optional `photo` a boolean (slice D3); at least one stage, its own or an include's; no link
  *   from something to itself and none given twice; links that close no loop once stage endpoints
  *   are expanded (the schedule's own graph, as the host will judge them); the host's limits, with
  *   ids of at most 31 characters and keys of at most 32, so an included stage's draft key
@@ -217,8 +217,9 @@ class Walker {
     }
   }
 
-  text(value: unknown, path: string, limit: number): void {
-    const object = this.object(value, path, TEMPLATE_LANGUAGES, []);
+  /** A text in the template's languages; `extra` names the other fields it may carry. */
+  text(value: unknown, path: string, limit: number, extra: readonly string[] = []): void {
+    const object = this.object(value, path, [...TEMPLATE_LANGUAGES, ...extra], []);
     if (object === null) return;
     if (!TEMPLATE_LANGUAGES.some((language) => language in object)) {
       this.add(path, K.textEmpty);
@@ -288,6 +289,8 @@ const ACTIVITY_FIELDS = ['key', 'name', 'durationDays', 'rooms'] as const;
 const DECISION_FIELDS = ['key', 'name', 'leadDays', 'needs'] as const;
 const COST_FIELDS = ['label', 'activity', 'amountCents'] as const;
 const LINK_FIELDS = ['blocker', 'blocked', 'lagDays'] as const;
+/** A check is a text that may also say `"photo": true` (slice D3). */
+const CHECK_FIELDS = ['photo'] as const;
 
 /** Check every field of one template on its own: everything but what other templates decide. */
 function checkFields(walker: Walker, root: Json): void {
@@ -428,9 +431,13 @@ function checkStage(
       for (const gate of ['start', 'close'] as const) {
         if (!(gate in checks)) continue;
         const list = walker.list(checks[gate], `${path}.checks.${gate}`);
-        list?.forEach((text, at) =>
-          walker.text(text, `${path}.checks.${gate}[${at}]`, L.checkChars),
-        );
+        list?.forEach((check, at) => {
+          const where = `${path}.checks.${gate}[${at}]`;
+          walker.text(check, where, L.checkChars, CHECK_FIELDS);
+          if (isObject(check) && 'photo' in check && typeof check.photo !== 'boolean') {
+            walker.add(`${where}.photo`, K.type, { expected: 'boolean' });
+          }
+        });
       }
     }
   }

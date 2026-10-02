@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { hasCycle, plan, type Planned } from './criticalPath';
+import { hasCycle, network, plan, type Planned } from './criticalPath';
 import type { Edge } from './graph';
 
 const edge = (blockerId: string, blockedId: string, lagDays = 0): Edge => ({
@@ -238,5 +238,22 @@ describe('a graph that should not exist', () => {
     // It still returns something for everything, rather than hanging or dropping activities a
     // view would then fail to draw.
     expect(result.timing.size).toBe(2);
+  });
+});
+
+describe('the network a plan is computed over (slice D1)', () => {
+  it('orders the ids once, ignoring edges that point outside them', () => {
+    const net = network(['c', 'a', 'b'], [edge('a', 'b'), edge('b', 'c', 2), edge('x', 'a')]);
+    expect(net.ids).toEqual(['c', 'a', 'b']);
+    expect(net.ordered).toEqual(['a', 'b', 'c']);
+    expect(net.cyclic).toBe(false);
+    expect(net.graph.predecessors.get('a')).toBeUndefined();
+    expect(net.graph.successors.get('b')).toEqual([edge('b', 'c', 2)]);
+  });
+
+  it('says when the edges close a loop, as the plan does', () => {
+    const net = network(['a', 'b'], [edge('a', 'b'), edge('b', 'a')]);
+    expect(net.cyclic).toBe(true);
+    expect(plan([task('a', 1), task('b', 1)], [edge('a', 'b'), edge('b', 'a')]).cyclic).toBe(true);
   });
 });

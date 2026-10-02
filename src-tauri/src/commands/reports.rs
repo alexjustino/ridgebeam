@@ -3,7 +3,7 @@
 //! file just written opened.
 //!
 //! Every one of them writes one file through the one path the host saves by
-//! (`files::save`): `.pdf`, `.csv` or `.json` by kind, a full path, whole or
+//! (`files::save`): `.pdf`, `.csv`, `.json` or `.html` by kind, a full path, whole or
 //! not at all, an existing file replaced only with `overwrite` — which the
 //! interface sends only when the save dialog chose the path (F9's rule). None
 //! reads the network; none runs a program but the system's own viewer, on a
@@ -20,6 +20,18 @@
 //!
 //! - F10: `report_pdf_write`, `diary_export_pdf`, `diary_export_csv`,
 //!   `work_export_json`, `report_open`.
+//! - D3: a document may carry photos (`image` blocks, the `handover` kind).
+//!   A document with an image needs the work open: each photo is found by its
+//!   hash among the open work's documents, inside its own `documents/`, read
+//!   under the caps and embedded while the work is held
+//!   (`report::images::resolve`). A document without one still needs no work.
+//! - D4: `report_html_write`, the owner's snapshot — a document of kind
+//!   `snapshot` rendered as one `.html` page (`report::html`), its photos
+//!   found as D3 finds them and always re-encoded (1 024 px, quality 78), at
+//!   most 60 photos, 8 MiB of them and 12 MiB of file; the page is verified on
+//!   its own bytes before it is written, and a page that fails is a bug,
+//!   refused and not written. `report_open` opens the page just written, as
+//!   any other.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -35,7 +47,7 @@ use crate::files::save;
 use crate::folder::OpenWork;
 use crate::report::csv::{self, Names, Separator};
 use crate::report::model::{self, ReportDocument, ReportKind};
-use crate::report::{self, json, Verified, CSV_FILE, JSON_FILE, PDF_FILE};
+use crate::report::{self, html, images, json, Verified, CSV_FILE, HTML_FILE, JSON_FILE, PDF_FILE};
 
 /// The files the report commands wrote in this session, by their canonical
 /// path — the only files [`report_open`] opens.
@@ -64,20 +76,28 @@ pub const DIARY_ELSEWHERE: &str =
 /// The sentence for a document that is not the diary sent to the diary export.
 pub const NOT_THE_DIARY: &str = "The diary's export writes the diary, and this is another report.";
 
+/// The sentence for a document that is not the snapshot sent to the page
+/// writer.
+pub const NOT_THE_SNAPSHOT: &str =
+    "Only the owner's snapshot is written as a page; this is another report.";
+
 /// The sentence for a file that was not written in this session.
 pub const NOT_WRITTEN_HERE: &str =
     "Only a file Ridgebeam wrote in this session can be opened here.";
 
-/// The weekly report or the printed schedule, as a PDF. No work needs to be
-/// open: the document holds every word.
+/// The weekly report, the printed schedule or the handover book, as a PDF.
+/// The document holds every word; a document with photos needs the work open,
+/// where they are found by hash.
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] for a document past a limit or of the diary, a date
-/// that is not one, or a path that cannot be written; [`Error::Io`] when the
-/// disk refuses.
+/// [`Error::InvalidInput`] for a document past a limit or of the diary, a
+/// photo the open work does not hold or past a cap, a date that is not one, or
+/// a path that cannot be written; [`Error::NoWorkOpen`] for a document with a
+/// photo and no work open; [`Error::Io`] when the disk refuses.
 #[tauri::command(rename_all = "snake_case")]
 pub fn report_pdf_write(
+    open: State<'_, OpenWork>,
     written: State<'_, Written>,
     path: String,
     document: ReportDocument,
@@ -85,6 +105,38 @@ pub fn report_pdf_write(
     created_at: String,
 ) -> Result<WrittenFile> {
     report_pdf_write_with(
+        &open,
+        &written,
+        &path,
+        &document,
+        overwrite.unwrap_or(false),
+        &created_at,
+    )
+}
+
+/// The owner's snapshot as one HTML page: nothing that runs, nothing loaded
+/// from anywhere, its photos written into it. A document with photos needs
+/// the work open, where they are found by hash. Answers `{ path, bytes }`.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a document past a limit or not the snapshot,
+/// more than 60 photos or 8 MiB of them, a page over 12 MiB, a photo the open
+/// work does not hold, a date that is not one, a path that cannot be written,
+/// or a page that fails its own verification (a bug, said as such);
+/// [`Error::NoWorkOpen`] for a document with a photo and no work open;
+/// [`Error::Io`] when the disk refuses.
+#[tauri::command(rename_all = "snake_case")]
+pub fn report_html_write(
+    open: State<'_, OpenWork>,
+    written: State<'_, Written>,
+    path: String,
+    document: ReportDocument,
+    overwrite: Option<bool>,
+    created_at: String,
+) -> Result<WrittenFile> {
+    report_html_write_with(
+        &open,
         &written,
         &path,
         &document,
@@ -222,6 +274,7 @@ fn verified(entries: &[crate::contract::DiaryEntry]) -> Result<Verified> {
 
 /// What [`report_pdf_write`] does once the state is in hand.
 pub fn report_pdf_write_with(
+    open: &OpenWork,
     written: &Written,
     path: &str,
     document: &ReportDocument,
@@ -235,15 +288,75 @@ pub fn report_pdf_write_with(
     }
     model::check(document)?;
     let moment = report::created_at(created_at)?;
-    let pdf = report::render(document, &[], &moment)?;
-    save_and_record(
-        written,
-        path,
-        &pdf.bytes,
-        overwrite,
-        &PDF_FILE,
-        Some(pdf.pages),
-    )
+    let write = |photos: &images::Images| {
+        let pdf = report::render_with(document, &[], &moment, photos)?;
+        save_and_record(
+            written,
+            path,
+            &pdf.bytes,
+            overwrite,
+            &PDF_FILE,
+            Some(pdf.pages),
+        )
+    };
+    if !images::any(&document.blocks) {
+        return write(&images::Images::new());
+    }
+    // The photos are found, read and written while the work is held.
+    with_work(open, |state| {
+        let photos = images::resolve(&state.conn, &state.folder, &document.blocks)?;
+        write(&photos)
+    })
+}
+
+/// What [`report_html_write`] does once the state is in hand.
+pub fn report_html_write_with(
+    open: &OpenWork,
+    written: &Written,
+    path: &str,
+    document: &ReportDocument,
+    overwrite: bool,
+    created_at: &str,
+) -> Result<WrittenFile> {
+    report_html_write_after(open, written, path, document, overwrite, created_at, |_| {})
+}
+
+/// [`report_html_write_with`], with `after_render` run on the page between
+/// rendering and verifying it — the hook a test injects a forbidden pattern
+/// through, to see the verifier refuse the write. The command passes nothing.
+pub(crate) fn report_html_write_after(
+    open: &OpenWork,
+    written: &Written,
+    path: &str,
+    document: &ReportDocument,
+    overwrite: bool,
+    created_at: &str,
+    after_render: impl Fn(&mut String),
+) -> Result<WrittenFile> {
+    let path = Path::new(path);
+    save::check_target(path, overwrite, &HTML_FILE)?;
+    if document.kind != ReportKind::Snapshot {
+        return Err(Error::InvalidInput(NOT_THE_SNAPSHOT.into()));
+    }
+    model::check(document)?;
+    html::check(document)?;
+    let moment = report::created_at(created_at)?;
+    let write = |photos: &images::Images| {
+        html::check_image_data(document, photos)?;
+        let mut page = html::render(document, photos, &moment)?;
+        after_render(&mut page);
+        html::verify(&page)?;
+        save_and_record(written, path, page.as_bytes(), overwrite, &HTML_FILE, None)
+    };
+    if !images::any(&document.blocks) {
+        return write(&images::Images::new());
+    }
+    // The photos are found, read and written while the work is held.
+    with_work(open, |state| {
+        let photos =
+            images::resolve_with(&state.conn, &state.folder, &document.blocks, &html::SENT)?;
+        write(&photos)
+    })
 }
 
 /// What [`diary_export_pdf`] does once the state is in hand.
@@ -267,7 +380,8 @@ pub fn diary_export_pdf_with(
     with_work(open, |state| {
         let chain = verified(&diary::all(&state.conn)?)?;
         let prelude = report::verification(document.language, &chain, &moment);
-        let pdf = report::render(document, &prelude, &moment)?;
+        let photos = images::resolve(&state.conn, &state.folder, &document.blocks)?;
+        let pdf = report::render_with(document, &prelude, &moment, &photos)?;
         save_and_record(
             written,
             path,

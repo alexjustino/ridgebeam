@@ -338,3 +338,25 @@ export async function chooseLanguage(session: Session, language: LanguageName): 
     return lang === tag && pressed === 'true' ? true : null;
   });
 }
+
+/**
+ * Open the most recent work from the Start screen and wait until it is open — the rail on the
+ * dashboard, where every opened work lands. Navigating before that is a race: a destination
+ * pressed while the work is still opening is overtaken by the landing on the dashboard.
+ */
+export async function openRecent(session: Session): Promise<void> {
+  const { driver } = session;
+  await (await driver.waitForElement('[data-testid="recent-work"]')).click();
+  await driver.waitFor(
+    'the recent work open',
+    async () =>
+      (
+        await driver.findAll(
+          'nav[data-rail] button[data-destination="dashboard"][aria-current="page"]',
+        )
+      ).length > 0
+        ? true
+        : null,
+    30_000,
+  );
+}

@@ -19,11 +19,25 @@ No cloud. No account. No telemetry. A work is a folder you own.
 ---
 
 > **Status: 1.0.0 — the first release.** The product was named on 2026-09-24
-> ([ADR-001](docs/architecture/ADR.md#adr-001)) and built in twelve slices, F0 to F11. The
-> installers are on the [Releases](https://github.com/alexjustino/ridgebeam/releases) page, with the
-> SHA-256 of each; they are not code-signed, so Windows SmartScreen warns on the first run. The
+> ([ADR-001](docs/architecture/ADR.md#adr-001)) and built in twelve slices, F0 to F11, and four
+> differentiators, D1 to D4. The installers are on the
+> [Releases](https://github.com/alexjustino/ridgebeam/releases) page, with the SHA-256 of each; they
+> are not code-signed, so Windows SmartScreen warns on the first run. The
 > [specification](docs/SPEC.md) says what 1.0.0 is and what "done" meant for every slice;
 > [What exists today](#what-exists-today) lists what the product does.
+
+**Differentiators, before first use.** Before using Ridgebeam on a work of their own, its owner
+widened 1.0 with four things no other small-works tool does offline
+([ADR-036](docs/architecture/ADR.md#adr-036)): **D1, "When will it really finish?"** — the finish as
+a probability from each activity's optimistic and pessimistic duration, said as "8 in 10 chances"
+([ADR-035](docs/architecture/ADR.md#adr-035)); **D2, "Am I paying ahead of the work?"** — payment
+milestones earned only by facts of the work, never by dates, with a warning before a payment that
+would put the owner ahead of the work — a warning, not a refusal
+([ADR-037](docs/architecture/ADR.md#adr-037)); **D3, the handover book** — one PDF the owner keeps,
+with the photos of hidden work taken before it was closed, which a check can require
+([ADR-038](docs/architecture/ADR.md#adr-038)); and **D4, the owner's snapshot** — one
+self-contained HTML file that opens on any phone, which the person sends themselves; Ridgebeam still
+sends nothing ([ADR-039](docs/architecture/ADR.md#adr-039)).
 
 ## Why
 
@@ -72,7 +86,7 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F11**, and nothing after them:
+Slices **F0** to **F11**, and the four differentiators, **D1** to **D4** — nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -192,6 +206,55 @@ Slices **F0** to **F11**, and nothing after them:
   gate. And the polish owed: "nothing to count yet" instead of "0 of 0", a photo field behind **Add
   a photo** on the Gates tab, and a benchmark that holds a work of 2 000 activities, 2 000 payments
   and 3 000 diary entries to its budgets.
+- **When will it really finish? (D1).** Any activity takes an **optimistic** and a **pessimistic**
+  duration beside its duration — and approval does not lock them, because a range is an estimate of
+  uncertainty, not the plan. From them, the Schedule runs the plan 2 000 times, seeded so the same
+  plan gives the same numbers, and says the finish as a chance, in natural frequencies: "8 in 10
+  chances of finishing by 14 November 2026", the chance of the plan's own date and of the
+  baseline's, the dates by which half and nine tenths of the runs had finished, and the activities
+  whose range moves the finish most — the engineer also sees P80 and the percentages. How often each
+  activity was critical is said on its Gantt bar, and can shade the bars. An activity with no range
+  is counted as certain, and the page says how many; the method and what it leaves out — activities
+  are drawn on their own, so a rainy month that slows everything at once is not in the runs — are on
+  the page. The dashboard and the weekly report say the headline. Nothing about it is stored, and
+  the plan's own dates never move ([ADR-035](docs/architecture/ADR.md#adr-035)).
+- **Am I paying ahead of the work? (D2).** A commitment carries a **payment plan**: milestones, each
+  a share of its amount earned only by a fact of the work — an **advance** the day it was agreed,
+  the stage started, an activity finished in the diary, the stage closed — never by a date, and
+  nothing marks one earned by hand. **Add the usual plan** fills 30 % / 40 % / 30 %, said to be a
+  common split, not advice. Each commitment shows what it has earned, what is due now and what was
+  paid ahead of the work, each opening onto its rows; the dashboard counts the commitments paid
+  ahead and the weekly report says both. The Ledger's payment form shows what a payment would change
+  as it is typed and, when it would put the owner ahead of the work, **warns before it is saved** —
+  naming the amount and the milestone not yet earned — and still lets it be saved: money paid is a
+  fact. A commitment's plan locks at its first payment, so it cannot be rewritten to hide being
+  ahead; a renegotiation is a new commitment ([ADR-037](docs/architecture/ADR.md#adr-037)).
+- **The handover book (D3).** One PDF the owner keeps when the work ends, written from **Reports**
+  in the owner's words: a cover with the work, its dates and the people by trade; then room by room
+  — or stage by stage when the work has no rooms — what was done and when, the decisions made with
+  their answers, **the photos of hidden work** taken before it was closed, other photos from the
+  diary, and the care notes; then the documents by kind — permits, **warranties**, **manuals**,
+  contracts, receipts — by name; who did what, with their trade and contact; and one line on the
+  diary's chain. The photos are **in the PDF**, scaled and embedded by the host, which finds each
+  one by its hash inside the open work only. A gate check can **need a photo**: a _yes_ without one
+  is refused, and the library's templates ask for one before a wall or a floor closes over pipes,
+  wiring or waterproofing. **Care notes** — "The stopcock is under the sink" — are written on the
+  Plan's new **Handover** tab, for the work, a room or a stage, in the person's own words. Before
+  writing, the card says **what the book still lacks**, counted with its rows, and writes it anyway
+  when asked; a book written before every stage closed says so on its first page
+  ([ADR-038](docs/architecture/ADR.md#adr-038)).
+- **The owner's snapshot (D4).** One HTML file, written from **Reports** — or from **Owner's
+  snapshot…** on the dashboard — that shows the owner the work as it stands, on any phone, in their
+  own words: readiness in a sentence, the finish and its chance, **the next two weeks** — what starts
+  and what runs, who must be there, what to decide or order and by when, which gates come up, what
+  payment falls due — the last five diary entries with their photos, and the money. Every figure
+  still opens onto its rows, light and dark follow the reader's phone, and its last line says the
+  day it was written and that it does not change when the work does. It has **no script and loads
+  nothing from anywhere**: every string escaped, a Content-Security-Policy in the file, and the host
+  checking the bytes before it writes them and refusing a file with anything in it that could run or
+  load. Photos are always re-encoded, so no metadata travels; no phone number, e-mail address or
+  document is in it. **Ridgebeam writes the file; sending it is yours** — by WhatsApp, by e-mail —
+  and the product still sends nothing ([ADR-039](docs/architecture/ADR.md#adr-039)).
 - **Readiness.** A figure that says how much of what the plan must know it does know, from seven
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -207,7 +270,7 @@ Slices **F0** to **F11**, and nothing after them:
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-four binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-nine binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
@@ -219,19 +282,21 @@ report printed and read by somebody who is not an engineer ([`docs/RELEASE.md`](
 steps 8 and 9). The tests cannot do that part, and the checklist does not pretend they can.
 
 Not in 1.0, by decision rather than by schedule: files other than images and PDFs (no Word,
-spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a
-work; a decision tied to one activity rather than its whole stage; a replanning abandoned without
-a baseline; a what-if applied to the plan with one button; a work that follows its template when
-the library changes; prices in the library; photos inside a PDF report; a character outside the
-standard PDF fonts' set on paper; non-working days shaded on the printed schedule; an encrypted
-backup, an incremental one, a backup the product makes on its own, or a restore over an existing
-folder.
+spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a work; a
+decision tied to one activity rather than its whole stage; a replanning abandoned without a
+baseline; a what-if applied to the plan with one button; a work that follows its template when the
+library changes; prices in the library; photos inside a PDF report other than the handover book; a
+snapshot that updates itself, or that the product sends; a
+character outside the standard PDF fonts' set on paper; non-working days shaded on the printed
+schedule; an encrypted backup, an incremental one, a backup the product makes on its own, or a
+restore over an existing folder.
 
 ## What 1.0 does not do
 
 Said once, plainly, so nobody finds out on site. Ridgebeam 1.0 is one person's planner on one
 Windows computer. It has **no accounts, no sync and no network**: a work is shared by copying its
-folder or a backup, and two people editing copies get two works. It has **no phone, tablet, web,
+folder or a backup, and two people editing copies get two works; the owner can be sent a snapshot to
+read, and nothing comes back from it. It has **no phone, tablet, web,
 macOS or Linux** version. It does not read drawings, BIM, IFC or CAD, has **no price database**,
 and makes **no quote, invoice or tax** document. It schedules finish-to-start links with lags on a
 working calendar — no other link types, no milestones, **no resource levelling** and no earned value
@@ -261,12 +326,12 @@ folder and never touches your own works.
 
 ## Roadmap
 
-| Release   | Theme               | Contents                                                                                                                                                                                                                                                  |
-| --------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1.0.0** | The plan            | the work, stages and activities, the schedule with critical path and baselines, decisions, readiness, the diary, checks, money, people, documents, replanning, templates and the library, three lenses, the dashboard, reports, print, backup and restore |
-| 1.1.0     | The site            | the diary from a phone: a companion build of the same app for Android, writing into the same work folder                                                                                                                                                  |
-| 1.2.0     | The crew            | the work shared between the owner, the engineer and the contractors: file-based sync with conflict rules, a read-only owner view                                                                                                                          |
-| 2.0       | Only if it earns it | quantities from drawings · price databases per region · IFC import · resource levelling · the network                                                                                                                                                     |
+| Release   | Theme               | Contents                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1.0.0** | The plan            | the work, stages and activities, the schedule with critical path and baselines, decisions, readiness, the diary, checks, money, people, documents, replanning, templates and the library, three lenses, the dashboard, reports, print, backup and restore — and the four differentiators: the finish as a probability, payment milestones earned by facts, the handover book, the owner's snapshot |
+| 1.1.0     | The site            | the diary from a phone: a companion build of the same app for Android, writing into the same work folder                                                                                                                                                                                                                                                                                           |
+| 1.2.0     | The crew            | the work shared between the owner, the engineer and the contractors: file-based sync with conflict rules, a read-only owner view                                                                                                                                                                                                                                                                   |
+| 2.0       | Only if it earns it | quantities from drawings · price databases per region · IFC import · resource levelling · the network                                                                                                                                                                                                                                                                                              |
 
 Deliberately not in 1.0.0: accounts, sync, a phone or web app, BIM/IFC/CAD import, bills of
 quantities and price databases, invoicing and tax, resource levelling, dependencies other than

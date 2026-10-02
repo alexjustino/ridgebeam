@@ -40,6 +40,7 @@ import {
   type LocalisedText,
   type Template,
   type TemplateActivity,
+  type TemplateCheck,
   type TemplateCostLine,
   type TemplateDecision,
   type TemplateLanguage,
@@ -183,7 +184,10 @@ export function exportTemplate(snapshot: WorkSnapshot, options: ExportOptions): 
       snapshot.checks
         .filter((check) => check.stageId === stage.id && check.gate === gate)
         .sort((a, b) => a.position - b.position || compareText(a.id, b.id))
-        .map((check) => say(check.name, L.checkChars));
+        .map((check): TemplateCheck => ({
+          ...say(check.name, L.checkChars),
+          ...(check.needsPhoto ? { photo: true } : {}),
+        }));
     const start = byGate('start');
     const close = byGate('close');
 

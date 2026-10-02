@@ -256,6 +256,23 @@ function paidRows(snapshot: WorkSnapshot, sign: 1 | -1): MoneyRow[] {
     .map((payment) => paymentRow(snapshot, payment, sign));
 }
 
+/**
+ * The paid rows of every commitment, reversals counted against the commitment of the payment they
+ * reverse, in seq order: one pass over the ledger (slice D2's payment plans read this, never a
+ * search per commitment). A payment on no commitment is under `null`.
+ */
+export function paidRowsByCommitment(snapshot: WorkSnapshot): Map<string | null, MoneyRow[]> {
+  const byCommitment = new Map<string | null, MoneyRow[]>();
+  for (const payment of [...snapshot.payments].sort((a, b) => a.seq - b.seq)) {
+    const commitmentId = attributionOf(snapshot, payment).commitmentId;
+    const row = paymentRow(snapshot, payment, 1);
+    const list = byCommitment.get(commitmentId);
+    if (list === undefined) byCommitment.set(commitmentId, [row]);
+    else list.push(row);
+  }
+  return byCommitment;
+}
+
 function figure(
   snapshot: WorkSnapshot,
   scope: MoneyScope,

@@ -944,3 +944,39 @@ fn a_plan_draft_and_a_cost_line_patch_are_read_as_the_interface_writes_them() {
     }));
     assert_eq!(start.provenance.template_version, 2.0);
 }
+
+/// D3: a draft's check may need its photo; left out, it does not.
+#[test]
+fn a_draft_check_that_needs_its_photo_is_written_needing_it() {
+    let (_db, open, _scratch) = host_with_a_work();
+    let plan = apply(
+        &open,
+        json!({
+            "stages": [{
+                "key": "plumbing", "name": "Plumbing",
+                "checks": [
+                    { "gate": "start", "name": "Is the water off?" },
+                    { "gate": "close",
+                      "name": "Are the pipes and wiring photographed before the wall is closed?",
+                      "needsPhoto": true },
+                    { "gate": "close", "name": "Was it pressure-tested?", "needsPhoto": false }
+                ]
+            }]
+        }),
+    )
+    .unwrap();
+    let flags: Vec<(&str, bool)> = plan
+        .checks
+        .iter()
+        .map(|c| (c.gate.as_str(), c.needs_photo))
+        .collect();
+    assert_eq!(
+        flags,
+        vec![("start", false), ("close", true), ("close", false)]
+    );
+    assert_eq!(
+        serde_json::to_value(&plan.checks[1]).unwrap()["needsPhoto"],
+        true
+    );
+    work_close_with(&open);
+}

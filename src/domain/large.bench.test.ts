@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { LARGE, LARGE_TODAY, largeWork } from './__fixtures__/large';
 import { effectiveEntries } from './diary';
+import { paymentPlans, paymentPreview } from './milestones';
 import { moneyByStage, moneyByTrade, moneyOfWork, overCommittedFigure, sCurve } from './money';
 import { openQuestions } from './questions';
 import { readiness, readinessByRule, readinessFigure } from './readiness';
 import { diaryReport } from './reports/diary';
 import { weekly } from './reports/weekly';
 import { schedule } from './schedule';
+import { PROBABILITY_RUNS, finishProbability } from './schedule/probability';
 
 /**
  * The large-work benchmark (slice F11, decision 8f): a work of 2 000 activities (40 stages, 3 000
@@ -46,6 +48,9 @@ const BUDGETS_MS = {
   sCurve: 135, // measured 26.8
   diaryReport: 25, // measured 3.9
   openQuestions: 30, // measured 5.6
+  finishProbability: 580, // measured 116.0 (2026-09-29, machine ×1.05; 2 000 runs, 400 ranged)
+  paymentPlans: 30, // measured 5.2 (2026-09-29, machine ×1.22; 200 commitments, 150 with a plan)
+  paymentPreview: 30, // measured 5.3 (2026-09-29, machine ×1.22; the whole plans, on a new snapshot)
 } as const;
 /**
  * How much slower this machine is than the one the budgets were measured on. A budget in
@@ -147,5 +152,37 @@ describe('the large-work benchmark', () => {
 
   it('asks the plan’s questions', () => {
     bench('openQuestions', () => openQuestions(plan, scheduled, LARGE_TODAY));
+  });
+
+  it('works out the payment plans (slice D2): every commitment, stage and the work, and a preview', () => {
+    // A new snapshot each run, as after an edit: nothing remembered from the run before.
+    const plans = paymentPlans({ ...plan }, entries, LARGE_TODAY);
+    expect(plans.commitments).toHaveLength(LARGE.commitments);
+    expect(plans.noPlan.value).toBe(LARGE.commitments / 4);
+    expect(plans.work.earned.value).toBeGreaterThan(0);
+    expect(plans.work.ahead.rows.length + plans.work.due.rows.length).toBeGreaterThan(0);
+    bench('paymentPlans', () => paymentPlans({ ...plan }, entries, LARGE_TODAY));
+    const draft = {
+      day: LARGE_TODAY,
+      stageId: 's0',
+      personId: null,
+      commitmentId: 'k0',
+      amountCents: 1_000_00,
+      whatFor: 'Next payment',
+      reversesSeq: null,
+    };
+    expect(paymentPreview({ ...plan }, entries, LARGE_TODAY, draft).kind).toBe('plan');
+    bench('paymentPreview', () => paymentPreview({ ...plan }, entries, LARGE_TODAY, draft));
+  });
+
+  it('simulates the finish (slice D1): every run, the 400 ranged activities drawn', () => {
+    // Without the diary, so no range is cut short by what has happened: the most drawing there is.
+    const result = finishProbability(plan, scheduled);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runs).toBe(PROBABILITY_RUNS);
+    expect(result.counts).toMatchObject({ ranged: LARGE.activities / 5, unplaced: 0 });
+    expect(result.criticality).toHaveLength(LARGE.activities);
+    bench('finishProbability', () => finishProbability(plan, scheduled));
   });
 });

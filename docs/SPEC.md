@@ -158,6 +158,15 @@ auto-update · AI.
 > the decisions, the diary and the dashboard are the product; everything else waits for a
 > release that earns it.
 
+> **Addendum, 2026-09-29 — the owner widened 1.0.0 before its first use.** The rule above was set
+> aside once, by the product's owner, for four differentiators, each a slice gated like F0–F11:
+> **D1** the finish as a probability from each activity's range, in natural frequencies; **D2**
+> payment milestones earned only by facts, flagged when paid runs ahead of earned; **D3** the
+> handover book, one PDF the owner keeps; **D4** the owner's snapshot, one self-contained HTML file
+> the person sends. They land in `develop` before the release is cut again. Nothing else in this
+> specification changes; the reasons and the cost are in
+> [ADR-036](architecture/ADR.md#adr-036).
+
 ### The release train
 
 | Release   | Theme               | Contents                                                                                                                                                          |

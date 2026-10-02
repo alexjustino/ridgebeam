@@ -15,12 +15,13 @@ import {
   worked,
 } from '@/domain/__fixtures__/plan';
 import type { DiaryEntry } from '@/domain/diary';
-import type { WorkSnapshot } from '@/domain/plan';
+import type { Milestone, MilestoneTrigger, WorkSnapshot } from '@/domain/plan';
 import { diaryReport } from '@/domain/reports/diary';
 import { scheduleReport } from '@/domain/reports/schedule';
 import { weekly, type Weekly } from '@/domain/reports/weekly';
 import { LENSES } from '@/domain/settings';
 import { schedule } from '@/domain/schedule';
+import { finishProbability } from '@/domain/schedule/probability';
 import { DICTIONARIES, LANGUAGES, type Language } from '@/i18n/index';
 import { TERM_KEYS, termsFor } from '@/i18n/terms';
 import { build, type I18n } from '@/i18n/useI18n';
@@ -129,12 +130,17 @@ function weeklyOf(plan: WorkSnapshot, entries: readonly DiaryEntry[], day: strin
   return result.weekly;
 }
 
+/** The finish as a probability, as the Reports page computes it: the plan, its schedule, the diary. */
+function chancesOf(plan: WorkSnapshot, entries: readonly DiaryEntry[] = ENTRIES) {
+  return finishProbability(plan, schedule(plan), { entries });
+}
+
 function composeAll(language: Language): Record<'weekly' | 'diary' | 'schedule', ReportDocument> {
   const i18n = i18nOf(language);
   const scheduled = schedule(PLAN);
   const screenTerms = termsFor(language, 'engineer');
   return {
-    weekly: composeWeekly(weeklyOf(PLAN, ENTRIES, null), PLAN, scheduled, i18n),
+    weekly: composeWeekly(weeklyOf(PLAN, ENTRIES, null), PLAN, scheduled, i18n, chancesOf(PLAN)),
     diary: composeDiary(diaryReport(PLAN, ENTRIES), PLAN, i18n, screenTerms),
     schedule: composeSchedule(scheduleReport(PLAN, scheduled), PLAN, i18n, screenTerms),
   };
@@ -188,6 +194,17 @@ function refusal(document: ReportDocument): string | null {
     if (rows > REPORT_LIMITS.tableRows) return 'rows';
   }
   return stringsOf(document).some(long) ? 'text' : null;
+}
+
+function milestone(
+  id: string,
+  position: number,
+  label: string,
+  shareBp: number,
+  trigger: MilestoneTrigger,
+  activityId: string | null = null,
+): Milestone {
+  return { id, position, label, shareBp, trigger, activityId };
 }
 
 const text = (document: ReportDocument) => stringsOf(document).join('\n');
@@ -289,6 +306,7 @@ describe('the weekly report', () => {
       PLAN,
       schedule(PLAN),
       i18nOf('en'),
+      chancesOf(PLAN),
     );
     expect(document.blocks[0]).toEqual({
       type: 'paragraph',
@@ -305,6 +323,7 @@ describe('the weekly report', () => {
       PLAN,
       schedule(PLAN),
       i18nOf('pt-BR'),
+      chancesOf(PLAN),
     );
     expect(pt.blocks[0]).toMatchObject({ type: 'paragraph', tone: 'strong' });
     expect((pt.blocks[0] as { text: string }).text).toMatch(/^Nenhuma entrada no diário/);
@@ -316,11 +335,61 @@ describe('the weekly report', () => {
       PLAN,
       schedule(PLAN),
       i18nOf('en'),
+      chancesOf(PLAN, []),
     );
     const first = document.blocks[0] as { text: string; tone: string };
     expect(first.tone).toBe('strong');
     // Monday and Tuesday are over, so two days are said missing; a Monday-morning report would say "yet".
     expect(first.text).toMatch(/^No diary entry this week/);
+  });
+});
+
+describe('the weekly report says when it will really finish (D1)', () => {
+  /** The same plan with ranges on its two scheduled activities, so the runs differ. */
+  const RANGED: WorkSnapshot = {
+    ...PLAN,
+    activities: PLAN.activities.map((each) =>
+      each.id === 'a1'
+        ? { ...each, durationMinDays: 15, durationMaxDays: 30 }
+        : each.id === 'a2'
+          ? { ...each, durationMinDays: 2, durationMaxDays: 6 }
+          : each,
+    ),
+  };
+  const compose = (plan: WorkSnapshot, language: Language) =>
+    composeWeekly(
+      weeklyOf(plan, ENTRIES, null),
+      plan,
+      schedule(plan),
+      i18nOf(language),
+      chancesOf(plan),
+    );
+
+  it('prints the headline in natural frequencies, with the drivers as its rows', () => {
+    const en = figureLabelled(compose(RANGED, 'en'), 'When will it really finish?');
+    expect(en.value).toMatch(/^\d+ in 10 chances of finishing by \w+ \d+, \d{4}$/);
+    expect(en.value).not.toMatch(/%|P80/);
+    expect(en.rows.some((row) => row.startsWith('Assentar azulejo — 2–6 working days'))).toBe(true);
+
+    const pt = figureLabelled(compose(RANGED, 'pt-BR'), 'Quando termina de verdade?');
+    expect(pt.value).toMatch(/^\d+ em 10 chances de terminar até /);
+  });
+
+  it('says every activity is counted as certain when nothing has a range', () => {
+    const certain = figureLabelled(compose(PLAN, 'en'), 'When will it really finish?');
+    expect(certain.rows).toEqual([
+      'Every activity is counted as certain, so the finish is the plan’s date. Give activities an optimistic and a pessimistic duration to see the chance.',
+    ]);
+  });
+
+  it.each(LANGUAGES)('writes nothing the page would print as "?", in %s', (language) => {
+    for (const each of stringsOf(compose(RANGED, language))) {
+      expect(unprintable(each), each).toEqual([]);
+    }
+  });
+
+  it('gives the same numbers for the same plan', () => {
+    expect(compose(RANGED, 'en')).toEqual(compose(RANGED, 'en'));
   });
 });
 
@@ -428,6 +497,97 @@ describe('the schedule document', () => {
     });
     const table = document.blocks.find((block) => block.type === 'table');
     expect(table?.type === 'table' && table.rows.length).toBe(3);
+  });
+});
+
+describe('the weekly report says who was paid ahead of the work (D2)', () => {
+  /**
+   * Two commitments with payment plans: the demolition's, paid 800,00 against 700,00 earned (its
+   * advance, and the floor broken in the diary's correction), so 100,00 ahead; and the tiler's, with
+   * its advance earned and nothing paid, so 400,00 earned and not paid.
+   */
+  const PAID: WorkSnapshot = {
+    ...PLAN,
+    commitments: [
+      {
+        id: 'k1',
+        stageId: 's1',
+        personId: 'p2',
+        label: 'Contrato da demolição',
+        amountCents: 1000_00,
+        agreedOn: '2026-09-01',
+        documentHash: null,
+        milestones: [
+          milestone('m1', 1, 'Sinal', 3000, 'advance'),
+          milestone('m2', 2, 'Piso quebrado', 4000, 'activity_finished', 'a1'),
+          milestone('m3', 3, 'Entrega', 3000, 'stage_closed'),
+        ],
+      },
+      {
+        id: 'k2',
+        stageId: 's2',
+        personId: 'p1',
+        label: 'Orçamento do azulejista',
+        amountCents: 2000_00,
+        agreedOn: '2026-09-15',
+        documentHash: null,
+        milestones: [
+          milestone('m4', 1, 'Sinal', 2000, 'advance'),
+          milestone('m5', 2, 'Início', 3000, 'stage_started'),
+          milestone('m6', 3, 'Entrega', 5000, 'stage_closed'),
+        ],
+      },
+    ],
+    payments: [
+      ...PLAN.payments,
+      {
+        id: 'pay2',
+        seq: 2,
+        day: '2026-09-29',
+        stageId: 's1',
+        personId: 'p2',
+        commitmentId: 'k1',
+        amountCents: 800_00,
+        whatFor: 'Adiantamento pedido',
+        receiptHash: null,
+        reversesSeq: null,
+        authorName: 'Sample author',
+        createdAt: '2026-09-29T13:00:00.000Z',
+      },
+    ],
+  };
+  const compose = (language: Language) =>
+    composeWeekly(
+      weeklyOf(PAID, ENTRIES, null),
+      PAID,
+      schedule(PAID),
+      i18nOf(language),
+      chancesOf(PAID),
+    );
+
+  it('prints both figures with a row per commitment, the milestone each waits for named', () => {
+    const en = compose('en');
+    const ahead = figureLabelled(en, 'Paid ahead of the work');
+    expect(ahead.value).toBe('1');
+    expect(ahead.rows).toEqual([
+      'Contrato da demolição — Demolição — R$100.00 ahead of the work — Entrega (30 %): Demolição is not closed yet.',
+    ]);
+    const due = figureLabelled(en, 'Earned and not paid');
+    expect(due.value).toBe('R$400.00');
+    expect(due.rows).toEqual([
+      'Orçamento do azulejista — Acabamento — R$400.00 earned and not paid — Início (30 %): Acabamento is not started yet.',
+    ]);
+  });
+
+  it('says it in Portuguese, and every string prints as itself', () => {
+    const pt = compose('pt-BR');
+    const ahead = figureLabelled(pt, 'Pago à frente da obra');
+    expect(ahead.rows[0]).toContain('à frente da obra');
+    expect(figureLabelled(pt, 'Devido e não pago').value.replace(/\s/gu, ' ')).toBe('R$ 400,00');
+    for (const each of stringsOf(pt)) expect(unprintable(printable(each)), each).toEqual([]);
+    for (const each of stringsOf(compose('en'))) {
+      expect(unprintable(printable(each)), each).toEqual([]);
+    }
   });
 });
 

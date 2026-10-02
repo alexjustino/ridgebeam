@@ -28,11 +28,25 @@
  * decision made, plus every open one being asked now. A decision whose deadline is further away is
  * not asked yet, so it is neither answered nor open. A question skipped is still open.
  *
+ * **One optional question, last** (slice D1): an activity on the critical path with a duration and
+ * no range is asked "What is the most it could take?", so the finish probability
+ * (`schedule/probability.ts`) has a range to draw from where it matters most. It is asked only
+ * after every other question, it is marked `optional`, and it is not in the count: the plan does
+ * not lack anything without it. `openQuestions` and `nextQuestion` are unchanged and never ask it;
+ * `openQuestionsWithOptional` and `nextQuestionWithOptional` ask everything, it included.
+ *
+ * **A second optional kind, after it** (slice D2): a commitment with no payment plan, on which no
+ * money has moved yet, is asked "How is <commitment> to be paid?", answered by opening the
+ * commitment's payment plan (a link, not an answer typed here). A commitment paid on already cannot
+ * be given a plan any more, so it is not asked. Like every question, it is not asked while the plan
+ * is locked, although the host would accept a payment plan then (a payment plan is not in F8's lock).
+ *
  * What this module is not: text, storage or a clock. `today` is passed in; nothing is written.
  */
 
 import { addCalendarDays, isIsoDay } from './calendar';
 import { byUrgency, decisionRows } from './decisions';
+import { commitmentsWithMoney, noPlanFigure } from './milestones';
 import {
   activitiesInOrder,
   durationRangeOf,
@@ -45,6 +59,31 @@ import {
   type WorkSnapshot,
 } from './plan';
 import type { Schedule } from './schedule';
+
+/**
+ * The kinds of optional question, asked after every other: the most a critical activity could take
+ * (slice D1), then how a commitment is to be paid (slice D2).
+ */
+export const OPTIONAL_QUESTION_KINDS = ['most', 'paymentPlan'] as const;
+export type OptionalQuestionKind = (typeof OPTIONAL_QUESTION_KINDS)[number];
+
+/**
+ * The optional question's sentence, new in slice D1: `{name}`, `{days}` — "What is the most {name}
+ * could take? It is planned at {days} working days."
+ */
+export const OPTIONAL_QUESTION_MESSAGE_KEYS = {
+  most: 'nextQuestion.ask.most',
+  paymentPlan: 'nextQuestion.ask.paymentPlan',
+} as const;
+
+/**
+ * The optional question of slice D2's sentence and its link: `{label}` — "How is {label} to be
+ * paid?"; the link that answers it — "Open its payment plan".
+ */
+export const PAYMENT_PLAN_QUESTION_KEYS = {
+  ask: OPTIONAL_QUESTION_MESSAGE_KEYS.paymentPlan,
+  open: 'nextQuestion.openPaymentPlan',
+} as const;
 
 /** The kinds of question, in the order they are asked. */
 export const QUESTION_KINDS = ['duration', 'responsible', 'price', 'decision'] as const;
@@ -155,6 +194,51 @@ export type Question =
       readonly daysLeft: number;
       readonly answer: Extract<QuestionAnswer, { field: 'answer' }>;
     });
+
+/**
+ * The optional question: the most a critical activity with a duration and no range could take.
+ * The answer is its pessimistic duration, a whole number of working days from its duration; a range
+ * is set whole, so the answer writes the duration as the optimistic end with it (`with`), and the
+ * activity is then drawn from a triangle that can only run late — no optimism is invented.
+ */
+export interface MostQuestion extends QuestionBase {
+  readonly kind: 'most';
+  readonly optional: true;
+  readonly messageKey: (typeof OPTIONAL_QUESTION_MESSAGE_KEYS)['most'];
+  readonly params: { readonly name: string; readonly days: number };
+  readonly activityId: string;
+  /** Its duration: the least the answer may be. */
+  readonly durationDays: number;
+  readonly answer: {
+    readonly command: 'activity_update';
+    readonly targetId: string;
+    readonly field: 'durationMaxDays';
+    /** Sent in the same patch: a range is both ends or neither. */
+    readonly with: { readonly durationMinDays: number };
+  };
+}
+
+/**
+ * The optional question of slice D2: a commitment with no payment plan, on which no money has moved
+ * (after a payment its plan can no longer be written), asked "How is <commitment> to be paid?". It
+ * is answered by **opening the commitment's payment plan** (Money → By stage), not inline: the
+ * answer names no command of the host (`command: 'open'`), only what to open.
+ */
+export interface PaymentPlanQuestion extends QuestionBase {
+  readonly kind: 'paymentPlan';
+  readonly optional: true;
+  readonly messageKey: (typeof OPTIONAL_QUESTION_MESSAGE_KEYS)['paymentPlan'];
+  readonly params: { readonly label: string };
+  readonly commitmentId: string;
+  readonly answer: {
+    readonly command: 'open';
+    readonly targetId: string;
+    readonly field: 'paymentPlan';
+  };
+}
+
+/** Any question the dashboard may ask, the optional ones included. */
+export type AnyQuestion = Question | MostQuestion | PaymentPlanQuestion;
 
 /** Every open question of the plan, and the count the card says. */
 export interface OpenQuestions {
@@ -347,6 +431,94 @@ export function nextQuestion(
 ): Question | null {
   return (
     openQuestions(snapshot, scheduled, today, skipped).questions.find(
+      (question) => !skipped.has(question.key),
+    ) ?? null
+  );
+}
+
+/**
+ * Every open question of the plan, the optional ones last: the critical activities of open stages
+ * with a duration and no range (`MostQuestion`, in plan order), then the commitments with no payment
+ * plan and no money moved on them (`PaymentPlanQuestion`, in plan order, whatever their stage's
+ * state: a closed stage does not refuse a payment plan). The count (`answered`, `total`)
+ * is `openQuestions`'s and does not include them; `optional` says how many there are, and `skipped`
+ * and `remaining` do include them, since they are asked. Nothing is asked while the plan is locked.
+ */
+export function openQuestionsWithOptional(
+  snapshot: WorkSnapshot,
+  scheduled: Schedule,
+  today: string,
+  skipped: ReadonlySet<string> = NONE,
+): Omit<OpenQuestions, 'questions'> & {
+  readonly questions: readonly AnyQuestion[];
+  readonly optional: number;
+} {
+  const required = openQuestions(snapshot, scheduled, today, skipped);
+  if (required.locked) return { ...required, optional: 0 };
+
+  const stageNames = new Map(snapshot.stages.map((stage) => [stage.id, stage.name]));
+  const closed = new Set(
+    snapshot.stages.filter((stage) => stage.closedAt !== null).map((stage) => stage.id),
+  );
+  const optional: Array<MostQuestion | PaymentPlanQuestion> = [];
+  for (const activity of activitiesInOrder(snapshot)) {
+    if (closed.has(activity.stageId) || !scheduled.critical.has(activity.id)) continue;
+    if (!hasDuration(activity) || durationRangeOf(activity) !== null) continue;
+    const days = activity.durationDays!;
+    optional.push({
+      kind: 'most',
+      optional: true,
+      key: `most:${activity.id}`,
+      messageKey: OPTIONAL_QUESTION_MESSAGE_KEYS.most,
+      params: { name: activity.name, days },
+      stageId: activity.stageId,
+      // A critical activity is placed, so its stage is in the plan.
+      stageName: stageNames.get(activity.stageId)!,
+      activityId: activity.id,
+      durationDays: days,
+      answer: {
+        command: 'activity_update',
+        targetId: activity.id,
+        field: 'durationMaxDays',
+        with: { durationMinDays: days },
+      },
+    });
+  }
+  // Then every commitment with no payment plan and no money moved on it, in plan order (D2).
+  const moved = commitmentsWithMoney(snapshot);
+  for (const row of noPlanFigure(snapshot).rows) {
+    if (moved.has(row.commitmentId)) continue;
+    optional.push({
+      kind: 'paymentPlan',
+      optional: true,
+      key: `paymentPlan:${row.commitmentId}`,
+      messageKey: OPTIONAL_QUESTION_MESSAGE_KEYS.paymentPlan,
+      params: { label: row.title },
+      stageId: row.stageId,
+      stageName: stageNames.get(row.stageId) ?? null,
+      commitmentId: row.commitmentId,
+      answer: { command: 'open', targetId: row.commitmentId, field: 'paymentPlan' },
+    });
+  }
+  const skippedOptional = optional.filter((question) => skipped.has(question.key)).length;
+  return {
+    ...required,
+    questions: [...required.questions, ...optional],
+    optional: optional.length,
+    skipped: required.skipped + skippedOptional,
+    remaining: required.remaining + optional.length - skippedOptional,
+  };
+}
+
+/** `nextQuestion`, with the optional questions asked once nothing else is left to ask. */
+export function nextQuestionWithOptional(
+  snapshot: WorkSnapshot,
+  scheduled: Schedule,
+  today: string,
+  skipped: ReadonlySet<string> = NONE,
+): AnyQuestion | null {
+  return (
+    openQuestionsWithOptional(snapshot, scheduled, today, skipped).questions.find(
       (question) => !skipped.has(question.key),
     ) ?? null
   );

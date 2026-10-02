@@ -475,6 +475,8 @@ export const en = {
   'checks.default.close.photosTaken': 'Photos were taken',
   'checks.default.close.ownerWalked': 'The owner walked it',
   'checks.default.close.wasteRemoved': 'Leftovers and waste were removed',
+  'checks.default.close.hiddenWorkPhotographed':
+    'The pipes and wiring were photographed before the walls were closed',
   'checks.figure.planned': 'Planned stages',
   'checks.figure.started': 'Started stages',
   'checks.figure.closed': 'Closed stages',
@@ -521,6 +523,13 @@ export const en = {
   'gates.confirm.closeTitle': 'Close “{name}”?',
   'gates.confirm.closeBody': 'A closed stage is read-only until it is reopened.',
   'gates.refused': 'That was not kept',
+  'gates.problem.needsPhoto':
+    'This check needs a photo of the work before it is closed. Add the photo, then answer Yes.',
+  'gates.needsPhoto.box': 'Needs a photo',
+  'gates.needsPhoto.label': '{name} needs a photo of the work before it is closed',
+  'gates.needsPhoto.open': 'A Yes needs its photo',
+  'gates.needsPhoto.mark': 'Needs a photo of the work before it is closed',
+  'gates.needsPhoto.yesWithout': 'Answered Yes without a photo, before one was asked for.',
   'readiness.missing.stage.checks.one': '{count} stage has no checks.',
   'readiness.missing.stage.checks.other': '{count} stages have no checks.',
   'readiness.rule.stage.checks': 'Stages with checks',
@@ -583,9 +592,9 @@ export const en = {
   'money.payment.noCommitment': 'None',
   'money.payment.amount': 'Amount',
   'money.payment.what': 'What for',
-  'money.payment.receipt': 'Receipt (an image)',
+  'money.payment.receipt': 'Receipt (an image or a PDF)',
   'money.payment.receiptHint':
-    'A receipt is a photo or a scan saved as an image; PDF receipts arrive with documents, later.',
+    'A receipt is a photo, a scan or a PDF. It is copied into the work folder and listed with the documents.',
   'money.payment.save': 'Record the payment',
   'money.payment.problem': 'The payment was not recorded',
   'money.payment.chooseStage': 'Choose…',
@@ -651,6 +660,35 @@ export const en = {
   'plan.person.contactNote':
     'Kept on this machine and never used to reach anybody: Ridgebeam has no network.',
   'plan.tab.people': 'People',
+  'plan.tab.handover': 'Handover',
+  'handover.lead':
+    'What the owner keeps when the work ends, printed in the {book}: how to look after the work, and the photos of what walls and floors will hide. Notes are not the plan: they can be written and changed at any time.',
+  'handover.work.title': 'For the whole work',
+  'handover.work.description': 'Where things are, and what to do once a year.',
+  'handover.rooms.title': 'For each {room}',
+  'handover.rooms.description': 'What to know to look after each one.',
+  'handover.rooms.none':
+    'The plan has no {room} yet. Add them in the breakdown, then write their notes here.',
+  'handover.stages.title': 'For each {stage}',
+  'handover.stages.description': 'What each part of the work needs over the years.',
+  'handover.stages.none': 'The plan has no {stage} yet.',
+  'handover.care.none': 'No note yet.',
+  'handover.care.field': 'Note {position}: {name}',
+  'handover.care.placeholder': 'Reseal the shower grout once a year.',
+  'handover.care.empty': 'Write the note first.',
+  'handover.care.emptied': 'A note is not kept empty: to take it away, press Remove.',
+  'handover.care.added': 'Note added: {name}.',
+  'handover.care.removed': 'Note removed: {name}.',
+  'handover.hidden.title': 'Hidden work',
+  'handover.hidden.description':
+    'The checks that need a photo of the work before it is closed — the pipes before the wall, the wiring before the plaster. They are answered on the Gates tab.',
+  'handover.hidden.none':
+    'No check needs a photo yet. On the Gates tab, tick “Needs a photo” on a check of work that will be hidden.',
+  'handover.hidden.yesPhoto': 'Yes, with its photo · {author} · {day}',
+  'handover.hidden.yesWithout':
+    'Yes, without a photo · {author} · {day} — answered before a photo was asked for',
+  'handover.hidden.open': 'Open on Gates',
+  'handover.hidden.openNamed': 'Open on the Gates tab: {name}',
   'people.lead':
     'Everyone on the work: their trade, the stages they are expected on, the days the diary has them on site, and what is still owed to them.',
   'people.days.none': '0 days on site',
@@ -683,6 +721,8 @@ export const en = {
   'document.kind.permit': 'Permit',
   'document.kind.receipt': 'Receipt',
   'document.kind.contract': 'Contract',
+  'document.kind.warranty': 'Warranty',
+  'document.kind.manual': 'Manual',
   'document.kind.otherKind': 'Other',
   'documents.filter.kind': 'Kind',
   'documents.filter.allKinds': 'Every kind',
@@ -715,6 +755,8 @@ export const en = {
   'documents.figure.permit': 'Permits',
   'documents.figure.receipt': 'Receipts',
   'documents.figure.contract': 'Contracts',
+  'documents.figure.warranty': 'Warranties',
+  'documents.figure.manual': 'Manuals',
   'documents.figure.other': 'Other documents',
   'documents.target.stage': '{name}',
   'documents.target.activity': '{name}',
@@ -1055,6 +1097,11 @@ export const en = {
   'templates.export.invalid.path': 'Choose the file, or type its path, ending in .json.',
   'plan.range': '{min}–{max}',
   'plan.range.hint': 'Range {range}',
+  'plan.range.legend': '{range} (working days)',
+  'plan.range.min': 'Optimistic',
+  'plan.range.max': 'Pessimistic',
+  'plan.range.both': 'Give both ends, or clear both.',
+  'plan.invalid.range': 'Each end is a whole number of working days, from 1 to {max}.',
   'plan.checklist.range': '{range} working days, a range',
   'plan.stages.emptyTemplate':
     'A stage is a chapter of the work — demolition, rough-in, tiling. Add the first one above, or start from a {template}: a starting point with ranges, not a quote.',
@@ -1138,6 +1185,7 @@ export const en = {
   'reports.path.pdf': 'PDF file',
   'reports.path.csv': 'CSV file',
   'reports.path.json': 'JSON file',
+  'reports.path.html': 'HTML file',
   'reports.choose': 'Choose…',
   'reports.pathHint':
     'A full path, or choose one. A file that is already there is replaced only when you chose it in the dialog.',
@@ -1145,6 +1193,7 @@ export const en = {
   'reports.filter.pdf': 'PDF document',
   'reports.filter.csv': 'CSV file',
   'reports.filter.json': 'JSON file',
+  'reports.filter.html': 'Web page',
   'reports.done.title': 'Written',
   'reports.done.pages.one': '{count} page',
   'reports.done.pages.other': '{count} pages',
@@ -1155,9 +1204,11 @@ export const en = {
   'reports.file.weekly': '{work} weekly {week}',
   'reports.file.diary': '{work} diary',
   'reports.file.schedule': '{work} schedule',
+  'reports.file.handover': '{work} handover book',
+  'reports.file.snapshot': '{work} snapshot {day}',
 
   'reports.weekly.holds':
-    'One PDF of a week in the owner’s words: the days written and the working days with nothing written, what was done, who was on site, how ready the plan is, when it ends, the decisions due, the money and the stages. It does not hold the photos, and long notes are shortened — the diary’s PDF has them whole.',
+    'One PDF of a week in the owner’s words: the days written and the working days with nothing written, what was done, who was on site, how ready the plan is, when it ends and the chance of finishing by then, the decisions due, the money — with what was paid ahead of the work and what is earned and not paid — and the stages. It does not hold the photos, and long notes are shortened — the diary’s PDF has them whole.',
   'reports.week': 'Week',
   'reports.weekly.write': 'Write the weekly report',
   'reports.weekly.waiting': 'Reading the diary…',
@@ -1258,8 +1309,134 @@ export const en = {
   'reports.json.holds':
     'The whole work and every diary entry with its hashes, as JSON for another program to read. It does not hold the files themselves: documents and photos are named by their hash.',
   'reports.json.write': 'Write the JSON',
+  'reports.handover.figure.gaps': 'What the book still lacks',
+  'reports.handover.section.other': 'Elsewhere in the work',
+  'reports.handover.gap.hiddenWithoutPhoto': 'Hidden work answered Yes without a photo — “{name}”',
+  'reports.handover.gap.hiddenUnanswered':
+    'Hidden work not answered and its photo not taken — “{name}”',
+  'reports.handover.gap.stageOpen': '{name}: {stage} still open.',
+  'reports.handover.gap.roomWithoutPhoto': '{name}: no photo yet.',
+  'reports.handover.gap.noWarrantyOrManual': 'No warranty and no manual among the documents.',
+  'reports.handover.gap.noCareNote': 'No {note} written yet.',
+  'reports.handover.title': 'The {book}',
+  'reports.handover.holds':
+    'One PDF for the owner to keep: room by room what was done and when, the decisions made with their answers, the photos of hidden work, the documents by name, who did what, and how to look after it all. It does not hold the money or the schedule — they have their own reports.',
+  'reports.handover.write': 'Write the {book}',
+  'reports.handover.gaps.one': '{count} gap',
+  'reports.handover.gaps.other': '{count} gaps',
+  'reports.handover.gaps.none': 'Nothing missing',
+  'reports.handover.gaps.sentence.one':
+    'The {book} has {count} gap. It can be written anyway: its first page says what it lacks.',
+  'reports.handover.gaps.sentence.other':
+    'The {book} has {count} gaps. It can be written anyway: its first page says what it lacks.',
+  'reports.handover.gaps.nothing': 'The {book} lacks nothing that Ridgebeam can see.',
+  'reports.handover.gaps.rows': 'What the book lacks',
+  'reports.handover.inProgressNote':
+    'A {stage} is still open: the first page will say the book was written while the work was in progress.',
+  'reports.handover.inProgress': 'Written while the work was in progress.',
+  'reports.handover.cover.started': 'Started on {day}.',
+  'reports.handover.cover.finished': 'Finished on {day}.',
+  'reports.handover.cover.notFinished': 'Not finished yet: the work is in progress.',
+  'reports.handover.reading.byRoom':
+    'Each {room} has its own pages: what was done and when, the decisions made, the photos of the hidden work and from the diary, and how to look after it. Then the documents, who did what, and how to look after the whole work. Money and the schedule are not in this book.',
+  'reports.handover.reading.byStage':
+    'Each {stage} has its own pages: what was done and when, the decisions made, the photos of the hidden work and from the diary, and how to look after it. Then the documents, who did what, and how to look after the whole work. Money and the schedule are not in this book.',
+  'reports.handover.cover.people': 'The people, by {trade}',
+  'reports.handover.sections.none': 'Nothing in the plan yet.',
+  'reports.handover.done.label': 'What was done',
+  'reports.handover.done.value.one': '{done} of {all} finished',
+  'reports.handover.done.value.other': '{done} of {all} finished',
+  'reports.handover.done.on': 'finished on {day}',
+  'reports.handover.decisions.label': 'Decisions made',
+  'reports.handover.decisions.noAnswer': 'made, with nothing written down',
+  'reports.handover.hidden.title': 'Hidden work, photographed before it was closed',
+  'reports.handover.hidden.none': 'No photo of hidden work here.',
+  'reports.handover.hidden.caption': '{check} — {stage}, {day}',
+  'reports.handover.photos.title': 'Photos from the diary',
+  'reports.handover.photos.none': 'No photo from the diary here.',
+  'reports.handover.photos.caption': '{activity}, {day}',
+  'reports.handover.photos.notShown.one':
+    '{count} more photo is in the diary and in the work’s folder.',
+  'reports.handover.photos.notShown.other':
+    '{count} more photos are in the diary and in the work’s folder.',
+  'reports.handover.photos.overCap.one':
+    'The book prints at most {max} photos: {count} more photo is in the work’s folder.',
+  'reports.handover.photos.overCap.other':
+    'The book prints at most {max} photos: {count} more photos are in the work’s folder.',
+  'reports.handover.care.title': 'How to look after it',
+  'reports.handover.care.none': 'No note here.',
+  'reports.handover.care.on': '{name}: {text}',
+  'reports.handover.care.work': 'Looking after the whole work',
+  'reports.handover.documents.reading':
+    'The files themselves are in the work’s folder; each is named here so it can be found.',
+  'reports.handover.documents.file': '{title} ({file})',
+  'reports.handover.documents.added': 'added on {day}',
+  'reports.handover.documents.attached': 'attached to {targets}',
+  'reports.handover.people.title': 'Who did what',
+  'reports.handover.people.names': 'Who',
+  'reports.handover.people.noTrade': 'Not said',
+  'reports.handover.people.none': 'Nobody is in the plan.',
+  'reports.handover.people.contact': 'Contact',
+  'reports.handover.people.stages': 'Worked on',
+  'reports.handover.people.days': 'Days on site',
+  'reports.handover.people.noStages': 'nothing in the diary',
+  'reports.handover.record.title': 'The record',
+  'reports.handover.record.empty': 'The diary has no entry yet.',
+  'reports.handover.record.summary.one':
+    'The diary holds {count} entry, from {from} to {to}. Its chain is verified each time the diary is written out as a PDF.',
+  'reports.handover.record.summary.other':
+    'The diary holds {count} entries, from {from} to {to}. Its chain is verified each time the diary is written out as a PDF.',
+  'reports.handover.record.written': 'This book was written on {day}.',
+
+  // ── The owner’s snapshot (D4) ─────────────────────────────────────────────
+  'reports.lookahead.figure.starting': 'Starting',
+  'reports.lookahead.figure.running': 'Under way',
+  'reports.lookahead.figure.people': 'Who must be there',
+  'reports.lookahead.figure.decisions': 'To decide or order',
+  'reports.lookahead.figure.gates': 'Gates coming up',
+  'reports.lookahead.figure.fallingDue': 'Payments falling due',
+  'reports.lookahead.gate.start': '{stage} starts on {day}: its start gate',
+  'reports.lookahead.gate.close': '{stage} ends on {day}: its close gate',
+  'reports.snapshot.title': 'The {snapshot}',
+  'reports.snapshot.holds':
+    'One web page for the owner, to open on any phone or computer: how ready the plan is, when it ends and the chance of finishing by then, the next two weeks — what starts, who must be there, what to decide or order, the gates and the payments falling due — the last diary entries with up to two photos each, and the money. Nothing in it runs and nothing is loaded from anywhere. It does not hold anybody’s phone or e-mail, the documents, or the whole schedule.',
+  'reports.snapshot.sending':
+    'Ridgebeam writes the file and sends nothing: sending it — by WhatsApp, by e-mail — is yours to do. The {snapshot} does not change when the work does; write a new one to send what changed.',
+  'reports.snapshot.write': 'Write the {snapshot}',
+  'reports.snapshot.subtitle': '{work} — as it stands on {day}',
+  'reports.snapshot.today': 'Today',
+  'reports.snapshot.responsible': '{responsible}: {name}',
+  'reports.snapshot.nobody': '{responsible}: nobody yet',
+  'reports.snapshot.starts': 'starts {day}, until {finish}',
+  'reports.snapshot.runs': 'under way, until {finish}',
+  'reports.snapshot.critical': 'it decides the finish date',
+  'reports.snapshot.decideBy': 'to decide or order by {day}',
+  'reports.snapshot.leadTime.one': '{leadTime}: {count} working day, needed on {day}',
+  'reports.snapshot.leadTime.other': '{leadTime}: {count} working days, needed on {day}',
+  'reports.snapshot.gate.noChecks': 'nothing to check',
+  'reports.snapshot.gate.passed': 'every check answered',
+  'reports.snapshot.gate.holding.one': '{count} check not answered yet: {items}',
+  'reports.snapshot.gate.holding.other': '{count} checks not answered yet: {items}',
+  'reports.snapshot.covered': '{amount} of it already paid ahead',
+  'reports.snapshot.next.title': 'The next two weeks',
+  'reports.snapshot.next.window': 'From {from} to {to}.',
+  'reports.snapshot.next.nothingPlaced':
+    'Nothing is on the calendar yet: what follows is empty because the plan has no dates, not because the two weeks are quiet.',
+  'reports.snapshot.next.chart':
+    'One column for each day; a bar cut at an edge goes on beyond the two weeks.',
+  'reports.snapshot.lately.title': 'Lately on site',
+  'reports.snapshot.lately.none': 'The diary has no entry yet.',
+  'reports.snapshot.lately.of':
+    'The last {shown} of {all} days written in the diary; each {entry} is whole in the diary.',
+  'reports.snapshot.lately.done': 'What was done',
+  'reports.snapshot.lately.photo': '{day} — {name}',
+  'reports.snapshot.lately.morePhotos.one': '{count} more photo of this day is in the diary.',
+  'reports.snapshot.lately.morePhotos.other': '{count} more photos of this day are in the diary.',
+  'reports.snapshot.closing':
+    'Written by Ridgebeam on {day}. A snapshot: it does not change when the work does.',
 
   // ── The front door, composed (F10) ─────────────────────────────────────────
+  'dashboard.snapshot': '{snapshot}…',
   'dashboard.figure.weekEntries': 'Entries this week',
   'dashboard.figure.weekDaysWithoutEntry': 'Working days without an entry this week',
   'dashboard.figure.onSite': 'Who was on site',
@@ -1397,6 +1574,202 @@ export const en = {
   'nextQuestion.allSkipped.one': 'The {count} question left was skipped for now.',
   'nextQuestion.allSkipped.other': 'The {count} questions left were skipped for now.',
   'nextQuestion.askAgain': 'Ask the skipped ones again',
+  'nextQuestion.ask.most':
+    'What is the most {name} could take, in working days? The plan says {days}.',
+  'nextQuestion.optional':
+    'Optional — the plan lacks nothing without it; it gives the finish a range to draw from.',
+  'nextQuestion.field.most': 'The most, in working days — the pessimistic end of its {range}',
+  'nextQuestion.hint.most':
+    'Its duration is kept as the optimistic end; only you know how late it could run.',
+  'nextQuestion.invalid.most': 'The most is a whole number of working days, from {min} to {max}.',
+
+  // ── D1: when will it really finish ────────────────────────────────────────
+  'schedule.probability.title': 'When will it really finish?',
+  'schedule.probability.lead':
+    'The plan’s date takes every duration as certain. Here each activity’s optimistic and pessimistic durations are taken as given, and the schedule is run again and again to say how likely each date is.',
+  'schedule.probability.frequency.none': 'almost no chance',
+  'schedule.probability.frequency.underOne': 'fewer than 1 in 10 chances',
+  'schedule.probability.frequency.inTen': '{n} in 10 chances',
+  'schedule.probability.frequency.every': '10 in 10 chances',
+  'schedule.probability.headline': '{chance} of finishing by {date}',
+  'schedule.probability.engineer': '{sentence} (P{percentile})',
+  'schedule.probability.sameDay.p50':
+    '{date} is also the day by which half the runs had finished: the runs cluster there.',
+  'schedule.probability.sameDay.p90':
+    '{date} is also the day by which 9 in 10 runs had finished: the runs cluster there.',
+  'schedule.probability.engineer.percentile': '{sentence} (P{percentile})',
+  'schedule.probability.engineer.percent': '{sentence} — {percent} of the runs',
+  'schedule.probability.engineer.after': '{sentence} That is {percent} of the runs.',
+  'schedule.probability.planChance': 'The plan’s date, {date}, has {chance}.',
+  'schedule.probability.baselineChance': 'The date of baseline {number}, {date}, has {chance}.',
+  'schedule.probability.allCertain':
+    'Every activity is counted as certain, so the finish is the plan’s date. Give activities an optimistic and a pessimistic duration to see the chance.',
+  'schedule.probability.certainCount':
+    'Activities counted as certain — the same number of days in every run: {certain} of {total}.',
+  'schedule.probability.unplacedCount':
+    'Activities with neither a duration nor a range, left out of the runs: {unplaced}.',
+  'schedule.probability.method':
+    '{runs} runs of this schedule with the ranges given; seeded, so the same plan gives the same numbers.',
+  'schedule.probability.capped': 'This plan is large, so {runs} runs were made instead of {max}.',
+  'schedule.probability.leftOut':
+    'Each activity is drawn on its own: a rainy month that slows everything at once is not in the runs.',
+  'schedule.probability.note': 'Nothing here is stored, and nothing here changes the plan’s dates.',
+  'schedule.probability.criticalIn': 'critical in {n} of 10 runs',
+  'schedule.probability.criticalNever': 'never critical in the runs',
+  'schedule.probability.criticalUnderOne': 'critical in fewer than 1 of 10 runs',
+  'schedule.probability.short': '{n} in 10',
+  'schedule.probability.short.underOne': 'under 1 in 10',
+  'schedule.probability.figure.p80': 'The finish, as a chance',
+  'schedule.probability.figure.plan': 'The plan’s date, as a chance',
+  'schedule.probability.figure.baseline': 'The baseline’s date, as a chance',
+  'schedule.probability.figure.criticality': 'How often each activity is critical',
+  'schedule.probability.problem.invalidCalendar':
+    'No chance can be given: the working calendar cannot be counted on.',
+  'schedule.probability.problem.invalidStart':
+    'No chance can be given: the start date is not a day.',
+  'schedule.probability.problem.cyclic': 'No chance can be given: the links make a loop.',
+  'schedule.probability.problem.nothingPlaced':
+    'No chance can be given yet: no activity has a duration or a range.',
+  'schedule.probability.rows': 'What the chance depends on',
+  'schedule.probability.row.driver': 'its range moves the finish',
+  'schedule.probability.row.certain': 'counted as certain',
+  'schedule.probability.row.correlation': 'rank correlation {value}',
+  'schedule.probability.dates': 'The chance of finishing by other dates',
+  'schedule.probability.chart.title': 'Chance of having finished, by date',
+  'schedule.probability.chart.description':
+    'No run finished before {earliest}; every run had finished by {latest}.',
+  'schedule.probability.legend.curve': 'The chance of having finished by each day: the solid line',
+  'schedule.probability.legend.plan': 'The plan’s date: the dashed line',
+  'schedule.probability.legend.headline': 'The date with {chance}: the dotted line',
+  'schedule.probability.table': 'Chance of having finished, week by week',
+  'schedule.probability.table.by': 'By',
+  'schedule.probability.table.chance': 'Chance',
+  'schedule.probability.table.percent': 'Share of the runs',
+  'schedule.probability.drivers': 'What moves the finish most',
+  'schedule.probability.drivers.lead':
+    'The activities whose range moves the finish date most, strongest first.',
+  'schedule.probability.drivers.none':
+    'No range moves the finish clearly: the ranges given are narrow, or away from the critical path.',
+  'schedule.probability.driver.range': '{range} working days, likeliest {mode}',
+  'schedule.criticality.toggle': 'Shade each bar by how often it is critical',
+  'schedule.legend.criticality':
+    'Red shade: how often it is critical in the runs — stronger is more often, and the share is beside its name',
+  'schedule.bar.criticality': '{sentence}, {critical}',
+
+  // ── D2: am I paying ahead of the work? ────────────────────────────────────
+  'money.milestone.trigger.advance': 'An advance — the day it was agreed, before any work',
+  'money.milestone.trigger.stageStarted': 'When the stage starts',
+  'money.milestone.trigger.activityFinished': 'When an activity is finished',
+  'money.milestone.trigger.stageClosed': 'When the stage closes',
+  'money.milestone.pending.advance': '{name} is not agreed yet.',
+  'money.milestone.pending.stageStarted': '{name} is not started yet.',
+  'money.milestone.pending.activityFinished': '{name} is not finished yet.',
+  'money.milestone.pending.stageClosed': '{name} is not closed yet.',
+  'money.milestone.state.earned': 'earned on {day}',
+  'money.milestone.state.notYet': 'not yet',
+  'money.paymentPlan.sum': '{planned} in the plan; {rest} not in the plan yet.',
+  'money.paymentPlan.sumWhole': '{planned} in the plan.',
+  'money.paymentPlan.figure.earned': 'Earned',
+  'money.paymentPlan.figure.paid': 'Paid on it',
+  'money.paymentPlan.figure.due': 'Due now',
+  'money.paymentPlan.figure.ahead': 'Paid ahead of the work',
+  'money.paymentPlan.figure.paidAhead': 'Paid ahead of the work',
+  'money.paymentPlan.figure.dueNow': 'Earned and not paid',
+  'money.paymentPlan.figure.noPlan': 'Commitments with no payment plan',
+  'money.paymentPlan.figure.outside': 'Payments on no commitment',
+  'money.paymentPreview.ahead':
+    'This payment puts you {amount} ahead of the work on {commitment}: earned so far {earned} — {next} ({share}) is not earned yet: {pending}',
+  'money.paymentPreview.aheadNoNext':
+    'This payment puts you {amount} ahead of the work on {commitment}: earned so far {earned} — every milestone is earned, and the rest of the amount is not in its payment plan.',
+  'money.milestone.problem.unknownCommitment': 'That commitment is no longer in the plan.',
+  'money.milestone.problem.unknownMilestone': 'That milestone is no longer in the payment plan.',
+  'money.milestone.problem.locked':
+    'A payment names this commitment, so its payment plan stays as it is.',
+  'money.milestone.problem.labelEmpty': 'Give the milestone a name.',
+  'money.milestone.problem.labelTooLong': 'The name is too long: at most 120 characters.',
+  'money.milestone.problem.invalidShare':
+    'A share is a percentage above 0 and at most 100, with at most one decimal.',
+  'money.milestone.problem.overPlan':
+    'That takes the payment plan over 100 % of the commitment: {available} is left for it.',
+  'money.milestone.problem.invalidTrigger': 'Choose what earns it.',
+  'money.milestone.problem.activityRequired': 'Choose the activity whose finish earns it.',
+  'money.milestone.problem.activityNotAllowed':
+    'Only a milestone earned by a finish names an activity.',
+  'money.milestone.problem.unknownActivity': 'That activity is no longer in the plan.',
+  'money.milestone.problem.activityOfAnotherStage':
+    'That activity belongs to another stage than the commitment.',
+  'money.paymentPlan.usual.started': 'Stage started',
+  'money.paymentPlan.usual.finished': 'Last activity finished',
+  'money.paymentPlan.usual.closed': 'Stage closed',
+  'money.paymentPlan.usual.note':
+    'A common split — 30 % when the stage starts, 40 % when its last activity is finished, 30 % when it closes. Not advice: change it to what you agreed.',
+  'money.paymentPlan.toggle': 'Payment plan',
+  'money.paymentPlan.summary.none': 'none yet',
+  'money.paymentPlan.summary.one': '{count} milestone · {share} in the plan',
+  'money.paymentPlan.summary.other': '{count} milestones · {share} in the plan',
+  'money.paymentPlan.lead':
+    'Each milestone is earned by a fact of the work, never by a date: the stage starting, an activity finished in the diary, the stage closing — or, for an advance, the day it was agreed.',
+  'money.paymentPlan.none':
+    'No payment plan yet. Until it has one, nobody can say whether paying it is ahead of the work.',
+  'money.paymentPlan.locked':
+    'A payment names this commitment, so its payment plan stays as it is: a plan rewritten after paying would hide being ahead of the work.',
+  'money.paymentPlan.closedStage':
+    '{stage} is closed, and this payment plan can still change: money is not a plan edit.',
+  'money.paymentPlan.usual': 'Add the usual plan',
+  'money.paymentPlan.usual.noActivity':
+    'The usual plan pays 40 % when the stage’s last activity is finished, and {stage} has no activity yet: add one on the Plan first.',
+  'money.paymentPlan.usual.done': 'The usual plan was added: three milestones.',
+  'money.paymentPlan.milestones': 'Milestones of {name}',
+  'money.milestone.when.advance': 'an advance, on agreeing — paid before any work',
+  'money.milestone.when.stageStarted': 'when {name} starts',
+  'money.milestone.when.activityFinished': 'when {name} is finished',
+  'money.milestone.when.stageClosed': 'when {name} closes',
+  'money.milestone.goneActivity': 'an activity no longer in the plan',
+  'money.milestone.share': '{share} · {amount}',
+  'money.milestone.labelOf': 'Name of {name}',
+  'money.milestone.shareOf': 'Share of {name}, in %',
+  'money.milestone.remove': 'Remove: {name}',
+  'money.milestone.removed': '{name} was taken out of the payment plan.',
+  'money.milestone.added': '{name} was added to the payment plan.',
+  'money.milestone.add.label': 'Milestone',
+  'money.milestone.add.share': 'Share, in %',
+  'money.milestone.add.trigger': 'Earned when',
+  'money.milestone.add.activity': 'Which activity',
+  'money.milestone.add.chooseActivity': 'Choose the activity…',
+  'money.milestone.add': 'Add milestone',
+  'money.milestone.advanceNote':
+    'An advance is paid before any work is done: it is money ahead of the work, on purpose.',
+  'money.milestone.noActivities':
+    '{stage} has no activity yet: add one on the Plan to pay on its finish.',
+  'money.paymentPlan.rows.earned': 'The milestones reached',
+  'money.paymentPlan.rows.due': 'Earned, less what was paid on it',
+  'money.paymentPlan.row.milestone': 'milestone, {share}',
+  'money.paymentPlan.paidAhead.mark': '{amount} ahead of the work',
+  'money.paymentPlan.dueNow.mark': '{amount} earned and not paid',
+  'money.paymentPlan.noPlan.mark': 'No payment plan — not evaluated',
+  'money.paymentPreview.title': 'Against the payment plan of {commitment}',
+  'money.paymentPreview.line':
+    'Earned so far {earned} · paid so far {paid} · paid after this payment {after}',
+  'money.paymentPreview.even': 'After this payment, what is paid matches what the work has earned.',
+  'money.paymentPreview.due': 'After this payment, {due} is earned and not paid.',
+  'money.paymentPreview.aheadAfter': 'After this payment, {ahead} is paid ahead of the work.',
+  'money.paymentPreview.noPlan':
+    '{commitment} has no payment plan, so whether this payment is ahead of the work cannot be said.',
+  'money.paymentPreview.warningTitle': 'Ahead of the work',
+  'money.paymentPreview.decision': 'You can still record it: whether to pay is yours to decide.',
+  'nextQuestion.ask.paymentPlan': 'How is {label} to be paid?',
+  'nextQuestion.openPaymentPlan': 'Open its payment plan',
+  'nextQuestion.optional.paymentPlan':
+    'Optional — the plan lacks nothing without it; a payment plan says when paying is ahead of the work.',
+  'nextQuestion.hint.paymentPlan':
+    'Its payment plan opens on Money, by stage: say what fact of the work earns each part.',
+  'dashboard.paidAhead.rows': 'The commitments paid ahead of the work',
+  'dashboard.dueNow.rows': 'The commitments with money earned and not paid',
+  'dashboard.money.noPlan.one': '{count} commitment has no payment plan, so it is not evaluated.',
+  'dashboard.money.noPlan.other':
+    '{count} commitments have no payment plan, so they are not evaluated.',
+  'dashboard.money.outside.one': '{count} payment names no commitment, so it is outside this.',
+  'dashboard.money.outside.other': '{count} payments name no commitment, so they are outside this.',
 } as const;
 
 /** Every key the interface may ask for. */

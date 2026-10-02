@@ -16,7 +16,17 @@ import { invoke } from '@tauri-apps/api/core';
 
 import type { DiaryEntry, EntryDraft } from '@/domain/diary';
 import type { Direction } from '@/domain/ordering';
-import type { Answer, Endpoint, Gate, Holiday, WorkSnapshot } from '@/domain/plan';
+import type {
+  Answer,
+  CareTargetKind,
+  DocumentKind,
+  Endpoint,
+  Gate,
+  Holiday,
+  MilestoneTrigger,
+  TargetKind,
+  WorkSnapshot,
+} from '@/domain/plan';
 import type { PlanDraft, Provenance } from '@/domain/templates/format';
 import {
   readLanguage,
@@ -100,7 +110,9 @@ export interface CalendarDraft {
  * which is how a duration or a responsible is taken back. A duration is a JSON number — a whole
  * number of working days — never a string.
  */
-export interface ActivityPatch {
+export type ActivityPatch = ActivityFields & RangePatch;
+
+interface ActivityFields {
   name?: string;
   durationDays?: number | null;
   responsibleId?: string | null;
@@ -109,6 +121,18 @@ export interface ActivityPatch {
   /** Up to 16 characters; a unit needs a quantity, and empty is `null`. */
   unit?: string | null;
 }
+
+/**
+ * An activity's range — its optimistic and pessimistic working days (D1, ADR-035) — is sent **both
+ * or neither**: the host refuses one end alone. Whole numbers 1..3650, the optimistic no more than
+ * the pessimistic, and the duration, when there is one, between them; `null` for both clears the
+ * range. Unlike the duration, a range is not locked by approval: it is an estimate of uncertainty,
+ * not the plan, and no baseline records it.
+ */
+type RangePatch =
+  | { durationMinDays?: never; durationMaxDays?: never }
+  | { durationMinDays: number; durationMaxDays: number }
+  | { durationMinDays: null; durationMaxDays: null };
 
 /**
  * One activity as the schedule places it now — a row of the baseline being taken. The schedule is
@@ -180,6 +204,7 @@ export const LIMITS = {
   durationDays: 3650,
   hoursPerDay: 24,
   replanReason: 2000,
+  careNote: 1000,
 } as const;
 
 // ── The application ──────────────────────────────────────────────────────────
@@ -557,14 +582,21 @@ export function checkRemove(id: string): Promise<WorkSnapshot> {
 
 /**
  * The usual checks, already in the person's language (the domain names them by key; the interface
- * resolves the keys). A name the gate already has is skipped by the host.
+ * resolves the keys). A name the gate already has is skipped by the host. Those named in
+ * `needsPhoto` (D3: hidden work) are added needing their photo.
  */
 export function checksAddDefaults(
   stageId: string,
   start: readonly string[],
   close: readonly string[],
+  needsPhoto: readonly string[] = [],
 ): Promise<WorkSnapshot> {
-  return invoke<WorkSnapshot>('checks_add_defaults', { stage_id: stageId, start, close });
+  return invoke<WorkSnapshot>('checks_add_defaults', {
+    stage_id: stageId,
+    start,
+    close,
+    needs_photo: needsPhoto,
+  });
 }
 
 /**
@@ -586,6 +618,15 @@ export function checkAnswer(
     photo_path: photoPath,
     photo_hash: photoHash,
   });
+}
+
+/**
+ * Whether a check needs a photo of the work before it is closed (D3, decision 2): a "yes" on such a
+ * check without a photo is refused by the host; "no" and "not applicable" with a reason are not.
+ * Refused on a closed stage, like every other change to it.
+ */
+export function checkSetNeedsPhoto(id: string, needsPhoto: boolean): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('check_needs_photo', { id, needs_photo: needsPhoto });
 }
 
 /** Start the stage: refused with `stage_gate_open` while the start gate holds. Cannot be undone. */
@@ -697,6 +738,102 @@ export function paymentReverse(seq: number, note: string): Promise<WorkSnapshot>
   return invoke<WorkSnapshot>('payment_reverse', { seq, note });
 }
 
+// ── A commitment's payment plan (D2) ─────────────────────────────────────────
+//
+// A milestone is a share of a commitment's amount, in basis points (30 % = 3000), earned by a fact
+// of the work — never a date. Every one of these is refused once a payment names the commitment:
+// a plan rewritten after paying would hide being ahead of the work (ADR-037).
+
+export interface MilestoneDraft {
+  commitmentId: string;
+  label: string;
+  /** 1..10 000; the shares of a commitment add up to at most 10 000. */
+  shareBp: number;
+  trigger: MilestoneTrigger;
+  /** Required for `activity_finished` — an activity of the commitment's stage — and `null` otherwise. */
+  activityId: string | null;
+}
+
+export function milestoneAdd(draft: MilestoneDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('milestone_add', {
+    commitment_id: draft.commitmentId,
+    label: draft.label,
+    share_bp: draft.shareBp,
+    trigger: draft.trigger,
+    activity_id: draft.activityId,
+  });
+}
+
+export interface MilestonePatch {
+  label?: string;
+  shareBp?: number;
+  trigger?: MilestoneTrigger;
+  activityId?: string | null;
+}
+
+export function milestoneUpdate(id: string, patch: MilestonePatch): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('milestone_update', { id, patch });
+}
+
+export function milestoneMove(id: string, direction: Direction): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('milestone_move', { id, direction });
+}
+
+export function milestoneRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('milestone_remove', { id });
+}
+
+/** The labels of the usual three, in the person's language: the host writes them as given. */
+export interface UsualMilestoneLabels {
+  started: string;
+  finished: string;
+  closed: string;
+}
+
+/**
+ * The usual split — 30 % when the stage starts, 40 % when its last activity is finished, 30 % when
+ * it closes — on a commitment with no milestones. The host picks the stage's last activity.
+ */
+export function milestonesUsual(
+  commitmentId: string,
+  labels: UsualMilestoneLabels,
+): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('milestones_usual', { commitment_id: commitmentId, labels });
+}
+
+// ── Care notes (D3) ──────────────────────────────────────────────────────────
+//
+// A care note is a sentence the owner keeps about looking after the work, on the work, a room or a
+// stage. Editable at any time — it is not the plan, and approval does not lock it — and removed by
+// the host with the room or stage it names.
+
+/** What a care note is written on: `work` (its id is the work's), a room, or a stage. */
+export interface CareNoteTarget {
+  targetKind: CareTargetKind;
+  targetId: string;
+}
+
+export function careNoteAdd(target: CareNoteTarget, text: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('care_note_add', {
+    target_kind: target.targetKind,
+    target_id: target.targetId,
+    text,
+  });
+}
+
+export function careNoteUpdate(id: string, text: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('care_note_update', { id, text });
+}
+
+export function careNoteRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('care_note_remove', { id });
+}
+
+/** Within its target. */
+export function careNoteMove(id: string, direction: Direction): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('care_note_move', { id, direction });
+}
+
 // ── People as contacts, documents and the folder (F7) ────────────────────────
 
 /** The stages a person is expected on — replaced whole. */
@@ -704,10 +841,8 @@ export function personSetStages(id: string, stageIds: readonly string[]): Promis
   return invoke<WorkSnapshot>('person_set_stages', { id, stage_ids: stageIds });
 }
 
-export type DocumentKind =
-  'photo' | 'quote' | 'drawing' | 'permit' | 'receipt' | 'contract' | 'other';
-export type TargetKind =
-  'work' | 'stage' | 'activity' | 'decision' | 'entry' | 'commitment' | 'payment';
+/** The domain's own kinds (D3 added a warranty and a manual), so the two can never drift. */
+export type { DocumentKind, TargetKind };
 
 /** What a document is attached to. */
 export interface DocumentTarget {
@@ -834,7 +969,13 @@ export type ReportBlock =
       rows: ReportGanttRow[];
     }
   | { type: 'rule' }
-  | { type: 'pageBreak' };
+  | { type: 'pageBreak' }
+  /**
+   * A photo the open work holds (D3), named by the SHA-256 of its file — never a path: the host finds
+   * it in the work's own `documents/` and embeds it, its caption printed under it. Two `half` images
+   * in a row sit side by side. A hash the work does not hold is refused, not skipped.
+   */
+  | { type: 'image'; hash: string; caption: string; size: 'full' | 'half' };
 
 /** One bar of a printed Gantt: offsets in day columns from day 0. */
 export interface ReportGanttRow {
@@ -846,7 +987,7 @@ export interface ReportGanttRow {
   baselineLength: number | null;
 }
 
-export type ReportKind = 'weekly' | 'diary' | 'schedule';
+export type ReportKind = 'weekly' | 'diary' | 'schedule' | 'handover' | 'snapshot';
 
 /** What the host renders: a title for the page footer and the metadata, and the blocks. */
 export interface ReportDocument {
@@ -875,6 +1016,26 @@ export function reportPdfWrite(
   createdAt: string,
 ): Promise<WrittenFile> {
   return invoke<WrittenFile>('report_pdf_write', {
+    path,
+    document,
+    overwrite,
+    created_at: createdAt,
+  });
+}
+
+/**
+ * The owner's snapshot (D4) as one self-contained HTML file: the same document model, rendered by the
+ * host to a page with no script and nothing loaded from anywhere (ADR-039). Photos named by hash are
+ * embedded re-encoded; the host verifies the bytes before it writes them. `.html` only; an existing
+ * file is replaced only with `overwrite`, as every report is.
+ */
+export function reportHtmlWrite(
+  path: string,
+  document: ReportDocument,
+  overwrite: boolean,
+  createdAt: string,
+): Promise<WrittenFile> {
+  return invoke<WrittenFile>('report_html_write', {
     path,
     document,
     overwrite,

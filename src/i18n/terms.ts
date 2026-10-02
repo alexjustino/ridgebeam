@@ -55,6 +55,8 @@ export const TERM_KEYS = [
   'payment',
   'ledger',
   'commitment',
+  'milestone',
+  'advance',
   'trade',
   'document',
   'entry',
@@ -62,6 +64,9 @@ export const TERM_KEYS = [
   'range',
   'report',
   'export',
+  'handoverBook',
+  'careNote',
+  'snapshot',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];

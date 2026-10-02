@@ -33,7 +33,12 @@ import {
 } from '../plan';
 
 export type { Answer, Check, CheckAnswer, Gate } from '../plan';
-export { DEFAULT_CHECK_KEYS, type DefaultCheckKey } from './defaults';
+export {
+  DEFAULT_CHECK_KEYS,
+  DEFAULT_CHECKS_NEEDING_PHOTO,
+  defaultCheckNeedsPhoto,
+  type DefaultCheckKey,
+} from './defaults';
 
 export const GATES = ['start', 'close'] as const satisfies readonly Gate[];
 export const ANSWERS = ['yes', 'no', 'na'] as const satisfies readonly Answer[];

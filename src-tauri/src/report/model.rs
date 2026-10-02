@@ -8,13 +8,23 @@
 //!
 //! A document is checked before anything is laid out ([`check`]): at most
 //! [`MAX_BLOCKS`] blocks, [`MAX_ROWS`] rows in its tables, figures and
-//! schedules together, and [`MAX_TEXT_CHARS`] characters in any one string. A
-//! document past a limit is refused with a sentence, whole.
+//! schedules together, [`MAX_TEXT_CHARS`] characters in any one string, and
+//! [`MAX_IMAGES`] distinct photos, each named by a hash, placed at most
+//! [`MAX_IMAGE_PLACEMENTS`] times. A document past a limit is refused with a
+//! sentence, whole.
+//!
+//! The same photo may be placed more than once — a stage that runs through
+//! two rooms shows its hidden-work photos in each — and is embedded once: the
+//! caps on photos and on their data count distinct photos, not placements.
+//!
+//! An image (D3) is named by the SHA-256 of a file the open work holds, never
+//! by a path: the host finds it in the work's own `documents/`, and embeds it
+//! (`report::images`). Two `half` images in a row sit side by side.
 //!
 //! On the wire (camelCase, `type` tags):
 //!
 //! ```text
-//! { kind: 'weekly' | 'diary' | 'schedule', title, subtitle,
+//! { kind: 'weekly' | 'diary' | 'schedule' | 'handover' | 'snapshot', title, subtitle,
 //!   pageSize: 'a4' | 'a4-landscape', language: 'en' | 'pt-BR',
 //!   blocks: [
 //!     { type: 'heading', level: 1 | 2, text }
@@ -24,8 +34,13 @@
 //!     { type: 'gantt', days, dayLabels: string[], rows: [{ label, start, length,
 //!       critical, baselineStart: number | null, baselineLength: number | null }] }
 //!     { type: 'rule' }
-//!     { type: 'pageBreak' } ] }
+//!     { type: 'pageBreak' }
+//!     { type: 'image', hash, caption, size: 'full' | 'half' } ] }
 //! ```
+//!
+//! The same document is the owner's snapshot (D4, kind `snapshot`), rendered
+//! to one HTML page by `report::html` instead of laid out on paper: there
+//! `pageSize` and `pageBreak` mean nothing and are ignored.
 
 use serde::Deserialize;
 
@@ -47,6 +62,13 @@ pub const MAX_COLUMNS: usize = 16;
 /// The most days a printed schedule runs over: ten years.
 pub const MAX_GANTT_DAYS: i64 = 3660;
 
+/// The most image blocks a report holds (D3).
+pub const MAX_IMAGES: usize = 400;
+
+/// The most image blocks a report holds, the same photo placed again counted
+/// each time (D3).
+pub const MAX_IMAGE_PLACEMENTS: usize = 2000;
+
 /// Which report a document is. The diary is written only through its own
 /// export, which verifies the chain first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -58,6 +80,22 @@ pub enum ReportKind {
     Diary,
     /// The schedule, printed.
     Schedule,
+    /// The handover book (D3): the work's record for its owner.
+    Handover,
+    /// The owner's snapshot (D4): the work as it stands, one HTML page meant
+    /// to be sent by the person (`report::html`).
+    Snapshot,
+}
+
+/// How wide an image is printed: the line, or half of it — two half images in
+/// a row sit side by side.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageSize {
+    /// The width of the line.
+    Full,
+    /// Half the line.
+    Half,
 }
 
 /// The paper.
@@ -203,6 +241,16 @@ pub enum Block {
     Rule,
     /// The next block starts a page.
     PageBreak,
+    /// A photo the open work holds, with its caption under it (D3).
+    Image {
+        /// The SHA-256 of the file, 64 lowercase hexadecimal digits — never a
+        /// path.
+        hash: String,
+        /// Printed under it; may be empty.
+        caption: String,
+        /// The line's width, or half of it.
+        size: ImageSize,
+    },
 }
 
 /// What the interface sends: a report, already in words.
@@ -255,6 +303,30 @@ pub fn check(document: &ReportDocument) -> Result<()> {
         return Err(invalid(format!(
             "A report holds at most {MAX_BLOCKS} blocks; this one has {}.",
             document.blocks.len()
+        )));
+    }
+
+    let hashes: Vec<&str> = document
+        .blocks
+        .iter()
+        .filter_map(|block| match block {
+            Block::Image { hash, .. } => Some(hash.as_str()),
+            _ => None,
+        })
+        .collect();
+    if hashes.len() > MAX_IMAGE_PLACEMENTS {
+        return Err(invalid(format!(
+            "A report places photos at most {MAX_IMAGE_PLACEMENTS} times; this one places them {} times.",
+            hashes.len()
+        )));
+    }
+    let distinct = hashes
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    if distinct > MAX_IMAGES {
+        return Err(invalid(format!(
+            "A report holds at most {MAX_IMAGES} photos; this one has {distinct}."
         )));
     }
 
@@ -357,6 +429,14 @@ pub fn check(document: &ReportDocument) -> Result<()> {
                 }
                 rows += bars.len();
             }
+            Block::Image { hash, caption, .. } => {
+                if !crate::files::intake::is_hash(hash) {
+                    return Err(invalid(format!(
+                        "Block {number} is an image that is not named by a hash: an image is named by the 64 lowercase hexadecimal digits of its file's SHA-256, never by a path."
+                    )));
+                }
+                text(caption, &place)?;
+            }
             Block::Rule | Block::PageBreak => {}
         }
         if rows > MAX_ROWS {
@@ -436,6 +516,8 @@ pub mod tests {
         assert_eq!(portuguese.tag(), "pt-BR");
         assert!(serde_json::from_str::<Language>("\"fr\"").is_err());
         assert!(serde_json::from_str::<ReportKind>("\"invoice\"").is_err());
+        let snapshot: ReportKind = serde_json::from_str("\"snapshot\"").unwrap();
+        assert_eq!(snapshot, ReportKind::Snapshot);
     }
 
     fn refused(document: &ReportDocument) -> String {
@@ -608,5 +690,90 @@ pub mod tests {
             let sentence = refused(&with_blocks(vec![block]));
             assert!(sentence.contains(words), "{sentence}");
         }
+    }
+
+    #[test]
+    fn an_image_block_reads_from_the_wire_and_is_named_by_a_hash_never_a_path() {
+        let hash = "0af9".repeat(16);
+        let document: ReportDocument = serde_json::from_value(serde_json::json!({
+            "kind": "handover", "title": "Handover book", "subtitle": "", "pageSize": "a4",
+            "language": "pt-BR",
+            "blocks": [
+                { "type": "image", "hash": hash, "caption": "Pipes before the wall", "size": "full" },
+                { "type": "image", "hash": hash, "caption": "", "size": "half" }
+            ]
+        }))
+        .expect("the wire shape the interface sends");
+        assert_eq!(document.kind, ReportKind::Handover);
+        assert_eq!(
+            document.blocks[0],
+            Block::Image {
+                hash: hash.clone(),
+                caption: "Pipes before the wall".into(),
+                size: ImageSize::Full
+            }
+        );
+        assert!(matches!(
+            document.blocks[1],
+            Block::Image {
+                size: ImageSize::Half,
+                ..
+            }
+        ));
+        check(&document).expect("inside every limit");
+        assert!(serde_json::from_value::<Block>(
+            serde_json::json!({ "type": "image", "hash": hash, "caption": "", "size": "quarter" })
+        )
+        .is_err());
+        assert!(serde_json::from_value::<Block>(
+            serde_json::json!({ "type": "image", "path": "C:/x.png", "caption": "", "size": "full" })
+        )
+        .is_err());
+
+        let image = |hash: &str| Block::Image {
+            hash: hash.into(),
+            caption: String::new(),
+            size: ImageSize::Full,
+        };
+        for hostile in [
+            "../../work.sqlite3",
+            r"C:\Windows\win.ini",
+            &"A".repeat(64),
+            &"a".repeat(63),
+            &format!("{}.png", "a".repeat(64)),
+            "",
+        ] {
+            assert_eq!(
+                refused(&with_blocks(vec![Block::Rule, image(hostile)])),
+                "Block 2 is an image that is not named by a hash: an image is named by the 64 lowercase hexadecimal digits of its file's SHA-256, never by a path.",
+                "{hostile}"
+            );
+        }
+        let long_caption = Block::Image {
+            hash: hash.clone(),
+            caption: "x".repeat(MAX_TEXT_CHARS + 1),
+            size: ImageSize::Half,
+        };
+        assert!(refused(&with_blocks(vec![long_caption])).starts_with("Block 1 has a text longer"));
+
+        // Distinct photos: 400, not 401.
+        let numbered = |n: usize| image(&format!("{n:064x}"));
+        check(&with_blocks((0..MAX_IMAGES).map(numbered).collect())).expect("400 photos");
+        assert_eq!(
+            refused(&with_blocks((0..=MAX_IMAGES).map(numbered).collect())),
+            "A report holds at most 400 photos; this one has 401."
+        );
+        // Placements: the same photo placed again counts as a placement, not
+        // as a photo — 2 000 of them, of 400 photos, not 2 001.
+        let placed: Vec<Block> = (0..MAX_IMAGE_PLACEMENTS)
+            .map(|n| numbered(n % MAX_IMAGES))
+            .collect();
+        check(&with_blocks(placed.clone())).expect("2 000 placements of 400 photos");
+        let mut over = placed;
+        over.push(numbered(0));
+        assert_eq!(
+            refused(&with_blocks(over)),
+            "A report places photos at most 2000 times; this one places them 2001 times."
+        );
     }
 }

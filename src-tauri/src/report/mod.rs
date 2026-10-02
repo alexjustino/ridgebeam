@@ -7,6 +7,11 @@
 //!   stand-ins, and the faces' widths.
 //! - [`layout`] — pure: blocks in, positioned marks per page out.
 //! - [`pdf`] — those pages written with `pdf-writer`.
+//! - [`images`] — the photos an image block names, found by hash in the open
+//!   work only, read under the caps and made ready to embed (D3).
+//! - [`html`] — the owner's snapshot: the same document as one HTML page with
+//!   nothing that runs and nothing loaded, escaped, verified before it is
+//!   written (D4).
 //! - [`csv`] — the diary from the database: neutralised, quoted, BOM,
 //!   separator.
 //! - [`json`] — the work and its diary, for anybody else's tool.
@@ -20,8 +25,15 @@
 //! # Changelog of this module
 //!
 //! - F10: the module.
+//! - D3: the `image` block and the `handover` kind; [`render_with`] embeds the
+//!   photos `images::resolve` prepared.
+//! - D4: [`html`], the `snapshot` kind and [`HTML_FILE`]; `images` takes a
+//!   setting, the snapshot's own (`html::SENT`: 1 024 px, quality 78, always
+//!   re-encoded).
 
 pub mod csv;
+pub mod html;
+pub mod images;
 pub mod json;
 pub mod layout;
 pub mod model;
@@ -72,6 +84,16 @@ pub const JSON_FILE: Kind = Kind {
     too_large: "it would be larger than 256 MiB",
     full_path: FULL_PATH,
     logged_as: "the work as JSON",
+};
+
+/// The owner's snapshot, one HTML page (D4): 12 MiB at most.
+pub const HTML_FILE: Kind = Kind {
+    extension: "html",
+    not_this_kind: "the owner's snapshot is a .html file",
+    max_bytes: html::MAX_FILE_BYTES,
+    too_large: "it would be larger than 12 MiB; a snapshot is at most 12 MiB",
+    full_path: FULL_PATH,
+    logged_as: "the owner's snapshot",
 };
 
 /// The sentence for a moment that is not one.
@@ -172,13 +194,29 @@ pub fn render(
     prelude: &[Block],
     created_at: &DateTime<FixedOffset>,
 ) -> Result<pdf::Rendered> {
+    render_with(document, prelude, created_at, &images::Images::new())
+}
+
+/// [`render`], with the photos the document's image blocks name, already
+/// resolved in the open work (`images::resolve`).
+///
+/// # Errors
+///
+/// As [`pdf::write`].
+pub fn render_with(
+    document: &ReportDocument,
+    prelude: &[Block],
+    created_at: &DateTime<FixedOffset>,
+    photos: &images::Images,
+) -> Result<pdf::Rendered> {
     let blocks: Vec<Block> = prelude.iter().chain(&document.blocks).cloned().collect();
-    let pages = layout::lay_out(
+    let pages = layout::lay_out_with(
         &document.title,
         &document.subtitle,
         document.page_size,
         document.language,
         &blocks,
+        &images::sizes(photos),
     );
     pdf::write(
         &pages,
@@ -187,5 +225,6 @@ pub fn render(
             language: document.language,
             created_at: *created_at,
         },
+        photos,
     )
 }

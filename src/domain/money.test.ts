@@ -50,6 +50,7 @@ const commitment = (
   amountCents,
   agreedOn: '2026-08-28',
   documentHash: null,
+  milestones: [],
 });
 
 const payment = (

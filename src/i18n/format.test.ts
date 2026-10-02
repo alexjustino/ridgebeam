@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   currencyLabel,
   formatDay,
+  formatDayColumn,
+  formatDayWeekday,
   formatMoney,
   formatNumber,
   fromCents,
@@ -19,6 +21,14 @@ describe('formatting through Intl', () => {
   it('reads a day as a calendar day, never shifted by a time zone', () => {
     expect(formatDay('en', '2026-09-25')).toBe('September 25, 2026');
     expect(formatDay('pt-BR', '2026-09-25')).toBe('25 de setembro de 2026');
+  });
+
+  it('says a day of the next two weeks with its weekday, and no year (D4)', () => {
+    expect(formatDayWeekday('en', '2026-10-05')).toBe('Monday, Oct 5');
+    expect(formatDayWeekday('pt-BR', '2026-10-05')).toBe('segunda-feira, 5 de out.');
+    expect(formatDayColumn('en', '2026-10-05')).toContain('Mon');
+    expect(formatDayColumn('pt-BR', '2026-10-05')).toContain('seg');
+    expect(formatDayWeekday('en', 'not a day')).toBe('not a day');
   });
 
   it('shows a value that is not a day as it is, rather than "Invalid Date"', () => {

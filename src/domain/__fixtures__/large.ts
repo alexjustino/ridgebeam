@@ -17,6 +17,7 @@ import type {
   CostLine,
   Decision,
   Dependency,
+  Milestone,
   Payment,
   Person,
   Stage,
@@ -130,8 +131,22 @@ export function largeWork(seed = 20260928): { plan: WorkSnapshot; entries: Diary
   }));
 
   const checks: Check[] = stages.flatMap((each) => [
-    { id: `${each.id}-start`, stageId: each.id, gate: 'start' as const, position: 1, name: 'S' },
-    { id: `${each.id}-close`, stageId: each.id, gate: 'close' as const, position: 1, name: 'C' },
+    {
+      id: `${each.id}-start`,
+      stageId: each.id,
+      gate: 'start' as const,
+      position: 1,
+      name: 'S',
+      needsPhoto: false,
+    },
+    {
+      id: `${each.id}-close`,
+      stageId: each.id,
+      gate: 'close' as const,
+      position: 1,
+      name: 'C',
+      needsPhoto: false,
+    },
   ]);
   const checkAnswers: CheckAnswer[] = stages.slice(0, 10).map((each, i) => ({
     id: `ans${i}`,
@@ -162,6 +177,41 @@ export function largeWork(seed = 20260928): { plan: WorkSnapshot; entries: Diary
     })),
   ];
 
+  // Payment plans (slice D2), without drawing from the generator so the rest of the work is the same
+  // as before them: the usual plan, an advance and an activity, the stage's two gates, or none.
+  const milestonesOf = (i: number): Milestone[] => {
+    const stageIndex = i % LARGE.stages;
+    const last = `a${stageIndex * perStage + perStage - 1}`;
+    const middle = `a${stageIndex * perStage + perStage / 2}`;
+    const step = (
+      n: number,
+      shareBp: number,
+      trigger: Milestone['trigger'],
+      activityId: string | null = null,
+    ): Milestone => ({
+      id: `k${i}-m${n}`,
+      position: n,
+      label: `Milestone ${n}`,
+      shareBp,
+      trigger,
+      activityId,
+    });
+    switch (i % 4) {
+      case 0:
+        return [
+          step(1, 3_000, 'stage_started'),
+          step(2, 4_000, 'activity_finished', last),
+          step(3, 3_000, 'stage_closed'),
+        ];
+      case 1:
+        return [step(1, 3_000, 'advance'), step(2, 7_000, 'activity_finished', middle)];
+      case 2:
+        return [];
+      default:
+        return [step(1, 5_000, 'stage_started'), step(2, 4_000, 'stage_closed')];
+    }
+  };
+
   const commitments: Commitment[] = Array.from({ length: LARGE.commitments }, (_, i) => ({
     id: `k${i}`,
     stageId: `s${i % LARGE.stages}`,
@@ -170,6 +220,7 @@ export function largeWork(seed = 20260928): { plan: WorkSnapshot; entries: Diary
     amountCents: 10_000_00 + int(50_000_00),
     agreedOn: START,
     documentHash: null,
+    milestones: milestonesOf(i),
   }));
 
   // Every fiftieth payment reverses the one before it; the rest pay a commitment or a stage.

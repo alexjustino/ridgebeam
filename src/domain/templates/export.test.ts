@@ -44,10 +44,38 @@ const WORK: WorkSnapshot = snapshot({
     { ...activity('orphan', 'nowhere', 1, 3), name: 'Orphan' },
   ],
   checks: [
-    { id: 'c2', stageId: 's1', gate: 'start', position: 2, name: 'Is the power off?' },
-    { id: 'c1', stageId: 's1', gate: 'start', position: 1, name: 'Is the water off?' },
-    { id: 'c4', stageId: 's2', gate: 'close', position: 1, name: 'Is the grout sealed?' },
-    { id: 'c3', stageId: 's2', gate: 'close', position: 1, name: 'Is the floor clean?' },
+    {
+      id: 'c2',
+      stageId: 's1',
+      gate: 'start',
+      position: 2,
+      name: 'Is the power off?',
+      needsPhoto: false,
+    },
+    {
+      id: 'c1',
+      stageId: 's1',
+      gate: 'start',
+      position: 1,
+      name: 'Is the water off?',
+      needsPhoto: false,
+    },
+    {
+      id: 'c4',
+      stageId: 's2',
+      gate: 'close',
+      position: 1,
+      name: 'Is the grout sealed?',
+      needsPhoto: false,
+    },
+    {
+      id: 'c3',
+      stageId: 's2',
+      gate: 'close',
+      position: 1,
+      name: 'Is the floor clean?',
+      needsPhoto: false,
+    },
   ],
   costLines: [
     { id: 'l1', stageId: 's1', activityId: null, label: 'Skip hire', amountCents: 450_00 },
@@ -203,7 +231,16 @@ describe('exportTemplate', () => {
       snapshot({
         stages: [stage('s', 1, 'y'.repeat(130))],
         activities: [{ ...activity('a', 's', 1, 3650), name: '   ' }],
-        checks: [{ id: 'c', stageId: 's', gate: 'close', position: 1, name: 'z'.repeat(250) }],
+        checks: [
+          {
+            id: 'c',
+            stageId: 's',
+            gate: 'close',
+            position: 1,
+            name: 'z'.repeat(250),
+            needsPhoto: false,
+          },
+        ],
       }),
       options({ numbers: 'keep' }),
     );
