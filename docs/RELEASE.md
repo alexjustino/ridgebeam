@@ -107,8 +107,8 @@ release that skipped a step is a release nobody can reason about afterwards.
      slip and money as before; the old folder is still where it was, untouched. Then flip one byte
      of a copy of the file in a hex editor and restore that copy: it is refused with a sentence,
      and no folder is left behind;
-   - **drop files from Explorer**, which the suite cannot do — WebDriver cannot perform an operating
-     system's drop. Drag two photos from a folder in Explorer over the **Diary**: before they land,
+   - **drop files from Explorer**: the suite emits Tauri's own drop event to the window and checks
+     everything after it, but no test performs the operating system's gesture itself. Drag two photos from a folder in Explorer over the **Diary**: before they land,
      one overlay over the whole window says they will join the entry's photos; drop them, and they
      are listed with the entry's photos, **More…** open. Save the entry: the photos show on its
      card. On **Documents**, choose a kind in the form and drag a real PDF and a Word file onto the
