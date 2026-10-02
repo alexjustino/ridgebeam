@@ -594,6 +594,20 @@ breaks one is not merged.
   A care note is printed as the person wrote it, and never offered by the product as advice. Where a
   check needs a photo, its photo field is open from the start and the Gates tab says why, so nobody
   learns of the rule from a refusal (ADR-038).
+- **A file meant to be sent carries nothing that runs and nothing the reader did not need.** The
+  owner's snapshot is read on somebody else's phone, in a browser the product never sees, and may be
+  forwarded from there. So it has **no script, no link and nothing loaded from anywhere**: a figure
+  opens onto its rows through `<details>` and `<summary>`, which need none, and the summary is a tap
+  target at least 44 pixels tall; the style is inline, in the system's own fonts, one readable
+  column at most 42 rem wide, a wide table scrolling sideways inside its own box rather than the
+  page; **light and dark follow the reader's phone** through `prefers-color-scheme`, never a toggle;
+  and printed, its figures are shown open where the browser allows. It holds what the owner needs to
+  know where the work stands and **nothing else**: no phone number, no e-mail address, no document,
+  no control that would suggest it can be answered. Its words are the screen's, in the owner's lens
+  and the language on screen, and its **last line says the day it was written and that it does not
+  change when the work does**, because a file that looks live will be read as if it were. The card
+  that writes it says what it holds and what it does not, and that **sending it is the person's**;
+  the product offers no Send button, because it sends nothing (ADR-039).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
