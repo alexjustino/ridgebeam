@@ -43,7 +43,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.1.1",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^5.0.3",
     "axe-core": "^4.13.0",
     "eslint": "^10.9.1",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -54,7 +54,7 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.69.0",
     "vite": "^8.3.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.3"
   },
   "description": "A works planner for the engineer, the architect and the person building once: the plan is intent, the diary is fact, and the plan says what it does not yet know.",
   "license": "Apache-2.0",
