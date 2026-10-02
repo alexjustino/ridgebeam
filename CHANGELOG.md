@@ -979,3 +979,54 @@ person's act**, by WhatsApp, by e-mail or any other way. The product still sends
   a percent.
 - **Workflows.** `actions/upload-artifact` 7 and `softprops/action-gh-release` 3, both on the Node 24
   runtime.
+
+### Added in U1 — before the first real work
+
+The owner runs his acceptance test on a real work next. U1 takes away the friction a first real
+week meets: photos already sitting in Explorer, the same crew ticked one by one every evening, and a
+backup nobody is reminded of. Nothing new reaches the host, and the product still never backs up on
+its own (ADR-040).
+
+- **Drop files on the window.** Files dragged from Explorer are taken in exactly as if they had been
+  chosen in the dialog, through the same intake and refused with the same sentences. A drop takes
+  only what that screen's dialog would offer — photos on the Diary, photos and PDFs on Documents —
+  and every other name, a folder's included, is left out and named in one sentence: _"Week 1 was
+  left out: it is a folder, or not a kind of file taken here."_ A folder whose name ends like a
+  photo's reaches the host, which refuses it by name. On the **Diary** the photos join the entry
+  being written — **More…** opens if it was closed — and are copied into the work when the entry is
+  saved. On **Documents** the files are added at once, with the kind the form has selected, attached
+  to what the page is filtered on (the work when it is not), and refusals in the page's list of
+  files not kept. Anywhere else, with no work open, or before the diary's form is on the screen, a
+  sentence says _"Drop photos on the Diary, or files on Documents."_ and nothing happens; it stays
+  as an information bar at the top of the content, announced and closable, until the next screen or
+  the next drag. While files are over the window, one overlay (`drop-hint`) says what will happen on
+  this screen, in its own polite live region; it is gone when the files leave or land, and does not
+  move under reduced motion.
+- **Same people as last time.** The diary entry offers **Same people as {day}**, which ticks the
+  people present in the latest effective entry that names anybody — corrections applied — adding to
+  what is ticked and never unticking. People since removed from the plan are skipped, and the form
+  says how many; if all of them are gone it ticks nobody and says so. Each press is announced. It is
+  not offered when no entry names anybody, when the plan has no people, or while a correction is
+  written. The rule is pure, in the domain (`lastPresence`).
+- **A reminder to back up.** The dashboard says, in a muted line under its header and never in red,
+  _"This work has never been backed up on this machine."_ when it holds a diary entry or an
+  activity, or _"The last backup was {days} days ago, and the work has changed since."_ when the
+  last backup is more than 7 days old and the work has changed after it. **Back up now…** (_Fazer a
+  cópia de segurança agora…_) goes to **Settings → This work** with the focus on the backup's file
+  field, where the existing backup is written; after a backup the line is gone. **Not now** hides it
+  for that work until the product is next started, as a skipped question is. The rule is pure, in
+  the domain (`backupDue`), from the day of the last backup this machine wrote; nothing new is
+  stored. The product still never backs up on its own.
+- **The owner's snapshot follows the product's own rules.** Under **The next two weeks**, a gate
+  with no checks is no longer listed or counted among the gates coming up, and the decisions are
+  chosen by the same rule as the decisions screen and the weekly report — overdue, or due within the
+  next 14 days, day 14 included — from the same function (`decisionsDueWithin`).
+- **Documentation.** ADR-040, with its costs — a drop on the wrong screen does nothing and says so;
+  the reminder can be ignored, knows only the backups this machine wrote, and the product still
+  never backs up on its own; "same people" can tick somebody who was not there, and the person still
+  answers for the entry; the snapshot's decisions follow the same 14-day rule as the rest, one day
+  past the rest of its window. ADR-033 and ADR-039 point to it where it amends them.
+  [`SECURITY.md`](SECURITY.md): a dropped path goes through the same intake as a chosen one, and
+  nothing new reaches the host. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a drop zone is the
+  window, and it says what a drop will do_. [`docs/RELEASE.md`](docs/RELEASE.md): files dropped from
+  Explorer on the Diary and on Documents, "same people", and the reminder on a work never backed up.
