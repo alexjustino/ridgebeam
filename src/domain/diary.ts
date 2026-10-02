@@ -26,7 +26,13 @@
 
 import { addCalendarDays, isIsoDay, isWorkingDay, type WorkingCalendar } from './calendar';
 import { counted, type Figure, type ReportRow } from './figure';
-import { activitiesInOrder, compareText, stagesInOrder, type WorkSnapshot } from './plan';
+import {
+  activitiesInOrder,
+  compareText,
+  stagesInOrder,
+  type Person,
+  type WorkSnapshot,
+} from './plan';
 
 // ── The host's contract ──────────────────────────────────────────────────────
 
@@ -335,6 +341,40 @@ export function thisWeek(entries: readonly DiaryEntry[], today: string): ThisWee
     people: [...new Set(inWeek.flatMap((entry) => entry.present))],
     entries: inWeek,
   };
+}
+
+/** Who was on site the last time anyone was, as the diary's form offers it again (slice U1). */
+export interface LastPresence {
+  /** The day of that entry. */
+  readonly day: string;
+  /** The people it says were on site who are still in the plan, each once, in its order. */
+  readonly personIds: readonly string[];
+  /** How many of the people it names are no longer in the plan: not offered, and said so. */
+  readonly missing: number;
+}
+
+/**
+ * The people of the latest effective entry that says anyone was on site: the latest day, and on
+ * that day the entry written last. A correction speaks for the entry it corrects, as everywhere
+ * (`effectiveEntries`): a corrected entry's people are never offered, its correction's are. An
+ * entry with nobody present is passed over (a day nobody came says nothing about who comes).
+ * `null` when no effective entry names anyone. People since removed from the plan are left out of
+ * `personIds` and counted in `missing`, so `personIds` can be empty while `missing` is not.
+ */
+export function lastPresence(
+  entries: readonly DiaryEntry[],
+  people: readonly Pick<Person, 'id'>[],
+): LastPresence | null {
+  let latest: DiaryEntry | null = null;
+  for (const entry of effectiveEntries(entries)) {
+    if (entry.present.length === 0) continue;
+    if (latest === null || entry.day >= latest.day) latest = entry;
+  }
+  if (latest === null) return null;
+  const inPlan = new Set(people.map((person) => person.id));
+  const named = [...new Set(latest.present)];
+  const personIds = named.filter((id) => inPlan.has(id));
+  return { day: latest.day, personIds, missing: named.length - personIds.length };
 }
 
 // ── Checking a draft before the host is asked ────────────────────────────────

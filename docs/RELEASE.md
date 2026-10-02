@@ -107,6 +107,30 @@ release that skipped a step is a release nobody can reason about afterwards.
      slip and money as before; the old folder is still where it was, untouched. Then flip one byte
      of a copy of the file in a hex editor and restore that copy: it is refused with a sentence,
      and no folder is left behind;
+   - **drop files from Explorer**: the suite emits Tauri's own drop event to the window and checks
+     everything after it, but no test performs the operating system's gesture itself. Drag two photos from a folder in Explorer over the **Diary**: before they land,
+     one overlay over the whole window says they will join the entry's photos; drop them, and they
+     are listed with the entry's photos, **More…** open. Save the entry: the photos show on its
+     card. On **Documents**, choose a kind in the form and drag a real PDF and a Word file onto the
+     page: the PDF is added at once with that kind, attached to the work, and the Word file is left
+     out by name — _"… was left out: it is a folder, or not a kind of file taken here."_ Filter the
+     page on a stage and drop a photo: it is attached to that stage. Drag a folder onto either page
+     and see it left out by name; rename a folder to end in `.jpg`, drop it on Documents, and see
+     the host refuse it by name in the page's list. Drop a photo on the **Schedule**: an information
+     bar at the top says where files can be dropped, nothing is added anywhere, and the bar closes
+     with its button and goes when you change screen. Drag files over the window and back out
+     without dropping: the overlay goes. Do it once in Portuguese;
+   - **tick "same people"**: on a day after an entry naming two people, open the diary entry and
+     press **Same people as {day}**: exactly those two are ticked, anyone already ticked stays
+     ticked, and the press is announced. Remove one of them from the plan, press it again on a new
+     day, and read that one of them is no longer in the plan. While writing a correction, the button
+     is not there;
+   - **see the backup reminder**: open a work with a diary entry that has never been backed up. The
+     dashboard says, in a muted line under its header, _"This work has never been backed up on this
+     machine."_; **Back up now…** lands on **Settings → This work** with the focus on the backup's
+     file field. Write the backup there, go back to the dashboard, and the line is gone. Press **Not
+     now** on another work and see it come back after a restart. In Portuguese the button reads
+     _Fazer a cópia de segurança agora…_;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and

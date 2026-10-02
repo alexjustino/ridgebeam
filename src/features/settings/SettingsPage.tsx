@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import type { SettingKey, Settings } from '@/data/commands';
 import { useSetSetting, useSettings, useWork } from '@/data/queries';
 import {
@@ -25,6 +27,9 @@ const THEME_KEYS: Record<ThemeChoice, MessageKey> = {
   dark: 'settings.theme.dark',
 };
 
+/** A card another page may ask Settings to open on, with the focus on its path field. */
+export type SettingsFocus = 'backup';
+
 /**
  * Settings: how the application looks, which language it speaks, and which lens it will show a
  * work through — and, while a work is open, **This work**: its backup (F11, decision 4).
@@ -33,12 +38,37 @@ const THEME_KEYS: Record<ThemeChoice, MessageKey> = {
  * button to forget. The choice shows before the host has answered (the theme changes, the words
  * change), and a choice the host refused goes back to what it was, with the host's sentence
  * under the card that asked (DESIGN_SYSTEM §8, the Defaults card).
+ *
+ * Opened from the dashboard's backup reminder (U1), it opens on This work with the focus on the
+ * backup's path field — the D4 pattern of Reports' snapshot card — so the next key the person
+ * presses types where the backup goes, and the backup is the one flow that already exists.
  */
-export function SettingsPage({ settings }: { settings: Settings }) {
+export function SettingsPage({
+  settings,
+  initialFocus = null,
+  onFocusTaken,
+}: {
+  settings: Settings;
+  /** The card to open on — the dashboard's "Back up now…" (U1) — or `null` for the top. */
+  initialFocus?: SettingsFocus | null;
+  /** Called once the focus has been put on `initialFocus`, so it is not taken twice. */
+  onFocusTaken?: () => void;
+}) {
   const { t, describeError } = useI18n();
   const read = useSettings();
   const work = useWork();
   const snapshot = work.isError ? null : (work.data ?? null);
+  const hasWork = snapshot !== null;
+
+  useEffect(() => {
+    if (initialFocus === null || !hasWork) return;
+    const field = document.querySelector<HTMLElement>(`main [data-testid="${initialFocus}-path"]`);
+    if (field !== null) {
+      field.focus();
+      field.scrollIntoView?.({ block: 'center' });
+    }
+    onFocusTaken?.();
+  }, [initialFocus, hasWork, onFocusTaken]);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">

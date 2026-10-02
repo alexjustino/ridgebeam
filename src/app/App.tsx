@@ -16,8 +16,9 @@ import { DocumentsPage } from '@/features/documents/DocumentsPage';
 import { PlanPage } from '@/features/plan/PlanPage';
 import { ReportsPage, type ReportsFocus } from '@/features/reports/ReportsPage';
 import { SchedulePage } from '@/features/schedule/SchedulePage';
-import { SettingsPage } from '@/features/settings/SettingsPage';
+import { SettingsPage, type SettingsFocus } from '@/features/settings/SettingsPage';
 import { DESTINATION_LABELS, NEEDS_WORK, type Destination } from '@/features/shell/destinations';
+import { DropNotice, DropZone } from '@/features/shell/DropZone';
 import { Sidebar } from '@/features/shell/Sidebar';
 import { TitleBar } from '@/features/shell/TitleBar';
 import { StartPage } from '@/features/start/StartPage';
@@ -64,6 +65,10 @@ export function App({ settings }: { settings: Settings }) {
   // has put the focus on its path field, then let go, so the next visit opens at the top as usual.
   const [reportsFocus, setReportsFocus] = useState<ReportsFocus | null>(null);
   const releaseReportsFocus = useCallback(() => setReportsFocus(null), []);
+  // The card the dashboard's backup reminder asked Settings to open on (U1): held until Settings has
+  // put the focus on the backup's path field, then let go, as for Reports above.
+  const [settingsFocus, setSettingsFocus] = useState<SettingsFocus | null>(null);
+  const releaseSettingsFocus = useCallback(() => setSettingsFocus(null), []);
   const navigation: Navigation = useMemo(
     () => ({
       openDocuments: (target) => {
@@ -85,6 +90,10 @@ export function App({ settings }: { settings: Settings }) {
       openSnapshot: () => {
         setReportsFocus('snapshot');
         setDestination('reports');
+      },
+      openBackup: () => {
+        setSettingsFocus('backup');
+        setDestination('settings');
       },
     }),
     [],
@@ -127,110 +136,123 @@ export function App({ settings }: { settings: Settings }) {
 
   return (
     <NavigationContext.Provider value={navigation}>
-      <div className="flex h-full flex-col overflow-hidden rounded-lg">
-        <TitleBar workName={snapshot?.work.name ?? null} lens />
-        <div className="flex min-h-0 flex-1">
-          <Sidebar
-            active={showsStart ? null : destination}
-            hasWork={hasWork}
-            onNavigate={(next) => {
-              if (next === 'documents') setDocumentsFilter(null);
-              if (next === 'diary') setDiaryFocus(null);
-              if (next === 'money') setMoneyFocus(null);
-              if (next === 'reports') setReportsFocus(null);
-              setDestination(next);
-            }}
-          />
-          <main
-            tabIndex={0}
-            aria-label={showsStart ? t('start.title') : t(DESTINATION_LABELS[destination])}
-            className="min-w-0 flex-1 overflow-y-auto bg-layer focus-visible:-outline-offset-2"
-          >
-            {/* A work that was open and can no longer be read — its folder moved, its database
-              refused — is said, with the way out beside it, never shown as an empty plan. */}
-            {work.isError && (
-              <div className="mx-auto w-full max-w-3xl px-6 pt-6">
-                <InfoBar
-                  severity={errorKind(work.error) === 'work_moved' ? 'caution' : 'danger'}
-                  title={t('shell.workUnread')}
-                >
-                  <p>{describeError(work.error)}</p>
-                  <div className="mt-2">
-                    <Button onClick={closeWork} disabled={close.isPending}>
-                      {t('shell.workClose')}
-                    </Button>
-                  </div>
-                </InfoBar>
-              </div>
-            )}
+      {/* One listener for files dropped from Explorer, for the whole window (U1): the screen on
+          show decides what a drop does, and a screen that takes none says where to drop instead. */}
+      <DropZone destination={destination} workOpen={hasWork}>
+        <div className="flex h-full flex-col overflow-hidden rounded-lg">
+          <TitleBar workName={snapshot?.work.name ?? null} lens />
+          <div className="flex min-h-0 flex-1">
+            <Sidebar
+              active={showsStart ? null : destination}
+              hasWork={hasWork}
+              onNavigate={(next) => {
+                if (next === 'documents') setDocumentsFilter(null);
+                if (next === 'diary') setDiaryFocus(null);
+                if (next === 'money') setMoneyFocus(null);
+                if (next === 'reports') setReportsFocus(null);
+                if (next === 'settings') setSettingsFocus(null);
+                setDestination(next);
+              }}
+            />
+            <main
+              tabIndex={0}
+              aria-label={showsStart ? t('start.title') : t(DESTINATION_LABELS[destination])}
+              className="min-w-0 flex-1 overflow-y-auto bg-layer focus-visible:-outline-offset-2"
+            >
+              <DropNotice />
 
-            {work.isPending ? (
-              <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
-                <div className="h-9 w-48 rounded-md bg-card-hover" />
-                <div className="h-40 rounded-xl bg-card-hover" />
-              </div>
-            ) : (
-              <>
-                {showsStart && <StartPage onOpened={onStart} />}
-                {!showsStart && destination === 'dashboard' && snapshot !== null && (
-                  <DashboardPage
-                    snapshot={snapshot}
-                    onClose={closeWork}
-                    closing={close.isPending}
-                    closeError={close.isError ? describeError(close.error) : null}
-                  />
-                )}
-                {!showsStart && destination === 'plan' && snapshot !== null && (
-                  <PlanPage
-                    snapshot={snapshot}
-                    calendarOpen={calendarOpen}
-                    onCalendarOpen={setCalendarOpen}
-                    initialFocus={planFocus}
-                    onFocusTaken={releasePlanFocus}
-                  />
-                )}
-                {!showsStart && destination === 'schedule' && snapshot !== null && (
-                  <SchedulePage snapshot={snapshot} />
-                )}
-                {!showsStart && destination === 'decisions' && snapshot !== null && (
-                  <DecisionsPage snapshot={snapshot} onEdit={editInPlan} />
-                )}
-                {!showsStart && destination === 'diary' && snapshot !== null && (
-                  <DiaryPage
-                    snapshot={snapshot}
-                    initialEntry={diaryFocus}
-                    onFocusTaken={releaseDiaryFocus}
-                  />
-                )}
-                {!showsStart && destination === 'money' && snapshot !== null && (
-                  <MoneyPage
-                    snapshot={snapshot}
-                    initialCommitment={moneyFocus}
-                    onFocusTaken={releaseMoneyFocus}
-                  />
-                )}
-                {!showsStart && destination === 'documents' && snapshot !== null && (
-                  <DocumentsPage
-                    key={documentsFilter ?? 'all'}
-                    snapshot={snapshot}
-                    initialTarget={documentsFilter}
-                  />
-                )}
-                {!showsStart && destination === 'reports' && snapshot !== null && (
-                  <ReportsPage
-                    snapshot={snapshot}
-                    initialFocus={reportsFocus}
-                    onFocusTaken={releaseReportsFocus}
-                  />
-                )}
-                {destination === 'settings' && <SettingsPage settings={settings} />}
-                {destination === 'diagnostics' && <DiagnosticsPage />}
-                {destination === 'about' && <AboutPage />}
-              </>
-            )}
-          </main>
+              {/* A work that was open and can no longer be read — its folder moved, its database
+              refused — is said, with the way out beside it, never shown as an empty plan. */}
+              {work.isError && (
+                <div className="mx-auto w-full max-w-3xl px-6 pt-6">
+                  <InfoBar
+                    severity={errorKind(work.error) === 'work_moved' ? 'caution' : 'danger'}
+                    title={t('shell.workUnread')}
+                  >
+                    <p>{describeError(work.error)}</p>
+                    <div className="mt-2">
+                      <Button onClick={closeWork} disabled={close.isPending}>
+                        {t('shell.workClose')}
+                      </Button>
+                    </div>
+                  </InfoBar>
+                </div>
+              )}
+
+              {work.isPending ? (
+                <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
+                  <div className="h-9 w-48 rounded-md bg-card-hover" />
+                  <div className="h-40 rounded-xl bg-card-hover" />
+                </div>
+              ) : (
+                <>
+                  {showsStart && <StartPage onOpened={onStart} />}
+                  {!showsStart && destination === 'dashboard' && snapshot !== null && (
+                    <DashboardPage
+                      snapshot={snapshot}
+                      onClose={closeWork}
+                      closing={close.isPending}
+                      closeError={close.isError ? describeError(close.error) : null}
+                    />
+                  )}
+                  {!showsStart && destination === 'plan' && snapshot !== null && (
+                    <PlanPage
+                      snapshot={snapshot}
+                      calendarOpen={calendarOpen}
+                      onCalendarOpen={setCalendarOpen}
+                      initialFocus={planFocus}
+                      onFocusTaken={releasePlanFocus}
+                    />
+                  )}
+                  {!showsStart && destination === 'schedule' && snapshot !== null && (
+                    <SchedulePage snapshot={snapshot} />
+                  )}
+                  {!showsStart && destination === 'decisions' && snapshot !== null && (
+                    <DecisionsPage snapshot={snapshot} onEdit={editInPlan} />
+                  )}
+                  {!showsStart && destination === 'diary' && snapshot !== null && (
+                    <DiaryPage
+                      snapshot={snapshot}
+                      initialEntry={diaryFocus}
+                      onFocusTaken={releaseDiaryFocus}
+                    />
+                  )}
+                  {!showsStart && destination === 'money' && snapshot !== null && (
+                    <MoneyPage
+                      snapshot={snapshot}
+                      initialCommitment={moneyFocus}
+                      onFocusTaken={releaseMoneyFocus}
+                    />
+                  )}
+                  {!showsStart && destination === 'documents' && snapshot !== null && (
+                    <DocumentsPage
+                      key={documentsFilter ?? 'all'}
+                      snapshot={snapshot}
+                      initialTarget={documentsFilter}
+                    />
+                  )}
+                  {!showsStart && destination === 'reports' && snapshot !== null && (
+                    <ReportsPage
+                      snapshot={snapshot}
+                      initialFocus={reportsFocus}
+                      onFocusTaken={releaseReportsFocus}
+                    />
+                  )}
+                  {destination === 'settings' && (
+                    <SettingsPage
+                      settings={settings}
+                      initialFocus={settingsFocus}
+                      onFocusTaken={releaseSettingsFocus}
+                    />
+                  )}
+                  {destination === 'diagnostics' && <DiagnosticsPage />}
+                  {destination === 'about' && <AboutPage />}
+                </>
+              )}
+            </main>
+          </div>
         </div>
-      </div>
+      </DropZone>
     </NavigationContext.Provider>
   );
 }

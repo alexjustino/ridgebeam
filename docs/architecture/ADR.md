@@ -35,6 +35,11 @@ hidden behind walls and floors, which a check can now require before it is answe
 a phone — one HTML file with no script and nothing loaded from anywhere, which the person sends
 themselves ([ADR-039](#adr-039)).
 
+Before the owner's first real work, slice U1 takes away the friction a first week meets: a file
+dropped on the window is taken in as if it had been chosen in the dialog, the diary offers the same
+people as last time, and the dashboard reminds — quietly — when the work has not been backed up,
+while the product still never backs one up on its own ([ADR-040](#adr-040)).
+
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | [001](#adr-001) | The product is named Ridgebeam                                                                                        | Accepted — 2026-09-24, by Alex |
@@ -76,6 +81,7 @@ themselves ([ADR-039](#adr-039)).
 | [037](#adr-037) | A payment plan is earned by facts, and paying ahead is warned, not refused                                            | Accepted — 2026-09-29          |
 | [038](#adr-038) | The handover book: the work's record for its owner, photos of hidden work required where it matters                   | Accepted — 2026-10-01          |
 | [039](#adr-039) | The owner's snapshot: one file with no script, rendered by the host, sent by the person                               | Accepted — 2026-10-02          |
+| [040](#adr-040) | Before the first real work: a drop is a choice, and the product reminds but never backs up on its own                 | Accepted — 2026-10-02          |
 
 ---
 
@@ -1735,7 +1741,8 @@ says the chain is verified.
 
 ## ADR-033 — A backup is one ZIP with a manifest; restore makes a new folder and proves it byte for byte {#adr-033}
 
-**Status.** Accepted — 2026-09-28.
+**Status.** Accepted — 2026-09-28. Its cost that the product "never reminds" is amended by
+[ADR-040](#adr-040): the dashboard now reminds, and the product still never backs up on its own.
 
 **Context.** The specification's first risk is critical: a diary entry lost, or a baseline
 overwritten (R1). Append-only tables and a chain ([ADR-016](#adr-016), [ADR-019](#adr-019)) keep the
@@ -2279,7 +2286,8 @@ never reproduced: the book points to it, and the work's folder keeps it.
 
 ## ADR-039 — The owner's snapshot: one file with no script, rendered by the host, sent by the person {#adr-039}
 
-**Status.** Accepted — 2026-10-02.
+**Status.** Accepted — 2026-10-02. Two details of its lookahead — gates with no checks, and the
+decisions' window — are amended by [ADR-040](#adr-040).
 
 **Context.** The fourth differentiator ([ADR-036](#adr-036)). The owner of a small work is rarely
 where the product runs: they are at their own job, and at the end of the day they ask, by message,
@@ -2402,3 +2410,118 @@ accept a gate or write in the diary through it — and two snapshots are two cop
 messaging app may show it differently again, and a viewer that ignores the security policy still
 gets a file with nothing in it to run. No script also means no search, no filter and no sorting on
 the page: what it shows is what the composer put there.
+
+## ADR-040 — Before the first real work: a drop is a choice, and the product reminds but never backs up on its own {#adr-040}
+
+**Status.** Accepted — 2026-10-02.
+
+**Context.** With D1 to D4 in `develop`, the owner's next step is the one the specification has
+asked for since F12: a real work of his own, planned and run through the diary, at his acceptance
+test. A first real week meets friction the end-to-end suite never feels. The day's photos are
+already in a folder in Explorer, and the diary sends the person to find them again in a dialog; a
+quote arrives as a PDF on the desktop, and **Documents** asks for the same. The same crew is on site
+most days, and the diary asks for them to be ticked one by one, every day. The work can be backed up
+as one file ([ADR-033](#adr-033)), but nothing on the screens a person uses every day says when it
+last was: ADR-033 left "never" in Settings as the only nudge, and Settings is not where anybody goes
+on a working day. And the owner's snapshot ([ADR-039](#adr-039)) had two details out of step with
+the rest of the product: a gate with no checks at all was listed under the gates coming up, as a
+gate with nothing holding it, and its decisions stopped one day short of the rule the decisions
+screen and the weekly report use.
+
+**Decision.**
+
+- **A drop is a choice.** Files dragged from Explorer and dropped on the window are taken in exactly
+  as if they had been chosen in the dialog. The webview's own drag-and-drop event gives their paths,
+  and the interface hands them to the **same intake** the dialog's paths go to — no new command, and
+  nothing new reaches the host. A drop takes only what that screen's dialog would offer — photos on
+  the Diary, photos and PDFs on Documents — and every other name is left out and named in one
+  sentence: _"Week 1 was left out: it is a folder, or not a kind of file taken here."_ The interface
+  cannot tell a folder from a file, since it has no file-system access, so a folder whose name ends
+  like a photo's still reaches the host, which refuses it by name. Where the files go depends on the
+  screen. On the **Diary** they join the photos of the entry being written, as **Add photos…** would
+  add them — **More…** opens if it was closed — and, like chosen ones, they are copied into the work
+  only when the entry is saved. On **Documents** they are added at once, through the same add as the
+  page's own form: with the kind the form has selected, attached to what the page is filtered on, or
+  to the work when it is not filtered, and with refusals in the page's own list of files not kept.
+  On any other screen, with no work open, or before the diary's form is on the screen, a sentence
+  says where files can be dropped — _"Drop photos on the Diary, or files on Documents."_ — and
+  nothing happens. What reaches the host is refused in the same sentences as a chosen file, because
+  it is the same intake: the host types a file by its bytes and measures it whatever its name
+  ([ADR-025](#adr-025)).
+- **One overlay says what a drop will do.** While files are over the window, one overlay covers the
+  whole window and says what will happen on this screen: that they will join the entry's photos,
+  that they will be added to the work's documents, or that nothing will happen here and where to go
+  instead. It has its own polite live region, it is gone when the files leave or land, and it does
+  not move when the person has asked for reduced motion. After a drop that nothing took, the
+  sentence stays as an information bar at the top of the content, announced, that can be closed, and
+  goes at the next screen or the next drag ([`DESIGN_SYSTEM.md`](../../DESIGN_SYSTEM.md) §8).
+- **Same people as last time.** Under the list of people in the diary entry, **Same people as
+  {day}** ticks exactly the people present in the latest **effective** entry that names anybody — a
+  correction replaces what it corrects, as everywhere else ([ADR-019](#adr-019)), and a day nobody
+  came says nothing about who comes. It adds to what is already ticked and never unticks anybody. A
+  person present that day and since removed from the plan is skipped, and the form says how many:
+  _"2 of them are no longer in the plan."_ If all of them are gone, the button is still there;
+  pressing it ticks nobody and says so. Each press is announced. The button is not shown when no
+  entry names anybody, when the plan has no people, or while a correction is being written, which
+  says who was there on its own day. Who was there is still the person's answer, entry by entry
+  ([ADR-026](#adr-026)); the button only saves the ticking. The rule is the domain's
+  (`lastPresence`), pure and tested.
+- **The product reminds; it still never backs up on its own.** The dashboard says, quietly, under
+  its header, when the work **has never been backed up on this machine** and holds anything at all —
+  a diary entry or an activity — or when **the last backup is more than 7 calendar days old and the
+  work has changed since**: _"This work has never been backed up on this machine."_ or _"The last
+  backup was 9 days ago, and the work has changed since."_ Exactly 7 days is not yet stale; 8 is.
+  The rule is the domain's (`backupDue`), from the day of the last backup this machine wrote
+  ([ADR-033](#adr-033)) and the latest moment the work records — an entry written, a payment, a
+  check answered, a stage started or closed, a decision made, a document added, a baseline taken —
+  and nothing new is stored. A change on the day of the backup counts as backed up, since the host
+  keeps only the day. The line is muted and never red: a missing backup is a risk to the record, not
+  a fault in the plan. Its button, **Back up now…** (_Fazer a cópia de segurança agora…_, the
+  glossary's term), goes to **Settings → This work** with the focus on the backup's file field — the
+  same move as **Owner's snapshot…** ([ADR-039](#adr-039)) — so the backup is written by the one
+  flow that already exists, and it is still the person who chooses where and presses the button.
+  Once a backup is written the line is gone. **Not now** hides it for this work until the product is
+  next started, as **Skip for now** does for a question, and nothing of it is stored.
+- **The snapshot follows the product's own rules.** In **The next two weeks**, a gate with no checks
+  at all is neither listed nor counted under the gates coming up: it holds nothing, and readiness
+  already says that a stage has no checks ([ADR-018](#adr-018)). The snapshot's decisions are chosen
+  by the same predicate as the decisions screen and the weekly report — open, and overdue or due
+  within the next 14 days, day 14 included — from the same function (`decisionsDueWithin`, with the
+  weekly report's window), not a copy of it. This amends those two details of [ADR-039](#adr-039)
+  and nothing else in it.
+
+**Why.** The first real week is the test, and a person who meets the same small chore every evening
+stops writing the diary before the week is out — and the diary is the fact the product stands on.
+Dragging a file onto a window is how Windows has always taken files in; it costs nothing to honour
+if a drop is only another way of choosing, and taking a drop through the dialog's intake means the
+rules a file is held to cannot drift between the two ways in. A reminder is the least the product
+can do about the specification's first risk, the record lost (R1), without doing the one thing it
+has decided not to do: write a copy of somebody's home and money to a place they did not choose.
+And two readings of one fact agree (`DESIGN_SYSTEM.md` §2): a decision listed in Friday's weekly
+report and missing from Friday's snapshot is a contradiction the owner would find before we did.
+
+**Cost accepted.** **A drop on the wrong screen does nothing, and says so**: the product does not
+guess whether a photo dropped on the Schedule was meant for the diary or for the documents, so the
+person goes to the right screen and drops it again. **What the interface cannot see, the host
+refuses**: with no file-system access, the interface knows a dropped thing only by its name, so a
+folder named like a photo goes to the host and is refused there, and a real photo whose name the
+dialog would not offer is left out as the dialog would not have shown it. **A drop on Documents goes
+where the page is looking**: it takes the kind the form has selected and is attached to what the
+page is filtered on, so files dropped while the page shows one stage are attached to that stage; a
+wrong kind or attachment is put right afterwards, as for a chosen file. **The reminder can be
+ignored, and the product still never backs up on its own**: a person who presses **Not now** every
+time, or never opens the dashboard, has no backup, exactly as before. The reminder knows only the
+backups **this** machine wrote — a work restored from another machine, or copied by hand, reads as
+never backed up until one is written here — and it cannot tell whether the file it remembers still
+exists. An edit made to a row of the plan in place — a name, a duration — leaves no moment behind,
+so it is not seen as a change: the reminder can come later than it might, never wrongly. ADR-033's
+"never reminds" no longer holds; the rest of its cost does. **"Same people" can tick somebody who
+was not there**: it is a convenience, and a person who presses it and saves without looking has
+written that the tiler was on site when he was not. The person still answers for the entry — it
+carries their Windows account, it is chained, and it is put right only by a correction that says
+what was wrong — so the button saves taps, never the responsibility. **The snapshot's decisions now
+follow the same 14-day rule as the rest**: a decision whose deadline is the fourteenth day after
+today is listed, though the rest of **The next two weeks** ends the day before; one day of overlap
+was judged better than two files that disagree. And a stage with no checks no longer appears under
+the gates coming up, so the snapshot says nothing of that stage's gates; readiness, in its first
+section, is where that gap is said.

@@ -608,6 +608,18 @@ breaks one is not merged.
   change when the work does**, because a file that looks live will be read as if it were. The card
   that writes it says what it holds and what it does not, and that **sending it is the person's**;
   the product offers no Send button, because it sends nothing (ADR-039).
+- **A drop zone is the window, and it says what a drop will do.** Files dragged from Explorer are
+  taken in as if they had been chosen in the dialog, so a drop has no rules of its own: it takes
+  what that screen's dialog would offer, and the host refuses in the dialog's sentences. There is
+  **one** overlay, for the whole window, never a target drawn on a card: while files are over the
+  window it says, in a sentence and in its own polite live region, what will happen on **this**
+  screen — _they will join this entry's photos_, _they will be added to the work's documents_ — or
+  that nothing will happen here and where files can be dropped instead. It is gone when the files
+  leave or land, and with reduced motion it appears without moving. **Nothing happens silently**: a
+  drop that nothing took leaves its sentence as an information bar at the top of the content —
+  announced, closable, gone at the next screen or the next drag — and every name a drop left out is
+  named in one sentence, _"Week 1 was left out: it is a folder, or not a kind of file taken here."_
+  (ADR-040).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries

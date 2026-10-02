@@ -31,6 +31,7 @@ import {
   lookahead,
   type Lookahead,
 } from './lookahead';
+import { WEEKLY_DECISION_WINDOW_DAYS, weekly } from './weekly';
 
 // ── Builders ─────────────────────────────────────────────────────────────────
 
@@ -372,7 +373,7 @@ describe('what to decide', () => {
 
   it('lists the overdue and those due in the window, most urgent first, with the lead time', () => {
     expect(report.decisions.label).toBe(LOOKAHEAD_LABEL_KEYS.decisions);
-    expect(ids(report.decisions)).toEqual(['d1', 'd5', 'd2']);
+    expect(ids(report.decisions)).toEqual(['d1', 'd5', 'd2', 'd3']);
     expect(report.decisions.rows[0]).toEqual({
       key: 'decision:d1',
       itemId: 'd1',
@@ -403,11 +404,34 @@ describe('what to decide', () => {
     });
   });
 
-  it('leaves out a made decision, one due after the window and one of a closed stage', () => {
-    // d3's deadline is 19 October, day 14; d6's stage is closed, though it would be overdue.
+  it('includes a decision due on day 14, one day past the activities’ window', () => {
+    // d3's deadline is Monday 19 October: today + 14 calendar days. The window ends on the 18th.
+    expect(report.window.to).toBe('2026-10-18');
+    expect(report.decisions.rows[3]).toMatchObject({
+      decisionId: 'd3',
+      status: 'due',
+      deadline: '2026-10-19',
+      leadTimeDays: 0,
+      neededBy: '2026-10-19',
+    });
+  });
+
+  it('leaves out a made decision, one due on day 15, and one of a closed stage', () => {
+    // d6's stage is closed, though it would be overdue.
     expect(ids(report.decisions)).not.toContain('made');
-    expect(ids(report.decisions)).not.toContain('d3');
     expect(ids(report.decisions)).not.toContain('d6');
+    // From Sunday 4 October, day 14 is Sunday the 18th: d3 (the 19th) is day 15.
+    expect(ids(look(WORK, ENTRIES, '2026-10-04').decisions)).toEqual(['d1', 'd5', 'd2']);
+  });
+
+  it('asks the weekly report’s rule, whatever the length of the window', () => {
+    const scheduled = schedule(WORK);
+    const theirs = weekly(WORK, scheduled, ENTRIES, null, TODAY);
+    if (!theirs.ok) throw new Error('the weekly report was refused');
+    // The weekly report lists the closed stage's decision too; the snapshot does not ask for it.
+    expect(ids(theirs.weekly.decisions).filter((id) => id !== 'd6')).toEqual(ids(report.decisions));
+    expect(WEEKLY_DECISION_WINDOW_DAYS).toBe(LOOKAHEAD_DAYS);
+    expect(ids(look(WORK, ENTRIES, TODAY, 3).decisions)).toEqual(ids(report.decisions));
   });
 });
 
@@ -461,15 +485,31 @@ describe('the gates coming up', () => {
       work: { ...snapshot().work, startDate: TODAY },
       stages: [stage('one', 1, 'One')],
       activities: [activity('a', 'one', 1, 1)],
-      checks: [check('c', 'one', 'start', 1)],
-      checkAnswers: [answer('c', 'yes')],
+      checks: [check('c', 'one', 'start', 1), check('d', 'one', 'close', 1)],
+      checkAnswers: [answer('c', 'yes'), answer('d', 'yes')],
     });
     const gates = look(plan, []).gates.rows;
     expect(gates.map((row) => [row.gate, row.day, row.passed, row.checks])).toEqual([
       ['start', TODAY, true, 1],
-      ['close', TODAY, true, 0],
+      ['close', TODAY, true, 1],
     ]);
     expect(gates.every((row) => row.holding.length === 0)).toBe(true);
+  });
+
+  it('leaves out a gate with no checks, from the rows and from the count', () => {
+    const plan = snapshot({
+      work: { ...snapshot().work, startDate: TODAY },
+      stages: [stage('one', 1, 'One'), stage('two', 2, 'Two')],
+      activities: [activity('a', 'one', 1, 1), activity('b', 'two', 1, 1)],
+      checks: [check('c', 'one', 'close', 1)],
+    });
+    const gates = look(plan, []).gates;
+    expect(gates.rows.map((row) => row.key)).toEqual(['gate:one:close']);
+    expect(gates.value).toBe(1);
+    expect(traceable(gates)).toBe(true);
+    const none = look(snapshot({ ...plan, checks: [] }), []).gates;
+    expect(none.rows).toEqual([]);
+    expect(none.value).toBe(0);
   });
 });
 

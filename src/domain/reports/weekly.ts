@@ -29,7 +29,7 @@
  */
 
 import { breakdown } from '../arrangements';
-import { addCalendarDays, isIsoDay } from '../calendar';
+import { isIsoDay } from '../calendar';
 import { STAGE_STATES, gatesHeldFigure, stagesFigure, stagesReadyFigure } from '../checks';
 import type { GateHeldRow, StageRow } from '../checks';
 import {
@@ -45,7 +45,7 @@ import {
   type Week,
   type WeekDay,
 } from '../dashboard';
-import { decisionRows, decisionsDue, type DecisionDueRow } from '../decisions';
+import { decisionRows, decisionsDueWithin, type DecisionDueRow } from '../decisions';
 import { effectiveEntries, type DiaryEntry } from '../diary';
 import { counted, moneyFigure, type Figure, type ReportRow } from '../figure';
 import { aheadFigure, dueFigure, type PlanRow } from '../milestones';
@@ -55,7 +55,10 @@ import { readiness, readinessFigure, type ReadinessRow } from '../readiness';
 import type { Schedule } from '../schedule';
 import { slip, type SlipRow } from '../schedule/slip';
 
-/** How far ahead of today the report looks for decisions due, in calendar days. */
+/**
+ * How far ahead of today the report looks for decisions due, in calendar days, that day included.
+ * The owner's snapshot (`lookahead`) asks the same, through `decisionsDueWithin`.
+ */
 export const WEEKLY_DECISION_WINDOW_DAYS = 14;
 
 /** How many of the things readiness lacks the report names. */
@@ -228,13 +231,12 @@ function decisionsInWindow(
 ): Figure<WeeklyDecisionRow> {
   const rows = decisionRows(snapshot, scheduled, today);
   const stageNames = new Map(rows.map((row) => [row.decisionId, row.stageName]));
-  const last = addCalendarDays(today, WEEKLY_DECISION_WINDOW_DAYS);
   const listed: WeeklyDecisionRow[] =
     scheduled.calendar === null
       ? []
-      : decisionsDue(rows, scheduled.calendar, today, Number.POSITIVE_INFINITY)
-          .rows.filter((row) => row.status === 'overdue' || row.deadline <= last)
-          .map((row) => ({ ...row, stageName: stageNames.get(row.decisionId)! }));
+      : decisionsDueWithin(rows, scheduled.calendar, today, WEEKLY_DECISION_WINDOW_DAYS).map(
+          (row) => ({ ...row, stageName: stageNames.get(row.decisionId)! }),
+        );
   return counted('week-decisions', WEEKLY_LABEL_KEYS.decisions, listed);
 }
 

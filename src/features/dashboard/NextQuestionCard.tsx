@@ -47,7 +47,7 @@ import { useSkipped } from './skipped';
  * focus goes where the Dashboard says (`onGone`).
  *
  * After every other question, one **optional** kind (D1): an activity on the critical path with a
- * duration and no range is asked the most it could take — "What is the most Tiling could take, in
+ * duration and no range is asked the most it could take — "What is the most “Tiling” could take, in
  * working days? The plan says 4." — so the finish probability has a range to draw from where it
  * matters most. The card says it is optional; it is not in the count, and the answer writes the
  * range with the duration as its optimistic end, in one patch, as the domain says.

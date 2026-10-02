@@ -19,10 +19,10 @@ No cloud. No account. No telemetry. A work is a folder you own.
 ---
 
 > **Status: 1.0.0 — the first release.** The product was named on 2026-09-24
-> ([ADR-001](docs/architecture/ADR.md#adr-001)) and built in twelve slices, F0 to F11, and four
-> differentiators, D1 to D4. The installers are on the
-> [Releases](https://github.com/alexjustino/ridgebeam/releases) page, with the SHA-256 of each; they
-> are not code-signed, so Windows SmartScreen warns on the first run. The
+> ([ADR-001](docs/architecture/ADR.md#adr-001)) and built in twelve slices, F0 to F11, four
+> differentiators, D1 to D4, and U1, which takes away the friction a first real week meets. The
+> installers are on the [Releases](https://github.com/alexjustino/ridgebeam/releases) page, with
+> the SHA-256 of each; they are not code-signed, so Windows SmartScreen warns on the first run. The
 > [specification](docs/SPEC.md) says what 1.0.0 is and what "done" meant for every slice;
 > [What exists today](#what-exists-today) lists what the product does.
 
@@ -86,7 +86,8 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F11**, and the four differentiators, **D1** to **D4** — nothing after them:
+Slices **F0** to **F11**, the four differentiators, **D1** to **D4**, and **U1** — nothing after
+them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -255,6 +256,19 @@ Slices **F0** to **F11**, and the four differentiators, **D1** to **D4** — not
   load. Photos are always re-encoded, so no metadata travels; no phone number, e-mail address or
   document is in it. **Ridgebeam writes the file; sending it is yours** — by WhatsApp, by e-mail —
   and the product still sends nothing ([ADR-039](docs/architecture/ADR.md#adr-039)).
+- **Before the first real work (U1).** Photos and files **dropped from Explorer** onto the window
+  are taken in exactly as if they had been chosen in the dialog, with the same refusals: on the
+  **Diary** they join the entry being written, on **Documents** they are added at once with the kind
+  the form has selected, and anywhere else a sentence says where to drop them and nothing happens —
+  while files are over the window, one overlay says what a drop will do on that screen, and a name
+  the screen does not take, a folder's included, is left out and named. The diary entry offers
+  **Same people as {day}**, which ticks the people of the latest entry that names anybody,
+  corrections applied, and says how many of them have since left the plan. The dashboard says,
+  quietly, when the work **has never been backed up on this machine** or the last backup is more
+  than a week old and the work has changed since, with **Back up now…** to the backup in Settings;
+  **the product still never backs up on its own**. And the owner's snapshot now lists decisions by
+  the same 14-day rule as the weekly report, and no longer lists a gate with no checks
+  ([ADR-040](docs/architecture/ADR.md#adr-040)).
 - **Readiness.** A figure that says how much of what the plan must know it does know, from seven
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -270,7 +284,7 @@ Slices **F0** to **F11**, and the four differentiators, **D1** to **D4** — not
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), thirty-nine binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer

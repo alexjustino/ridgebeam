@@ -38,9 +38,12 @@ import {
   type DocumentLink,
   type WorkSnapshot,
 } from '@/domain/plan';
+import { DOCUMENT_EXTENSIONS } from '@/features/shell/drop';
+import { useDropTarget } from '@/features/shell/dropTarget';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
+import { announce } from '@/ui/announce';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
@@ -219,8 +222,14 @@ export function DocumentsPage({
   );
 }
 
+/**
+ * Add documents: chosen in the system's dialog, typed as paths, or dropped from Explorer (U1). A
+ * drop is a choice made and confirmed at once — the dropped files are added straight away, with the
+ * kind chosen here and to the row the page is filtered on, through the same command as **Add to the
+ * work**; what the host refuses and what the drop left out are named in the same list.
+ */
 function AddDocuments({ target }: { target: DocumentLink | null }) {
-  const { t, describeError } = useI18n();
+  const { t, tp, describeError } = useI18n();
   const add = useAddDocuments();
   const ids = useId();
   const [paths, setPaths] = useState<string[]>([]);
@@ -229,6 +238,7 @@ function AddDocuments({ target }: { target: DocumentLink | null }) {
   const [refused, setRefused] = useState<RefusedFile[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
   const [dialogFailed, setDialogFailed] = useState(false);
+  const [dropLeft, setDropLeft] = useState<readonly string[]>([]);
 
   const push = (next: readonly string[]) =>
     setPaths((all) => [...all, ...next.filter((path) => !all.includes(path))]);
@@ -238,12 +248,7 @@ function AddDocuments({ target }: { target: DocumentLink | null }) {
       const chosen = await open({
         multiple: true,
         directory: false,
-        filters: [
-          {
-            name: t('documents.add.title'),
-            extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'pdf'],
-          },
-        ],
+        filters: [{ name: t('documents.add.title'), extensions: [...DOCUMENT_EXTENSIONS] }],
       });
       setDialogFailed(false);
       push(chosen === null ? [] : Array.isArray(chosen) ? chosen : [chosen]);
@@ -255,6 +260,7 @@ function AddDocuments({ target }: { target: DocumentLink | null }) {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (paths.length === 0) return;
+    setDropLeft([]);
     add.mutate(
       { paths, kind, target },
       {
@@ -267,6 +273,29 @@ function AddDocuments({ target }: { target: DocumentLink | null }) {
       },
     );
   };
+
+  // Files dropped on Documents go through the same command, at once, with what the form says now;
+  // what was being chosen in the form stays there, untouched.
+  useDropTarget('documents', (taken, left) => {
+    setDropLeft(left);
+    if (left.length > 0) announce(tp('drop.left', left.length, { names: left.join(', ') }));
+    if (taken.length === 0) {
+      setRefused([]);
+      setFailure(null);
+      return;
+    }
+    add.mutate(
+      { paths: [...taken], kind, target },
+      {
+        onSuccess: (result) => {
+          setFailure(null);
+          setRefused(result.refused);
+          announce(tp('drop.taken.documents', taken.length - result.refused.length));
+        },
+        onError: (error) => setFailure(describeError(error)),
+      },
+    );
+  });
 
   return (
     <Card title={t('documents.add.title')}>
@@ -349,7 +378,7 @@ function AddDocuments({ target }: { target: DocumentLink | null }) {
             </Button>
           </div>
         </div>
-        {(refused.length > 0 || failure !== null) && (
+        {(refused.length > 0 || failure !== null || dropLeft.length > 0) && (
           <div data-testid="documents-problem">
             <InfoBar severity="caution" title={t('documents.problem')}>
               <ul className="flex flex-col gap-0.5">
@@ -358,6 +387,11 @@ function AddDocuments({ target }: { target: DocumentLink | null }) {
                     {t('documents.refusedLine', { name: file.fileName, reason: file.reason })}
                   </li>
                 ))}
+                {dropLeft.length > 0 && (
+                  <li data-testid="documents-drop-left">
+                    {tp('drop.left', dropLeft.length, { names: dropLeft.join(', ') })}
+                  </li>
+                )}
                 {failure !== null && <li>{failure}</li>}
               </ul>
             </InfoBar>

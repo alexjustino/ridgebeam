@@ -2,6 +2,7 @@ import {
   Add20Regular,
   Dismiss16Regular,
   ImageAdd20Regular,
+  PeopleCheckmark20Regular,
   Save20Regular,
 } from '@fluentui/react-icons';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -10,6 +11,7 @@ import { useId, useMemo, useState, type FormEvent } from 'react';
 import { LIMITS } from '@/data/commands';
 import { useAddEntry } from '@/data/queries';
 import {
+  lastPresence,
   progress,
   validateDraft,
   WEATHER,
@@ -21,6 +23,8 @@ import {
 } from '@/domain/diary';
 import { activitiesInOrder, type Activity, type WorkSnapshot } from '@/domain/plan';
 import type { Schedule } from '@/domain/schedule';
+import { baseName, PHOTO_EXTENSIONS } from '@/features/shell/drop';
+import { useDropTarget } from '@/features/shell/dropTarget';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n } from '@/i18n/useI18n';
 import { announce } from '@/ui/announce';
@@ -57,11 +61,6 @@ interface DoneMark {
   quantity: string;
 }
 
-/** The last part of a path, whichever separator the person's system uses. */
-function fileName(path: string): string {
-  return path.split(/[\\/]/).pop() ?? path;
-}
-
 /**
  * One entry of the diary: one press for the usual day, more fields when the day asks for them.
  *
@@ -69,7 +68,12 @@ function fileName(path: string): string {
  * started (from the diary) as "worked on", each with "finished"; the people present as chips; the
  * weather. Behind "More…": the note, the hours, a lost day, deliveries, incidents, visitors and
  * photos — chosen in the system's dialog or typed as a path, listed before anything is saved, and
- * copied into the work by the host only when the entry is written.
+ * copied into the work by the host only when the entry is written. Photos dropped from Explorer
+ * while the Diary is on screen join the same list, exactly as if chosen (U1, drop is choose), and
+ * "More…" opens to show them; what a drop left out is named under the photo control.
+ *
+ * Under the people, "Same people as {day}" ticks everybody the latest entry says was on site — it
+ * adds to what is ticked and never unticks — and says how many of them are no longer in the plan.
  *
  * As a correction it opens with everything the corrected entry said and one field more that must
  * be filled: what was wrong. A correction restates the whole day, so nothing is patched; the
@@ -93,7 +97,7 @@ export function EntryForm({
   correcting: DiaryEntry | null;
   onDone: () => void;
 }) {
-  const { t, describeError } = useI18n();
+  const { t, tp, describeError, day: dayText } = useI18n();
   const add = useAddEntry();
   const ids = useId();
   const correction = correcting !== null;
@@ -129,7 +133,9 @@ export function EntryForm({
   );
   const [pathField, setPathField] = useState('');
   const [dialogFailed, setDialogFailed] = useState(false);
+  const [dropLeft, setDropLeft] = useState<readonly string[]>([]);
   const [showAll, setShowAll] = useState(false);
+  const [missingSaid, setMissingSaid] = useState<number | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
 
   const ordered = activitiesInOrder(snapshot);
@@ -143,6 +149,41 @@ export function EntryForm({
   // A form with nothing on it offers nothing to press: when nothing is running, every activity is.
   const listed: Activity[] = showAll || running.length === 0 ? ordered : running;
   const keptPhotos = (correcting?.photos ?? []).filter((photo) => kept.includes(photo.fileHash));
+  // A correction restates the day it corrects, already filled: the last crew is offered to a new
+  // entry only.
+  const last = useMemo(
+    () => (correction ? null : lastPresence(entries, snapshot.people)),
+    [correction, entries, snapshot.people],
+  );
+
+  const addPaths = (next: readonly string[]) =>
+    setPaths((all) => [...all, ...next.filter((path) => !all.includes(path))]);
+
+  // Files dropped on the Diary are chosen photos: they join this entry's list, and "More…" opens
+  // so the person sees them there.
+  useDropTarget('diary', (taken, refused) => {
+    setMore(true);
+    setDropLeft(refused);
+    addPaths(taken);
+    if (taken.length > 0) announce(tp('drop.taken.diary', taken.length));
+    if (refused.length > 0) {
+      announce(tp('drop.left', refused.length, { names: refused.join(', ') }));
+    }
+  });
+
+  const sameAsLast = () => {
+    if (last === null) return;
+    setPresent((all) => new Set([...all, ...last.personIds]));
+    setMissingSaid(last.missing > 0 ? last.missing : null);
+    const names = snapshot.people
+      .filter((person) => last.personIds.includes(person.id))
+      .map((person) => person.name);
+    const said = [
+      ...(names.length > 0 ? [t('diary.form.samePeople.ticked', { names: names.join(', ') })] : []),
+      ...(last.missing > 0 ? [tp('diary.form.samePeople.missing', last.missing)] : []),
+    ];
+    announce(said.join(' '));
+  };
 
   const mark = (activityId: string, change: Partial<DoneMark>) =>
     setMarks((all) => {
@@ -162,16 +203,11 @@ export function EntryForm({
       const chosen = await open({
         multiple: true,
         directory: false,
-        filters: [
-          {
-            name: t('diary.photos.title'),
-            extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'],
-          },
-        ],
+        filters: [{ name: t('diary.photos.title'), extensions: [...PHOTO_EXTENSIONS] }],
       });
       setDialogFailed(false);
-      const list = chosen === null ? [] : Array.isArray(chosen) ? chosen : [chosen];
-      setPaths((all) => [...all, ...list.filter((path) => !all.includes(path))]);
+      setDropLeft([]);
+      addPaths(chosen === null ? [] : Array.isArray(chosen) ? chosen : [chosen]);
     } catch {
       setDialogFailed(true);
     }
@@ -226,6 +262,8 @@ export function EntryForm({
         setVisitors('');
         setPaths([]);
         setPathField('');
+        setDropLeft([]);
+        setMissingSaid(null);
         onDone();
       },
       onError: (error) => setProblems([describeError(error)]),
@@ -354,6 +392,28 @@ export function EntryForm({
               })}
             </ul>
           )}
+          {last !== null && snapshot.people.length > 0 && (
+            <div className="flex flex-col items-start gap-1">
+              <Button
+                appearance="subtle"
+                icon={<PeopleCheckmark20Regular />}
+                data-testid="entry-same-people"
+                {...(missingSaid !== null ? { 'aria-describedby': `${ids}-gone` } : {})}
+                onClick={sameAsLast}
+              >
+                {t('diary.form.samePeople', { day: dayText(last.day) })}
+              </Button>
+              {missingSaid !== null && (
+                <p
+                  id={`${ids}-gone`}
+                  data-testid="entry-same-people-missing"
+                  className="text-caption text-fg-secondary"
+                >
+                  {tp('diary.form.samePeople.missing', missingSaid)}
+                </p>
+              )}
+            </div>
+          )}
         </fieldset>
 
         <div data-testid="entry-weather">
@@ -469,6 +529,11 @@ export function EntryForm({
               <span className="text-caption text-fg-tertiary">
                 {dialogFailed ? t('diary.photos.dialogUnavailable') : t('diary.photos.hint')}
               </span>
+              {dropLeft.length > 0 && (
+                <p data-testid="entry-photo-left" className="text-body text-fg">
+                  {tp('drop.left', dropLeft.length, { names: dropLeft.join(', ') })}
+                </p>
+              )}
               {(paths.length > 0 || keptPhotos.length > 0) && (
                 <ul className="flex flex-col gap-1">
                   {keptPhotos.map((photo) => (
@@ -497,7 +562,7 @@ export function EntryForm({
                     >
                       <span className="min-w-0 flex-1 truncate font-mono text-caption">{path}</span>
                       <PendingRemove
-                        label={t('diary.photos.remove', { name: fileName(path) })}
+                        label={t('diary.photos.remove', { name: baseName(path) })}
                         onRemove={() => setPaths((all) => all.filter((each) => each !== path))}
                       />
                     </li>

@@ -6,6 +6,7 @@ import {
   deadlineOf,
   decisionRows,
   decisionsDue,
+  decisionsDueWithin,
   overdueOnCreation,
   stageStart,
   type DecisionRow,
@@ -380,6 +381,19 @@ describe('decisions due', () => {
       ['near', 'overdue', -1],
       ['far', 'due', 2],
     ]);
+  });
+
+  it('cuts at a calendar day when asked within days, that day included, overdue always in', () => {
+    // far's deadline, Thu 17, is seven calendar days from Thu 10; near's, Mon 14, four.
+    const rows = decisionRows(plan, scheduled, today);
+    const within = (days: number) =>
+      decisionsDueWithin(rows, scheduled.calendar!, today, days).map((row) => row.decisionId);
+    expect(within(7)).toEqual(['late', 'near', 'far']);
+    expect(within(6)).toEqual(['late', 'near']);
+    expect(within(0)).toEqual(['late']);
+    expect(decisionsDueWithin(rows, scheduled.calendar!, today, 7)).toEqual(
+      decisionsDue(rows, scheduled.calendar!, today, Number.POSITIVE_INFINITY).rows,
+    );
   });
 
   it('is 0 with no rows when nothing is due', () => {
