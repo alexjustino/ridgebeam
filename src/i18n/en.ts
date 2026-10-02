@@ -1545,12 +1545,12 @@ export const en = {
   'nextQuestion.description':
     'What the plan still has to be told, one question at a time. An answer is written into the plan as if it were typed in the breakdown.',
   'nextQuestion.count': '{answered} of {total} answered',
-  'nextQuestion.ask.duration': 'How many working days will {name} take? Most take {min} to {max}.',
-  'nextQuestion.ask.durationExact': 'How many working days will {name} take? Most take {days}.',
-  'nextQuestion.ask.responsible': 'Who answers for {name}?',
-  'nextQuestion.ask.price': 'How much is {label}?',
-  'nextQuestion.ask.decision': 'What was decided about {name}? It must be decided by {deadline}.',
-  'nextQuestion.ask.decisionOverdue': 'What was decided about {name}? It was due on {deadline}.',
+  'nextQuestion.ask.duration': 'How many working days will “{name}” take? Most take {min} to {max}.',
+  'nextQuestion.ask.durationExact': 'How many working days will “{name}” take? Most take {days}.',
+  'nextQuestion.ask.responsible': 'Who answers for “{name}”?',
+  'nextQuestion.ask.price': 'How much is “{label}”?',
+  'nextQuestion.ask.decision': 'What was decided about “{name}”? It must be decided by {deadline}.',
+  'nextQuestion.ask.decisionOverdue': 'What was decided about “{name}”? It was due on {deadline}.',
   'nextQuestion.in': 'In {stage}',
   'nextQuestion.inActivity': 'In {stage}, on {activity}',
   'nextQuestion.field.duration': '{duration}, in working days',
@@ -1575,7 +1575,7 @@ export const en = {
   'nextQuestion.allSkipped.other': 'The {count} questions left were skipped for now.',
   'nextQuestion.askAgain': 'Ask the skipped ones again',
   'nextQuestion.ask.most':
-    'What is the most {name} could take, in working days? The plan says {days}.',
+    'What is the most “{name}” could take, in working days? The plan says {days}.',
   'nextQuestion.optional':
     'Optional — the plan lacks nothing without it; it gives the finish a range to draw from.',
   'nextQuestion.field.most': 'The most, in working days — the pessimistic end of its {range}',
@@ -1757,7 +1757,7 @@ export const en = {
     '{commitment} has no payment plan, so whether this payment is ahead of the work cannot be said.',
   'money.paymentPreview.warningTitle': 'Ahead of the work',
   'money.paymentPreview.decision': 'You can still record it: whether to pay is yours to decide.',
-  'nextQuestion.ask.paymentPlan': 'How is {label} to be paid?',
+  'nextQuestion.ask.paymentPlan': 'How is “{label}” to be paid?',
   'nextQuestion.openPaymentPlan': 'Open its payment plan',
   'nextQuestion.optional.paymentPlan':
     'Optional — the plan lacks nothing without it; a payment plan says when paying is ahead of the work.',

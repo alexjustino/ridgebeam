@@ -1559,13 +1559,13 @@ export const ptBR: Dictionary = {
     'O que o plano ainda precisa saber, uma pergunta de cada vez. A resposta entra no plano como se tivesse sido digitada na estrutura.',
   'nextQuestion.count': '{answered} de {total} respondidas',
   'nextQuestion.ask.duration':
-    'Quantos dias úteis {name} vai levar? A maioria leva de {min} a {max}.',
-  'nextQuestion.ask.durationExact': 'Quantos dias úteis {name} vai levar? A maioria leva {days}.',
-  'nextQuestion.ask.responsible': 'Quem responde por {name}?',
-  'nextQuestion.ask.price': 'Quanto custa {label}?',
+    'Quantos dias úteis “{name}” vai levar? A maioria leva de {min} a {max}.',
+  'nextQuestion.ask.durationExact': 'Quantos dias úteis “{name}” vai levar? A maioria leva {days}.',
+  'nextQuestion.ask.responsible': 'Quem responde por “{name}”?',
+  'nextQuestion.ask.price': 'Quanto custa “{label}”?',
   'nextQuestion.ask.decision':
-    'O que foi decidido sobre {name}? Precisa ser decidido até {deadline}.',
-  'nextQuestion.ask.decisionOverdue': 'O que foi decidido sobre {name}? O prazo era {deadline}.',
+    'O que foi decidido sobre “{name}”? Precisa ser decidido até {deadline}.',
+  'nextQuestion.ask.decisionOverdue': 'O que foi decidido sobre “{name}”? O prazo era {deadline}.',
   'nextQuestion.in': 'Em {stage}',
   'nextQuestion.inActivity': 'Em {stage}, na atividade {activity}',
   'nextQuestion.field.duration': '{duration}, em dias úteis',
@@ -1591,7 +1591,7 @@ export const ptBR: Dictionary = {
   'nextQuestion.allSkipped.other': 'As {count} perguntas que restavam foram puladas por agora.',
   'nextQuestion.askAgain': 'Perguntar de novo as puladas',
   'nextQuestion.ask.most':
-    'Quanto {name} pode levar, no máximo, em dias úteis? O plano diz {days}.',
+    'Quanto “{name}” pode levar, no máximo, em dias úteis? O plano diz {days}.',
   'nextQuestion.optional':
     'Opcional — o plano não fica faltando nada sem ela; ela dá ao término uma faixa de onde sortear.',
   'nextQuestion.field.most': 'O máximo, em dias úteis — a ponta pessimista da sua {range}',
@@ -1777,7 +1777,7 @@ export const ptBR: Dictionary = {
     '{commitment} não tem plano de pagamento, então não dá para dizer se este pagamento está à frente da obra.',
   'money.paymentPreview.warningTitle': 'À frente da obra',
   'money.paymentPreview.decision': 'Você ainda pode registrá-lo: pagar ou não é uma decisão sua.',
-  'nextQuestion.ask.paymentPlan': 'Como {label} vai ser pago?',
+  'nextQuestion.ask.paymentPlan': 'Como “{label}” vai ser pago?',
   'nextQuestion.openPaymentPlan': 'Abrir o plano de pagamento',
   'nextQuestion.optional.paymentPlan':
     'Opcional — o plano não fica faltando nada sem isto; um plano de pagamento diz quando pagar é pagar à frente da obra.',

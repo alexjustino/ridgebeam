@@ -97,7 +97,7 @@ describe('the Next question card', () => {
   it('asks the first range in plain words and counts what is answered', () => {
     render(plan());
     const card = find('next-question').textContent ?? '';
-    expect(card).toContain('How many working days will Remove tiles take? Most take 1 to 2.');
+    expect(card).toContain('How many working days will “Remove tiles” take? Most take 1 to 2.');
     // Two ranges and two responsibles already there: 2 of 4.
     expect(find('next-count').textContent).toBe('2 of 4 answered');
   });
@@ -173,7 +173,7 @@ describe('the optional question (D1)', () => {
   it('asks the most a critical activity could take, says it is optional, and counts it nowhere', () => {
     render(certain());
     expect(find('next-question').textContent).toContain(
-      'What is the most Tiling could take, in working days? The plan says 4.',
+      'What is the most “Tiling” could take, in working days? The plan says 4.',
     );
     expect(find('next-optional').textContent).toContain('Optional');
     expect(find('next-count').textContent).toBe('1 of 1 answered');
@@ -253,7 +253,7 @@ describe('the optional question of a payment plan (D2)', () => {
         </QueryClientProvider>,
       ),
     );
-    expect(find('next-question').textContent).toContain('How is Tiler’s quote to be paid?');
+    expect(find('next-question').textContent).toContain('How is “Tiler’s quote” to be paid?');
     expect(find('next-optional').textContent).toContain('Optional');
     expect(host.querySelector('[data-testid="next-answer"]')).toBeNull();
     expect(host.querySelector('[data-testid="next-keep"]')).toBeNull();

@@ -68,7 +68,7 @@ export const OPTIONAL_QUESTION_KINDS = ['most', 'paymentPlan'] as const;
 export type OptionalQuestionKind = (typeof OPTIONAL_QUESTION_KINDS)[number];
 
 /**
- * The optional question's sentence, new in slice D1: `{name}`, `{days}` — "What is the most {name}
+ * The optional question's sentence, new in slice D1: `{name}`, `{days}` — "What is the most “{name}”
  * could take? It is planned at {days} working days."
  */
 export const OPTIONAL_QUESTION_MESSAGE_KEYS = {
