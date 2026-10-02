@@ -4,7 +4,6 @@
 //! refusing every forbidden pattern put into a rendered page. Every string and
 //! picture here is synthetic.
 
-use base64::Engine as _;
 use chrono::DateTime;
 use serde_json::{json, Value};
 
