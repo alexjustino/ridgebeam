@@ -21,6 +21,11 @@ export interface Navigation {
    * question's "How is this commitment to be paid?" answers by opening the plan, not inline).
    */
   openPaymentPlan: (commitmentId: string) => void;
+  /**
+   * Open Reports on the owner's snapshot card with the focus on its path field (D4: the dashboard's
+   * "Snapshot for the owner…" goes to the card that writes it, rather than writing from there).
+   */
+  openSnapshot: () => void;
 }
 
 export const NavigationContext = createContext<Navigation>({
@@ -28,6 +33,7 @@ export const NavigationContext = createContext<Navigation>({
   openDiary: () => undefined,
   openPlan: () => undefined,
   openPaymentPlan: () => undefined,
+  openSnapshot: () => undefined,
 });
 
 export function useNavigation(): Navigation {

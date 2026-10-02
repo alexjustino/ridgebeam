@@ -47,6 +47,7 @@ import {
   diaryVerify,
   diaryExportCsv,
   diaryExportPdf,
+  reportHtmlWrite,
   reportOpen,
   reportPdfWrite,
   workExportJson,
@@ -802,6 +803,21 @@ export function useWriteReport() {
       document: ReportDocument;
       overwrite: boolean;
     }) => reportPdfWrite(path, document, overwrite, new Date().toISOString()),
+  });
+}
+
+/** The owner's snapshot (D4): a composed document, written by the host as one HTML file. */
+export function useWriteSnapshot() {
+  return useMutation({
+    mutationFn: ({
+      path,
+      document,
+      overwrite,
+    }: {
+      path: string;
+      document: ReportDocument;
+      overwrite: boolean;
+    }) => reportHtmlWrite(path, document, overwrite, new Date().toISOString()),
   });
 }
 

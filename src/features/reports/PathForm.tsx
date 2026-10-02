@@ -3,6 +3,7 @@ import { useId, type ReactNode } from 'react';
 
 import type { WrittenFile } from '@/data/commands';
 import { useOpenReport } from '@/data/queries';
+import { sizeText } from '@/features/documents/size';
 import { useI18n } from '@/i18n/useI18n';
 import { Button } from '@/ui/Button';
 import { InfoBar } from '@/ui/InfoBar';
@@ -106,18 +107,22 @@ function baseName(path: string): string {
 /**
  * What was written, with its path, and **Open** — the host opens that file, and only a file a report
  * command wrote in this session (decision 8). A failure to open is said where the card says its
- * refusals, through `onOpenFailed`.
+ * refusals, through `onOpenFailed`. `size` adds the file's size in words — the owner's snapshot
+ * (D4), a file meant to be sent, says how big it is before somebody attaches it to a message.
  */
 export function WrittenBar({
   testId,
   written,
   onOpenFailed,
+  size = false,
 }: {
   testId: string;
   written: WrittenFile;
   onOpenFailed: (error: unknown) => void;
+  size?: boolean;
 }) {
-  const { tp, t } = useI18n();
+  const i18n = useI18n();
+  const { tp, t } = i18n;
   const open = useOpenReport();
 
   return (
@@ -129,6 +134,12 @@ export function WrittenBar({
           </span>
           {written.pages !== undefined && (
             <span className="text-fg-secondary"> · {tp('reports.done.pages', written.pages)}</span>
+          )}
+          {size && (
+            <span data-testid={`${testId}-size`} className="text-fg-secondary">
+              {' · '}
+              {sizeText(i18n, written.bytes)}
+            </span>
           )}
         </p>
         <div className="mt-2">

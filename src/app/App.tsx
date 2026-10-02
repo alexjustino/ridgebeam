@@ -14,7 +14,7 @@ import { DiaryPage } from '@/features/diary/DiaryPage';
 import { MoneyPage } from '@/features/money/MoneyPage';
 import { DocumentsPage } from '@/features/documents/DocumentsPage';
 import { PlanPage } from '@/features/plan/PlanPage';
-import { ReportsPage } from '@/features/reports/ReportsPage';
+import { ReportsPage, type ReportsFocus } from '@/features/reports/ReportsPage';
 import { SchedulePage } from '@/features/schedule/SchedulePage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { DESTINATION_LABELS, NEEDS_WORK, type Destination } from '@/features/shell/destinations';
@@ -60,6 +60,10 @@ export function App({ settings }: { settings: Settings }) {
   // Money has put the focus on it, then let go, so the next visit opens as usual.
   const [moneyFocus, setMoneyFocus] = useState<string | null>(null);
   const releaseMoneyFocus = useCallback(() => setMoneyFocus(null), []);
+  // The card the dashboard asked Reports to open on (D4: the owner's snapshot): held until Reports
+  // has put the focus on its path field, then let go, so the next visit opens at the top as usual.
+  const [reportsFocus, setReportsFocus] = useState<ReportsFocus | null>(null);
+  const releaseReportsFocus = useCallback(() => setReportsFocus(null), []);
   const navigation: Navigation = useMemo(
     () => ({
       openDocuments: (target) => {
@@ -77,6 +81,10 @@ export function App({ settings }: { settings: Settings }) {
       openPaymentPlan: (commitmentId) => {
         setMoneyFocus(commitmentId);
         setDestination('money');
+      },
+      openSnapshot: () => {
+        setReportsFocus('snapshot');
+        setDestination('reports');
       },
     }),
     [],
@@ -129,6 +137,7 @@ export function App({ settings }: { settings: Settings }) {
               if (next === 'documents') setDocumentsFilter(null);
               if (next === 'diary') setDiaryFocus(null);
               if (next === 'money') setMoneyFocus(null);
+              if (next === 'reports') setReportsFocus(null);
               setDestination(next);
             }}
           />
@@ -208,7 +217,11 @@ export function App({ settings }: { settings: Settings }) {
                   />
                 )}
                 {!showsStart && destination === 'reports' && snapshot !== null && (
-                  <ReportsPage snapshot={snapshot} />
+                  <ReportsPage
+                    snapshot={snapshot}
+                    initialFocus={reportsFocus}
+                    onFocusTaken={releaseReportsFocus}
+                  />
                 )}
                 {destination === 'settings' && <SettingsPage settings={settings} />}
                 {destination === 'diagnostics' && <DiagnosticsPage />}
