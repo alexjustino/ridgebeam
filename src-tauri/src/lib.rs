@@ -178,6 +178,20 @@
 //!   `change_order_decide`). The impact on the finish is the domain's, sent
 //!   with the decision and kept. No new crate, no new error kind, no new
 //!   capability.
+//! - E2: funding — where the money comes from. Work migration 014 adds
+//!   `funding` (the funds expected, each on a day: plan, edited freely, not
+//!   locked by the approval, kept in order 1..n) and `funding_receipt` (the
+//!   money received: an append-only ledger exactly like the payments', `seq`
+//!   continuing, `funding: append-only` with `recursive_triggers` on and off,
+//!   a reversal the full negative of one receipt, once, for the same fund and
+//!   not dated before it — `funding: reversal`). A fund a receipt names is
+//!   not removed (a sentence, and a foreign key). A receipt's day is never
+//!   after today, by the host's clock. Five commands (`funding_add`,
+//!   `funding_update`, `funding_remove`, `funding_receipt_add`,
+//!   `funding_receipt_reverse`); the snapshot carries `funding` and
+//!   `fundingReceipts`, and so the JSON export and every backup do. Whether
+//!   the money lasts is the domain's. No new crate, no new error kind, no new
+//!   capability.
 
 pub mod commands;
 pub mod contract;
@@ -307,6 +321,11 @@ pub fn run() {
             commands::care_notes::care_note_remove,
             commands::change_orders::change_order_raise,
             commands::change_orders::change_order_decide,
+            commands::funding::funding_add,
+            commands::funding::funding_update,
+            commands::funding::funding_remove,
+            commands::funding::funding_receipt_add,
+            commands::funding::funding_receipt_reverse,
             commands::documents::document_add,
             commands::documents::document_update,
             commands::documents::document_link,

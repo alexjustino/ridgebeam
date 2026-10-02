@@ -46,6 +46,8 @@
 //!   `update_activity_within` and `remove_activity_within`, the same checks
 //!   inside a transaction the caller holds, so an approved change order's
 //!   effects are written through them with its decision or not at all.
+//! - E2: the snapshot carries the funds and the money received
+//!   (`db::funding`, `db::funding_receipts`).
 
 use std::collections::HashMap;
 
@@ -55,7 +57,7 @@ use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, Wo
 use crate::db::order::{ACTIVITIES, STAGES};
 use crate::db::{
     baselines, care_notes, change_orders, check_answers, checks, decisions, dependencies,
-    documents, milestones, money, payments, replanning,
+    documents, funding, funding_receipts, milestones, money, payments, replanning,
 };
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
@@ -299,6 +301,8 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         replanning: replanning::current(conn)?,
         care_notes: care_notes::list(conn)?,
         change_orders: change_orders::list(conn)?,
+        funding: funding::list(conn)?,
+        funding_receipts: funding_receipts::list(conn)?,
     })
 }
 
@@ -875,6 +879,8 @@ pub(crate) mod tests {
             "care_note",
             "change_order",
             "change_order_decision",
+            "funding",
+            "funding_receipt",
         ] {
             let found: i64 = conn
                 .query_row(

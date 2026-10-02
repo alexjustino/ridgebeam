@@ -389,8 +389,9 @@ mod tests {
             "  Schema: {0} of {0} — 001_init, 002_rooms_and_quantities,",
             migrations::WORK.target_version()
         )));
-        assert!(text
-            .contains("010_templates, 011_payment_milestones, 012_handover, 013_change_orders\n"));
+        assert!(text.contains(
+            "010_templates, 011_payment_milestones, 012_handover, 013_change_orders, 014_funding\n"
+        ));
         assert!(text.contains("  Database: journal wal, synchronous full, foreign keys on\n"));
         assert!(text.contains("  Diary: 0 entries, chain verified\n"));
         assert!(text.contains("  Folder health: "));

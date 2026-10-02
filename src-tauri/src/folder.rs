@@ -1923,4 +1923,205 @@ mod tests {
         close(again);
         assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
     }
+
+    /// The upgrade a person makes from E1: a work folder at schema 13 with an
+    /// approved plan, a payment and its reversal, a change order decided and a
+    /// diary. Opened by E2, it gains `funding` and `funding_receipt`, empty and
+    /// the ledger guarded by its triggers; every row it held is as it was and
+    /// the chain still verifies. A fund and its receipt written on the
+    /// migrated file are there when it opens again.
+    #[test]
+    fn a_work_folder_at_schema_thirteen_with_money_and_a_change_order_gains_funding_and_keeps_every_row(
+    ) {
+        use crate::db::baselines::{self, Placement};
+        use crate::db::change_orders::{self, AskedBy, NewChangeOrder, NewDecision, Outcome};
+        use crate::db::funding::{self, FundingFields, FUNDING_RECEIVED};
+        use crate::db::funding_receipts::{self, NewReceipt};
+        use crate::db::payments::{self, NewPayment};
+        use crate::db::{diary, money};
+
+        let scratch = Scratch::create();
+        let bathroom = "00000000-0000-7000-8000-00000000000b";
+        let tiling = "00000000-0000-7000-8000-00000000000c";
+        let kept = [
+            "SELECT * FROM stage ORDER BY id",
+            "SELECT * FROM activity ORDER BY id",
+            "SELECT * FROM cost_line ORDER BY id",
+            "SELECT * FROM payment ORDER BY seq",
+            "SELECT * FROM baseline ORDER BY number",
+            "SELECT * FROM baseline_activity ORDER BY baseline_id, activity_id",
+            "SELECT * FROM change_order ORDER BY number",
+            "SELECT * FROM change_order_decision ORDER BY change_order_id",
+            "SELECT approved_at FROM work",
+        ];
+
+        let (rows_before, diary_before);
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 13).unwrap();
+            money::add_cost_line(&conn, bathroom, Some(tiling), "Tiles", Some(120_000)).unwrap();
+            baselines::take(
+                &conn,
+                &[Placement {
+                    activity_id: tiling.into(),
+                    start: Some("2026-10-05".into()),
+                    finish: Some("2026-10-07".into()),
+                }],
+                Some("2026-10-07"),
+            )
+            .unwrap();
+            let paid = payments::append(
+                &conn,
+                &NewPayment {
+                    day: "2026-10-05".into(),
+                    person_id: None,
+                    stage_id: bathroom.into(),
+                    commitment_id: None,
+                    amount_cents: 30_000,
+                    what_for: Some("Advance".into()),
+                    receipt_hash: None,
+                    author_name: "Synthetic author".into(),
+                },
+            )
+            .unwrap();
+            payments::reverse(&conn, paid, "Paid twice.", "2026-10-06", "Synthetic author")
+                .unwrap();
+            change_orders::raise(
+                &conn,
+                &NewChangeOrder {
+                    raised_on: "2026-10-07".into(),
+                    title: "Heated floor".into(),
+                    description: None,
+                    asked_by: AskedBy::Owner,
+                    stage_id: bathroom.into(),
+                    cost_cents: Some(250_000),
+                    effects: Vec::new(),
+                    author_name: "Synthetic author".into(),
+                },
+            )
+            .unwrap();
+            // This build's snapshot reads E2's tables, which a file at schema
+            // 13 does not have yet: the id is read raw.
+            let id: String = conn
+                .query_row("SELECT id FROM change_order", [], |row| row.get(0))
+                .unwrap();
+            change_orders::decide(
+                &conn,
+                &NewDecision {
+                    change_order_id: id,
+                    outcome: Outcome::Declined,
+                    decided_on: "2026-10-08".into(),
+                    note: Some("Not in this budget.".into()),
+                    finish_before: None,
+                    finish_after: None,
+                    days_delta: None,
+                    author_name: "Synthetic author".into(),
+                },
+            )
+            .unwrap();
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    day: "2026-10-06".into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Tiles laid.".into()),
+                    weather: None,
+                    lost_day: false,
+                    hours: None,
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: Vec::new(),
+                    present: Vec::new(),
+                    photos: Vec::new(),
+                },
+            )
+            .unwrap();
+
+            rows_before = kept.map(|sql| raw_rows(&conn, sql));
+            diary_before = diary::list(&conn, None, None).unwrap();
+            assert_eq!(migrations::WORK.current_version(&conn), 13);
+        }
+
+        let state = open(scratch.path()).expect("an E1 work opens in E2, and on to head");
+        let conn = &state.conn;
+
+        assert_eq!(
+            migrations::WORK.current_version(conn),
+            migrations::WORK.target_version()
+        );
+        assert_eq!(
+            kept.map(|sql| raw_rows(conn, sql)),
+            rows_before,
+            "every row, as it was"
+        );
+        assert_eq!(diary::list(conn, None, None).unwrap(), diary_before);
+        assert!(diary::verify(conn).unwrap().intact, "the chain still holds");
+        for table in ["funding", "funding_receipt"] {
+            assert_eq!(
+                raw_rows(conn, &format!("SELECT count(*) FROM {table}")),
+                vec!["Integer(0)"],
+                "`{table}` is there, and empty"
+            );
+        }
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT count(*) FROM sqlite_master WHERE type = 'trigger'
+                 AND tbl_name = 'funding_receipt'"
+            ),
+            vec!["Integer(5)"],
+            "append-only, continuing, its reversals checked"
+        );
+        assert!(raw_rows(conn, "PRAGMA foreign_key_check").is_empty());
+        let plan = db::work::snapshot(conn).unwrap();
+        assert!(plan.funding.is_empty() && plan.funding_receipts.is_empty());
+        assert_eq!(plan.payments.len(), 2);
+
+        // A fund and its receipt on the migrated file — the plan approved, and
+        // no replanning needed.
+        let savings = funding::add(
+            conn,
+            &FundingFields {
+                label: "Savings".into(),
+                source: None,
+                amount_cents: 500_000,
+                expected_on: "2026-10-01".into(),
+                note: None,
+            },
+        )
+        .unwrap();
+        funding_receipts::append(
+            conn,
+            &NewReceipt {
+                day: "2026-10-02".into(),
+                funding_id: Some(savings.clone()),
+                amount_cents: 500_000,
+                note: None,
+                author_name: "Synthetic author".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            funding::remove(conn, &savings).unwrap_err().to_string(),
+            FUNDING_RECEIVED
+        );
+        assert!(
+            conn.execute("DELETE FROM funding_receipt", []).is_err(),
+            "the ledger is guarded on the migrated file"
+        );
+        close(state);
+
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        let plan = db::work::snapshot(&again.conn).unwrap();
+        assert_eq!((plan.funding.len(), plan.funding_receipts.len()), (1, 1));
+        assert_eq!(plan.change_orders.len(), 1);
+        assert!(diary::verify(&again.conn).unwrap().intact);
+        close(again);
+        assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
+    }
 }
