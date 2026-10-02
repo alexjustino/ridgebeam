@@ -237,6 +237,35 @@ it, and the product says so before, not after — it never refuses money that wa
 caveat as every table here holds: somebody who owns the file can drop the triggers, and the payment
 plan carries no chain.
 
+**Change orders are insert-only, and their effects are data the host validates** (E1, ADR-041). A
+change to an approved plan is raised once and decided once: `change_order` and
+`change_order_decision` carry the same triggers and guard as the diary's tables, so a change is
+never edited or removed and a decision never rewritten; a mistake is withdrawn and raised again, and
+the record keeps both. The module that writes them holds no `UPDATE`, `DELETE` or `REPLACE`, and a
+test reads its source to prove it; the triggers are attacked in `cargo test` with
+`recursive_triggers` on and off. A change's **effects** arrive from the interface as JSON, and they
+are data, never a statement: the host parses them into a closed list of three kinds — add an
+activity, change a duration, remove an activity — and refuses, with a sentence, anything else — a
+kind it does not know, a name outside 1–200 characters, a duration outside 1–3 650 working days or
+outside the activity's range, more than 50 effects, an activity or a stage the work does not have, a
+closed stage, an activity named twice, or the removal of an activity a payment milestone is earned
+by. **No SQL comes from the interface**: every id is bound as a parameter, a name is stored as text
+and rendered by React as text, and an approval applies the effects only through the functions the
+plan's own commands use, in one transaction that writes all of it or none of it. **The host never
+computes a schedule**, so the impact a decision freezes — the finish before and after and the
+working days between them — is the figure the interface's domain computed and sent: the host checks
+its shape and stores it as the fact of that day, and does not compute it again. A webview that lied
+would write a wrong figure into a record that says it is what the schedule said; that is the same
+trust the product already gives the interface for every placement of a baseline (F2), and it is why
+the figure is frozen beside the effects that produced it, which anybody can schedule again. **"Who
+asked" is a record, not a signature**: the product has no accounts, nobody asked signs anything, and
+the author is the name the Windows account gives. A change raised before the plan is approved, a
+second decision on the same change, and a decision that names a change the work does not have or
+carries another price than the change's are refused by the host with a sentence and again by the
+schema, with `change order: plan not approved`, `change order: append-only` and `change order:
+decision`. The same caveat as every table here holds: somebody who owns the file can drop the
+triggers, and change orders carry no chain.
+
 **What the chain cannot see.** An entry removed from the _end_ of the diary leaves no successor
 pointing at it, so what remains still verifies. The diary export records the count and the head
 of the chain (F10), so that an export or a backup kept elsewhere can show the loss; nothing kept

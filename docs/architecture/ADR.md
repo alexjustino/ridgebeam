@@ -40,6 +40,13 @@ dropped on the window is taken in as if it had been chosen in the dialog, the di
 people as last time, and the dashboard reminds — quietly — when the work has not been backed up,
 while the product still never backs one up on its own ([ADR-040](#adr-040)).
 
+After U1, the owner asked for a second wave: four slices, one for each of the four ways a small
+work fails, admitted with the first of them in [ADR-041](#adr-041). The first, slice E1, puts every
+change to an approved plan on record — who asked, what changes, what it costs and what it does to
+the finish, computed by the schedule before anybody decides — and an approval opens the replanning
+with the change already in the plan, while a standing tally says how much the work has grown
+([ADR-041](#adr-041)).
+
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | [001](#adr-001) | The product is named Ridgebeam                                                                                        | Accepted — 2026-09-24, by Alex |
@@ -82,6 +89,7 @@ while the product still never backs one up on its own ([ADR-040](#adr-040)).
 | [038](#adr-038) | The handover book: the work's record for its owner, photos of hidden work required where it matters                   | Accepted — 2026-10-01          |
 | [039](#adr-039) | The owner's snapshot: one file with no script, rendered by the host, sent by the person                               | Accepted — 2026-10-02          |
 | [040](#adr-040) | Before the first real work: a drop is a choice, and the product reminds but never backs up on its own                 | Accepted — 2026-10-02          |
+| [041](#adr-041) | Change orders: nothing changes without a price and a date                                                             | Accepted — 2026-10-02          |
 
 ---
 
@@ -2506,3 +2514,146 @@ today is listed, though the rest of **The next two weeks** ends the day before; 
 was judged better than two files that disagree. And a stage with no checks no longer appears under
 the gates coming up, so the snapshot says nothing of that stage's gates; readiness, in its first
 section, is where that gap is said.
+
+## ADR-041 — Change orders: nothing changes without a price and a date {#adr-041}
+
+**Status.** Accepted — 2026-10-02.
+
+**Context.** With D1 to D4 and U1 in `develop`, the owner asked once more before his acceptance
+test — not for polish, but for what would make the product a necessity for a work that is managed
+and ends well. Every small work that goes wrong goes wrong in one of four ways, and each ends in a
+hard conversation with nothing written down to settle it. **It grows by small changes nobody
+priced** — "while you are here, put a socket there" — and the owner learns at the end that it cost
+a fifth more and finished a month late, with no way to say which change did it. **The money runs
+out before the work does**: the funds arrive when the bank says, and the schedule and the payment
+plans ask for money when the work says. **It is late, and nobody can say on whose account** — the
+weather, a decision made late, a crew that did not come, a delivery that did not arrive. **It ends
+badly**: the last payment made with defects still open, and with it the only reason anybody had to
+come back. The squad proposed one slice for each — **E1** change orders, **E2** funding and the
+cash runway, **E3** the delay ledger, **E4** the snag list and retention — each answering with a
+record that holds up in that conversation: offline, with no AI, every figure with its rows.
+[ADR-036](#adr-036) said a fifth differentiator would need a record of its own; this is that record
+for the second wave, and the decision for its first slice.
+
+For the first, the product already has the parts and does not join them. A replanning asks why an
+approved plan changed ([ADR-027](#adr-027)), but its reason is a sentence: it does not say who
+asked, what it cost or what it did to the finish. The what-if computes what a change would do to the
+finish, and is never kept ([ADR-028](#adr-028)). A cost line holds money with no reason. So "can we
+add a socket?" is answered on site, in a sentence, and the plan learns of it — if ever — as an edit
+inside a replanning whose reason says "changes".
+
+**Decision.**
+
+- **The second wave is admitted.** E1 to E4 are gated as D1 to D4 were — gates green, the
+  end-to-end suite on the real binary, both themes and both languages captured, the documentation
+  and the decisions written, one pull request into `develop` each. The release branch stays open,
+  and the release is cut again from `develop` after them. Nothing else in the specification changes.
+  E2, E3 and E4 record their own decisions when they are built.
+- **A change order is a record, raised after the plan is approved.** Before approval there are no
+  change orders — the plan is still being written, and a change to it is an edit — and the host and
+  the schema refuse one. A change order carries a **number** — #1, #2, … in the order raised, never
+  reused; the day it was raised; a title (1–200 characters) and an optional description (up to 2
+  000); **who asked** — the owner, a person of the plan, or somebody else by name; the **stage** it
+  lands on, which must not be closed; its **price** in cents, signed, because a change can save
+  money, or _not priced_, which is not 0; and its **effects** (`change_order`, migration 013,
+  [`DATA_MODEL.md`](../DATA_MODEL.md)). The person asked for is not a foreign key: a person removed
+  from the plan leaves the record as it was written.
+- **Effects are data the schedule can compute.** A closed list of three: **add** an activity to the
+  change's stage, with a name and a duration of 1–3 650 working days, finish-to-start after an
+  existing activity or after none; change an existing activity's **duration**; **remove** an
+  activity, which narrows the scope. At most 50 effects; none at all is a change that is only money.
+  The host validates them when the change is raised — the kinds, the ranges, that every activity
+  named exists and is not in a closed stage, that a new duration lies inside the activity's range,
+  that an activity a payment milestone is earned by is not removed, that no activity is named twice,
+  and that the change's stage exists and is not closed — and stores them as written. **The host
+  never computes a schedule.**
+- **Insert-only.** A change order is never edited or removed. A mistake is withdrawn and raised
+  again under a new number, and the record keeps both. The tables carry the trigger battery of the
+  baselines, the diary and the ledger, and the Rust module that writes them holds no `UPDATE`,
+  `DELETE` or `REPLACE`, which a test reads its source to prove.
+- **The impact is the schedule's, never typed.** The domain applies a change's effects to a copy of
+  the plan in memory (`withEffects`) — a new activity with its link, a duration overridden, an
+  activity taken out with its links — and schedules it with the same engine and the same what-if
+  delta as the Schedule's **What if** card ([ADR-028](#adr-028)): the finish before and after, the
+  difference in **working days**, signed, the activities it moves as a figure with its rows, and the
+  price (`changeImpact`). It is shown as the change is written, before it is saved, and again in the
+  dialog that decides it. An activity added off the critical path moves the finish by no day, and
+  the screen says so.
+- **One decision per change, and it freezes the impact.** A change is **approved**, **declined** or
+  **withdrawn**, once, on a day, with an optional note (`change_order_decision`). The decision keeps
+  the finish before and after and the working days between them as the domain computed them at that
+  moment, and the price copied from the change: the host stores them as the facts of that day. A
+  second decision on the same change, a decision on a change the work does not have, and an approval
+  before the plan is approved are refused with a sentence.
+- **An approval applies the change, inside a replanning, in one transaction.** If no replanning is
+  open, the approval opens one with the reason _"Change order #N — {title}"_ and the account's name,
+  as a replanning is always opened; if one is open, the change joins it and its reason is not
+  rewritten. The effects are applied through **the same functions the plan's own commands use** — an
+  activity and its link added, a duration changed, an activity removed — so they meet the same
+  refusals; if any one fails, the whole decision is refused with a sentence and nothing is written.
+  A change priced at 0 or more adds a cost line on its stage labelled _"Change order #N"_; a saving
+  — a negative price — adds none, because a planned amount is never negative: the person lowers the
+  plan's own lines by hand in the same replanning, and the decision keeps the amount. The decision
+  is recorded with the replanning it went into. A decline or a withdrawal writes the decision and
+  nothing else. **The baseline is not taken**: the person reviews the plan and takes the next one as
+  always ([ADR-027](#adr-027)), and its reason names the change.
+- **A standing tally.** `changeTally` counts the changes approved, declined, withdrawn and waiting,
+  and sums the price and the frozen working days of the approved ones, with a row per party who
+  asked. Three figures carry their rows ([ADR-024](#adr-024)): **Changes approved** (money), **Days
+  added by changes** (working days) and **Waiting for a decision** (a count, each row saying how
+  long that change has waited). They are on the dashboard's **Changes** card, which is not shown
+  before approval; in the weekly report, as the changes decided that week and those waiting; and in
+  the owner's snapshot, as what waits for the owner's decision and the tally. A comparison of two
+  baselines lists the change orders decided between them as rows of their own
+  (`Comparison.changes`), so money and days that moved between two baselines can be read against the
+  changes that moved them, not only against the reasons' sentences.
+- **Readiness learns one rule.** A change order that has waited more than **7 calendar days** for a
+  decision is something the plan does not know, like a decision past its deadline: its own row in
+  the rule table, in the owner's words _"a change is waiting for your decision"_
+  ([ADR-018](#adr-018)).
+- **Where it lives.** The Plan gains a **Changes** tab: the change orders newest first — number,
+  title, who asked, state, price and days — the form that raises one, and on each change waiting,
+  **Approve…**, **Decline…** and **Withdraw…**, each through a confirmation that shows the impact
+  again. Before approval the form is not offered, and a sentence says why. After an approval the
+  screen says that the replanning is open with the change applied and that the next baseline is the
+  person's to take, and offers to go to the Schedule.
+- **Words.** The glossary gains _change order_ (_aditivo_). In the owner's lens a change the owner
+  asked for is _a change you asked for_. Days are always working days, and the screen says so.
+- **ADR-028 is not amended.** A what-if is still never written, and there is still no button that
+  applies one. A change order is not a what-if kept: it carries who asked, a price and a number, it
+  is recorded before it is decided, and the dialog that approves it says that approving opens the
+  replanning — which the person still has to close.
+
+**Why.** The price and the date of a change are cheapest to know before anybody says yes, and least
+disputed when they were written down then. The schedule could already compute them; what was
+missing was the record — who asked, on which day, for what, at what price — and a decision that
+keeps what the schedule said at the moment it was made. A computed impact is one both sides can
+work out again; a typed one is a claim. An approval that writes through the plan's own functions,
+inside a replanning, obeys the approved plan's lock and ends in a baseline like any other change,
+refused in the same sentences. And the danger of a small change is that it is small: the tally is
+there because the sum is what nobody sees.
+
+**Cost accepted.** **A change order is immutable**: a typo in a title, a wrong price or a forgotten
+effect is put right by withdrawing the change and raising it again under a new number; the record
+keeps both, and the numbers have gaps somebody may ask about. **The impact frozen at the decision is
+that day's schedule**: the plan moves later for other reasons — a slip in the diary, another change,
+a holiday added — and the days a change says it added are what the schedule said the day it was
+decided, not what it cost in the end; the tally sums those days, so it is not the slip, and need not
+add up to how far the finish has moved. Saying why the work is late is the delay ledger's (E3). **An
+approval writes into the plan inside a replanning the person still has to close**: the plan changes
+the moment the change is approved, and the baseline comes only when the person takes it. There is no
+abandon ([ADR-027](#adr-027)): a change approved by mistake is undone by another change order, or by
+putting the plan back inside the same replanning, and its decision stays on record. When a
+replanning was already open, the change joins it and the baseline's reason does not name it; the
+comparison lists it. **"Who asked" is a record, not a signature**: the product has no accounts, the
+person asked signs nothing, and the decision carries the name the Windows account gives, as an entry
+in the diary does. **The price is planned money, not an agreement**: an approved change's price is a
+cost line, and what is agreed with the contractor for it is still a commitment on **Money**, and
+what is paid a payment. **A saving is not written into the plan**: a planned amount is never
+negative, so an approved change that saves money adds no line, and until the person lowers the
+plan's own lines by hand the tally says the work saved money and the planned total does not. **Three
+kinds of effect are not every change**: a change that moves a link, a lag or the calendar is raised
+with its price and its words, its schedule is put right by hand inside the replanning, and the
+impact shown before the decision did not include it. **A change left waiting lowers readiness**:
+after a week, a change raised and not decided is something the plan does not know, even when it was
+raised only as a note.
