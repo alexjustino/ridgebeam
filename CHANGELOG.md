@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
-## [1.0.0] — 2026-09-28
+## [1.0.0] — 2026-10-02
 
 The first release. Ridgebeam plans a building work — a bathroom, a kitchen, a roof, a house — for
 the engineer, the architect and the owner who is not either, on one Windows machine, with no
-account and no network. It is built in twelve slices, F0 to F11, each described below in the order
-it arrived.
+account and no network. It is built in twelve slices, F0 to F11, and four differentiators, D1 to
+D4, each described below in the order it arrived.
 
 **What it does.** A work is a folder on the person's disk. Its plan is stages and activities on a
 working calendar, linked with lags, with the critical path and the finish date computed, and the
@@ -29,12 +29,20 @@ baselines compare. Files the work holds are copied into its folder by their hash
 The weekly report, the diary and the schedule print as PDFs; the diary exports as CSV and the work
 as JSON; the whole work backs up as one file and restores into a new folder.
 
+**What sets it apart.** The finish is also said as a chance — "8 in 10" — from each activity's
+optimistic and pessimistic duration, with the activities that move it most named (D1). Payments can
+be tied to milestones that only facts of the work earn, never dates, and a payment that would put
+the owner ahead of the work is warned about before it is recorded (D2). When the work ends, the
+handover book is one PDF the owner keeps — room by room, with the photos of hidden work taken before
+it was closed, which a check can require (D3). And the owner's snapshot is one HTML file, with
+nothing in it that runs or loads, that the person sends to anybody's phone themselves (D4).
+
 **What it is not.** Not a signature and not legal proof: the diary's chain shows whether the file
 was changed outside the product, nothing more. Not a quote: the library carries ranges and no
 prices. Not synchronised, not shared and not in the cloud — one person, one machine, in 1.0. The
 installers are not code-signed, so Windows SmartScreen warns on the first run.
 
-**Migrations.** A work written by this release is at schema 10 and the application database at 3.
+**Migrations.** A work written by this release is at schema 12 and the application database at 3.
 There is no earlier release to migrate from.
 
 ### Added in F0 — the foundation, the shell, one stage, and readiness
