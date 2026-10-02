@@ -12,7 +12,7 @@ language, a term or a sentence, or names a lens that does not exist.
 
 A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-64 terms.
+65 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
@@ -65,6 +65,7 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `replanning` | replanning | Changing an approved plan. It asks for a reason and keeps the old baseline, so the change is never silent. | replanejamento | Mudar um plano aprovado. Pede um motivo e guarda a linha de base antiga, para a mudança nunca ser silenciosa. |
 | `whatIf` | what-if | The schedule worked out again with a duration or a wait changed, to see when the work would finish. It is never saved: to keep it, replan with a reason. | simulação | O cronograma calculado de novo com uma duração ou uma espera trocada, para ver quando a obra terminaria. Nunca é salva: para mantê-la, replaneje com um motivo. |
 | `reason` | reason | The sentence that explains why an approved plan changed. Required, and kept with the baseline it produced. | motivo | A frase que explica por que um plano aprovado mudou. Obrigatória, e guardada com a linha de base que gerou. |
+| `changeOrder` | change order | A change to an approved plan asked for on record: who asked, what changes, what it costs and how many working days it moves the finish — worked out by the schedule, never typed. It is approved, declined or withdrawn once, and never edited. | aditivo | Uma mudança num plano aprovado pedida com registro: quem pediu, o que muda, quanto custa e quantos dias úteis ela move o término — calculado pelo cronograma, nunca digitado. É aprovado, recusado ou retirado uma única vez, e nunca editado. |
 | `template` | template | A plan to start from — stages, typical activities, dependencies, duration ranges, the decisions and checks each stage needs. A starting point, not a promise. | modelo | Um plano para começar — etapas, atividades típicas, dependências, faixas de duração, as decisões e verificações de cada etapa. Um ponto de partida, não uma promessa. |
 | `range` | range | A duration or a lead time given as a low and a high — the optimistic and the pessimistic — instead of a single number. A template brings its durations as ranges because it cannot know your site, and you can give any activity one; the chance of finishing by a date is computed from them. Costs have no ranges in 1.0: a template’s cost line has no amount. | faixa | Uma duração ou um prazo de entrega dado como um mínimo e um máximo — o otimista e o pessimista — em vez de um número só. Um modelo traz as durações como faixas porque não conhece a sua obra, e você pode dar uma faixa a qualquer atividade; a chance de terminar até uma data é calculada a partir delas. Custos não têm faixa na 1.0: a linha de custo de um modelo vem sem valor. |
 | `lens` | lens | A way of looking at the same work in the words of the engineer, the architect or the owner. Switching lenses changes the words and the arrangement, never the data. | lente | Um jeito de olhar a mesma obra nas palavras do engenheiro, do arquiteto ou do dono. Trocar de lente muda as palavras e a disposição, nunca os dados. |
@@ -87,7 +88,7 @@ A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a 
 with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
 The sentence never changes with the lens, and nothing about a work is stored per lens.
 
-9 of the 64 terms change with the lens.
+9 of the 65 terms change with the lens.
 
 | Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
 | --- | --- | --- | --- | --- | --- | --- |

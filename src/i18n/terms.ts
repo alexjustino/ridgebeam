@@ -38,6 +38,7 @@ export const TERM_KEYS = [
   'baseline',
   'slip',
   'replanning',
+  'changeOrder',
   'reason',
   'whatIf',
   'decision',

@@ -9,6 +9,7 @@ import {
   formatNumber,
   fromCents,
   toCents,
+  toSignedCents,
   weekdayNames,
   workingDaysList,
 } from './format';
@@ -75,6 +76,16 @@ describe('formatting through Intl', () => {
   it('refuses what is not an amount', () => {
     for (const text of ['', 'abc', '-5', '1.234', '1,5', '1e3', '.5']) {
       expect(toCents(text), text).toBeNull();
+    }
+  });
+
+  it('reads a signed amount, for a change that saves money', () => {
+    expect(toSignedCents('-150')).toBe(-15000);
+    expect(toSignedCents(' -150.5 ')).toBe(-15050);
+    expect(toSignedCents('300')).toBe(30000);
+    expect(toSignedCents('-0')).toBe(0);
+    for (const text of ['', '-', '--5', '- 5', '+5', '-1.234', 'abc']) {
+      expect(toSignedCents(text), text).toBeNull();
     }
   });
 

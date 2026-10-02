@@ -632,6 +632,17 @@
       }
     },
     {
+      "key": "changeOrder",
+      "en": {
+        "term": "change order",
+        "sentence": "A change to an approved plan asked for on record: who asked, what changes, what it costs and how many working days it moves the finish — worked out by the schedule, never typed. It is approved, declined or withdrawn once, and never edited."
+      },
+      "pt-BR": {
+        "term": "aditivo",
+        "sentence": "Uma mudança num plano aprovado pedida com registro: quem pediu, o que muda, quanto custa e quantos dias úteis ela move o término — calculado pelo cronograma, nunca digitado. É aprovado, recusado ou retirado uma única vez, e nunca editado."
+      }
+    },
+    {
       "key": "template",
       "en": {
         "term": "template",
