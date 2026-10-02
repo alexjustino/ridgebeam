@@ -72,6 +72,20 @@ export function stageStart(scheduled: Schedule, stageId: string): string | null 
 }
 
 /**
+ * The last day anything in the stage is scheduled to finish, or `null` when nothing in it is: the
+ * mirror of `stageStart`, the day its close gate comes up (lifted out of the lookahead in slice E2).
+ */
+export function stageFinish(scheduled: Schedule, stageId: string): string | null {
+  let last: string | null = null;
+  for (const activity of scheduled.activities) {
+    if (activity.stageId !== stageId) continue;
+    const finish = scheduled.dates.get(activity.id)?.finish;
+    if (finish !== undefined && (last === null || finish > last)) last = finish;
+  }
+  return last;
+}
+
+/**
  * The deadline of a decision with this lead time in this stage: the stage's first start less the
  * lead time, in working days. `null` when the stage has nothing scheduled, the calendar cannot be
  * counted on, or the lead time is not a whole number of working days from zero.

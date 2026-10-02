@@ -163,10 +163,14 @@ export function App({ settings }: { settings: Settings }) {
                 setDestination(next);
               }}
             />
+            {/* `relative`: the scroll region is the containing block of every absolutely placed
+                element in it — the visually hidden labels most of all. Without it their containing
+                block was the window, so one far down a long page stretched the document itself,
+                and bringing a card into view lifted the whole window (E2's screenshots). */}
             <main
               tabIndex={0}
               aria-label={showsStart ? t('start.title') : t(DESTINATION_LABELS[destination])}
-              className="min-w-0 flex-1 overflow-y-auto bg-layer focus-visible:-outline-offset-2"
+              className="relative min-w-0 flex-1 overflow-y-auto bg-layer focus-visible:-outline-offset-2"
             >
               <DropNotice />
 

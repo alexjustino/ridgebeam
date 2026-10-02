@@ -55,6 +55,7 @@ import {
   type Stage,
   type WorkSnapshot,
 } from './plan';
+import type { Schedule } from './schedule';
 
 export type { Milestone, MilestoneTrigger } from './plan';
 
@@ -697,6 +698,67 @@ export function noPlanFigure(snapshot: WorkSnapshot): Figure<NoPlanRow> {
       stageId: commitment.stageId,
     }));
   return counted('no-payment-plan', MILESTONE_LABEL_KEYS.noPlan, rows);
+}
+
+// ── When the schedule expects a milestone ────────────────────────────────────
+
+/**
+ * Where a schedule puts the facts a milestone waits for: a stage's first start and last finish, an
+ * activity's finish. The plan's schedule gives one (`scheduledFacts`); a simulated run gives another
+ * (slice E2's chance), so both ask `expectedOn` the one question.
+ */
+export interface FactDays {
+  stageStart(stageId: string): string | null;
+  stageFinish(stageId: string): string | null;
+  activityFinish(activityId: string): string | null;
+}
+
+const factsCache = new WeakMap<Schedule, FactDays>();
+
+/** The facts as the plan's schedule places them, read in one pass and remembered per schedule. */
+export function scheduledFacts(scheduled: Schedule): FactDays {
+  const cached = factsCache.get(scheduled);
+  if (cached !== undefined) return cached;
+  const first = new Map<string, string>();
+  const last = new Map<string, string>();
+  for (const activity of scheduled.activities) {
+    const dates = scheduled.dates.get(activity.id);
+    if (dates === undefined) continue;
+    const start = first.get(activity.stageId);
+    if (start === undefined || dates.start < start) first.set(activity.stageId, dates.start);
+    const finish = last.get(activity.stageId);
+    if (finish === undefined || dates.finish > finish) last.set(activity.stageId, dates.finish);
+  }
+  const facts: FactDays = {
+    stageStart: (stageId) => first.get(stageId) ?? null,
+    stageFinish: (stageId) => last.get(stageId) ?? null,
+    activityFinish: (activityId) => scheduled.dates.get(activityId)?.finish ?? null,
+  };
+  factsCache.set(scheduled, facts);
+  return facts;
+}
+
+/**
+ * The day a milestone's fact is expected (slice D4's lookahead, shared since slice E2): the day
+ * agreed for an `advance`; the stage's first scheduled start for `stage_started`; its last scheduled
+ * finish for `stage_closed`; the activity's scheduled finish for `activity_finished`. `null` when the
+ * schedule places nothing that says it. Whether the milestone is already earned is not asked here.
+ */
+export function expectedOn(
+  facts: FactDays,
+  commitment: Pick<Commitment, 'stageId' | 'agreedOn'>,
+  milestone: Pick<Milestone, 'trigger' | 'activityId'>,
+): string | null {
+  switch (milestone.trigger) {
+    case 'advance':
+      return commitment.agreedOn;
+    case 'stage_started':
+      return facts.stageStart(commitment.stageId);
+    case 'stage_closed':
+      return facts.stageFinish(commitment.stageId);
+    case 'activity_finished':
+      return milestone.activityId === null ? null : facts.activityFinish(milestone.activityId);
+  }
 }
 
 // ── The warning before a payment ─────────────────────────────────────────────

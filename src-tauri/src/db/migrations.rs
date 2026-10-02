@@ -110,6 +110,10 @@ pub const WORK: Schema = Schema {
             "013_change_orders",
             include_str!("../../work_migrations/013_change_orders.sql"),
         ),
+        (
+            "014_funding",
+            include_str!("../../work_migrations/014_funding.sql"),
+        ),
     ],
     read_version: "SELECT schema_version FROM work WHERE id = 1",
     write_version: "UPDATE work SET schema_version = ?1 WHERE id = 1",

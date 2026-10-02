@@ -24,6 +24,7 @@ import {
 import { scheduleReport } from '@/domain/reports/schedule';
 import { weekly, type WeeklyProblem } from '@/domain/reports/weekly';
 import { schedule, type Schedule } from '@/domain/schedule';
+import { runway, runwayChance } from '@/domain/runway';
 import { finishProbability } from '@/domain/schedule/probability';
 import { keyFrom } from '@/domain/templates/export';
 import type { MessageKey } from '@/i18n/en';
@@ -170,6 +171,10 @@ function WeeklyCard({ snapshot, scheduled }: { snapshot: WorkSnapshot; scheduled
           scheduled,
           i18n,
           finishProbability(snapshot, scheduled, { entries: diary.data }),
+          {
+            runway: runway(snapshot, scheduled, diary.data, today),
+            chance: runwayChance(snapshot, scheduled, diary.data, today),
+          },
         ),
         overwrite: where.overwrite,
       },

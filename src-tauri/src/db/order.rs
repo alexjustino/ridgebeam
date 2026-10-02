@@ -1,7 +1,7 @@
 //! Order: stages among themselves, rooms among themselves, activities and
 //! decisions within their stage, checks within their stage's gate, the
-//! milestones of a commitment's payment plan (D2), and the care notes of the
-//! work, a room or a stage (D3).
+//! milestones of a commitment's payment plan (D2), the care notes of the
+//! work, a room or a stage (D3), and the work's funds (E2).
 //!
 //! Order is explicit and the person edits it one step at a time — move up, move
 //! down. A move at the edge is not an error: the first stage moved up is still
@@ -21,6 +21,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::db::care_notes::CARE_NOTE_NOT_FOUND;
 use crate::db::check_answers::CHECK_NOT_FOUND;
+use crate::db::funding::FUNDING_NOT_FOUND;
 use crate::db::milestones::MILESTONE_NOT_FOUND;
 use crate::db::work::{ACTIVITY_NOT_FOUND, DECISION_NOT_FOUND, ROOM_NOT_FOUND, STAGE_NOT_FOUND};
 use crate::error::{Error, Result};
@@ -96,6 +97,14 @@ pub const CARE_NOTES: Sequence = Sequence {
     table: "care_note",
     scope: Some("target_kind || ':' || target_id"),
     missing: CARE_NOTE_NOT_FOUND,
+};
+
+/// The work's funds, one sequence for the work (E2). They are not moved; the
+/// sequence closes the gap a removal leaves.
+pub const FUNDING: Sequence = Sequence {
+    table: "funding",
+    scope: None,
+    missing: FUNDING_NOT_FOUND,
 };
 
 impl Sequence {

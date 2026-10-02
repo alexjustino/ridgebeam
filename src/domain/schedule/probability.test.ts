@@ -501,6 +501,72 @@ describe('the same plan gives the same numbers', () => {
   });
 });
 
+// ── The per-run hook (slice E2) ──────────────────────────────────────────────
+
+describe('the per-run hook', () => {
+  it('changes no result and no seed: every result is the same with and without it', () => {
+    const plans = [chain(), ...[1, 2, 3, 4, 5].map((seed) => randomPlan(seed, true))];
+    for (const plan of plans) {
+      let calls = 0;
+      const without = simulate(plan);
+      const withHook = simulate(plan, { onRun: () => (calls += 1) });
+      expect(data(withHook)).toEqual(data(without));
+      expect(withHook.seed).toBe(without.seed);
+      expect(calls).toBe(without.runs);
+      // And for a given seed and run count too.
+      const seeded = simulate(plan, { seed: 11, runs: 120 });
+      expect(data(simulate(plan, { seed: 11, runs: 120, onRun: () => undefined }))).toEqual(
+        data(seeded),
+      );
+    }
+  });
+
+  it('hands each run its offsets: a run of the plan’s durations is the schedule’s own', () => {
+    const plan = snapshot({
+      stages: [stage('s1', 1)],
+      activities: [activity('a', 's1', 1, 3), activity('b', 's1', 2, 2), activity('c', 's1', 3, 1)],
+      dependencies: [link('ab', 'a', 'b', 1), link('ac', 'a', 'c')],
+    });
+    const scheduled = schedule(plan);
+    const seen: Array<{ run: number; end: number; offsets: Record<string, [number, number]> }> = [];
+    simulate(plan, {
+      runs: 3,
+      onRun: (each) => {
+        const offsets: Record<string, [number, number]> = {};
+        each.activityIds.forEach((id, at) => {
+          if (each.placed[at] === 1) offsets[id] = [each.start[at]!, each.finish[at]!];
+        });
+        seen.push({ run: each.run, end: each.end, offsets });
+      },
+    });
+    const timing = (id: string): [number, number] => {
+      const each = scheduled.plan.timing.get(id)!;
+      return [each.earliestStart, each.earliestFinish];
+    };
+    expect(seen).toHaveLength(3);
+    for (const [index, each] of seen.entries()) {
+      expect(each.run).toBe(index);
+      expect(each.offsets).toEqual({ a: timing('a'), b: timing('b'), c: timing('c') });
+      expect(each.end).toBe(6);
+    }
+  });
+
+  it('draws the ranged activities anew in every run, within their ranges', () => {
+    const ends = new Set<number>();
+    simulate(chain(), {
+      runs: 200,
+      onRun: (each) => {
+        ends.add(each.end);
+        each.activityIds.forEach((_id, at) => {
+          expect(each.finish[at]! - each.start[at]!).toBeGreaterThanOrEqual(1);
+        });
+      },
+    });
+    expect(ends.size).toBeGreaterThan(1);
+    for (const end of ends) expect(end >= 4 && end <= 12).toBe(true);
+  });
+});
+
 // ── Decision 7: a plan with no range is a point at the plan's date ───────────
 
 describe('a plan with no range', () => {

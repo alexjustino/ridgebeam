@@ -63,6 +63,7 @@ export const READINESS_ROW_KEYS: Record<MissingId, MessageKey> = {
   'stage.checks': 'readiness.row.stage.checks',
   'stage.money': 'readiness.row.stage.money',
   'change.waiting': 'readiness.row.change.waiting',
+  'work.funding': 'readiness.row.work.funding',
   'plan.activity': 'readiness.row.plan.activity',
 };
 

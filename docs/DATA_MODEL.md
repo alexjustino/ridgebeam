@@ -778,6 +778,67 @@ many changes approved, declined, withdrawn and waiting, the price and the workin
 approved ones, and who asked them — is the domain's (`changeTally`), from these rows, each figure
 with its rows.
 
+### `funding` and `funding_receipt` — where the money comes from (E2)
+
+The owner writes down the money the work will receive — savings on hand, a loan's tranches, a
+client's instalments — each expected on a day, and records each sum when it actually arrives
+(ADR-042). **Funding is plan** and **receipts are facts**: the first table is edited like a
+commitment, the second is a ledger exactly like the payments.
+
+| `funding`      | Type    | Meaning                                                                                                |
+| -------------- | ------- | ------------------------------------------------------------------------------------------------------ |
+| `id`           | TEXT    | UUID v7                                                                                                |
+| `position`     | INTEGER | 1 … n for the whole work, in the order written, unique, closed up when one is removed; never reordered |
+| `label`        | TEXT    | 1–200 characters, not blank — _Loan tranche 2_                                                         |
+| `source`       | TEXT    | where it comes from, 1–200 characters, or `NULL` — _the bank_                                          |
+| `amount_cents` | INTEGER | the amount expected, `> 0`                                                                             |
+| `expected_on`  | TEXT    | the ISO day it is expected                                                                             |
+| `note`         | TEXT    | up to 2 000 characters, or `NULL`                                                                      |
+| `created_at`   | TEXT    | UTC                                                                                                    |
+
+**A fund is plan.** It is changed freely — its amount, its day, its words — and an approved plan's
+lock does not cover it (ADR-027): funding is not the plan's scope, and no baseline records it. It is
+removed only while no receipt names it; from the first receipt that does, the host refuses with a
+sentence, and the foreign key from `funding_receipt` refuses it after.
+
+| `funding_receipt` | Type    | Meaning                                                                              |
+| ----------------- | ------- | ------------------------------------------------------------------------------------ |
+| `id`              | TEXT    | UUID v7                                                                              |
+| `seq`             | INTEGER | 1, 2, 3 … — one sequence for the whole work, always the last plus one; unique        |
+| `day`             | TEXT    | the ISO day the money arrived — **never after today**, which the host refuses        |
+| `funding_id`      | TEXT    | `REFERENCES funding`, with no action, or `NULL` for money that arrived unplanned     |
+| `amount_cents`    | INTEGER | never 0; positive for money received, negative for a reversal                        |
+| `note`            | TEXT    | 1–200 characters, or `NULL`; a reversal carries none                                 |
+| `reverses_seq`    | INTEGER | for a reversal, the earlier receipt it reverses (`REFERENCES funding_receipt (seq)`) |
+| `author_name`     | TEXT    | the display name of the Windows account that recorded it                             |
+| `created_at`      | TEXT    | UTC                                                                                  |
+
+**Money received is a ledger, append-only.** Migration 014 gives `funding_receipt` the battery of
+migration 007: `BEFORE UPDATE` and `BEFORE DELETE` refused, a guard before insert that refuses an id
+or a `seq` already there — so `INSERT OR REPLACE` cannot remove a row whether `recursive_triggers`
+is on or off — and `seq` accepted only as the next, each raising `funding: append-only`. There is no
+hash chain. A receipt's day is never after today, and that is the host's to refuse: the schema has
+no clock it can trust.
+
+**Reversals.** A `CHECK` makes a receipt positive with no `reverses_seq`, or a reversal negative
+with an earlier `reverses_seq`. The trigger `funding_receipt_reversal_rules` refuses, with `funding:
+reversal`, a reversal of a receipt that is not there or of another reversal, a reversal of any
+amount but the whole receipt's, for another fund than the receipt's, dated before it, and a second
+reversal of the same receipt. Unlike a payment, a receipt is not reversed in part: money that
+arrived short is a reversal and a new receipt of what did arrive. The domain applies reversals
+everywhere money received is shown.
+
+**What goes with what.** The receipts name their fund by a foreign key with no action, so a fund
+money was received against cannot be removed, and nothing that arrived disappears with the plan
+for it. `idx_funding_receipt_funding` serves the lookup by fund and the check a removal makes. The
+Rust module that writes the ledger holds no `UPDATE`, `DELETE` or `REPLACE`, and a test reads its
+source to prove it.
+
+**Nothing here holds a projection.** Whether the money lasts is the domain's (`runway`), computed
+every time from these two tables, the payments, the payment plans, the schedule and the cost lines;
+no table holds a week, a balance or a chance (below, _A comparison, a what-if and a chance are
+computed, not stored_).
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -797,16 +858,17 @@ each that does not is a _missing_ row, named, and opens from the figure. The fig
 must-know`; the rules, summed, give exactly that figure; and the sentence is built from the
 count of missing rows per rule, in the person's language.
 
-| Rule                   | Slice | Applies to                               | Holds when                                                                                   | The sentence, in English                 |
-| ---------------------- | ----- | ---------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `activity.duration`    | F0    | every activity                           | it has a duration of one working day or more                                                 | "1 activity has no duration."            |
-| `activity.responsible` | F0    | every activity                           | its responsible is a person of the work                                                      | "1 activity has no responsible."         |
-| `activity.linked`      | F2    | every activity, in a plan of two or more | a dependency joins it to another, stages expanded                                            | "1 activity is not linked to any other." |
-| `decision.deadline`    | F3    | every decision                           | its stage has a scheduled activity, so it has a deadline                                     | "1 decision has no deadline yet."        |
-| `decision.timely`      | F3    | every decision whose deadline is known   | it is made, or its deadline is today or later                                                | "2 decisions are overdue."               |
-| `stage.checks`         | F5    | every stage                              | it has at least one check at its start gate and one at its close gate                        | "2 stages have no checks."               |
-| `stage.money`          | F6    | every stage                              | it has at least one **priced** cost line, its own or one of its activities' (priced from F9) | "2 stages have no money planned."        |
-| `change.waiting`       | E1    | every change order                       | it is decided, or it was raised 7 calendar days ago or less                                  | "1 change is waiting for a decision."    |
+| Rule                   | Slice | Applies to                                            | Holds when                                                                                   | The sentence, in English                              |
+| ---------------------- | ----- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `activity.duration`    | F0    | every activity                                        | it has a duration of one working day or more                                                 | "1 activity has no duration."                         |
+| `activity.responsible` | F0    | every activity                                        | its responsible is a person of the work                                                      | "1 activity has no responsible."                      |
+| `activity.linked`      | F2    | every activity, in a plan of two or more              | a dependency joins it to another, stages expanded                                            | "1 activity is not linked to any other."              |
+| `decision.deadline`    | F3    | every decision                                        | its stage has a scheduled activity, so it has a deadline                                     | "1 decision has no deadline yet."                     |
+| `decision.timely`      | F3    | every decision whose deadline is known                | it is made, or its deadline is today or later                                                | "2 decisions are overdue."                            |
+| `stage.checks`         | F5    | every stage                                           | it has at least one check at its start gate and one at its close gate                        | "2 stages have no checks."                            |
+| `stage.money`          | F6    | every stage                                           | it has at least one **priced** cost line, its own or one of its activities' (priced from F9) | "2 stages have no money planned."                     |
+| `change.waiting`       | E1    | every change order                                    | it is decided, or it was raised 7 calendar days ago or less                                  | "1 change is waiting for a decision."                 |
+| `work.funding`         | E2    | the work, when its priced planned money is above zero | at least one fund is recorded — money received with no fund does not count                   | "Where the money comes from is not written down yet." |
 
 A plan with no activity at all is not ready: it has one missing row, "The plan has no activity
 yet.", and a figure of 0 %. The nouns in the sentences follow the lens — the owner reads "job"
@@ -866,8 +928,8 @@ migration each database has been through, by number and name.
 - Every table that must never lose a row is insert-only: triggers refuse `UPDATE`, `DELETE`
   and `REPLACE`, and the Rust module that writes it contains no `UPDATE` or `DELETE` statement,
   by rule. **Shipped for the baselines (F2) and the diary (F4)**, whose entries also carry the
-  hash of the one before; the payments ledger (F6) and the change orders (E1) follow the same
-  pattern.
+  hash of the one before; the payments ledger (F6), the change orders (E1) and the money received
+  (E2) follow the same pattern.
 - Text columns that a person types are bounded by `CHECK (length(...) <= n)` in the schema.
 
 ## Migrations
@@ -891,6 +953,7 @@ covered by a round-trip test that opens a work at version N-1 and migrates it wi
 | `011_payment_milestones.sql`         | D2    | `payment_milestone` with its `CHECK`s and its triggers: an activity of the commitment's stage, at most 100 % per commitment, and locked once a payment names the commitment                                           |
 | `012_handover.sql`                   | D3    | `stage_check.needs_photo` and the trigger that refuses a `yes` without a photo on such a check; `document` rebuilt with the kinds `warranty` and `manual`, its links set aside and restored; `care_note`              |
 | `013_change_orders.sql`              | E1    | `change_order` and `change_order_decision`, each with its `CHECK`s and the insert-only battery of migrations 003, 007 and 009                                                                                         |
+| `014_funding.sql`                    | E2    | `funding`; `funding_receipt` with its `CHECK`s, the insert-only battery of migration 007 and its reversal trigger                                                                                                     |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its stages
 and activities migrates to schema 2 without loss, a work at schema 2 with rooms and quantities
@@ -907,7 +970,8 @@ invented, the paid commitment's plan locked from the start — a reversal does n
 chain still verifying, and a work at schema 11 with documents and their links migrates to schema 12
 with every document, id and link kept, every check not needing a photo and its chain still
 verifying, and a work at schema 12 migrates to schema 13 losing nothing, with its chain still
-verifying.
+verifying, and a work at schema 13 with change orders, payments and a diary migrates to schema 14
+losing nothing, with no fund and no receipt invented and its chain still verifying.
 
 **Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
 where it came from, one row per hash in this order of precedence: a diary photo (kind `photo`,
@@ -969,6 +1033,12 @@ ahead — so no figure an earlier slice showed moves with the migration.
 schema 12 has no change order, so the tally is empty, readiness's new rule applies to nothing, and
 no figure an earlier slice showed moves with the migration.
 
+**Migration 014 adds two tables and nothing else.** No existing row changes: a work migrated from
+schema 13 has no fund and no receipt. Every figure an earlier slice showed stays as it was; what is
+new is the projection, which for such a work opens with the payments already made and nothing
+received, and readiness's new rule, which a work with priced planned money now misses until a fund
+is recorded.
+
 The migrations live in `src-tauri/work_migrations/`.
 
 ## A comparison, a what-if and a chance are computed, not stored
@@ -991,6 +1061,21 @@ of the snapshot in memory (`withEffects`) and scheduled — every time a screen 
 waiting. Only the decision stores it, once: the finish before and after and the working days
 between them, as they were on the day somebody decided, never recomputed
 ([ADR-041](architecture/ADR.md#adr-041)).
+
+Whether the money lasts (E2) is not stored either. The domain projects it week by week from the
+funds, the receipts, the payments, the payment plans, the cost lines and the schedule every time a
+screen asks (`runway`), and its chance from the same seeded runs as the finish's (`runwayChance`,
+[ADR-042](architecture/ADR.md#adr-042)). No table holds a week, a balance or a chance, and nothing
+the projection reads is changed by it. The rules it reads by are the domain's and are set out in
+ADR-042: money earned and not paid, a milestone past its expected day, a closed stage's money still
+owed, and money the schedule cannot date — noted as such — all fall in the current week; the rest of
+a payment plan that covers less than its commitment is spread like a commitment with no plan; money
+planned and not committed is less what was paid on the stage outside any commitment; a fund
+expected today counts, and only one expected on an earlier day is late; and money dated after the
+last week is listed, not counted. The result is one of four states — the money lasts, it runs
+short, there is no funding, or there is nothing to project. The chance counts the runs whose balance
+goes below zero in any week up to that run's own finish week, through a per-run hook on D1's
+simulation that changes none of its results.
 
 ## Not yet in the schema
 

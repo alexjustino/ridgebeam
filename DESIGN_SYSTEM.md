@@ -636,6 +636,30 @@ breaks one is not merged.
   its own, and its impact reads as what approving it would have done — _"Not applied. Had it been
   approved: …"_. A figure's value is a number and its unit lives in the label — _Working days added
   by changes_ **+2**, never a sentence in the value's place.
+- **A projection says what it counts and what it does not, in words, beside the number.** A figure
+  about the future — whether the money lasts, and its chance — is read as a promise unless the
+  screen says what it was made from. So the **Will the money last?** card (`runway-card`) puts,
+  beside its sentence and never behind a tooltip, what it **left out**, each counted with its rows:
+  money expected on an earlier day that has not arrived — _"1 expected sum has not arrived:
+  $5,000.00 not counted — money that has not come is not money."_ — the cost lines _not priced yet_,
+  money the schedule cannot date, which it counted this week, and money dated after the last week,
+  listed and not counted. A late sum is never quietly added to the money coming in and never quietly
+  dropped. The sentence is one, from the domain, and the figures, the weeks' table and the balance
+  chart read the same rows in the same call, so they cannot disagree (§2): _"Money runs short in the
+  week of 16 Nov — $4,200.00 short."_ or _"The money lasts to the end, with $1,800.00 to spare."_ A
+  figure's label carries its unit — **Money runs short in the week of** shows the week's Monday as a
+  day, **Money left at the end** an amount — and a short week's closing reads _"$700.00 short"_,
+  never a minus sign, which a layperson misreads and a screen reader reads as "minus". The short
+  sentence takes the **danger** tone with its error icon and its words, never colour alone; the
+  money that lasts is **not** a success state, because a projection is not an achievement. The weeks
+  are a real table, as the S-curve's is, each week a row with what came in, what went out and what
+  was left, and the chart is drawn as the S-curve is. The chance follows _a probability is said as N
+  in 10, in words_ — _"3 in 10 chances that the money runs short before the work ends."_ — and where
+  no activity has a range the card says so instead of giving one: _"Every duration is taken as
+  certain, so the weeks below are the only answer. Give activities a range to see the chance."_ The
+  card ends with what it is: _"A projection, not a promise: it is as good as the schedule, the
+  payment plans and the dates typed here."_ The dashboard shows the week or the money left with the
+  sentence, and no chance (ADR-042).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries

@@ -92,6 +92,14 @@
 //!   whole minor units (`costCents`, `null` when not priced); days are working
 //!   days. The impact on the finish is not computed here: it is the domain's,
 //!   sent with the decision and kept as the fact of that moment.
+//! - E2: funding — where the money comes from (`Funding`, by position;
+//!   `FundingReceipt`, the money received, by `seq`; `WorkSnapshot.funding`,
+//!   `WorkSnapshot.fundingReceipts`); `FundingDraft` for `funding_add` and
+//!   `funding_update` (written whole: `null` clears `source` and `note`),
+//!   `FundingReceiptDraft` for `funding_receipt_add`. A receipt is a fact:
+//!   a reversal is the negative of the receipt it reverses, naming it by
+//!   `reversesSeq`. Whether the money lasts is not here: it is the domain's,
+//!   computed every time.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -391,6 +399,11 @@ pub struct WorkSnapshot {
     /// Change orders (E1), by number, each with its decision or `null` while
     /// it waits for one. Empty before the plan is approved: there are none.
     pub change_orders: Vec<ChangeOrder>,
+    /// Where the money comes from (E2): the funds expected, by position.
+    pub funding: Vec<Funding>,
+    /// The money received (E2): the ledger, by `seq` — reversals included,
+    /// as they were written.
+    pub funding_receipts: Vec<FundingReceipt>,
 }
 
 /// What a change does to the plan (E1), as data the schedule can compute.
@@ -951,6 +964,95 @@ pub struct PaymentDraft {
     /// A receipt image the work already holds, by hash.
     #[serde(default)]
     pub receipt_hash: Option<String>,
+}
+
+/// A fund expected (E2, pt "recursos"): money the work will receive, from
+/// where and when. Plan, not fact: edited freely, and not locked by the plan's
+/// approval. Removable only while no receipt names it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct Funding {
+    /// UUID v7.
+    pub id: String,
+    /// Its order among the work's funds: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// What it is, 1 to 200 characters.
+    pub label: String,
+    /// Where it comes from, up to 200 characters; `null` when not said.
+    pub source: Option<String>,
+    /// How much is expected, in the currency's minor unit; more than 0.
+    pub amount_cents: i64,
+    /// The day it is expected, `YYYY-MM-DD`.
+    pub expected_on: String,
+    /// More words, up to 2000 characters; `null` when none.
+    pub note: Option<String>,
+}
+
+/// A fund as the interface sends it — to add one, or to write one whole.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FundingDraft {
+    /// The fund to change, for `funding_update`; left out or `null` for
+    /// `funding_add`.
+    #[serde(default)]
+    pub id: Option<String>,
+    /// What it is, 1 to 200 characters.
+    pub label: String,
+    /// Where it comes from, up to 200 characters; `null` for none.
+    #[serde(default)]
+    pub source: Option<String>,
+    /// How much, whole minor units, more than 0.
+    pub amount_cents: f64,
+    /// `YYYY-MM-DD` — any day, past or to come.
+    pub expected_on: String,
+    /// More words, up to 2000 characters; `null` for none.
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+/// Money received (E2): one line of the ledger — never edited. A reversal is
+/// a receipt with the negative amount of the one it reverses, naming it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct FundingReceipt {
+    /// UUID v7.
+    pub id: String,
+    /// 1, 2, 3 … for the whole work, in the order written.
+    pub seq: i64,
+    /// The day the money arrived (for a reversal, the day it was undone);
+    /// never after the day it was recorded.
+    pub day: String,
+    /// The fund it belongs to; `null` for money that arrived unplanned.
+    pub funding_id: Option<String>,
+    /// How much, in the currency's minor unit: positive for money received,
+    /// negative for a reversal.
+    pub amount_cents: i64,
+    /// A few words, up to 200 characters; `null` when none.
+    pub note: Option<String>,
+    /// The receipt this one reverses; `null` for money received.
+    pub reverses_seq: Option<i64>,
+    /// The Windows account that recorded it.
+    pub author_name: String,
+    /// When it was recorded, UTC.
+    pub created_at: String,
+}
+
+/// Money received, as the interface sends it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FundingReceiptDraft {
+    /// The fund it belongs to; `null` for money that arrived unplanned.
+    #[serde(default)]
+    pub funding_id: Option<String>,
+    /// How much, whole minor units, more than 0.
+    pub amount_cents: f64,
+    /// `YYYY-MM-DD`, not after today.
+    pub day: String,
+    /// A few words, up to 200 characters.
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 /// A question a stage must answer at one of its gates.

@@ -107,8 +107,8 @@ describe('the money rule and a line not priced yet', () => {
     ];
     for (const plan of plans) expect(money(plan)).toEqual(before(plan));
     // The fixture the earlier readiness tests count on reads what it read before F9: durations 2/2,
-    // responsible 0/2, linked 2/2, checks 2/2, money 2/2.
+    // responsible 0/2, linked 2/2, checks 2/2, money 2/2 — and, since E2, the work's funding 1/1.
     const { known, mustKnow } = measure(withStageRules(base));
-    expect({ known, mustKnow }).toEqual({ known: 8, mustKnow: 10 });
+    expect({ known, mustKnow }).toEqual({ known: 9, mustKnow: 11 });
   });
 });

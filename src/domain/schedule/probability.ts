@@ -487,6 +487,32 @@ export interface FinishProbabilityRefused {
 
 export type FinishProbabilityResult = FinishProbability | FinishProbabilityRefused;
 
+/**
+ * One run, as the per-run hook sees it (slice E2): where each activity fell in it, in working-day
+ * offsets from day 0. The arrays are the engine's own and are **overwritten by the next run**: a hook
+ * reads them while it is called and copies whatever it keeps.
+ */
+export interface SimulatedRun {
+  /** The run, from 0. */
+  readonly run: number;
+  /**
+   * The activities the runs place, in the order the arrays use (the network's topological order);
+   * the same array in every call.
+   */
+  readonly activityIds: readonly string[];
+  /** Each activity's first working day, as an offset from day 0 (day 0 is offset 0). */
+  readonly start: Int32Array;
+  /**
+   * Each activity's end, as an offset: its first day plus its working days, so its last working day
+   * is `finish − 1`. An activity that takes no days (`placed` 0) has no day at all.
+   */
+  readonly finish: Int32Array;
+  /** 1 when the activity takes days in the runs (a duration or a range), 0 when it is left out. */
+  readonly placed: Uint8Array;
+  /** The run's finish, as `finish` counts: the work's last working day is `end − 1`. */
+  readonly end: number;
+}
+
 export interface FinishProbabilityOptions {
   /** The diary, for what has already happened. None: nothing has. */
   readonly entries?: readonly DiaryEntry[];
@@ -496,6 +522,12 @@ export interface FinishProbabilityOptions {
   readonly seed?: number;
   /** A work budget instead of `PROBABILITY_WORK_BUDGET`, for `runsFor` (tests; never the screen). */
   readonly workBudget?: number;
+  /**
+   * Called once per run, after its forward pass, with where every activity fell (slice E2: the
+   * runway's chance places money on each run's dates). It only reads: it draws nothing, so the runs,
+   * the seed and every result are exactly what they are without it.
+   */
+  readonly onRun?: (run: SimulatedRun) => void;
 }
 
 /**
@@ -740,6 +772,15 @@ export function finishProbability(
   const earliestStart = new Int32Array(n);
   const earliestFinish = new Int32Array(n);
   const latestStart = new Int32Array(n);
+  const onRun = options.onRun;
+  const seen: { -readonly [K in keyof SimulatedRun]: SimulatedRun[K] } = {
+    run: 0,
+    activityIds: net.ordered,
+    start: earliestStart,
+    finish: earliestFinish,
+    placed,
+    end: 0,
+  };
 
   for (let run = 0; run < runs; run += 1) {
     for (let k = 0; k < r; k += 1) {
@@ -765,6 +806,11 @@ export function finishProbability(
       if (placed[at] === 1 && done > finish) finish = done;
     }
     finishes[run] = finish;
+    if (onRun !== undefined) {
+      seen.run = run;
+      seen.end = finish;
+      onRun(seen);
+    }
 
     // Backward: no float in this run is what "critical" means, as in `plan()`.
     for (let at = n - 1; at >= 0; at -= 1) {

@@ -54,6 +54,10 @@
 //!   removes a row); `change_effects` — what an approved one does to the
 //!   plan, written through the plan's own functions in the decision's
 //!   transaction; work migration 013.
+//! - E2: `funding` — the funds the work expects, plan, edited freely and kept
+//!   while a receipt names them — and `funding_receipts`, the money received
+//!   (append-only, holding no statement that edits or removes a row); work
+//!   migration 014.
 
 #[cfg(test)]
 mod append_only_tests;
@@ -72,6 +76,8 @@ pub mod diary;
 #[cfg(test)]
 mod diary_tests;
 pub mod documents;
+pub mod funding;
+pub mod funding_receipts;
 pub mod migrations;
 pub mod milestones;
 pub mod money;

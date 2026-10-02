@@ -26,6 +26,7 @@ pub mod checks;
 pub mod decisions;
 pub mod diary;
 pub mod documents;
+pub mod funding;
 #[cfg(test)]
 mod handover_tests;
 #[cfg(test)]
