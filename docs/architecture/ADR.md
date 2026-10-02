@@ -171,6 +171,15 @@ TMview, the INPI radical search and the Microsoft Store — the built-in browser
 TMview within five minutes, and the INPI and Store checks need a browser session. They stand as
 they were on 2026-09-24.
 
+**Re-checked for the recut of 1.0.0 — 2026-10-02.** Nothing moved since 2026-09-28. The GitHub user
+"Ridgebeam" still holds four small repositories. npm, crates.io, PyPI and RubyGems are still free.
+`.com` is still registered; `.app`, `.dev`, `.io` and `.com.br` are still free (RDAP 404). USPTO,
+with the control again at 73 marks for "procore": no mark containing "ridgebeam", and the one "RIDGE
+BEAM" in class 27. Two of the three left out last time were done: **TMview** has no active mark for
+"ridgebeam" (its control, "procore", returns 271), and the **Microsoft Store** has no app of the name
+— its search answers with unrelated popular apps. **Not re-checked**, stated plainly: the INPI radical
+search, which needs a session the built-in browser did not keep; it stands as it was on 2026-09-24.
+
 ## ADR-002 — Tauri 2 with a deliberately thin Rust host {#adr-002}
 
 **Status.** Accepted — 2026-09-25.
@@ -2026,7 +2035,7 @@ that the date has a chance.
 
 **Context.** The specification closes 1.0.0 with a rule: nothing enters it without something
 leaving it (SPEC §2). Slices F0 to F11 were built to that closed list, and the release, F12, was
-prepared on a branch of its own. Before using the product on a work of his own, its owner asked
+prepared on a branch of its own. Before using the product on a work of their own, its owner asked
 what would set it apart from every other small-works tool, and the squad proposed four answers to
 questions those tools leave to guesswork.
 
