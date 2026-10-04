@@ -8,7 +8,7 @@
  */
 
 import type { DecisionRow } from '@/domain/decisions';
-import type { Weather } from '@/domain/diary';
+import type { LostCause, Weather } from '@/domain/diary';
 import { sentenceParts, type MissingId, type MissingRow } from '@/domain/readiness';
 import type { Schedule, UnplacedReason } from '@/domain/schedule';
 import {
@@ -111,6 +111,43 @@ export const WEATHER_KEYS: Record<Weather, MessageKey> = {
   wind: 'diary.weather.wind',
   other: 'diary.weather.somethingElse',
 };
+
+/** Each cause of a lost day inside a sentence — "Lost — waiting for a decision" — as said (E3). */
+export const LOST_PHRASE_KEYS: Record<LostCause, MessageKey> = {
+  weather: 'diary.lost.weather',
+  decision: 'diary.lost.decision',
+  absence: 'diary.lost.absence',
+  material: 'diary.lost.material',
+  owner: 'diary.lost.owner',
+  access: 'diary.lost.access',
+  other: 'diary.lost.other',
+};
+
+/** The causes that can name somebody: a crew, a supplier, anyone else (E3, decision 4). */
+export const CAUSES_WITH_PARTY: ReadonlySet<LostCause> = new Set(['absence', 'material', 'other']);
+
+/**
+ * What an entry says of a lost day, in one line: the cause and who, when it names them — "Lost —
+ * waiting for a decision (A. Joiner)" — or, when it names no cause, the lost day as it always read.
+ * `party` is who the entry names (`null` for nobody), its `name` `null` once they left the plan,
+ * which is said, never dropped. `null` when the day was not lost. The diary, the dashboard's last
+ * entries and every report say it here, so they say it alike.
+ */
+export function lostDayText(
+  i18n: Pick<I18n, 't'>,
+  lostDay: boolean,
+  cause: LostCause | null,
+  party: { readonly name: string | null } | null,
+): string | null {
+  if (!lostDay) return null;
+  if (cause === null) return i18n.t('diary.entry.lostDay');
+  const phrase = i18n.t(LOST_PHRASE_KEYS[cause]);
+  if (party === null) return i18n.t('diary.entry.lost', { cause: phrase });
+  return i18n.t('diary.entry.lostBy', {
+    cause: phrase,
+    name: party.name ?? i18n.t('reports.diary.unknownPerson'),
+  });
+}
 
 /** Why an activity is not on the calendar, as the Schedule page and the printed table say it. */
 export const UNPLACED_KEYS: Record<UnplacedReason, MessageKey> = {

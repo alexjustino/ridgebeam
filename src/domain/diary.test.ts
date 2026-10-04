@@ -19,6 +19,8 @@ import {
   effectiveEntries,
   entriesByDay,
   lastPresence,
+  LOST_CAUSE_KEYS,
+  LOST_CAUSES,
   lostDays,
   lostDaysFigure,
   progress,
@@ -367,6 +369,8 @@ describe('checking a draft before the host is asked', () => {
     note: null,
     weather: 'sun',
     lostDay: false,
+    lostCause: null,
+    lostPartyPersonId: null,
     hours: 8,
     deliveries: null,
     incidents: null,
@@ -451,6 +455,37 @@ describe('checking a draft before the host is asked', () => {
     expect(check({ visitors: 'x'.repeat(2001) })).toEqual(['too-long']);
     expect(check({ done: [{ ...worked('tile'), note: 'x'.repeat(501) }] })).toEqual(['too-long']);
     expect(check({ note: 'x'.repeat(4000), weather: null, hours: null })).toEqual([]);
+  });
+
+  it('accepts a lost day with a cause, and somebody of the plan it is put down to', () => {
+    expect(check({ lostDay: true, done: [], lostCause: 'weather' })).toEqual([]);
+    expect(
+      check({ lostDay: true, done: [], lostCause: 'absence', lostPartyPersonId: 'tiler' }),
+    ).toEqual([]);
+    for (const cause of LOST_CAUSES) {
+      expect(check({ lostDay: true, done: [], lostCause: cause })).toEqual([]);
+      expect(LOST_CAUSE_KEYS[cause]).toMatch(/^diary\.lostCause\./);
+    }
+  });
+
+  it('refuses a cause on a day that was not lost, or one it does not know', () => {
+    expect(check({ lostCause: 'material' })).toEqual(['cause-without-lost-day']);
+    expect(check({ lostDay: true, lostCause: 'aliens' as never })).toEqual(['invalid-cause']);
+  });
+
+  it('refuses somebody without a cause, and somebody who is not in the plan', () => {
+    expect(check({ lostDay: true, lostPartyPersonId: 'tiler' })).toEqual(['party-without-cause']);
+    expect(check({ lostDay: true, lostCause: 'other', lostPartyPersonId: 'stranger' })).toEqual([
+      'unknown-party',
+    ]);
+    expect(
+      validateDraft(
+        { ...draft(), lostDay: true, lostCause: 'other', lostPartyPersonId: 'stranger' },
+        '2026-09-02',
+        PLAN,
+        existing,
+      ),
+    ).toContainEqual({ code: 'unknown-party', personId: 'stranger' });
   });
 
   it('reports every problem at once, never throwing', () => {

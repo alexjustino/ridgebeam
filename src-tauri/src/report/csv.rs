@@ -2,10 +2,10 @@
 //!
 //! The rows are the diary's own (`db::diary::all`), verified before they are
 //! written, one per entry in the chain's order — never rows the interface
-//! sends. Thirteen columns:
+//! sends. Fifteen columns:
 //!
 //! `seq, day, created_at, author, weather, done, finished, present, note,
-//! corrects_seq, photos, entry_hash, previous_hash`
+//! corrects_seq, photos, entry_hash, previous_hash, lost_cause, lost_party`
 //!
 //! - `done` and `finished` name the activities worked on and finished, joined
 //!   by `; `, each with its quantity and unit when one was said
@@ -17,6 +17,12 @@
 //!   work folder keeps them under.
 //! - `weather` is the stored word (`sun`, `cloud`, `rain`, `storm`, `wind`,
 //!   `other`); an empty cell is nothing said.
+//! - `lost_cause` (E3) is the stored word for why a day was lost (`weather`,
+//!   `decision`, `absence`, `material`, `owner`, `access`, `other`), and
+//!   `lost_party` names the person it is put down to — by id when since
+//!   removed. Both are empty when nothing was said. They come last, so a
+//!   spreadsheet built on the thirteen columns before E3 still finds each
+//!   where it was.
 //!
 //! The file is UTF-8 with a byte-order mark (so a spreadsheet reads it as
 //! UTF-8), lines end in CR LF, the separator is `,` or `;` — what an English or
@@ -36,7 +42,7 @@ use crate::contract::{DiaryEntry, WorkSnapshot};
 use crate::error::{Error, Result};
 
 /// The columns, in order.
-pub const COLUMNS: [&str; 13] = [
+pub const COLUMNS: [&str; 15] = [
     "seq",
     "day",
     "created_at",
@@ -50,6 +56,8 @@ pub const COLUMNS: [&str; 13] = [
     "photos",
     "entry_hash",
     "previous_hash",
+    "lost_cause",
+    "lost_party",
 ];
 
 /// The UTF-8 byte-order mark.
@@ -193,6 +201,12 @@ pub fn diary(entries: &[DiaryEntry], names: &Names, separator: Separator) -> Str
                 .join(" "),
             entry.hash.clone(),
             entry.prev_hash.clone(),
+            entry.lost_cause.clone().unwrap_or_default(),
+            entry
+                .lost_party_person_id
+                .as_deref()
+                .map(|id| names.person(id))
+                .unwrap_or_default(),
         ];
         line(&cells, separator, &mut out);
     }

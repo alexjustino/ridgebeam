@@ -137,6 +137,8 @@ export function entry(seq: number, day: string, parts: Partial<DiaryEntry> = {})
     note: null,
     weather: null,
     lostDay: false,
+    lostCause: null,
+    lostPartyPersonId: null,
     hours: null,
     deliveries: null,
     incidents: null,

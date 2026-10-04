@@ -259,7 +259,10 @@ words to anybody who is not looking at it.
 
 `ChoiceGroup` is for two to four mutually exclusive options — the language, the theme, the lens
 in Settings — a radio group underneath, drawn with the canonical button. A longer list is a
-`Select`.
+`Select`, with **one exception**: a quick choice made on site in every diary entry — the day's
+weather, a lost day's cause — may hold **up to seven short options**, because one tap beats opening
+a list with gloves on; the group wraps onto a second line rather than overflowing its card
+(ADR-043).
 
 **`ProgressBar` is for a job the product is running, never for the work.** It is a real
 `<progress>` with a required label, for something like a backup being written. It is never drawn
@@ -660,6 +663,25 @@ breaks one is not merged.
   card ends with what it is: _"A projection, not a promise: it is as good as the schedule, the
   payment plans and the dates typed here."_ The dashboard shows the week or the money left with the
   sentence, and no chance (ADR-042).
+- **The plan and the forecast are never the same number on screen.** The plan's finish date and its
+  slip say what the plan says — plan against plan — and the forecast says when the work will finish
+  **as things stand**, read from the diary (ADR-043). They are two facts, and a screen shows them
+  apart, each labelled with what it is and never one in the place of the other: the **As things
+  stand** card (`forecast-card`) sits beside the finish and the slip, not over them; the Gantt, the
+  slip and the deadlines stay the plan's; and the card's sentence says which is which — _"As things
+  stand it finishes on 23 Oct — 5 working days after the baseline's 16 Oct."_ Its days are working
+  days, said in words as the slip says them, and ahead of the baseline reads as early in words, not
+  as a minus sign alone. A forecast that happens to fall on the plan's date is still labelled as the
+  forecast: the two agreeing is a fact about the site, not a reason to show one number.
+- **What the record does not explain is always shown.** The **Why is it late?** card
+  (`delay-card`) attributes the working days the work is late to causes, each a figure that opens
+  onto the entries, decisions and changes it was counted from (§2, _a number can be opened_). The
+  days it cannot attribute are a row of their own (`delay-unexplained`), said in words —
+  _"3 days the record does not explain"_ — **whenever they are not zero**: never folded into
+  _other_, never behind a tooltip, never left off because the rest looks complete (§2, _a view says
+  what it left out_). Causes are said in the owner's words — _waiting for a decision_, _the crew did
+  not come_ — and a party is the name the record gives, never a verdict: the card attributes, it does
+  not judge. When the work is on or ahead of the baseline the card says so, and lists no cause.
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries

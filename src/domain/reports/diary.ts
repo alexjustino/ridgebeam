@@ -25,6 +25,7 @@ import {
   type DiaryEntry,
   type DoneState,
   type EntryKind,
+  type LostCause,
   type Weather,
 } from '../diary';
 import type { WorkSnapshot } from '../plan';
@@ -75,6 +76,10 @@ export interface DiaryReportRow {
   readonly createdAt: string;
   readonly weather: Weather | null;
   readonly lostDay: boolean;
+  /** Why the day was lost, when the entry says (slice E3); `null` otherwise. */
+  readonly lostCause: LostCause | null;
+  /** Who the entry puts the lost day down to; `name` is `null` once they left the plan. */
+  readonly lostParty: DiaryPresent | null;
   readonly hours: number | null;
   readonly note: string | null;
   readonly deliveries: string | null;
@@ -134,6 +139,14 @@ export function diaryReport(snapshot: WorkSnapshot, entries: readonly DiaryEntry
       createdAt: entry.createdAt,
       weather: entry.weather,
       lostDay: entry.lostDay,
+      lostCause: entry.lostCause,
+      lostParty:
+        entry.lostPartyPersonId === null
+          ? null
+          : {
+              personId: entry.lostPartyPersonId,
+              name: people.get(entry.lostPartyPersonId) ?? null,
+            },
       hours: entry.hours,
       note: entry.note,
       deliveries: entry.deliveries,

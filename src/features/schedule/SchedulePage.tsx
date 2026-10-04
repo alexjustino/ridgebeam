@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import { useToday } from '@/app/today';
 import { useDiary } from '@/data/queries';
 import { progress } from '@/domain/diary';
 import { breakdown } from '@/domain/arrangements';
@@ -19,6 +20,7 @@ import { InfoBar } from '@/ui/InfoBar';
 import { BaselineCard } from './BaselineCard';
 import { BaselinesCard } from './BaselinesCard';
 import { FinishProbabilityCard } from './FinishProbabilityCard';
+import { ForecastCard } from './ForecastCard';
 import { Gantt } from './Gantt';
 import { toGanttView } from './ganttView';
 import { SlipFigure } from './SlipFigure';
@@ -45,11 +47,16 @@ import { WhatIfCard } from './WhatIfCard';
  * **Shade each bar by how often it is critical** (`gantt-criticality`) is ticked, as a shade over the
  * bar with the share in words beside its name. The toggle is the page's, for this visit: nothing is
  * stored, and the plan's own critical path is drawn as before.
+ *
+ * Slice E3 adds **As things stand** beside the slip (`ForecastCard`): when the work finishes from
+ * what the diary records, against the baseline and against the plan's own date — the diary against
+ * the plan, where the slip is the plan against itself.
  */
 export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
   const i18n = useI18n();
   const { t, tp, day } = i18n;
   const term = useTerms();
+  const today = useToday();
 
   const scheduled = useMemo(() => schedule(snapshot), [snapshot]);
   const baseline = latestBaseline(snapshot);
@@ -153,11 +160,16 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
 
       <FinishProbabilityCard result={probability} />
 
-      {slipped !== null && (
-        <Card>
-          <SlipFigure figure={slipped} />
-        </Card>
-      )}
+      {/* The plan against its baseline, and the diary against both (E3): side by side, each
+          labelled as what it is, so the slip and the forecast are never read as one number. */}
+      <div className={slipped !== null ? 'grid gap-4 md:grid-cols-2' : 'flex flex-col'}>
+        {slipped !== null && (
+          <Card>
+            <SlipFigure figure={slipped} />
+          </Card>
+        )}
+        <ForecastCard snapshot={snapshot} scheduled={scheduled} today={today} />
+      </div>
 
       {view !== null && hasBars ? (
         <section aria-labelledby="schedule-gantt" className="flex flex-col gap-2">

@@ -13,6 +13,9 @@
  * - **today**: the place, readiness — the figure with what the plan still lacks as its rows, and the
  *   sentence exactly as the dashboard says it — the finish date, and the finish as a chance (D1's
  *   headline, its drivers as rows) or the sentence that every activity is counted as certain;
+ * - **why is it late?** (E3): the forecast — when it finishes as things stand, against the baseline
+ *   and against the plan's own date — where the work stands, and, when it is late, the days late and
+ *   the causes, each with the days it was made from, and what the record does not explain;
  * - **the next two weeks** (the domain's `lookahead`): the days it covers, a small Gantt of the window
  *   when anything is placed, then what starts, what runs, who must be there, what to decide or order
  *   by its lead time, which gates come up, and what payment falls due — each a figure with its rows.
@@ -47,6 +50,7 @@
 import type { ReportBlock, ReportDocument } from '@/data/commands';
 import type { ExpectedRow } from '@/domain/dashboard';
 import { changeTally } from '@/domain/changes';
+import { delayLedger } from '@/domain/delay';
 import type { DiaryEntry } from '@/domain/diary';
 import type { Figure } from '@/domain/figure';
 import { aheadFigure, MILESTONE_LABEL_KEYS, paymentPlans, type PlanRow } from '@/domain/milestones';
@@ -73,8 +77,14 @@ import { termsFor } from '@/i18n/terms';
 import type { I18n } from '@/i18n/useI18n';
 
 import { pieces, REPORT_LIMITS, shortened } from './document';
-import { changeTallyBlocks, probabilityBlocks, runwayBlocks } from './weekly';
-import { decisionStatusText, finishText, readinessRowText, readinessSentence } from './words';
+import { changeTallyBlocks, delayBlocks, probabilityBlocks, runwayBlocks } from './weekly';
+import {
+  decisionStatusText,
+  finishText,
+  lostDayText,
+  readinessRowText,
+  readinessSentence,
+} from './words';
 
 /** How many diary entries "Lately on site" shows: the latest effective ones. */
 export const SNAPSHOT_ENTRIES = 5;
@@ -395,8 +405,9 @@ function latelyBlocks(input: SnapshotInput, i18n: I18n, term: Term): ReportBlock
     if (entry.note !== null && entry.note.trim() !== '') {
       blocks.push(...paragraphs(entry.note));
     }
-    if (entry.lostDay) {
-      blocks.push({ type: 'paragraph', tone: 'muted', text: t('diary.entry.lostDay') });
+    const lost = lostDayText(i18n, entry.lostDay, entry.lostCause, entry.lostParty);
+    if (lost !== null) {
+      blocks.push({ type: 'paragraph', tone: 'muted', text: shortened(lost, REPORT_LIMITS.text) });
     }
     if (entry.done.length > 0) {
       blocks.push(
@@ -584,6 +595,8 @@ export function composeSnapshot(input: SnapshotInput, i18n: I18n): ReportDocumen
 
   const blocks: ReportBlock[] = [
     ...todayBlocks(input, i18n, term),
+    // E3: when it finishes as things stand, and why it is late — by cause, in the owner's words.
+    ...delayBlocks(i18n, snapshot, delayLedger(snapshot, scheduled, entries, today), 1, false),
     ...nextTwoWeeksBlocks(input, ahead, i18n, term),
     ...latelyBlocks(input, i18n, term),
     ...moneyBlocks(input, ahead, i18n, term),

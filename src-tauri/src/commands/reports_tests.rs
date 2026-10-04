@@ -384,8 +384,13 @@ fn the_diary_csv_is_the_databases_rows_neutralised_quoted_with_a_bom() {
     let records = parse_csv(text.strip_prefix(BOM).unwrap(), ',');
     assert_eq!(records.len(), 4, "the header and three entries");
     assert_eq!(records[0], COLUMNS.to_vec());
+    assert_eq!(
+        records[0][13..],
+        ["lost_cause", "lost_party"],
+        "E3's two columns come last: the thirteen before them stay where they were"
+    );
     for record in &records {
-        assert_eq!(record.len(), 13);
+        assert_eq!(record.len(), 15);
     }
     let entries: Vec<DiaryEntry> =
         crate::db::diary::all(&lock(&site.open.0).as_ref().unwrap().conn).unwrap();
@@ -413,6 +418,11 @@ fn the_diary_csv_is_the_databases_rows_neutralised_quoted_with_a_bom() {
     assert_eq!(first[10], site.photo_hash);
     assert_eq!(first[11], entries[0].hash);
     assert_eq!(first[12], "");
+    assert_eq!(
+        (first[13].as_str(), first[14].as_str()),
+        ("", ""),
+        "no cause given"
+    );
 
     let second = &records[2];
     assert_eq!(second[5], "'+Tiling");
@@ -461,6 +471,74 @@ fn the_diary_csv_takes_the_semicolon_a_portuguese_spreadsheet_expects() {
         assert_eq!(refused.to_string(), crate::report::csv::SEPARATOR);
     }
     assert_eq!(files_in(folder.path()), vec!["diario.csv"]);
+    work_close_with(&site.open);
+}
+
+/// E3: a lost day's cause and the person it is put down to are in both
+/// exports — the CSV's last two columns, the person by name and neutralised
+/// like every other cell; the JSON's `lostCause` and `lostPartyPersonId`.
+#[test]
+fn a_lost_day_with_its_cause_and_person_is_in_the_csv_and_the_json() {
+    let site = a_site();
+    let person = work_get_with(&site.open).unwrap().people[0].id.clone();
+    diary_entry_add_with(
+        &site.open,
+        &entry(serde_json::json!({
+            "day": "2026-10-07", "kind": "entry", "lostDay": true,
+            "lostCause": "absence", "lostPartyPersonId": person
+        })),
+        today(),
+        "Synthetic author",
+    )
+    .unwrap();
+    diary_entry_add_with(
+        &site.open,
+        &entry(serde_json::json!({
+            "day": "2026-10-08", "kind": "entry", "lostDay": true, "lostCause": "weather"
+        })),
+        today(),
+        "Synthetic author",
+    )
+    .unwrap();
+    let written = Written::default();
+    let folder = Scratch::create();
+
+    let csv_path = at(&folder, "diary.csv");
+    diary_export_csv_with(&site.open, &written, &csv_path, ",", false).unwrap();
+    let text = std::fs::read_to_string(&csv_path).unwrap();
+    let records = parse_csv(text.strip_prefix(BOM).unwrap(), ',');
+    assert_eq!(records.len(), 6, "the header and five entries");
+    assert_eq!(
+        records[4][13..],
+        ["absence", "'-Ana (synthetic)"],
+        "the cause as stored; the person by name, neutralised"
+    );
+    assert_eq!(
+        records[5][13..],
+        ["weather", ""],
+        "a cause put down to nobody"
+    );
+
+    let json_path = at(&folder, "work.json");
+    work_export_json_with(
+        &site.open,
+        &written,
+        &json_path,
+        false,
+        "2026-10-09T17:05:30.000Z",
+    )
+    .unwrap();
+    let json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&json_path).unwrap()).unwrap();
+    let diary = json["diary"].as_array().unwrap();
+    assert_eq!(diary[3]["lostCause"], "absence");
+    assert_eq!(diary[3]["lostPartyPersonId"], person.as_str());
+    assert_eq!(diary[4]["lostCause"], "weather");
+    assert!(diary[4]["lostPartyPersonId"].is_null());
+    assert!(
+        diary[0]["lostCause"].is_null() && diary[0]["lostPartyPersonId"].is_null(),
+        "null, never absent"
+    );
     work_close_with(&site.open);
 }
 

@@ -200,7 +200,7 @@ describe('F10 — the front door and the reports: every figure with its rows, on
     expect([...bytes.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
     const csv = bytes.subarray(3).toString('utf8');
     const header = csv.split(/\r?\n/)[0]!;
-    expect(header.split(',')).toHaveLength(13);
+    expect(header.split(',')).toHaveLength(15);
     expect(csv).toContain(`'=HYPERLINK`);
     expect(csv).not.toMatch(/(^|[,\n])"?=HYPERLINK/);
   });
@@ -227,7 +227,7 @@ describe('F10 — the front door and the reports: every figure with its rows, on
     const csvFile = path.join(parent, 'diario.csv');
     await write(session, 'diary-csv-path', 'diary-csv-write', 'diary-done', csvFile);
     const header = readFileSync(csvFile).subarray(3).toString('utf8').split(/\r?\n/)[0]!;
-    expect(header.split(';')).toHaveLength(13);
+    expect(header.split(';')).toHaveLength(15);
     await session.screenshot('f10-reports-pt-BR');
     await chooseLanguage(session, 'English');
   });

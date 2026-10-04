@@ -1187,3 +1187,72 @@ short."_ — with, from D1's ranges, the chance that it runs short (ADR-042).
   receipt, read the sentence, make the money run short and then last, see a late fund listed and
   not counted, the chance with ranges, the snapshot's sentence, in Portuguese. The glossary gains
   _funding_ (_recursos_).
+
+### Added in E3 — why is it late?
+
+The third slice of the second wave (ADR-041), for the third way a small work fails: it is late, and
+nobody can say on whose account. Until now the product had **no forecast**: the slip compares the
+plan with its baseline, so a work weeks behind on site whose plan nobody had touched read as on
+time. Ridgebeam now says **when the work will finish as things stand**, read forward from what the
+diary says happened — _"As things stand it finishes on 23 Oct — 5 working days after the baseline's
+16 Oct."_ — and **why it is late**: every working day of that difference attributed to a cause the
+record names and, where it names one, a party, with the days it cannot attribute said in words. A
+lost day in the diary can now say why (ADR-043).
+
+- **Why a day was lost** (migration 015). When **No work was possible** is ticked, the diary entry
+  form asks **Why?** — Weather, Waiting for a decision, Crew did not come, Material did not arrive,
+  Owner's request, No access to the site, Other — and, for a crew, material or anything else,
+  **Who**, a person of the plan, optional. The entry reads _"Lost — waiting for a decision"_, with
+  the person's name when one is given. A cause on a day not marked lost, a cause outside the seven,
+  a person with no cause and a person who is not one of the work are refused with a sentence. A
+  cause is changed as everything in the diary is, by a correction. `DiaryEntry` and `EntryDraft`
+  gain `lostCause` and `lostPartyPersonId`, `null` when absent.
+- **The chain is extended, not rewritten.** The canonical form gains one record, `lost`, after the
+  photos, **only when a cause is given**: every entry written before this slice — and every one
+  written after it without a cause — has the same canonical string and the same hash, byte for
+  byte, and the tag stays `entry.v1`. `cargo test` hashes every entry of a real schema-14 work with
+  entries, a correction and photos before and after migrating and finds them equal, the chain
+  verifying on both sides; an entry with a cause verifies; and an update of either new column is
+  refused by the existing trigger.
+- **As things stand** (`forecast`, in the domain, pure). The plan's activities and links on its
+  calendar, with its lags, forward from the diary: a finished activity at its diary dates, a started
+  one from the day it started and not finishing before today, one not started not before today. It
+  gives the forecast finish, its critical chain, and the working days against the latest baseline
+  and against the plan's own finish date. On the **Schedule**, an **As things stand** card beside
+  the finish and the slip says which is the plan and which is the forecast. The plan's schedule, the
+  Gantt and the slip are untouched: the slip is still plan against plan.
+- **Why is it late?** (`delayLedger`, in the domain, pure). The working days late as things stand,
+  attributed one cause per working day per activity, in a fixed order so nothing is counted twice:
+  a **change order** approved after the baseline, by the days its decision froze, on the account of
+  who asked; a **cause stated** for a lost day, and the person it names; **weather**; a **decision
+  made late** against its deadline in the baseline, capped at the days its stage actually started
+  late, on the owner's account; and **absence** — a day with an entry on which the responsible for a
+  running critical activity was not on site and nothing was done on it. Days lost count only while
+  an activity of the forecast's critical chain was running or due to start. A day with no entry is
+  not absence. What is left is **not explained**, and is always shown — _"3 days the record does not
+  explain"_. When the work is on or ahead of the baseline the ledger says so and names no cause;
+  before approval it says it needs an approved plan. Three figures carry their rows: **days late as
+  things stand**, **by cause** and **by party**. A **Why is it late?** card on the dashboard; the
+  weekly report prints the forecast's sentence and the ledger, and the owner's snapshot the sentence
+  and the leading causes, in the owner's words.
+- **Exports.** The diary CSV gains two last columns, `lost_cause` and `lost_party`, so a sheet built
+  on the thirteen before them still finds each where it was, with every cell under the same
+  neutralisation; the JSON export carries `lostCause` and `lostPartyPersonId` on every entry.
+- **Work migration 015** (`015_lost_cause.sql`) adds the two columns with a plain `ADD COLUMN` and
+  their `CHECK`s — a cause only on a lost day, a person only with a cause — copies no row and leaves
+  the diary's triggers as they were; a work at schema 14 migrates to 15 losing nothing, every hash
+  as it was and its chain still verifying.
+- **Documentation.** ADR-043 (as things stand: a forecast from the diary, and a ledger of why it is
+  late), with its costs: the forecast assumes every unfinished activity takes its planned duration
+  from today; one cause per day, by a fixed priority, can under-count a day with two causes; a day
+  without an entry is unknown, not absence; a decision's delay is capped at what its stage actually
+  lost; the ledger attributes, it does not judge — it is not a claim or legal evidence — and the
+  party is who the record names. ADR-016's slip is not amended: it stays plan against plan, and the
+  two are shown apart. [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md): migration 015, both columns and
+  the canonical form's conditional record. [`SECURITY.md`](SECURITY.md): the hash of every old entry
+  is unchanged byte for byte, the new record is written only when a cause exists, and the ledger
+  attributes and does not judge. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _the plan and the
+  forecast are never the same number on screen_ and _what the record does not explain is always
+  shown_. [`docs/RELEASE.md`](docs/RELEASE.md): say a cause on a lost day, read the forecast against
+  the baseline, read the ledger by cause and by party, and verify the diary still reads "chain
+  intact" on an upgraded work. The glossary gains _forecast_ (_previsão_).

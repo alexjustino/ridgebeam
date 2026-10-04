@@ -346,27 +346,31 @@ and does not store it, because in 1.0 a decision is needed by its whole stage.
 An entry is a fact about one day on site (F4, ADR-019). The plan is intent; the diary is fact,
 and progress is derived from it by the domain (ADR-020), never stored.
 
-| `diary_entry`  | Type    | Meaning                                                                                         |
-| -------------- | ------- | ----------------------------------------------------------------------------------------------- |
-| `seq`          | INTEGER | 1, 2, 3 … — the entry's place in the chain; primary key; always the last plus one               |
-| `day`          | TEXT    | the ISO day the entry is about; never in the future (the domain and the host both refuse it)    |
-| `kind`         | TEXT    | `entry` or `correction`                                                                         |
-| `corrects_seq` | INTEGER | for a correction, the earlier entry it corrects (`REFERENCES diary_entry`); `NULL` for an entry |
-| `note`         | TEXT    | what the day was, up to 4 000 characters; for a correction, also what was wrong (required)      |
-| `weather`      | TEXT    | `sun`, `cloud`, `rain`, `storm`, `wind`, `other`, or `NULL`                                     |
-| `lost_day`     | INTEGER | 1 when no work was possible that day                                                            |
-| `hours`        | REAL    | hours worked, 0 to 24, or `NULL`                                                                |
-| `deliveries`   | TEXT    | what arrived, 1–2 000 characters, or `NULL`                                                     |
-| `incidents`    | TEXT    | what went wrong, 1–2 000 characters, or `NULL`                                                  |
-| `visitors`     | TEXT    | who visited, 1–2 000 characters, or `NULL`                                                      |
-| `author_name`  | TEXT    | the display name of the Windows account that wrote it — the product has no accounts of its own  |
-| `created_at`   | TEXT    | UTC, when it was written                                                                        |
-| `prev_hash`    | TEXT    | the `hash` of entry `seq − 1`, 64 lower-case hex; the empty string for the first entry only     |
-| `hash`         | TEXT    | SHA-256 of this entry's canonical form, 64 lower-case hex, unique                               |
+| `diary_entry`          | Type    | Meaning                                                                                           |
+| ---------------------- | ------- | ------------------------------------------------------------------------------------------------- |
+| `seq`                  | INTEGER | 1, 2, 3 … — the entry's place in the chain; primary key; always the last plus one                 |
+| `day`                  | TEXT    | the ISO day the entry is about; never in the future (the domain and the host both refuse it)      |
+| `kind`                 | TEXT    | `entry` or `correction`                                                                           |
+| `corrects_seq`         | INTEGER | for a correction, the earlier entry it corrects (`REFERENCES diary_entry`); `NULL` for an entry   |
+| `note`                 | TEXT    | what the day was, up to 4 000 characters; for a correction, also what was wrong (required)        |
+| `weather`              | TEXT    | `sun`, `cloud`, `rain`, `storm`, `wind`, `other`, or `NULL`                                       |
+| `lost_day`             | INTEGER | 1 when no work was possible that day                                                              |
+| `lost_cause`           | TEXT    | why, from E3: `weather`, `decision`, `absence`, `material`, `owner`, `access`, `other`, or `NULL` |
+| `lost_party_person_id` | TEXT    | the person the lost day is put down to — **no foreign key** — or `NULL`; only with a cause        |
+| `hours`                | REAL    | hours worked, 0 to 24, or `NULL`                                                                  |
+| `deliveries`           | TEXT    | what arrived, 1–2 000 characters, or `NULL`                                                       |
+| `incidents`            | TEXT    | what went wrong, 1–2 000 characters, or `NULL`                                                    |
+| `visitors`             | TEXT    | who visited, 1–2 000 characters, or `NULL`                                                        |
+| `author_name`          | TEXT    | the display name of the Windows account that wrote it — the product has no accounts of its own    |
+| `created_at`           | TEXT    | UTC, when it was written                                                                          |
+| `prev_hash`            | TEXT    | the `hash` of entry `seq − 1`, 64 lower-case hex; the empty string for the first entry only       |
+| `hash`                 | TEXT    | SHA-256 of this entry's canonical form, 64 lower-case hex, unique                                 |
 
 A `CHECK` holds the shape: an `entry` corrects nothing; a `correction` corrects an earlier
-`seq`. Indexes on `day` and on `corrects_seq`. A second entry on a day that has one is allowed
-and ordered by `seq`; a replacement is not, because nothing can replace a row.
+`seq`. From migration 015, two more: a `lost_cause` only on an entry whose `lost_day` is 1, and a
+`lost_party_person_id` — an id of 36 characters — only with a cause. Indexes on `day` and on
+`corrects_seq`. A second entry on a day that has one is allowed and ordered by `seq`; a
+replacement is not, because nothing can replace a row.
 
 | `diary_done`  | Type    | Meaning                                                |
 | ------------- | ------- | ------------------------------------------------------ |
@@ -391,9 +395,9 @@ and ordered by `seq`; a replacement is not, because nothing can replace a row.
 | `width`, `height` | INTEGER | its dimensions, read from the header                                                                                                                           |
 | `thumbnail`       | INTEGER | 1 when `thumbnails/<hash>.jpg` was rendered; 0 when the photo was kept but could not be drawn small — not part of the hash: it describes the copy, not the day |
 
-**No foreign key into the plan, on purpose.** A done line names an activity and a presence names
-a person by id: the plan may change after the day — an activity removed, a person removed — and
-the diary must still say what it said. A key with `ON DELETE` would try to change the diary (and
+**No foreign key into the plan, on purpose.** A done line names an activity, and a presence or a
+lost day's party names a person, by id: the plan may change after the day — an activity removed,
+a person removed — and the diary must still say what it said. A key with `ON DELETE` would try to change the diary (and
 be refused); a key without one would stop the plan from changing. The host checks the ids exist
 when the entry is written.
 
@@ -435,10 +439,20 @@ The records, in this order:
    quantity · note
 3. for each person present, sorted by id (byte order): `present` · person_id
 4. for each photo, by position: `photo` · file_hash · file_name · bytes · width · height
+5. **only when `lost_cause` is not `NULL`** (E3): `lost` · lost_cause · lost_party_person_id
 
 `hash` is the lower-case hex of SHA-256 over the bytes of that string. A photo's `thumbnail`
 flag is not in it: it describes the copy, not the day. The tag carries the version, so a later
 form can be introduced without making earlier entries unverifiable.
+
+**The conditional record (E3, ADR-043).** Record 5 is written only for an entry that says why a
+day was lost, and its party is the empty field when nobody was named. An entry with no cause —
+every entry written before migration 015, and every one written after it without a cause — has
+exactly the canonical string it always had, and so the same hash, byte for byte: the form is
+extended, not changed, and the tag stays `entry.v1`. The host writes such an entry with the very
+statement it always used, and a file not yet at migration 015 reads both columns as `NULL`. A
+cause, once written, is as fixed as the rest of the entry — the `BEFORE UPDATE` trigger names no
+column, so it refuses an update of these two as well — and is changed only by a correction.
 
 **What verification cannot see.** An entry removed from the _end_ of the diary leaves no
 successor pointing at it, so the chain of what remains still verifies. The diary export (F10,
@@ -954,6 +968,7 @@ covered by a round-trip test that opens a work at version N-1 and migrates it wi
 | `012_handover.sql`                   | D3    | `stage_check.needs_photo` and the trigger that refuses a `yes` without a photo on such a check; `document` rebuilt with the kinds `warranty` and `manual`, its links set aside and restored; `care_note`              |
 | `013_change_orders.sql`              | E1    | `change_order` and `change_order_decision`, each with its `CHECK`s and the insert-only battery of migrations 003, 007 and 009                                                                                         |
 | `014_funding.sql`                    | E2    | `funding`; `funding_receipt` with its `CHECK`s, the insert-only battery of migration 007 and its reversal trigger                                                                                                     |
+| `015_lost_cause.sql`                 | E3    | `diary_entry.lost_cause` and `.lost_party_person_id`, each with its `CHECK`; the canonical form's conditional `lost` record                                                                                           |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its stages
 and activities migrates to schema 2 without loss, a work at schema 2 with rooms and quantities
@@ -971,7 +986,9 @@ chain still verifying, and a work at schema 11 with documents and their links mi
 with every document, id and link kept, every check not needing a photo and its chain still
 verifying, and a work at schema 12 migrates to schema 13 losing nothing, with its chain still
 verifying, and a work at schema 13 with change orders, payments and a diary migrates to schema 14
-losing nothing, with no fund and no receipt invented and its chain still verifying.
+losing nothing, with no fund and no receipt invented and its chain still verifying, and a work at
+schema 14 with diary entries, a correction and photos migrates to schema 15 with every entry's hash
+byte for byte what it was, no cause invented and its chain verifying before and after.
 
 **Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
 where it came from, one row per hash in this order of precedence: a diary photo (kind `photo`,
@@ -1039,6 +1056,14 @@ new is the projection, which for such a work opens with the payments already mad
 received, and readiness's new rule, which a work with priced planned money now misses until a fund
 is recorded.
 
+**Migration 015 adds two columns and nothing else.** It is a plain `ADD COLUMN`, not a rebuild:
+SQLite accepts a column `CHECK` that reads another column of the row and tests it against every row
+already there, and each passes, because both columns are `NULL`. No row is copied, so no row can
+change — every entry keeps its bytes — and the triggers of migration 005 stay exactly as they were.
+Every hash in the chain is the one it was (_The conditional record_, above). A work migrated from
+schema 14 has no lost day with a cause, so the delay ledger counts its lost days as days with no
+cause stated, and no figure an earlier slice showed moves with the migration.
+
 The migrations live in `src-tauri/work_migrations/`.
 
 ## A comparison, a what-if and a chance are computed, not stored
@@ -1076,6 +1101,18 @@ last week is listed, not counted. The result is one of four states — the money
 short, there is no funding, or there is nothing to project. The chance counts the runs whose balance
 goes below zero in any week up to that run's own finish week, through a per-run hook on D1's
 simulation that changes none of its results.
+
+When the work will finish as things stand, and why it is late (E3), are not stored either. The
+forecast is the domain's (`forecast`): the plan's activities and links laid on its calendar, forward
+from what the diary says happened — a finished activity at its diary dates, a started one from its
+first day and not finishing before today, one not started not before today — and measured against
+the latest baseline's finish. The delay ledger (`delayLedger`) attributes the working days of that
+difference to causes read from the change orders' frozen days, the lost days and their causes, the
+weather, the decisions made after their deadline in the baseline and the people the diary says were
+not on site, and says what it cannot attribute ([ADR-043](architecture/ADR.md#adr-043)). No table
+holds a forecast date, a day of delay or a cause the domain inferred: the only thing written is the
+cause a person gave for a lost day, in the diary, in the chain. The plan's own schedule and the slip
+are untouched by either.
 
 ## Not yet in the schema
 
@@ -1115,7 +1152,7 @@ field means, or removes one, takes the next number.
 | `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks — each saying whether it needs a photo — and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, the care notes, the change orders each with its decision or none, and the open replanning |
-| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                                                                                                              |
+| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos, why a lost day was lost (`lostCause` and `lostPartyPersonId`, `null` when none was given) and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                   |
 
 Field names are camelCase, as the interface receives them; money is whole minor units, dates are
 `YYYY-MM-DD` and instants UTC, as everywhere in this model. Nothing is computed: no schedule, no

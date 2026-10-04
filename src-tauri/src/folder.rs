@@ -620,6 +620,8 @@ mod tests {
                     note: Some("Tiles laid.".into()),
                     weather: None,
                     lost_day: false,
+                    lost_cause: None,
+                    lost_party_person_id: None,
                     hours: None,
                     deliveries: None,
                     incidents: None,
@@ -885,6 +887,8 @@ mod tests {
                     note: Some("Tiles laid.".into()),
                     weather: None,
                     lost_day: false,
+                    lost_cause: None,
+                    lost_party_person_id: None,
                     hours: None,
                     deliveries: None,
                     incidents: None,
@@ -1087,6 +1091,8 @@ mod tests {
                     note: Some("Tiles laid.".into()),
                     weather: None,
                     lost_day: false,
+                    lost_cause: None,
+                    lost_party_person_id: None,
                     hours: None,
                     deliveries: None,
                     incidents: None,
@@ -1288,6 +1294,8 @@ mod tests {
                     note: Some("Tiles laid.".into()),
                     weather: None,
                     lost_day: false,
+                    lost_cause: None,
+                    lost_party_person_id: None,
                     hours: None,
                     deliveries: None,
                     incidents: None,
@@ -1469,6 +1477,8 @@ mod tests {
                     note: Some("Pipes in.".into()),
                     weather: None,
                     lost_day: false,
+                    lost_cause: None,
+                    lost_party_person_id: None,
                     hours: None,
                     deliveries: None,
                     incidents: None,
@@ -1796,6 +1806,8 @@ mod tests {
                     note: Some("Tiles laid.".into()),
                     weather: None,
                     lost_day: false,
+                    lost_cause: None,
+                    lost_party_person_id: None,
                     hours: None,
                     deliveries: None,
                     incidents: None,
@@ -2030,6 +2042,8 @@ mod tests {
                     note: Some("Tiles laid.".into()),
                     weather: None,
                     lost_day: false,
+                    lost_cause: None,
+                    lost_party_person_id: None,
                     hours: None,
                     deliveries: None,
                     incidents: None,
@@ -2121,6 +2135,210 @@ mod tests {
         assert_eq!((plan.funding.len(), plan.funding_receipts.len()), (1, 1));
         assert_eq!(plan.change_orders.len(), 1);
         assert!(diary::verify(&again.conn).unwrap().intact);
+        close(again);
+        assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
+    }
+
+    /// The upgrade a person makes from E2: a work folder at schema 14 with a
+    /// diary — an entry with a done line, a person present and two photos, a
+    /// lost day (which could not say why yet), a correction re-attaching a
+    /// photo, and a plain entry. Opened by E3, `diary_entry` gains `lost_cause`
+    /// and `lost_party_person_id` by a plain ADD COLUMN: every row of the four
+    /// diary tables is as it was, byte for byte; every stored hash is the hash
+    /// recomputed under E3's canonical form; the chain verifies; the triggers
+    /// are the same triggers, and they guard the new columns. An entry with a
+    /// cause written on the migrated file continues the chain and verifies, and
+    /// is there when the work opens again.
+    #[test]
+    fn a_work_folder_at_schema_fourteen_with_a_diary_gains_lost_causes_and_every_hash_is_unchanged()
+    {
+        use crate::contract::{DoneLine, Photo};
+        use crate::db::diary;
+
+        let scratch = Scratch::create();
+        let tiling = "00000000-0000-7000-8000-00000000000c";
+        let photo = |hash: &str, name: &str| Photo {
+            file_hash: hash.into(),
+            file_name: name.into(),
+            bytes: 2048,
+            width: 640,
+            height: 480,
+            thumbnail: true,
+        };
+        let entry = |day: &str| diary::NewEntry {
+            day: day.into(),
+            kind: "entry".into(),
+            corrects_seq: None,
+            note: None,
+            weather: None,
+            lost_day: false,
+            lost_cause: None,
+            lost_party_person_id: None,
+            hours: None,
+            deliveries: None,
+            incidents: None,
+            visitors: None,
+            author_name: "Synthetic author".into(),
+            done: Vec::new(),
+            present: Vec::new(),
+            photos: Vec::new(),
+        };
+        // The columns a schema-14 diary has — read the same way after 15.
+        let kept = [
+            "SELECT seq, day, kind, corrects_seq, note, weather, lost_day, hours, deliveries,
+                    incidents, visitors, author_name, created_at, prev_hash, hash
+             FROM diary_entry ORDER BY seq",
+            "SELECT * FROM diary_done ORDER BY entry_seq, activity_id",
+            "SELECT * FROM diary_present ORDER BY entry_seq, person_id",
+            "SELECT * FROM diary_photo ORDER BY entry_seq, position",
+            "SELECT name, sql FROM sqlite_master WHERE type IN ('trigger', 'index')
+               AND tbl_name LIKE 'diary%' ORDER BY name",
+        ];
+
+        let (rows_before, diary_before, person);
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 14).unwrap();
+            person = db::work::add_person(&conn, "A. Tiler").unwrap();
+            let (wall, floor) = ("a1".repeat(32), "b2".repeat(32));
+
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    note: Some("Tiles laid in the shower.".into()),
+                    weather: Some("sun".into()),
+                    hours: Some(7.5),
+                    done: vec![DoneLine {
+                        activity_id: tiling.into(),
+                        state: "worked".into(),
+                        quantity: Some(6.0),
+                        note: Some("North wall.".into()),
+                    }],
+                    present: vec![person.clone()],
+                    photos: vec![photo(&wall, "wall.png"), photo(&floor, "floor.jpg")],
+                    ..entry("2026-10-05")
+                },
+            )
+            .unwrap();
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    weather: Some("rain".into()),
+                    lost_day: true,
+                    note: Some("Rained all day.".into()),
+                    ..entry("2026-10-06")
+                },
+            )
+            .unwrap();
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    kind: "correction".into(),
+                    corrects_seq: Some(1),
+                    note: Some("It was five square metres.".into()),
+                    photos: vec![photo(&wall, "wall.png")],
+                    ..entry("2026-10-05")
+                },
+            )
+            .unwrap();
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    deliveries: Some("Grout, 4 bags".into()),
+                    ..entry("2026-10-07")
+                },
+            )
+            .unwrap();
+
+            rows_before = kept.map(|sql| raw_rows(&conn, sql));
+            diary_before = diary::all(&conn).unwrap();
+            assert!(diary::verify(&conn).unwrap().intact);
+            assert_eq!(migrations::WORK.current_version(&conn), 14);
+        }
+
+        let state = open(scratch.path()).expect("an E2 work opens in E3");
+        let conn = &state.conn;
+
+        assert_eq!(migrations::WORK.current_version(conn), 15);
+        assert_eq!(
+            migrations::WORK.current_version(conn),
+            migrations::WORK.target_version()
+        );
+        assert_eq!(
+            kept.map(|sql| raw_rows(conn, sql)),
+            rows_before,
+            "every diary row, every trigger and index, as it was"
+        );
+        let diary_after = diary::all(conn).unwrap();
+        assert_eq!(diary_after, diary_before);
+        assert_eq!(diary_after.len(), 4);
+        for entry in &diary_after {
+            assert_eq!(
+                diary::hash_of(entry),
+                entry.hash,
+                "#{}: its hash, recomputed under E3's canonical form, is the one written",
+                entry.seq
+            );
+            assert_eq!(
+                (&entry.lost_cause, &entry.lost_party_person_id),
+                (&None, &None)
+            );
+        }
+        let report = diary::verify(conn).unwrap();
+        assert_eq!((report.entries, report.intact), (4, true));
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT name FROM pragma_table_info('diary_entry')
+                 WHERE name IN ('lost_cause', 'lost_party_person_id') ORDER BY cid"
+            ),
+            vec!["Text(\"lost_cause\")", "Text(\"lost_party_person_id\")"]
+        );
+        assert!(raw_rows(conn, "PRAGMA foreign_key_check").is_empty());
+
+        // On the migrated file: an entry with a cause continues the chain, and
+        // the old triggers guard the new columns.
+        let seq = diary::append(
+            conn,
+            &diary::NewEntry {
+                lost_day: true,
+                lost_cause: Some("absence".into()),
+                lost_party_person_id: Some(person.clone()),
+                note: Some("The tiler did not come.".into()),
+                ..entry("2026-10-08")
+            },
+        )
+        .unwrap();
+        assert_eq!(seq, 5);
+        assert!(diary::verify(conn).unwrap().intact);
+        for attack in [
+            "UPDATE diary_entry SET lost_cause = 'weather' WHERE seq = 5",
+            "UPDATE diary_entry SET lost_party_person_id = NULL WHERE seq = 5",
+        ] {
+            assert!(
+                conn.execute(attack, [])
+                    .unwrap_err()
+                    .to_string()
+                    .contains("diary: append-only"),
+                "{attack}"
+            );
+        }
+        close(state);
+
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        let lost = diary::get(&again.conn, 5).unwrap().unwrap();
+        assert_eq!(
+            (
+                lost.lost_cause.as_deref(),
+                lost.lost_party_person_id.as_deref()
+            ),
+            (Some("absence"), Some(person.as_str()))
+        );
+        assert_eq!(diary::all(&again.conn).unwrap()[..4], diary_before[..]);
+        let report = diary::verify(&again.conn).unwrap();
+        assert_eq!((report.entries, report.intact), (5, true));
         close(again);
         assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
     }

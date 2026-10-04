@@ -250,6 +250,17 @@
       }
     },
     {
+      "key": "forecast",
+      "en": {
+        "term": "forecast",
+        "sentence": "When the work will finish as things stand: the diary’s dates for what has started or finished, the planned durations from today for the rest. The finish date is the plan’s; the forecast is the record’s — the two are shown apart, never as one number."
+      },
+      "pt-BR": {
+        "term": "previsão",
+        "sentence": "Quando a obra vai terminar do jeito que está: as datas do diário para o que começou ou terminou, as durações planejadas a partir de hoje para o resto. A data de término é a do plano; a previsão é a do registro — as duas são mostradas separadas, nunca como um número só."
+      }
+    },
+    {
       "key": "decision",
       "en": {
         "term": "decision",

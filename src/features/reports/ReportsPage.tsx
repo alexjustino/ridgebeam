@@ -13,6 +13,7 @@ import {
 } from '@/data/queries';
 import { stageState } from '@/domain/checks';
 import { weekOf } from '@/domain/dashboard';
+import { delayLedger } from '@/domain/delay';
 import type { WorkSnapshot } from '@/domain/plan';
 import { diaryReport } from '@/domain/reports/diary';
 import {
@@ -175,6 +176,7 @@ function WeeklyCard({ snapshot, scheduled }: { snapshot: WorkSnapshot; scheduled
             runway: runway(snapshot, scheduled, diary.data, today),
             chance: runwayChance(snapshot, scheduled, diary.data, today),
           },
+          delayLedger(snapshot, scheduled, diary.data, today),
         ),
         overwrite: where.overwrite,
       },

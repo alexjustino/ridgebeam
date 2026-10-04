@@ -12,6 +12,8 @@ import { LIMITS } from '@/data/commands';
 import { useAddEntry } from '@/data/queries';
 import {
   lastPresence,
+  LOST_CAUSE_KEYS,
+  LOST_CAUSES,
   progress,
   validateDraft,
   WEATHER,
@@ -19,6 +21,7 @@ import {
   type DoneLine,
   type DraftProblem,
   type EntryDraft,
+  type LostCause,
   type Weather,
 } from '@/domain/diary';
 import { activitiesInOrder, type Activity, type WorkSnapshot } from '@/domain/plan';
@@ -34,9 +37,10 @@ import { Checkbox } from '@/ui/Checkbox';
 import { ChoiceGroup } from '@/ui/ChoiceGroup';
 import { InfoBar } from '@/ui/InfoBar';
 import { Input } from '@/ui/Input';
+import { Select } from '@/ui/Select';
 import { TextArea } from '@/ui/TextArea';
 
-import { WEATHER_KEYS } from './weather';
+import { CAUSES_WITH_PARTY, WEATHER_KEYS } from './weather';
 
 const PROBLEM_KEYS: Record<DraftProblem['code'], MessageKey> = {
   'invalid-day': 'diary.problem.invalidDay',
@@ -51,6 +55,10 @@ const PROBLEM_KEYS: Record<DraftProblem['code'], MessageKey> = {
   'worked-and-finished': 'diary.problem.workedAndFinished',
   'duplicate-activity': 'diary.problem.duplicate',
   'invalid-weather': 'diary.problem.weather',
+  'invalid-cause': 'diary.problem.cause',
+  'cause-without-lost-day': 'diary.problem.cause',
+  'party-without-cause': 'diary.problem.party',
+  'unknown-party': 'diary.problem.party',
   'invalid-hours': 'diary.problem.hours',
   'too-long': 'diary.problem.tooLong',
 };
@@ -124,6 +132,8 @@ export function EntryForm({
     correcting?.hours === null || correcting === null ? '' : String(correcting.hours),
   );
   const [lostDay, setLostDay] = useState(correcting?.lostDay ?? false);
+  const [lostCause, setLostCause] = useState<LostCause | null>(correcting?.lostCause ?? null);
+  const [lostParty, setLostParty] = useState(correcting?.lostPartyPersonId ?? '');
   const [deliveries, setDeliveries] = useState(correcting?.deliveries ?? '');
   const [incidents, setIncidents] = useState(correcting?.incidents ?? '');
   const [visitors, setVisitors] = useState(correcting?.visitors ?? '');
@@ -233,6 +243,12 @@ export function EntryForm({
       note: note.trim(),
       weather,
       lostDay,
+      // A cause only with a lost day, and a person only for a cause that can name one (E3).
+      lostCause: lostDay ? lostCause : null,
+      lostPartyPersonId:
+        lostDay && lostCause !== null && CAUSES_WITH_PARTY.has(lostCause) && lostParty !== ''
+          ? lostParty
+          : null,
       hours: hours.trim() === '' ? null : Number(hours),
       deliveries: text(deliveries),
       incidents: text(incidents),
@@ -257,6 +273,8 @@ export function EntryForm({
         setNote('');
         setHours('');
         setLostDay(false);
+        setLostCause(null);
+        setLostParty('');
         setDeliveries('');
         setIncidents('');
         setVisitors('');
@@ -273,6 +291,9 @@ export function EntryForm({
   const weatherLabels = Object.fromEntries(
     WEATHER.map((each) => [each, t(WEATHER_KEYS[each])]),
   ) as Record<Weather, string>;
+  const causeLabels = Object.fromEntries(
+    LOST_CAUSES.map((each) => [each, t(LOST_CAUSE_KEYS[each])]),
+  ) as Record<LostCause, string>;
 
   return (
     <Card
@@ -473,11 +494,60 @@ export function EntryForm({
                   testId="entry-lost-day"
                   label={t('diary.form.lostDay')}
                   checked={lostDay}
-                  onChange={setLostDay}
+                  onChange={(checked) => {
+                    setLostDay(checked);
+                    // Unticked, the day was not lost: nothing is left behind to say why.
+                    if (!checked) {
+                      setLostCause(null);
+                      setLostParty('');
+                    }
+                  }}
                 />
                 <span>{t('diary.form.lostDay')}</span>
               </label>
             </div>
+            {lostDay && (
+              <div className="flex flex-col gap-2">
+                <div data-testid="entry-lost-cause">
+                  <ChoiceGroup<LostCause>
+                    label={t('diary.form.lostCause')}
+                    options={LOST_CAUSES}
+                    value={lostCause}
+                    labels={causeLabels}
+                    // Pressed again, the cause is taken back: saying why stays optional.
+                    onChange={(next) => setLostCause((now) => (now === next ? null : next))}
+                  />
+                </div>
+                <span className="text-caption text-fg-tertiary">
+                  {t('diary.form.lostCause.hint')}
+                </span>
+                {lostCause !== null &&
+                  CAUSES_WITH_PARTY.has(lostCause) &&
+                  (snapshot.people.length === 0 ? (
+                    <p className="text-caption text-fg-tertiary">
+                      {t('diary.form.lostParty.noPeople')}
+                    </p>
+                  ) : (
+                    <label className="flex max-w-md flex-col gap-1">
+                      <span className="text-caption font-semibold text-fg-secondary">
+                        {t('diary.form.lostParty')}
+                      </span>
+                      <Select
+                        data-testid="entry-lost-party"
+                        value={lostParty}
+                        onChange={(event) => setLostParty(event.target.value)}
+                      >
+                        <option value="">{t('diary.form.lostParty.nobody')}</option>
+                        {snapshot.people.map((person) => (
+                          <option key={person.id} value={person.id}>
+                            {person.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  ))}
+              </div>
+            )}
             {(
               [
                 ['entry-deliveries', 'diary.form.deliveries', deliveries, setDeliveries],

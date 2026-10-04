@@ -72,6 +72,8 @@ fn a_large_work_is_read_within_its_budget() {
                     note: Some(format!("Entry {i}: work went on as planned.")),
                     weather: Some("sun".into()),
                     lost_day: false,
+                    lost_cause: None,
+                    lost_party_person_id: None,
                     hours: Some(8.0),
                     deliveries: None,
                     incidents: None,

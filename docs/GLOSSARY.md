@@ -12,7 +12,7 @@ language, a term or a sentence, or names a lens that does not exist.
 
 A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-66 terms.
+67 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
@@ -33,6 +33,7 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `finishDate` | finish date | The day the last activity ends, computed from the schedule — never typed. | data de término | O dia em que a última atividade termina, calculado a partir do cronograma — nunca digitado. |
 | `baseline` | baseline | A photograph of the plan, taken when it is approved and again at every replanning. Later changes are compared against it; none is ever overwritten. | linha de base | Uma fotografia do plano, tirada quando ele é aprovado e de novo a cada replanejamento. As mudanças posteriores são comparadas com ela; nenhuma é sobrescrita. |
 | `slip` | slip | How many working days the finish date, or a stage, has moved past the baseline. Shown before anybody asks. | atraso | Quantos dias úteis a data de término, ou uma etapa, passou da linha de base. Mostrado antes que alguém pergunte. |
+| `forecast` | forecast | When the work will finish as things stand: the diary’s dates for what has started or finished, the planned durations from today for the rest. The finish date is the plan’s; the forecast is the record’s — the two are shown apart, never as one number. | previsão | Quando a obra vai terminar do jeito que está: as datas do diário para o que começou ou terminou, as durações planejadas a partir de hoje para o resto. A data de término é a do plano; a previsão é a do registro — as duas são mostradas separadas, nunca como um número só. |
 | `decision` | decision | Something a person has to choose before a stage can go ahead — which tile, where the outlets go, which contractor for the roof. | decisão | Algo que uma pessoa precisa escolher antes de uma etapa poder seguir — qual piso, onde ficam as tomadas, qual empreiteiro para o telhado. |
 | `leadTime` | lead time | How long it takes between deciding and having — the weeks the tile takes to arrive after it is chosen. | prazo de entrega | Quanto tempo passa entre decidir e ter — as semanas que o piso leva para chegar depois de escolhido. |
 | `deadline` | deadline | The last day a decision can still be made without delaying the work: the earliest start of the first activity that needs it, minus the lead time. Computed, never typed. | prazo | O último dia em que uma decisão ainda pode ser tomada sem atrasar a obra: o início mais cedo da primeira atividade que precisa dela, menos o prazo de entrega. Calculado, nunca digitado. |
@@ -89,7 +90,7 @@ A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a 
 with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
 The sentence never changes with the lens, and nothing about a work is stored per lens.
 
-9 of the 66 terms change with the lens.
+9 of the 67 terms change with the lens.
 
 | Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
 | --- | --- | --- | --- | --- | --- | --- |

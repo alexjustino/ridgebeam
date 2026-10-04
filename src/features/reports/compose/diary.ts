@@ -27,7 +27,7 @@ import type { TermKey } from '@/i18n/terms';
 import type { I18n } from '@/i18n/useI18n';
 
 import { finished, pieces } from './document';
-import { WEATHER_KEYS } from './words';
+import { lostDayText, WEATHER_KEYS } from './words';
 
 type Term = (key: TermKey, options?: { capital?: boolean }) => string;
 
@@ -58,7 +58,7 @@ function facts(i18n: I18n, row: DiaryReportRow): string[] {
       row.weather === null
         ? null
         : t('diary.entry.weather', { weather: t(WEATHER_KEYS[row.weather]) }),
-      row.lostDay ? t('diary.entry.lostDay') : null,
+      lostDayText(i18n, row.lostDay, row.lostCause, row.lostParty),
       row.hours === null ? null : t('diary.entry.hours', { hours: number(row.hours) }),
     ]
       .filter((part): part is string => part !== null)

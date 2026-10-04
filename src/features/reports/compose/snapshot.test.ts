@@ -189,9 +189,11 @@ describe.each(LANGUAGES)('the owner’s snapshot, in %s', (language) => {
     expect(document.subtitle).toContain(i18n.day(TODAY));
   });
 
-  it('holds four sections, in order, and the closing line last', () => {
+  it('holds five sections, in order, and the closing line last', () => {
     expect(headings(document, 1)).toEqual([
       t('reports.snapshot.today'),
+      // E3: why it is late — before approval, the sentence that it needs an approved plan.
+      t('delay.title'),
       t('reports.snapshot.next.title'),
       t('reports.snapshot.lately.title'),
       t('nav.money'),

@@ -20,6 +20,9 @@
 //!
 //! - F4: `diary_entry_add`, `diary_list`, `diary_entry`, `diary_verify`,
 //!   `photo_thumbnail`, `photo_open`.
+//! - E3: `diary_entry_add` takes why a day was lost (`lostCause`) and who it
+//!   is put down to (`lostPartyPersonId`), each refused with a sentence when it
+//!   does not fit; every entry read answers both.
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -41,6 +44,24 @@ use crate::validate;
 
 /// The weather an entry may record.
 pub const WEATHER: [&str; 6] = ["sun", "cloud", "rain", "storm", "wind", "other"];
+
+/// Why a day was lost (E3): weather, waiting for a decision, a crew that did
+/// not come, material that did not arrive, the owner's request, no access to
+/// the site, or something else.
+pub const LOST_CAUSES: [&str; 7] = [
+    "weather", "decision", "absence", "material", "owner", "access", "other",
+];
+
+/// The sentence for a cause on a day that was not lost.
+pub const CAUSE_ONLY_WHEN_LOST: &str = "A cause is given only for a day when no work was possible.";
+
+/// The sentence for a cause that is not one of the seven.
+pub const CAUSE_UNKNOWN: &str =
+    "The cause is weather, decision, absence, material, owner, access or other.";
+
+/// The sentence for a person named without a cause.
+pub const PARTY_ONLY_WITH_CAUSE: &str =
+    "A person is named for a lost day only together with its cause.";
 
 /// The longest note an entry keeps.
 pub const MAX_NOTE_CHARS: usize = 4000;
@@ -253,6 +274,32 @@ fn site_text(what: &str, value: Option<&str>, max: usize) -> Result<Option<Strin
     Ok(Some(value.to_string()))
 }
 
+/// Why the day was lost, and who it is put down to: a cause only on a lost day
+/// and only one of the seven; a person only with a cause (an empty one is
+/// none). Whether the person is one of the work is the file's to say
+/// (`db::diary::append`).
+fn lost(draft: &EntryDraft) -> Result<(Option<String>, Option<String>)> {
+    let party = draft
+        .lost_party_person_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(str::to_string);
+    let Some(cause) = draft.lost_cause.as_deref() else {
+        return match party {
+            Some(_) => Err(invalid(PARTY_ONLY_WITH_CAUSE)),
+            None => Ok((None, None)),
+        };
+    };
+    if !LOST_CAUSES.contains(&cause) {
+        return Err(invalid(CAUSE_UNKNOWN));
+    }
+    if !draft.lost_day {
+        return Err(invalid(CAUSE_ONLY_WHEN_LOST));
+    }
+    Ok((Some(cause.to_string()), party))
+}
+
 /// Everything about a draft that can be checked without the file.
 fn check(draft: &EntryDraft, today: NaiveDate, author: &str) -> Result<Checked> {
     let day = validate::date("An entry's day", &draft.day)?;
@@ -291,6 +338,7 @@ fn check(draft: &EntryDraft, today: NaiveDate, author: &str) -> Result<Checked> 
             ))
         }
     };
+    let (lost_cause, lost_party_person_id) = lost(draft)?;
     let hours = match draft.hours {
         None => None,
         Some(hours) if hours.is_finite() && (0.0..=24.0).contains(&hours) => Some(hours),
@@ -346,6 +394,8 @@ fn check(draft: &EntryDraft, today: NaiveDate, author: &str) -> Result<Checked> 
             note,
             weather,
             lost_day: draft.lost_day,
+            lost_cause,
+            lost_party_person_id,
             hours,
             deliveries: site_text(
                 "What arrived",
@@ -456,6 +506,8 @@ mod tests {
             "note",
             "weather",
             "lostDay",
+            "lostCause",
+            "lostPartyPersonId",
             "hours",
             "deliveries",
             "incidents",
@@ -682,6 +734,109 @@ mod tests {
         assert!(diary_list_with(&open, &DiaryRange::default())
             .unwrap()
             .is_empty());
+        work_close_with(&open);
+    }
+
+    /// E3: a lost day says why, and who it is put down to; the entry comes
+    /// back with both, on the wire as `lostCause` and `lostPartyPersonId`, and
+    /// the chain verifies. A correction restates the cause, as it restates the
+    /// day.
+    #[test]
+    fn a_lost_day_carries_its_cause_and_person_and_a_correction_changes_them() {
+        let (open, _scratch, _, ana) = a_work_with_a_site();
+        let mut lost = draft("2026-10-06");
+        lost.lost_day = true;
+        lost.lost_cause = Some("absence".into());
+        lost.lost_party_person_id = Some(ana.clone());
+
+        let entry = diary_entry_add_with(&open, &lost, today(), AUTHOR).unwrap();
+
+        assert_eq!(
+            (
+                entry.lost_cause.as_deref(),
+                entry.lost_party_person_id.as_deref()
+            ),
+            (Some("absence"), Some(ana.as_str()))
+        );
+        let wire = serde_json::to_value(&entry).unwrap();
+        assert_eq!(wire["lostCause"], "absence");
+        assert_eq!(wire["lostPartyPersonId"], ana.as_str());
+        assert_eq!(diary_entry_with(&open, entry.seq).unwrap(), entry);
+
+        let plain = diary_entry_add_with(&open, &draft("2026-10-07"), today(), AUTHOR).unwrap();
+        let wire = serde_json::to_value(&plain).unwrap();
+        assert!(
+            wire["lostCause"].is_null() && wire["lostPartyPersonId"].is_null(),
+            "null, never absent: {wire}"
+        );
+
+        let mut correction = draft("2026-10-06");
+        correction.kind = "correction".into();
+        correction.corrects_seq = Some(entry.seq);
+        correction.note = "It was the delivery that did not come.".into();
+        correction.lost_day = true;
+        correction.lost_cause = Some("material".into());
+        correction.lost_party_person_id = Some("   ".into());
+        let corrected = diary_entry_add_with(&open, &correction, today(), AUTHOR).unwrap();
+        assert_eq!(corrected.lost_cause.as_deref(), Some("material"));
+        assert_eq!(
+            corrected.lost_party_person_id, None,
+            "an empty person is nobody"
+        );
+        assert_eq!(
+            diary_entry_with(&open, entry.seq).unwrap(),
+            entry,
+            "the entry corrected is as it was"
+        );
+        assert!(diary_verify_with(&open).unwrap().intact);
+        work_close_with(&open);
+    }
+
+    /// E3's refusals, each with its sentence, and nothing written.
+    #[test]
+    fn a_cause_that_does_not_fit_is_refused_with_its_sentence_and_nothing_is_written() {
+        let (open, _scratch, _, ana) = a_work_with_a_site();
+        let lost = |cause: Option<&str>, party: Option<&str>, lost_day: bool| EntryDraft {
+            lost_day,
+            lost_cause: cause.map(str::to_string),
+            lost_party_person_id: party.map(str::to_string),
+            ..draft("2026-10-06")
+        };
+        let stranger = crate::db::new_id();
+        let cases = [
+            (lost(Some("weather"), None, false), CAUSE_ONLY_WHEN_LOST),
+            (
+                lost(Some("absence"), Some(ana.as_str()), false),
+                CAUSE_ONLY_WHEN_LOST,
+            ),
+            (lost(Some("snow"), None, true), CAUSE_UNKNOWN),
+            (lost(Some(""), None, true), CAUSE_UNKNOWN),
+            (lost(Some("Weather"), None, true), CAUSE_UNKNOWN),
+            (lost(None, Some(ana.as_str()), true), PARTY_ONLY_WITH_CAUSE),
+            (lost(None, Some(ana.as_str()), false), PARTY_ONLY_WITH_CAUSE),
+            (
+                lost(Some("absence"), Some(stranger.as_str()), true),
+                diary::LOST_PARTY_NOT_FOUND,
+            ),
+            (
+                lost(Some("other"), Some("not-an-id"), true),
+                diary::LOST_PARTY_NOT_FOUND,
+            ),
+        ];
+        for (case, sentence) in cases {
+            let refused = diary_entry_add_with(&open, &case, today(), AUTHOR).unwrap_err();
+            assert_eq!(refused.kind(), "invalid_input", "{case:?}");
+            assert_eq!(refused.to_string(), sentence, "{case:?}");
+        }
+        assert!(diary_list_with(&open, &DiaryRange::default())
+            .unwrap()
+            .is_empty());
+
+        for cause in LOST_CAUSES {
+            diary_entry_add_with(&open, &lost(Some(cause), None, true), today(), AUTHOR)
+                .unwrap_or_else(|e| panic!("{cause}: {e}"));
+        }
+        assert!(diary_verify_with(&open).unwrap().intact);
         work_close_with(&open);
     }
 

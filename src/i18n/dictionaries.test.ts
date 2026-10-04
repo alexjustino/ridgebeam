@@ -10,7 +10,14 @@ import {
 } from '@/domain/checks';
 import { DASHBOARD_LABEL_KEYS, WEEK_DAY_STATUS_KEYS } from '@/domain/dashboard';
 import { DECISIONS_DUE_LABEL_KEY } from '@/domain/decisions';
-import { DONE_LABEL_KEYS } from '@/domain/diary';
+import {
+  DELAY_BASIS_KEYS,
+  DELAY_CAUSE_KEYS,
+  DELAY_LABEL_KEYS,
+  DELAY_PARTY_KEYS,
+  DELAY_STATUS_KEYS,
+} from '@/domain/delay';
+import { DONE_LABEL_KEYS, LOST_CAUSE_KEYS } from '@/domain/diary';
 import { DOCUMENTS_LABEL_KEYS, TARGET_KINDS } from '@/domain/documents';
 import { FUNDING_MESSAGE_KEYS } from '@/domain/funding';
 import { MILESTONE_MESSAGE_KEYS } from '@/domain/milestones';
@@ -33,6 +40,7 @@ import {
   PAYMENT_PLAN_QUESTION_KEYS,
   QUESTION_MESSAGE_KEYS,
 } from '@/domain/questions';
+import { FORECAST_LABEL_KEYS, FORECAST_PROBLEM_KEYS } from '@/domain/schedule/forecast';
 import { PROBABILITY_MESSAGE_KEYS } from '@/domain/schedule/probability';
 import { SLIP_LABEL_KEY } from '@/domain/schedule/slip';
 import { WHAT_IF_LABEL_KEY, WHAT_IF_PROBLEM_KEYS } from '@/domain/schedule/whatIf';
@@ -288,6 +296,43 @@ describe('where the money comes from and whether it lasts, in both languages (E2
     ).toBe('Falta dinheiro na semana de 16 de nov. — faltam R$ 4.200,00.');
     expect(translate(DICTIONARIES.en, 'money.runway.sentence.lasts', { spare: '$1,200.00' })).toBe(
       'The money lasts to the end, with $1,200.00 to spare.',
+    );
+  });
+});
+
+describe('why it is late, in both languages (E3)', () => {
+  it.each(LANGUAGES)(
+    '%s carries every key the forecast and the ledger hand the interface',
+    (language) => {
+      const dictionary = DICTIONARIES[language] as Record<string, string>;
+      for (const key of [
+        ...Object.values(LOST_CAUSE_KEYS),
+        ...Object.values(FORECAST_LABEL_KEYS),
+        ...Object.values(FORECAST_PROBLEM_KEYS),
+        ...Object.values(DELAY_LABEL_KEYS),
+        ...Object.values(DELAY_STATUS_KEYS),
+        ...Object.values(DELAY_CAUSE_KEYS),
+        ...Object.values(DELAY_BASIS_KEYS),
+        ...Object.values(DELAY_PARTY_KEYS),
+      ]) {
+        expect(dictionary[key], `${language} ${key}`).toBeTruthy();
+      }
+      for (const base of ['delay.unexplained', 'delay.madeUp', 'schedule.forecast.leftOut']) {
+        expect(dictionary[`${base}.one`], `${language} ${base}.one`).toBeTruthy();
+        expect(dictionary[`${base}.other`], `${language} ${base}.other`).toBeTruthy();
+      }
+    },
+  );
+
+  it('says the titles and the causes in the owner’s words', () => {
+    expect(translate(DICTIONARIES['pt-BR'], DELAY_LABEL_KEYS.title)).toBe('Por que está atrasada?');
+    expect(translate(DICTIONARIES['pt-BR'], FORECAST_LABEL_KEYS.title)).toBe('Do jeito que está');
+    expect(translate(DICTIONARIES.en, DELAY_CAUSE_KEYS.unstated)).toBe('Lost, no cause said');
+    expect(translate(DICTIONARIES['pt-BR'], DELAY_CAUSE_KEYS.unstated)).toBe(
+      'Dia perdido sem causa dita',
+    );
+    expect(translate(DICTIONARIES['pt-BR'], DELAY_CAUSE_KEYS.unexplained)).toBe(
+      'Não explicado pelo registro',
     );
   });
 });

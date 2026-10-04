@@ -40,6 +40,20 @@ import {
 } from '@/domain/reports/weekly';
 import { CHANGE_LABEL_KEYS, changeTally, type ChangeTally } from '@/domain/changes';
 import { RUNWAY_LABEL_KEYS, type Runway, type RunwayChance } from '@/domain/runway';
+import { DELAY_LABEL_KEYS, type DelayLedger } from '@/domain/delay';
+import {
+  delayCauseText,
+  delayLeftText,
+  delayPartyRowText,
+  delayResidualText,
+  delayStatusText,
+  delayTraceText,
+} from '@/features/dashboard/delayWords';
+import {
+  forecastAssumesText,
+  forecastPlanText,
+  forecastSentence,
+} from '@/features/schedule/forecastWords';
 import { pendingText, percentText } from '@/features/money/paymentPlanWords';
 import {
   runwayChanceText,
@@ -348,6 +362,99 @@ export function runwayBlocks(
 }
 
 /**
+ * **As things stand** and **Why is it late?** (E3), as both owner's documents print them: the
+ * forecast in one sentence against the baseline, and against the plan's own date — two answers,
+ * labelled — then where the work stands, and, when it is late, the days late as a figure opening
+ * onto what finishes later, and the ledger by cause (and, with `byParty`, by whose account), each
+ * line with its working days and every day or change it was made from; what the record does not
+ * explain in a strong sentence of its own; and what the forecast assumes and the ledger is not.
+ */
+export function delayBlocks(
+  i18n: I18n,
+  snapshot: WorkSnapshot,
+  ledger: DelayLedger,
+  level: 1 | 2,
+  byParty: boolean,
+): ReportBlock[] {
+  const { t, tp, number } = i18n;
+  const term = termsFor(i18n.language, 'owner');
+  const days = (value: number) => tp('plan.checklist.days', Math.abs(value));
+  const blocks: ReportBlock[] = [
+    { type: 'heading', level, text: t(DELAY_LABEL_KEYS.title) },
+    {
+      type: 'paragraph',
+      tone: 'strong',
+      text: shortened(forecastSentence(i18n, term, ledger.forecast), REPORT_LIMITS.text),
+    },
+  ];
+  const plan =
+    ledger.forecast.problem === null ? forecastPlanText(i18n, term, ledger.forecast) : null;
+  if (plan !== null) blocks.push({ type: 'paragraph', text: shortened(plan, REPORT_LIMITS.text) });
+  blocks.push({
+    type: 'paragraph',
+    text: shortened(delayStatusText(i18n, term, ledger), REPORT_LIMITS.text),
+  });
+  const figures = ledger.status === 'late' ? ledger.figures : null;
+  if (figures !== null) {
+    blocks.push(
+      figure(
+        t(DELAY_LABEL_KEYS.total),
+        number(figures.total.value),
+        figures.total.rows.map((each) => line(each.name, slipRowText(i18n, each))),
+      ),
+    );
+    blocks.push(
+      figure(
+        t(DELAY_LABEL_KEYS.byCause),
+        number(figures.byCause.value),
+        figures.byCause.rows.map((each) =>
+          line(
+            delayCauseText(i18n, each),
+            days(each.days),
+            each.cause === 'unexplained' || each.cause === 'made-up'
+              ? delayResidualText(i18n, each.cause)
+              : each.trace.map((trace) => delayTraceText(i18n, snapshot, trace)).join('; '),
+          ),
+        ),
+      ),
+    );
+    if (byParty) {
+      blocks.push(
+        figure(
+          t(DELAY_LABEL_KEYS.byParty),
+          number(figures.byParty.value),
+          figures.byParty.rows.map((each) =>
+            line(
+              delayPartyRowText(i18n, each),
+              days(each.days),
+              each.residual !== null
+                ? delayResidualText(i18n, each.residual)
+                : each.trace.map((trace) => delayTraceText(i18n, snapshot, trace)).join('; '),
+            ),
+          ),
+        ),
+      );
+    }
+  }
+  const left = delayLeftText(i18n, ledger);
+  if (left !== null) blocks.push({ type: 'paragraph', tone: 'strong', text: left });
+  const facts = [
+    ledger.forecast.problem === null
+      ? forecastAssumesText(i18n, term, ledger.forecast, snapshot.activities.length)
+      : null,
+    figures !== null ? t('delay.caveat') : null,
+  ].filter((each): each is string => each !== null);
+  if (facts.length > 0) {
+    blocks.push({
+      type: 'paragraph',
+      tone: 'muted',
+      text: shortened(facts.join(' '), REPORT_LIMITS.text),
+    });
+  }
+  return blocks;
+}
+
+/**
  * The finish as a probability, as the page prints it: one figure, then what it rests on. The owner's
  * snapshot (D4) prints the same blocks.
  */
@@ -399,7 +506,9 @@ export function probabilityBlocks(i18n: I18n, probability: FinishProbabilityResu
  * The weekly report for the selection `weekly`, in `i18n`'s language and the owner's words.
  * `scheduled` is the schedule the selection was made from, for why a finish is not known;
  * `probability` is `finishProbability` over the same plan, schedule and diary (D1); `cash` is the
- * runway and its chance over the same three (E2), printed after the money when given.
+ * runway and its chance over the same three (E2), printed after the money when given; `delay` is
+ * `delayLedger` over the same three (E3), printed after the plan when given — the forecast and why
+ * it is late.
  */
 export function composeWeekly(
   weekly: Weekly,
@@ -408,6 +517,7 @@ export function composeWeekly(
   i18n: I18n,
   probability: FinishProbabilityResult,
   cash: Cash | null = null,
+  delay: DelayLedger | null = null,
 ): ReportDocument {
   const { t, tp, day, number, money } = i18n;
   const term = termsFor(i18n.language, 'owner');
@@ -554,6 +664,9 @@ export function composeWeekly(
       ),
     ),
   );
+
+  // ── As things stand, and why it is late (E3) ──
+  if (delay !== null) blocks.push(...delayBlocks(i18n, snapshot, delay, 2, true));
 
   // ── Money ──
   blocks.push({ type: 'heading', level: 2, text: t('nav.money') });

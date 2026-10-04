@@ -14,7 +14,7 @@ import { InfoBar } from '@/ui/InfoBar';
 
 import { EntryForm } from './EntryForm';
 import { PhotoThumb } from './PhotoThumb';
-import { WEATHER_KEYS } from './weather';
+import { lostDayText, WEATHER_KEYS } from './weather';
 
 /**
  * The diary (slice F4): what actually happened, day by day.
@@ -192,7 +192,17 @@ export function EntryView({
     ...(entry.weather !== null
       ? [t('diary.entry.weather', { weather: t(WEATHER_KEYS[entry.weather]) })]
       : []),
-    ...(entry.lostDay ? [t('diary.entry.lostDay')] : []),
+    // A lost day says why, and who, when the entry names them (E3): "Lost — waiting for a decision".
+    ...[
+      lostDayText(
+        { t },
+        entry.lostDay,
+        entry.lostCause,
+        entry.lostPartyPersonId === null
+          ? null
+          : { name: people.get(entry.lostPartyPersonId) ?? null },
+      ),
+    ].filter((fact): fact is string => fact !== null),
     ...(entry.hours !== null ? [t('diary.entry.hours', { hours: number(entry.hours) })] : []),
     ...(entry.deliveries !== null ? [t('diary.entry.deliveries', { text: entry.deliveries })] : []),
     ...(entry.incidents !== null ? [t('diary.entry.incidents', { text: entry.incidents })] : []),

@@ -48,7 +48,11 @@ with the change already in the plan, while a standing tally says how much the wo
 ([ADR-041](#adr-041)). The second, slice E2, asks whether the money will last: the funds the
 owner expects are plan, the money received is a ledger of facts, and a projection reads them week by
 week against what the schedule and the payment plans will ask for, naming the week the money runs
-short, if it does ([ADR-042](#adr-042)).
+short, if it does ([ADR-042](#adr-042)). The third, slice E3, says when the work will finish as
+things stand — a forecast read forward from what the diary says happened, beside the plan's own
+date and never in its place — and why it is late: every working day of the difference from the
+baseline attributed to a cause the record names, and the days it cannot attribute said in words
+([ADR-043](#adr-043)).
 
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -94,6 +98,7 @@ short, if it does ([ADR-042](#adr-042)).
 | [040](#adr-040) | Before the first real work: a drop is a choice, and the product reminds but never backs up on its own                 | Accepted — 2026-10-02          |
 | [041](#adr-041) | Change orders: nothing changes without a price and a date                                                             | Accepted — 2026-10-02          |
 | [042](#adr-042) | Will the money last? Funding as plan, receipts as facts, a weekly projection                                          | Accepted — 2026-10-02          |
+| [043](#adr-043) | As things stand: a forecast from the diary, and a ledger of why it is late                                            | Accepted — 2026-10-04          |
 
 ---
 
@@ -1696,7 +1701,8 @@ machine — the injection OWASP calls CSV injection.
 - **The CSV is written by the host from the database**, never from anything the interface sends,
   so it is the record and not a rendering of it. One row per entry in the chain's order, thirteen
   columns — `seq`, `day`, `created_at`, `author`, `weather`, `done`, `finished`, `present`, `note`,
-  `corrects_seq`, `photos`, `entry_hash`, `previous_hash`. `done`, `finished` and `present` name
+  `corrects_seq`, `photos`, `entry_hash`, `previous_hash` (E3 appends two at the end, `lost_cause`
+  and `lost_party` — [ADR-043](#adr-043)). `done`, `finished` and `present` name
   the activities and people as the plan names them now, joined by `; `, an activity with the
   quantity said (`Tiling (12 m²)`), and one since removed from the plan by its id; `weather` is the
   stored word (`rain`, `sun` …); `photos` are the photos' SHA-256 hashes joined by a space. UTF-8
@@ -2797,3 +2803,154 @@ receipts are not opens below zero, and the projection says the money has already
 what paid for them is recorded. **Money in is recorded, not connected**: the product holds no bank
 connection and imports no statement, so a receipt is what the person typed, and reconciling it with
 the account is theirs.
+
+## ADR-043 — As things stand: a forecast from the diary, and a ledger of why it is late {#adr-043}
+
+**Status.** Accepted — 2026-10-04.
+
+**Context.** This is E3, the third slice of the second wave ([ADR-041](#adr-041)), for the third of
+the four ways a small work fails: **it is late, and nobody can say on whose account**. Until now the
+product could not even say how late. Its one measure of lateness is the slip
+([ADR-016](#adr-016)): the plan's finish against its baseline's — plan against plan, which moves
+only when somebody edits the plan. What the site actually did is in the diary, and progress is
+derived from it, with the day each activity started and finished ([ADR-020](#adr-020)), but nothing
+read those days forward to a finish. Comparing what happened with the baseline was deferred slice
+after slice: ADR-020 left it to F8 and F10; a comparison of two baselines is plan against plan
+([ADR-028](#adr-028)); and the weekly report compares the plan with its latest baseline and does not
+put actual dates beside baseline dates ([ADR-031](#adr-031)). So a work three weeks behind on site,
+whose plan nobody had touched, showed a slip of 0. And the reasons were scattered across the record
+with nothing adding them up: a day marked lost said that no work was possible and not why; a
+decision's deadline was computed ([ADR-017](#adr-017)) and the day it was made was recorded, and
+nothing compared the two after the fact; a change order kept the working days it added, which
+[ADR-041](#adr-041) says plainly are not the slip, leaving why the work is late to this slice. This
+is the comparison that was deferred, and the ledger that reads it.
+
+**Decision.**
+
+- **The forecast is the domain's, read from the diary** (`forecast`). From the snapshot, the plan's
+  schedule, the diary and today, it lays the same activities and links as the schedule
+  ([ADR-015](#adr-015)) on the same working calendar, with the same lags, forward from what the
+  diary says happened. A **finished** activity is pinned at its diary dates, from the day it started
+  to the day it finished. A **started** one keeps the day it started, and finishes no earlier than
+  its planned duration from that day and **not before today**, because it is not done. One **not
+  started** starts when its links allow and **not before today**. A link into an activity that has
+  started is spent: whatever was before it, it started, so the link holds nothing back in the
+  forecast. With the diary empty and today on or before the start, the forecast is the schedule,
+  day for day. The forecast returns each activity's start and finish, the forecast finish, the
+  forecast's own critical chain, the working days between the forecast finish and the latest
+  baseline's finish, signed — none before the plan is approved, because there is nothing to measure
+  against — and the working days between it and the plan's own finish date. It is computed every
+  time and never stored. **The plan's schedule is untouched**: `schedule()` still reads only the plan, and
+  the Gantt still draws the plan.
+- **ADR-016's slip is not amended.** The slip stays what it is — how far the plan's own finish has
+  moved past its baseline — and stays plan against plan. The forecast is a second, different
+  number: how far what happened on site has moved it. The two are shown apart, each labelled with
+  what it is, and never as one number.
+- **The ledger says why** (`delayLedger`). Its total is the forecast's difference from the baseline,
+  in working days of the plan's calendar, signed. Each of its entries is a cause, the party the
+  record names where it names one, the working days, and the rows they were counted from. **One
+  cause per working day per activity**, taken in this order so that no day is counted twice:
+  1. **A change order** approved after the baseline the forecast is measured against: the working
+     days its decision froze ([ADR-041](#adr-041)); the party is who asked — the owner, a person of
+     the plan, or somebody else by name.
+  2. **A stated cause** — a day the diary marks lost and says why (below): that cause, and the
+     person it names, for each working day lost while an activity of the forecast's critical chain
+     was running or due to start.
+  3. **Weather** — a day marked lost, or a rain or storm day with nothing done (the dashboard's rule
+     for weather days lost), that states no cause, on the same condition.
+  4. **A decision made late** — a decision made after its deadline in the baseline, which is the
+     baseline's start of its stage less its lead time: the working days between that deadline and
+     the day it was made, **capped at the working days its stage actually started late against the
+     baseline**. A late decision that delayed nothing costs nothing. The party is the owner.
+  5. **Absence** — a working day with an entry on which the person responsible for a running
+     activity of the critical chain was not on site and nothing was done on it; the party is that
+     person. **A day with no entry is not absence**: unknown is not absent.
+  6. **Not explained** — the total less everything attributed, said in words whenever it is above
+     zero — _"3 days the record does not explain"_ — never folded into another cause and never left
+     off.
+
+  When the forecast is on or ahead of the baseline, the ledger says so and attributes nothing: it
+  does not invent causes for a delay there is not. Before the plan is approved, it says that it
+  needs an approved plan. Three figures carry their rows ([ADR-024](#adr-024)) — **days late as
+  things stand**, **by cause** and **by party** — each in working days, opening onto the entries,
+  the decisions and the changes they were counted from.
+
+- **A lost day can say why** (migration 015, [`DATA_MODEL.md`](../DATA_MODEL.md)). `diary_entry`
+  gains two nullable columns. `lost_cause` is one of a closed list of seven — weather, waiting for a
+  decision, a crew that did not come, material that did not arrive, the owner's request, no access
+  to the site, other (`weather`, `decision`, `absence`, `material`, `owner`, `access`, `other`).
+  `lost_party_person_id` is the person of the plan the cause names and, like every person an entry
+  names, not a foreign key: a person removed from the plan leaves the entry as it was written. A
+  `CHECK` allows either only on a day marked lost; the host refuses, with a sentence, a cause on a
+  day not marked lost and a party who is not a person of the plan, and the domain refuses them
+  before the host is asked. Nothing is back-filled: an entry written before this slice has no
+  cause, and the product does not guess one after the fact.
+- **The chain is extended, not rewritten.** The canonical form ([ADR-019](#adr-019)) gains one
+  record after the photos — `lost` · cause · party — **written only when the entry has a cause**. An
+  entry with no cause, which is every entry written before this slice and every one written after it
+  without one, serialises to the same string and hashes to the same value, byte for byte: no old
+  hash changes, no chain is computed again, and the migration touches no diary row. The tag stays
+  `entry.v1`, because every earlier entry still verifies under it unchanged. The append-only
+  triggers already cover the table, so the new columns cannot be updated; a cause is changed as
+  everything in the diary is, by a **correction** that restates the day. `cargo test` hashes every
+  entry of a real schema-14 work — entries, a correction and photos — before and after the
+  migration and finds them equal, with the chain verifying on both sides.
+- **The exports carry it.** The diary CSV gains two columns, the cause and the person, under the
+  same neutralisation as every cell ([ADR-032](#adr-032)); the JSON export carries `lostCause` and
+  `lostPartyPersonId` on every entry, `null` when there is none, which a reader needs to recompute
+  the hash.
+- **Where it lives.** In the diary entry form, when **No work was possible** is ticked, **Why?**
+  offers the seven causes and — for a crew that did not come, material that did not arrive and
+  anything else — **Who**, a person of the plan, optional; the entry then reads _"Lost — waiting
+  for a decision"_, with the person's name when one is given. The **Schedule** gains an **As things
+  stand** card beside the finish and the slip: the forecast finish, the working days against the
+  baseline and against the plan's own finish date, and a sentence that says which is the plan and
+  which the forecast — _"As things stand it finishes on 23 Oct — 5 working days after the baseline's
+  16 Oct."_ The **Dashboard** gains **Why is it late?**: the days late as things stand, the ledger by
+  cause and by party, and the row the record does not explain. The weekly report prints the
+  forecast's sentence and the ledger; the owner's snapshot prints the sentence and the leading
+  causes, in the owner's words.
+- **Words.** The glossary gains _forecast_ (_previsão_): when the work will finish as things stand
+  — the record's date, shown beside the plan's finish date and never in its place. The ledger has no
+  term of its own; the titles say it — **As things stand** (_Do jeito que está_) and **Why is it
+  late?** (_Por que está atrasada?_) — and the causes are said in the owner's words.
+
+**Why.** "How late are we, and why?" is the question every late work ends on, and the answer is
+usually the louder party's. The facts were already in the record — the days the diary says were
+lost, who was on site, when each decision was made against when it was due, what each change added —
+and none of them depends on anybody's memory; what was missing was reading them forward to a date
+and adding them up against the baseline. A forecast from the diary says what the site has done to
+the finish, which the slip never could. A ledger that attributes every working day of the
+difference, and says in words what it cannot attribute, turns an argument about impressions into a
+list of days that both sides can open and check. The order of the causes is fixed so that the same
+record always gives the same ledger, and so that the most specific record wins: a change order's
+frozen days first, then what the person on site said, then what the weather, the decisions and the
+diary's attendance show. And a cause written into the hash is one nobody can quietly change once
+the conversation has started.
+
+**Cost accepted.** **The forecast assumes the rest goes to plan**: every activity not finished takes
+its planned duration — from the day it started, and never ending before today — so a crew working
+at half speed is forecast on time until its activity runs past its duration, and the forecast moves
+from then on, a day at a time. It is one date, not a range; the chance is still D1's, from the plan
+([ADR-035](#adr-035)). **One cause per day, by a fixed priority**: a day lost to rain while the
+owner had not yet chosen the tile is counted once, under the first cause in the order, and the
+other is under-counted; the ledger does not split a day. **A day with no entry is unknown, not
+absence**: a crew that did not come on a day nobody wrote anything is in _not explained_, not on
+the crew's account — the dashboard's count of days without an entry is where that silence shows.
+**A late decision costs at most what its stage lost**: the working days between its deadline and the
+day it was made are capped at how late its stage actually started against the baseline, so a
+decision made late while something else was holding the stage reads as costing less than it might
+have, or nothing. **The critical chain is the forecast's as it stands today**: a day lost on an
+activity that was critical then and is not now is not counted under its cause, and falls into _not
+explained_. **A change's days are the days its decision froze**, as [ADR-041](#adr-041) says — what
+the schedule said on the day it was decided, not what it cost in the end. **A lost day written
+before this slice has no cause**: it counts as any lost day with no cause stated does, and saying
+why now takes a correction. **The ledger attributes; it does not judge.** It says which record a day
+of delay was counted from and whom that record names. It is not a claim, not a finding of fault and
+not legal evidence — a crew that did not come may have been sent elsewhere by the owner, and a
+decision made late may have waited on a quote that never came — and what a day of delay is worth,
+and on whose account it falls under a contract, is the contract's and the jurisdiction's to decide.
+**The party is who the record names**: the person an entry names, the owner for a decision, the
+person responsible for an activity they were not on site for, whoever asked for a change — not who
+is to blame, and only as true as what was written. A wrong cause is put right by a correction, and
+the record keeps both.

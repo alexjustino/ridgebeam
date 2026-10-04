@@ -51,6 +51,13 @@
 //! 3. for each person present, sorted by id (byte order): `present` · person_id
 //! 4. for each photo, by position: `photo` · file_hash · file_name · bytes ·
 //!    width · height
+//! 5. **only when `lost_cause` is not NULL** (E3): `lost` · lost_cause ·
+//!    lost_party_person_id
+//!
+//! Record 5 is conditional so that an entry without a cause — every entry
+//! written before work migration 015 — has exactly the canonical string, and so
+//! the hash, it always had: the form is extended, not changed, and the tag stays
+//! `entry.v1`. The party is NULL (the empty field) when nobody was named.
 //!
 //! `hash` = lowercase hex of SHA-256 over the bytes of that string. A photo's
 //! `thumbnail` flag is not in it: it describes the copy, not the day.
@@ -61,6 +68,12 @@
 //! - F10: `all` (every entry in the chain's order) and `check_chain` (the
 //!   verification over rows already read), so an export verifies the very rows
 //!   it writes. `verify` is the two together; reads only.
+//! - E3: why a day was lost — `NewEntry.lost_cause` and
+//!   `lost_party_person_id`, written and read with the entry, and the
+//!   conditional `lost` record of the canonical form. An entry without a cause
+//!   is written by the very statement it always was. A file not yet at work
+//!   migration 015 (which only a test stands at: opening a work migrates it)
+//!   reads both as NULL — what every entry written before them is.
 
 use std::collections::{BTreeSet, HashMap};
 
@@ -74,6 +87,15 @@ use crate::error::{Error, Result};
 
 /// The tag the entry record starts with; the version of the canonical form.
 pub const CANONICAL_TAG: &str = "entry.v1";
+
+/// The tag of the record that says why a day was lost — present only when a
+/// cause was given (E3).
+pub const LOST_TAG: &str = "lost";
+
+/// The sentence for a lost day put down to somebody who is not a person of
+/// the work.
+pub const LOST_PARTY_NOT_FOUND: &str =
+    "The person a lost day is put down to must be a person of this work.";
 
 const RECORD: char = '\u{1E}';
 const UNIT: char = '\u{1F}';
@@ -94,6 +116,10 @@ pub struct NewEntry {
     pub weather: Option<String>,
     /// No work was possible.
     pub lost_day: bool,
+    /// Why no work was possible — one of the seven causes; only on a lost day.
+    pub lost_cause: Option<String>,
+    /// The person the lost day is put down to; only with a cause.
+    pub lost_party_person_id: Option<String>,
     /// Hours on site.
     pub hours: Option<f64>,
     /// What arrived.
@@ -120,7 +146,8 @@ pub struct NewEntry {
 ///
 /// [`Error::DiaryCorrectsUnknown`] for a correction of an entry the diary does
 /// not hold; [`Error::InvalidInput`] for an activity or a person not in this
-/// work; [`Error::Database`] when a row cannot be written.
+/// work (present, or named for a lost day); [`Error::Database`] when a row
+/// cannot be written.
 pub fn append(conn: &Connection, new: &NewEntry) -> Result<i64> {
     let tx = conn.unchecked_transaction()?;
 
@@ -145,6 +172,11 @@ pub fn append(conn: &Connection, new: &NewEntry) -> Result<i64> {
     for person in &new.present {
         if !exists(&tx, "SELECT 1 FROM person WHERE id = ?1", person)? {
             return Err(Error::InvalidInput(PERSON_NOT_FOUND.into()));
+        }
+    }
+    if let Some(party) = &new.lost_party_person_id {
+        if !exists(&tx, "SELECT 1 FROM person WHERE id = ?1", party)? {
+            return Err(Error::InvalidInput(LOST_PARTY_NOT_FOUND.into()));
         }
     }
 
@@ -174,6 +206,8 @@ pub fn append(conn: &Connection, new: &NewEntry) -> Result<i64> {
         note: new.note.clone(),
         weather: new.weather.clone(),
         lost_day: new.lost_day,
+        lost_cause: new.lost_cause.clone(),
+        lost_party_person_id: new.lost_party_person_id.clone(),
         hours: new.hours,
         deliveries: new.deliveries.clone(),
         incidents: new.incidents.clone(),
@@ -188,29 +222,41 @@ pub fn append(conn: &Connection, new: &NewEntry) -> Result<i64> {
     };
     entry.hash = hash_of(&entry);
 
-    tx.execute(
+    // An entry without a cause is written by the statement it always was; one
+    // with a cause names the two columns of work migration 015 as well.
+    let statement = if entry.lost_cause.is_some() {
+        "INSERT INTO diary_entry
+           (seq, day, kind, corrects_seq, note, weather, lost_day, hours, deliveries, incidents,
+            visitors, author_name, created_at, prev_hash, hash, lost_cause, lost_party_person_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)"
+    } else {
         "INSERT INTO diary_entry
            (seq, day, kind, corrects_seq, note, weather, lost_day, hours, deliveries, incidents,
             visitors, author_name, created_at, prev_hash, hash)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
-        params![
-            entry.seq,
-            entry.day,
-            entry.kind,
-            entry.corrects_seq,
-            entry.note,
-            entry.weather,
-            entry.lost_day,
-            entry.hours,
-            entry.deliveries,
-            entry.incidents,
-            entry.visitors,
-            entry.author_name,
-            entry.created_at,
-            entry.prev_hash,
-            entry.hash,
-        ],
-    )?;
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)"
+    };
+    let mut values: Vec<&dyn ToSql> = vec![
+        &entry.seq,
+        &entry.day,
+        &entry.kind,
+        &entry.corrects_seq,
+        &entry.note,
+        &entry.weather,
+        &entry.lost_day,
+        &entry.hours,
+        &entry.deliveries,
+        &entry.incidents,
+        &entry.visitors,
+        &entry.author_name,
+        &entry.created_at,
+        &entry.prev_hash,
+        &entry.hash,
+    ];
+    if entry.lost_cause.is_some() {
+        values.push(&entry.lost_cause);
+        values.push(&entry.lost_party_person_id);
+    }
+    tx.execute(statement, values.as_slice())?;
     for line in &entry.done {
         tx.execute(
             "INSERT INTO diary_done (entry_seq, activity_id, state, quantity, note)
@@ -316,6 +362,14 @@ pub fn canonical(entry: &DiaryEntry) -> String {
                 whole(photo.width),
                 whole(photo.height),
             ],
+        ));
+    }
+    // Record 5, only when a cause was given: without one the string is what
+    // it was before E3, byte for byte.
+    if let Some(cause) = &entry.lost_cause {
+        records.push(record(
+            LOST_TAG,
+            vec![text(cause), maybe(entry.lost_party_person_id.as_deref())],
         ));
     }
     records.join(&RECORD.to_string())
@@ -447,6 +501,15 @@ pub fn photo_by_hash(conn: &Connection, hash: &str) -> Result<Option<Photo>> {
         .optional()?)
 }
 
+/// Whether `diary_entry` has the columns of work migration 015.
+fn has_lost_cause(conn: &Connection) -> Result<bool> {
+    Ok(conn.query_row(
+        "SELECT count(*) FROM pragma_table_info('diary_entry') WHERE name = 'lost_cause'",
+        [],
+        |row| row.get::<_, i64>(0),
+    )? == 1)
+}
+
 fn photo_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Photo> {
     Ok(Photo {
         file_hash: row.get(0)?,
@@ -528,10 +591,17 @@ fn read(
         photos.entry(seq).or_default().push(photo);
     }
 
+    // A file before work migration 015 has no cause columns; its entries
+    // have no cause.
+    let lost = if has_lost_cause(conn)? {
+        "lost_cause, lost_party_person_id"
+    } else {
+        "NULL, NULL"
+    };
     let entries = conn
         .prepare(&format!(
             "SELECT seq, day, kind, corrects_seq, note, weather, lost_day, hours, deliveries,
-                    incidents, visitors, author_name, created_at, prev_hash, hash
+                    incidents, visitors, author_name, created_at, prev_hash, hash, {lost}
              FROM diary_entry WHERE {filter} ORDER BY {order}"
         ))?
         .query_map(bound, |row| {
@@ -551,6 +621,8 @@ fn read(
                 created_at: row.get(12)?,
                 prev_hash: row.get(13)?,
                 hash: row.get(14)?,
+                lost_cause: row.get(15)?,
+                lost_party_person_id: row.get(16)?,
                 done: Vec::new(),
                 present: Vec::new(),
                 photos: Vec::new(),

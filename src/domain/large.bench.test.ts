@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { LARGE, LARGE_TODAY, largeWork } from './__fixtures__/large';
+import { takeBaseline } from './__fixtures__/plan';
+import { delayLedger } from './delay';
 import { effectiveEntries } from './diary';
 import { paymentPlans, paymentPreview } from './milestones';
 import { moneyByStage, moneyByTrade, moneyOfWork, overCommittedFigure, sCurve } from './money';
@@ -51,6 +53,7 @@ const BUDGETS_MS = {
   finishProbability: 580, // measured 116.0 (2026-09-29, machine ×1.05; 2 000 runs, 400 ranged)
   paymentPlans: 30, // measured 5.2 (2026-09-29, machine ×1.22; 200 commitments, 150 with a plan)
   paymentPreview: 30, // measured 5.3 (2026-09-29, machine ×1.22; the whole plans, on a new snapshot)
+  delayLedger: 245, // measured 48.6 (2026-10-04; the forecast and the ledger, approved at baseline 1)
 } as const;
 /**
  * How much slower this machine is than the one the budgets were measured on. A budget in
@@ -173,6 +176,15 @@ describe('the large-work benchmark', () => {
     };
     expect(paymentPreview({ ...plan }, entries, LARGE_TODAY, draft).kind).toBe('plan');
     bench('paymentPreview', () => paymentPreview({ ...plan }, entries, LARGE_TODAY, draft));
+  });
+
+  it('says why it is late (slice E3): the forecast from the diary, and the ledger', () => {
+    const approved = { ...plan, baselines: [takeBaseline(plan, 1)] };
+    const ledger = delayLedger(approved, scheduled, entries, LARGE_TODAY);
+    expect(ledger.forecast.problem).toBeNull();
+    expect(ledger.forecast.dates.size).toBe(LARGE.activities);
+    expect(ledger.total).not.toBeNull();
+    bench('delayLedger', () => delayLedger(approved, scheduled, entries, LARGE_TODAY));
   });
 
   it('simulates the finish (slice D1): every run, the 400 ranged activities drawn', () => {
