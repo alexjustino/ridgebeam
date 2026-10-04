@@ -19,10 +19,14 @@ pub mod backup;
 #[cfg(test)]
 pub mod backup_tests;
 pub mod care_notes;
+pub mod change_orders;
+#[cfg(test)]
+mod change_orders_tests;
 pub mod checks;
 pub mod decisions;
 pub mod diary;
 pub mod documents;
+pub mod funding;
 #[cfg(test)]
 mod handover_tests;
 #[cfg(test)]
@@ -40,6 +44,9 @@ mod reports_tests;
 pub mod rooms;
 pub mod schedule;
 pub mod settings;
+pub mod snags;
+#[cfg(test)]
+mod snags_tests;
 #[cfg(test)]
 mod snapshot_tests;
 pub mod system;

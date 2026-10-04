@@ -42,6 +42,13 @@
 //!   (`db::milestones`); the snapshot's commitments carry their payment plans.
 //! - D3: the snapshot carries care notes; a stage's removal takes its care
 //!   notes with it, in the same transaction.
+//! - E1: the snapshot carries change orders (`db::change_orders`);
+//!   `update_activity_within` and `remove_activity_within`, the same checks
+//!   inside a transaction the caller holds, so an approved change order's
+//!   effects are written through them with its decision or not at all.
+//! - E2: the snapshot carries the funds and the money received
+//!   (`db::funding`, `db::funding_receipts`).
+//! - E4: the snapshot carries snags, each with its closure (`db::snags`).
 
 use std::collections::HashMap;
 
@@ -50,8 +57,8 @@ use rusqlite::{params, Connection, OptionalExtension};
 use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, WorkSnapshot};
 use crate::db::order::{ACTIVITIES, STAGES};
 use crate::db::{
-    baselines, care_notes, check_answers, checks, decisions, dependencies, documents, milestones,
-    money, payments, replanning,
+    baselines, care_notes, change_orders, check_answers, checks, decisions, dependencies,
+    documents, funding, funding_receipts, milestones, money, payments, replanning, snags,
 };
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
@@ -294,6 +301,10 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         documents: documents::list(conn)?,
         replanning: replanning::current(conn)?,
         care_notes: care_notes::list(conn)?,
+        change_orders: change_orders::list(conn)?,
+        funding: funding::list(conn)?,
+        funding_receipts: funding_receipts::list(conn)?,
+        snags: snags::list(conn)?,
     })
 }
 
@@ -588,11 +599,24 @@ pub fn duration_outside_range(duration: i64, min: i64, max: i64) -> String {
 /// leave the duration outside the range ([`duration_outside_range`]).
 pub fn update_activity(conn: &Connection, id: &str, change: &ActivityChange) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
-    if !exists(&tx, "SELECT 1 FROM activity WHERE id = ?1", id)? {
+    update_activity_within(&tx, id, change)?;
+    tx.commit()?;
+    Ok(())
+}
+
+/// [`update_activity`], inside a transaction the caller already holds and
+/// commits (E1: an approved change order's effects are written with its
+/// decision, or not at all).
+///
+/// # Errors
+///
+/// As [`update_activity`].
+pub fn update_activity_within(tx: &Connection, id: &str, change: &ActivityChange) -> Result<()> {
+    if !exists(tx, "SELECT 1 FROM activity WHERE id = ?1", id)? {
         return Err(Error::InvalidInput(ACTIVITY_NOT_FOUND.into()));
     }
-    refuse_if_activity_closed(&tx, id)?;
-    refuse_if_duration_leaves_range(&tx, id, change)?;
+    refuse_if_activity_closed(tx, id)?;
+    refuse_if_duration_leaves_range(tx, id, change)?;
     if let Some(range) = change.range {
         tx.execute(
             "UPDATE activity SET duration_min_days = ?2, duration_max_days = ?3 WHERE id = ?1",
@@ -613,7 +637,7 @@ pub fn update_activity(conn: &Connection, id: &str, change: &ActivityChange) -> 
     }
     if let Some(responsible) = &change.responsible_id {
         if let Some(person) = responsible {
-            if !exists(&tx, "SELECT 1 FROM person WHERE id = ?1", person)? {
+            if !exists(tx, "SELECT 1 FROM person WHERE id = ?1", person)? {
                 return Err(Error::InvalidInput(PERSON_NOT_FOUND.into()));
             }
         }
@@ -623,13 +647,12 @@ pub fn update_activity(conn: &Connection, id: &str, change: &ActivityChange) -> 
         )?;
     }
     if change.quantity.is_some() || change.unit.is_some() {
-        let (quantity, unit) = quantity_and_unit(&tx, id, change)?;
+        let (quantity, unit) = quantity_and_unit(tx, id, change)?;
         tx.execute(
             "UPDATE activity SET quantity = ?2, unit = ?3 WHERE id = ?1",
             params![id, quantity, unit],
         )?;
     }
-    tx.commit()?;
     Ok(())
 }
 
@@ -643,7 +666,7 @@ pub fn update_activity(conn: &Connection, id: &str, change: &ActivityChange) -> 
 /// the range is refused rather than widening the range or clearing it: either
 /// would change an estimate the person gave without their saying so, and the
 /// fix is one patch — the range, or both together.
-fn refuse_if_duration_leaves_range(
+pub(crate) fn refuse_if_duration_leaves_range(
     conn: &Connection,
     id: &str,
     change: &ActivityChange,
@@ -707,13 +730,24 @@ fn quantity_and_unit(
 /// milestone is earned by its finish (D2).
 pub fn remove_activity(conn: &Connection, id: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
-    let stage = ACTIVITIES.scope_of(&tx, id)?;
-    refuse_if_activity_closed(&tx, id)?;
-    milestones::refuse_if_activity_earns(&tx, id)?;
-    dependencies::remove_naming_activity(&tx, id)?;
-    tx.execute("DELETE FROM activity WHERE id = ?1", [id])?;
-    ACTIVITIES.close_gaps(&tx, stage.as_deref())?;
+    remove_activity_within(&tx, id)?;
     tx.commit()?;
+    Ok(())
+}
+
+/// [`remove_activity`], inside a transaction the caller already holds and
+/// commits (E1).
+///
+/// # Errors
+///
+/// As [`remove_activity`].
+pub fn remove_activity_within(tx: &Connection, id: &str) -> Result<()> {
+    let stage = ACTIVITIES.scope_of(tx, id)?;
+    refuse_if_activity_closed(tx, id)?;
+    milestones::refuse_if_activity_earns(tx, id)?;
+    dependencies::remove_naming_activity(tx, id)?;
+    tx.execute("DELETE FROM activity WHERE id = ?1", [id])?;
+    ACTIVITIES.close_gaps(tx, stage.as_deref())?;
     Ok(())
 }
 
@@ -845,6 +879,12 @@ pub(crate) mod tests {
             "document_link",
             "payment_milestone",
             "care_note",
+            "change_order",
+            "change_order_decision",
+            "funding",
+            "funding_receipt",
+            "snag",
+            "snag_closure",
         ] {
             let found: i64 = conn
                 .query_row(
@@ -1563,6 +1603,8 @@ pub(crate) mod tests {
                     note: Some("Tiles laid.".into()),
                     weather: Some("sun".into()),
                     lost_day: false,
+                    lost_cause: None,
+                    lost_party_person_id: None,
                     hours: Some(8.0),
                     deliveries: None,
                     incidents: None,
@@ -1643,6 +1685,8 @@ pub(crate) mod tests {
                 note: Some("Tiles laid.".into()),
                 weather: None,
                 lost_day: false,
+                lost_cause: None,
+                lost_party_person_id: None,
                 hours: None,
                 deliveries: None,
                 incidents: None,

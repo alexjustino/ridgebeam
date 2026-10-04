@@ -5,6 +5,7 @@ import {
   ChevronDown20Regular,
   ChevronRight20Regular,
   Delete20Regular,
+  LockClosed20Regular,
   TaskListLtr20Regular,
 } from '@fluentui/react-icons';
 import {
@@ -30,9 +31,11 @@ import {
   MILESTONE_STATE_KEYS,
   MILESTONE_TRIGGER_KEYS,
   MILESTONE_TRIGGERS,
+  RETENTION_KEYS,
   USUAL_PLAN_LABEL_KEYS,
   milestonesInOrder,
   percentToBp,
+  retentionOffer,
   usualPlan,
   validateMilestone,
   type CommitmentPlan,
@@ -71,6 +74,28 @@ function problemText(i18n: I18n, problems: readonly MilestoneProblem[]): string 
       ),
     ),
   ].join(' ');
+}
+
+/**
+ * Where a milestone stands, from the domain: "earned on 3 Oct", "not yet" — and, for a retention
+ * (E4), "held until its snags are fixed (2 open)" while a snag holds it, or "held until Tiling
+ * closes" while its stage is open. Held money is never said as due.
+ */
+function stateText(
+  i18n: Pick<I18n, 't' | 'tp' | 'day'>,
+  status: MilestoneStatus,
+  target: { readonly name: string | null },
+): string {
+  if (status.earned && status.earnedOn !== null) {
+    return i18n.t(MILESTONE_STATE_KEYS.earned, { day: i18n.day(status.earnedOn) });
+  }
+  if (status.held) return i18n.tp('money.milestone.state.held', status.openSnagIds.length);
+  if (status.milestone.trigger === 'retention') {
+    return i18n.t('money.milestone.state.heldStage', {
+      name: target.name ?? i18n.t('snags.row.goneStage'),
+    });
+  }
+  return i18n.t(MILESTONE_STATE_KEYS.notYet);
 }
 
 /**
@@ -128,9 +153,12 @@ export function PaymentPlan({
   const usualOffer = usualPlan(snapshot, commitment.id);
   // Where the focus goes once the list has changed under a control that removed itself: the
   // milestone now at the removed one's place (its Remove), or the first milestone's name after the
-  // usual plan. Taken when the plan's milestones change, never before — the control is still there
-  // until then, and the new list is not.
-  const pendingFocus = useRef<{ kind: 'at'; index: number } | { kind: 'first' } | null>(null);
+  // usual plan, or the last milestone's share after the retention (E4: the share is the one thing a
+  // person may want to change at once). Taken when the plan's milestones change, never before — the
+  // control is still there until then, and the new list is not.
+  const pendingFocus = useRef<
+    { kind: 'at'; index: number } | { kind: 'first' } | { kind: 'last-share' } | null
+  >(null);
   const idsKey = milestones.map((each) => each.id).join(' ');
 
   useEffect(() => {
@@ -141,11 +169,14 @@ export function PaymentPlan({
     const target =
       pending.kind === 'first'
         ? (rows[0]?.querySelector<HTMLElement>('[data-testid="milestone-label"]') ?? null)
-        : rows.length === 0
-          ? null
-          : (rows[Math.min(pending.index, rows.length - 1)]!.querySelector<HTMLElement>(
-              '[data-testid="milestone-remove"]',
-            ) ?? null);
+        : pending.kind === 'last-share'
+          ? (rows[rows.length - 1]?.querySelector<HTMLElement>('[data-testid="milestone-share"]') ??
+            null)
+          : rows.length === 0
+            ? null
+            : (rows[Math.min(pending.index, rows.length - 1)]!.querySelector<HTMLElement>(
+                '[data-testid="milestone-remove"]',
+              ) ?? null);
     (target ?? addLabel.current)?.focus();
   }, [idsKey]);
 
@@ -280,6 +311,17 @@ export function PaymentPlan({
         )}
 
         {!locked && (
+          <RetentionOffer
+            commitment={commitment}
+            snapshot={snapshot}
+            onProblem={setProblem}
+            onAdded={() => {
+              pendingFocus.current = { kind: 'last-share' };
+            }}
+          />
+        )}
+
+        {!locked && (
           <AddMilestone
             commitment={commitment}
             stage={stage}
@@ -321,7 +363,7 @@ function MilestoneLine({
   onRemoved: () => void;
 }) {
   const i18n = useI18n();
-  const { t, money, day } = i18n;
+  const { t, money } = i18n;
   const update = useUpdateMilestone();
   const move = useMoveMilestone();
   const remove = useRemoveMilestone();
@@ -480,15 +522,19 @@ function MilestoneLine({
       <span
         data-testid="milestone-state"
         data-earned={status?.earned === true ? 'true' : 'false'}
+        data-held={status?.held === true ? 'true' : undefined}
         className={
-          status?.earned === true ? 'text-body font-semibold text-fg' : 'text-body text-fg-tertiary'
+          status?.earned === true
+            ? 'text-body font-semibold text-fg'
+            : status?.held === true
+              ? 'inline-flex items-start gap-1 text-body text-fg'
+              : 'text-body text-fg-tertiary'
         }
       >
-        {status === null
-          ? ''
-          : status.earned && status.earnedOn !== null
-            ? t(MILESTONE_STATE_KEYS.earned, { day: day(status.earnedOn) })
-            : t(MILESTONE_STATE_KEYS.notYet)}
+        {status !== null && status.held && (
+          <LockClosed20Regular aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+        )}
+        {status === null ? '' : stateText(i18n, status, target)}
       </span>
       {locked ? (
         <span aria-hidden="true" />
@@ -561,6 +607,12 @@ function AddMilestone({
   const activities = snapshot.activities
     .filter((activity) => activity.stageId === stage.id)
     .sort((a, b) => a.position - b.position);
+  // Whose snags hold a retention: the commitment's person, by name (E4).
+  const person =
+    commitment.personId === null
+      ? null
+      : (snapshot.people.find((each) => each.id === commitment.personId)?.name ??
+        t('snags.row.personGone'));
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -649,6 +701,12 @@ function AddMilestone({
           )
         ) : trigger === 'advance' ? (
           <p className="text-caption text-fg-secondary">{t('money.milestone.advanceNote')}</p>
+        ) : trigger === 'retention' ? (
+          <p className="text-caption text-fg-secondary">
+            {person === null
+              ? t(RETENTION_KEYS.noPerson)
+              : t('money.milestone.retentionNote', { name: person })}
+          </p>
         ) : null}
       </div>
       <Button
@@ -660,5 +718,87 @@ function AddMilestone({
         {t('money.milestone.add')}
       </Button>
     </form>
+  );
+}
+
+/**
+ * **Hold back as retention** (E4, decision 3, `milestone-retention`): adds the commitment's last
+ * part, earned only when its stage is closed and every snag of it on the commitment's person is
+ * fixed — the money a layperson never knows to hold. The share is the domain's suggestion (5 %, or
+ * what the plan has left when that is less), and the sentence beside the button says it is a usual
+ * practice, not advice; the share is changed afterwards like any other. A commitment on nobody is
+ * told that no snag can hold it. A plan already at 100 % keeps the button, disabled, with the
+ * sentence that says why beside it; a plan that holds a retention already is not offered another.
+ */
+function RetentionOffer({
+  commitment,
+  snapshot,
+  onProblem,
+  onAdded,
+}: {
+  commitment: Commitment;
+  snapshot: WorkSnapshot;
+  onProblem: (problem: string | null) => void;
+  onAdded: () => void;
+}) {
+  const i18n = useI18n();
+  const { t } = i18n;
+  const add = useAddMilestone();
+  const note = useId();
+  const offer = retentionOffer(snapshot, commitment.id);
+  if (!offer.ok && offer.code !== 'full') return null;
+
+  const hold = () => {
+    if (!offer.ok) return;
+    const draft = {
+      label: t(offer.labelKey),
+      shareBp: offer.shareBp,
+      trigger: offer.trigger,
+      activityId: offer.activityId,
+    };
+    const problems = validateMilestone(snapshot, commitment.id, draft);
+    if (problems.length > 0) {
+      onProblem(problemText(i18n, problems));
+      return;
+    }
+    onProblem(null);
+    add.mutate(
+      { commitmentId: commitment.id, ...draft },
+      {
+        onSuccess: () => {
+          announce(
+            t('money.paymentPlan.retention.done', { share: percentText(i18n, offer.shareBp) }),
+          );
+          onAdded();
+        },
+        onError: (error) => onProblem(i18n.describeError(error)),
+      },
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div>
+        <Button
+          icon={<LockClosed20Regular />}
+          data-testid="milestone-retention"
+          aria-describedby={note}
+          disabled={!offer.ok || add.isPending}
+          onClick={hold}
+        >
+          {add.isPending ? t('common.working') : t(RETENTION_KEYS.offer)}
+        </Button>
+      </div>
+      <p id={note} data-testid="milestone-retention-note" className="text-caption text-fg-tertiary">
+        {offer.ok
+          ? [
+              t(offer.noteKey, { share: percentText(i18n, offer.shareBp) }),
+              offer.holdsOnPerson ? null : t(RETENTION_KEYS.noPerson),
+            ]
+              .filter((each) => each !== null)
+              .join(' ')
+          : t(RETENTION_KEYS.full)}
+      </p>
+    </div>
   );
 }

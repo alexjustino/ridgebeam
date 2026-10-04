@@ -167,6 +167,20 @@ auto-update · AI.
 > specification changes; the reasons and the cost are in
 > [ADR-036](architecture/ADR.md#adr-036).
 
+> **Addendum, 2026-10-02 — a second wave: the four ways a small work fails.** With D1–D4 and U1 in
+> `develop`, the owner asked for what would make the product a necessity for a work that is managed
+> and ends well, and set the rule aside a second time, by name, for four more slices gated like the
+> first: **E1** change orders — nothing changes after approval without a price and a date, the date
+> computed by the schedule before anybody decides; **E2** funding and the cash runway — the funds
+> and when they arrive, against what the schedule and the payment plans will ask for week by week,
+> and the week the cash would run out, if it does; **E3** the delay ledger — each working day lost
+> on the critical path attributed to a cause and a party, with the rows behind it; **E4** the snag
+> list and retention — a commitment's last milestone earned only when its responsible's snags are
+> closed with a photo. They land in `develop` one at a time, and the release is cut again after
+> them. Nothing else in this specification changes — no network, no account, no AI, one machine,
+> every figure with its rows, the diary and the baselines append-only, two languages, three lenses.
+> The reasons and the cost are in [ADR-041](architecture/ADR.md#adr-041), which also records E1.
+
 ### The release train
 
 | Release   | Theme               | Contents                                                                                                                                                          |

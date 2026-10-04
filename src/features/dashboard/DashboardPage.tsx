@@ -45,10 +45,13 @@ import { FigureRow } from '@/ui/FigureRow';
 import { InfoBar } from '@/ui/InfoBar';
 
 import { BackupReminder } from './BackupReminder';
+import { ChangesCard } from './ChangesCard';
+import { DelayCard } from './DelayCard';
 import { DocumentsCard } from './DocumentsCard';
 import { MoneyCard } from './MoneyCard';
 import { NextQuestionCard } from './NextQuestionCard';
 import { SiteCard } from './SiteCard';
+import { SnagsCard } from './SnagsCard';
 import { StagesCard } from './StagesCard';
 
 /** The heading each missing row is listed under: its rule, in rule order; the plan's own row last. */
@@ -185,9 +188,15 @@ export function DashboardPage({
         <CalendarCard snapshot={snapshot} />
       </div>
 
+      <DelayCard snapshot={snapshot} scheduled={scheduled} today={today} />
+
       <StagesCard snapshot={snapshot} />
 
       <MoneyCard snapshot={snapshot} />
+
+      <ChangesCard snapshot={snapshot} today={today} />
+
+      <SnagsCard snapshot={snapshot} today={today} />
 
       <DocumentsCard snapshot={snapshot} />
 

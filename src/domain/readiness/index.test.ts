@@ -47,6 +47,10 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     payments: [],
     documents: [],
     careNotes: [],
+    changeOrders: [],
+    funding: [],
+    fundingReceipts: [],
+    snags: [],
     ...parts,
   };
 }
@@ -103,7 +107,7 @@ const activity = (
 });
 
 describe('the rule table', () => {
-  it('holds the F0 rules, F2’s linking rule, F3’s two decision rules and the F5 and F6 stage rules', () => {
+  it('holds the F0 rules, F2’s linking rule, F3’s two decision rules, the F5 and F6 stage rules, E1’s change rule and E2’s funding rule', () => {
     expect(RULES.map((rule) => [rule.id, rule.appliesTo])).toEqual([
       ['activity.duration', 'activity'],
       ['activity.responsible', 'activity'],
@@ -112,6 +116,8 @@ describe('the rule table', () => {
       ['decision.timely', 'decision'],
       ['stage.checks', 'stage'],
       ['stage.money', 'stage'],
+      ['change.waiting', 'change'],
+      ['work.funding', 'work'],
     ]);
     for (const rule of RULES) {
       expect(rule.messageKey).toBe(READINESS_MESSAGE_KEYS[rule.id]);
@@ -143,7 +149,7 @@ describe('quantity', () => {
       activities: [activity('tiling', 'Tiling', 3, TILER.id)],
     });
     expect(plan.activities[0]).toMatchObject({ quantity: null, unit: null, roomIds: [] });
-    expect(ready(plan)).toMatchObject({ known: 4, mustKnow: 4, ratio: 1, missing: [] });
+    expect(ready(plan)).toMatchObject({ known: 5, mustKnow: 5, ratio: 1, missing: [] });
   });
 
   it('does not change readiness when it is given', () => {
@@ -160,16 +166,16 @@ describe('quantity', () => {
 });
 
 describe('readiness', () => {
-  it('counts an activity with a duration and no responsible as 1 of 2 for the activity, 3 of 4 with its stage', () => {
+  it('counts an activity with a duration and no responsible as 1 of 2 for the activity, 4 of 5 with its stage and funding', () => {
     const plan = snapshot({
       stages: [BATHROOM],
       activities: [activity('tiling', 'Tiling', 3, null)],
     });
     const measure = ready(plan);
     expect(measure).toMatchObject({
-      known: 3,
-      mustKnow: 4,
-      ratio: 0.75,
+      known: 4,
+      mustKnow: 5,
+      ratio: 0.8,
       missing: [
         {
           ruleId: 'activity.responsible',
@@ -181,7 +187,7 @@ describe('readiness', () => {
         },
       ],
     });
-    expect(readinessFigure(measure).value).toBe(75);
+    expect(readinessFigure(measure).value).toBe(80);
     expect(sentenceParts(measure.missing)).toEqual([
       { key: 'readiness.missing.activity.responsible', count: 1, params: { count: 1 } },
     ]);
@@ -194,8 +200,8 @@ describe('readiness', () => {
       activities: [activity('tiling', 'Tiling', null, TILER.id)],
     });
     const measure = ready(plan);
-    expect(measure.known).toBe(3);
-    expect(measure.mustKnow).toBe(4);
+    expect(measure.known).toBe(4);
+    expect(measure.mustKnow).toBe(5);
     expect(measure.missing.map((row) => row.ruleId)).toEqual(['activity.duration']);
     expect(sentenceParts(measure.missing)).toEqual([
       { key: 'readiness.missing.activity.duration', count: 1, params: { count: 1 } },
@@ -217,9 +223,9 @@ describe('readiness', () => {
       activities: [activity('tiling', 'Tiling', null, null)],
     });
     const measure = ready(plan);
-    expect(measure.known).toBe(2);
-    expect(measure.ratio).toBe(0.5);
-    expect(readinessFigure(measure).value).toBe(50);
+    expect(measure.known).toBe(3);
+    expect(measure.ratio).toBe(0.6);
+    expect(readinessFigure(measure).value).toBe(60);
     expect(sentenceParts(measure.missing)).toEqual([
       { key: 'readiness.missing.activity.duration', count: 1, params: { count: 1 } },
       { key: 'readiness.missing.activity.responsible', count: 1, params: { count: 1 } },
@@ -233,7 +239,7 @@ describe('readiness', () => {
       activities: [activity('tiling', 'Tiling', 3, TILER.id)],
     });
     const measure = ready(plan);
-    expect(measure).toMatchObject({ known: 4, mustKnow: 4, ratio: 1, missing: [] });
+    expect(measure).toMatchObject({ known: 5, mustKnow: 5, ratio: 1, missing: [] });
     expect(readinessFigure(measure).value).toBe(100);
     expect(readinessFigure(measure).rows).toEqual([]);
     expect(sentenceParts(measure.missing)).toEqual([]);
@@ -286,10 +292,11 @@ describe('readiness', () => {
       dependencies: [link('l1', 'tiling', 'grout')],
     });
     const measure = ready(plan);
-    // Three activities, three rules each; tiling and grout are linked, the sink is not.
-    expect(measure.mustKnow).toBe(13);
-    expect(measure.known).toBe(8);
-    expect(readinessFigure(measure).value).toBe(62);
+    // Three activities, three rules each; tiling and grout are linked, the sink is not. Two stages,
+    // two rules each, and the work's funding rule.
+    expect(measure.mustKnow).toBe(14);
+    expect(measure.known).toBe(9);
+    expect(readinessFigure(measure).value).toBe(64);
     // Plan order: stage by stage, activity by position, then rule by rule.
     expect(measure.missing.map((row) => `${row.id}/${row.ruleId}/${row.stageName}`)).toEqual([
       'tiling/activity.responsible/Bathroom',
@@ -339,12 +346,12 @@ describe('linking', () => {
     expect(sentenceParts(measure.missing)).toEqual([
       { key: 'readiness.missing.activity.linked', count: 1, params: { count: 1 } },
     ]);
-    expect(measure).toMatchObject({ known: 10, mustKnow: 11 });
+    expect(measure).toMatchObject({ known: 11, mustKnow: 12 });
   });
 
   it('is satisfied once the activity is linked, in either direction', () => {
     const linked = { ...three, dependencies: [...three.dependencies, link('bc', 'b', 'c')] };
-    expect(ready(linked)).toMatchObject({ known: 11, mustKnow: 11, ratio: 1, missing: [] });
+    expect(ready(linked)).toMatchObject({ known: 12, mustKnow: 12, ratio: 1, missing: [] });
     const before = { ...three, dependencies: [...three.dependencies, link('ca', 'c', 'a')] };
     expect(ready(before).missing).toEqual([]);
   });
@@ -355,7 +362,7 @@ describe('linking', () => {
       people,
       activities: [activity('a', 'A', 3, TILER.id)],
     });
-    expect(ready(one)).toMatchObject({ known: 4, mustKnow: 4, ratio: 1, missing: [] });
+    expect(ready(one)).toMatchObject({ known: 5, mustKnow: 5, ratio: 1, missing: [] });
   });
 
   it('counts a link through a stage as linking every activity of the stage', () => {
@@ -446,9 +453,9 @@ describe('the readiness figure', () => {
       id: 'readiness',
       label: READINESS_LABEL_KEY,
       unit: 'percent',
-      known: 3,
-      mustKnow: 4,
-      value: 75,
+      known: 4,
+      mustKnow: 5,
+      value: 80,
     });
     expect(figure.rows).toEqual([
       {

@@ -346,27 +346,31 @@ and does not store it, because in 1.0 a decision is needed by its whole stage.
 An entry is a fact about one day on site (F4, ADR-019). The plan is intent; the diary is fact,
 and progress is derived from it by the domain (ADR-020), never stored.
 
-| `diary_entry`  | Type    | Meaning                                                                                         |
-| -------------- | ------- | ----------------------------------------------------------------------------------------------- |
-| `seq`          | INTEGER | 1, 2, 3 … — the entry's place in the chain; primary key; always the last plus one               |
-| `day`          | TEXT    | the ISO day the entry is about; never in the future (the domain and the host both refuse it)    |
-| `kind`         | TEXT    | `entry` or `correction`                                                                         |
-| `corrects_seq` | INTEGER | for a correction, the earlier entry it corrects (`REFERENCES diary_entry`); `NULL` for an entry |
-| `note`         | TEXT    | what the day was, up to 4 000 characters; for a correction, also what was wrong (required)      |
-| `weather`      | TEXT    | `sun`, `cloud`, `rain`, `storm`, `wind`, `other`, or `NULL`                                     |
-| `lost_day`     | INTEGER | 1 when no work was possible that day                                                            |
-| `hours`        | REAL    | hours worked, 0 to 24, or `NULL`                                                                |
-| `deliveries`   | TEXT    | what arrived, 1–2 000 characters, or `NULL`                                                     |
-| `incidents`    | TEXT    | what went wrong, 1–2 000 characters, or `NULL`                                                  |
-| `visitors`     | TEXT    | who visited, 1–2 000 characters, or `NULL`                                                      |
-| `author_name`  | TEXT    | the display name of the Windows account that wrote it — the product has no accounts of its own  |
-| `created_at`   | TEXT    | UTC, when it was written                                                                        |
-| `prev_hash`    | TEXT    | the `hash` of entry `seq − 1`, 64 lower-case hex; the empty string for the first entry only     |
-| `hash`         | TEXT    | SHA-256 of this entry's canonical form, 64 lower-case hex, unique                               |
+| `diary_entry`          | Type    | Meaning                                                                                           |
+| ---------------------- | ------- | ------------------------------------------------------------------------------------------------- |
+| `seq`                  | INTEGER | 1, 2, 3 … — the entry's place in the chain; primary key; always the last plus one                 |
+| `day`                  | TEXT    | the ISO day the entry is about; never in the future (the domain and the host both refuse it)      |
+| `kind`                 | TEXT    | `entry` or `correction`                                                                           |
+| `corrects_seq`         | INTEGER | for a correction, the earlier entry it corrects (`REFERENCES diary_entry`); `NULL` for an entry   |
+| `note`                 | TEXT    | what the day was, up to 4 000 characters; for a correction, also what was wrong (required)        |
+| `weather`              | TEXT    | `sun`, `cloud`, `rain`, `storm`, `wind`, `other`, or `NULL`                                       |
+| `lost_day`             | INTEGER | 1 when no work was possible that day                                                              |
+| `lost_cause`           | TEXT    | why, from E3: `weather`, `decision`, `absence`, `material`, `owner`, `access`, `other`, or `NULL` |
+| `lost_party_person_id` | TEXT    | the person the lost day is put down to — **no foreign key** — or `NULL`; only with a cause        |
+| `hours`                | REAL    | hours worked, 0 to 24, or `NULL`                                                                  |
+| `deliveries`           | TEXT    | what arrived, 1–2 000 characters, or `NULL`                                                       |
+| `incidents`            | TEXT    | what went wrong, 1–2 000 characters, or `NULL`                                                    |
+| `visitors`             | TEXT    | who visited, 1–2 000 characters, or `NULL`                                                        |
+| `author_name`          | TEXT    | the display name of the Windows account that wrote it — the product has no accounts of its own    |
+| `created_at`           | TEXT    | UTC, when it was written                                                                          |
+| `prev_hash`            | TEXT    | the `hash` of entry `seq − 1`, 64 lower-case hex; the empty string for the first entry only       |
+| `hash`                 | TEXT    | SHA-256 of this entry's canonical form, 64 lower-case hex, unique                                 |
 
 A `CHECK` holds the shape: an `entry` corrects nothing; a `correction` corrects an earlier
-`seq`. Indexes on `day` and on `corrects_seq`. A second entry on a day that has one is allowed
-and ordered by `seq`; a replacement is not, because nothing can replace a row.
+`seq`. From migration 015, two more: a `lost_cause` only on an entry whose `lost_day` is 1, and a
+`lost_party_person_id` — an id of 36 characters — only with a cause. Indexes on `day` and on
+`corrects_seq`. A second entry on a day that has one is allowed and ordered by `seq`; a
+replacement is not, because nothing can replace a row.
 
 | `diary_done`  | Type    | Meaning                                                |
 | ------------- | ------- | ------------------------------------------------------ |
@@ -391,9 +395,9 @@ and ordered by `seq`; a replacement is not, because nothing can replace a row.
 | `width`, `height` | INTEGER | its dimensions, read from the header                                                                                                                           |
 | `thumbnail`       | INTEGER | 1 when `thumbnails/<hash>.jpg` was rendered; 0 when the photo was kept but could not be drawn small — not part of the hash: it describes the copy, not the day |
 
-**No foreign key into the plan, on purpose.** A done line names an activity and a presence names
-a person by id: the plan may change after the day — an activity removed, a person removed — and
-the diary must still say what it said. A key with `ON DELETE` would try to change the diary (and
+**No foreign key into the plan, on purpose.** A done line names an activity, and a presence or a
+lost day's party names a person, by id: the plan may change after the day — an activity removed,
+a person removed — and the diary must still say what it said. A key with `ON DELETE` would try to change the diary (and
 be refused); a key without one would stop the plan from changing. The host checks the ids exist
 when the entry is written.
 
@@ -435,10 +439,20 @@ The records, in this order:
    quantity · note
 3. for each person present, sorted by id (byte order): `present` · person_id
 4. for each photo, by position: `photo` · file_hash · file_name · bytes · width · height
+5. **only when `lost_cause` is not `NULL`** (E3): `lost` · lost_cause · lost_party_person_id
 
 `hash` is the lower-case hex of SHA-256 over the bytes of that string. A photo's `thumbnail`
 flag is not in it: it describes the copy, not the day. The tag carries the version, so a later
 form can be introduced without making earlier entries unverifiable.
+
+**The conditional record (E3, ADR-043).** Record 5 is written only for an entry that says why a
+day was lost, and its party is the empty field when nobody was named. An entry with no cause —
+every entry written before migration 015, and every one written after it without a cause — has
+exactly the canonical string it always had, and so the same hash, byte for byte: the form is
+extended, not changed, and the tag stays `entry.v1`. The host writes such an entry with the very
+statement it always used, and a file not yet at migration 015 reads both columns as `NULL`. A
+cause, once written, is as fixed as the rest of the entry — the `BEFORE UPDATE` trigger names no
+column, so it refuses an update of these two as well — and is changed only by a correction.
 
 **What verification cannot see.** An entry removed from the _end_ of the diary leaves no
 successor pointing at it, so the chain of what remains still verifies. The diary export (F10,
@@ -585,7 +599,7 @@ of the work, never by a date (ADR-037).
 | `position`          | INTEGER | 1 … n within the commitment, renumbered in the same transaction as a move or a removal                                                     |
 | `label`             | TEXT    | 1–120 characters, not blank — _Tiles laid_                                                                                                 |
 | `share_bp`          | INTEGER | the share of the commitment's amount in basis points, 1–10 000 — "30 %" is 3 000                                                           |
-| `trigger`           | TEXT    | the fact that earns it: `advance`, `stage_started`, `activity_finished` or `stage_closed`                                                  |
+| `trigger`           | TEXT    | the fact that earns it: `advance`, `stage_started`, `activity_finished`, `stage_closed` or, from E4, `retention`                           |
 | `activity_id`       | TEXT    | `REFERENCES activity`, with no action; required when `trigger` is `activity_finished`, `NULL` otherwise — a `CHECK` holds the two together |
 | `created_at`        | TEXT    | UTC                                                                                                                                        |
 
@@ -594,9 +608,12 @@ of the work, never by a date (ADR-037).
 (`stage.started_at`, F5); `stage_closed` the day it passed its close gate (`stage.closed_at`), and a
 stage reopened has none, so it un-earns it; `activity_finished` the first day an effective diary
 entry finished the activity, corrections applied (F4), so a correction that takes the finish back
-un-earns it. A fact dated after today is not a fact yet. **Nothing records that a milestone was
-earned**: the domain reads it from those facts every time (`src/domain/milestones.ts`), so there is
-no column to set and none to tamper with.
+un-earns it; `retention` (E4) the day its stage closed or the day the last snag of that stage on the
+commitment's person was closed, whichever is later, and not while one is open — a snag raised on
+that person after it was earned un-earns it, and a commitment with no person, or a snag on nobody,
+holds nothing (ADR-044). A fact dated after today is not a fact yet. **Nothing records that a
+milestone was earned**: the domain reads it from those facts every time
+(`src/domain/milestones.ts`), so there is no column to set and none to tamper with.
 
 **What the schema holds, behind the host.** The host refuses each of these first, with a sentence,
 and the migration's triggers refuse them again, so a file written by something else holds the same
@@ -684,6 +701,227 @@ time. **A target is not a foreign key** — one column cannot reference three ta
 removes the notes that name a room or a stage in the same transaction that removes it; nothing is
 left pointing at a target that is gone.
 
+### `change_order` and `change_order_decision` — insert-only (E1)
+
+After the plan is approved, a change of scope is a request on record: who asked, what changes, what
+it costs, and what it does to the finish, computed by the schedule before anybody decides
+(ADR-041). Two tables, both **insert-only**: a change is raised once and decided once, and neither
+row is ever edited or removed. A mistake is withdrawn and raised again, and the record keeps both.
+
+| `change_order`       | Type    | Meaning                                                                                                            |
+| -------------------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `id`                 | TEXT    | UUID v7                                                                                                            |
+| `number`             | INTEGER | 1, 2, … — the next after the highest already written; unique, never reused, so a withdrawn change keeps its number |
+| `raised_on`          | TEXT    | the ISO day it was raised                                                                                          |
+| `title`              | TEXT    | 1–200 characters, not blank — _Extra socket in the kitchen_                                                        |
+| `description`        | TEXT    | up to 2 000 characters, or `NULL`                                                                                  |
+| `asked_by`           | TEXT    | `owner`, `person` or `other`                                                                                       |
+| `asked_by_person_id` | TEXT    | the person of the plan who asked — required when `asked_by` is `person`, `NULL` otherwise; **not a foreign key**   |
+| `asked_by_name`      | TEXT    | the name of somebody outside the plan, 1–120 characters — required when `asked_by` is `other`, `NULL` otherwise    |
+| `stage_id`           | TEXT    | the stage the change lands on; **not a foreign key**                                                               |
+| `cost_cents`         | INTEGER | the price, signed — a change can save money; `NULL` for a change **not priced**, which is not 0                    |
+| `effects`            | TEXT    | a JSON array of effects (below), validated by the host when the change is raised                                   |
+| `author_name`        | TEXT    | the display name of the Windows account that raised it                                                             |
+| `created_at`         | TEXT    | UTC                                                                                                                |
+
+| `change_order_decision` | Type    | Meaning                                                                                                             |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `change_order_id`       | TEXT    | primary key — **one decision per change**; a decision on a change the work does not have is refused                 |
+| `outcome`               | TEXT    | `approved`, `declined` or `withdrawn`                                                                               |
+| `decided_on`            | TEXT    | the ISO day it was decided                                                                                          |
+| `note`                  | TEXT    | up to 2 000 characters, or `NULL`                                                                                   |
+| `finish_before`         | TEXT    | the finish date before the change, as the schedule said at the moment of deciding, or `NULL`                        |
+| `finish_after`          | TEXT    | the finish date with the change applied, as the schedule said at the moment of deciding, or `NULL`                  |
+| `days_delta`            | INTEGER | the working days between the two, signed, as the domain computed them at the moment of deciding and sent; or `NULL` |
+| `cost_cents`            | INTEGER | the change's price, copied from it                                                                                  |
+| `replanning_id`         | TEXT    | the replanning the approval opened or joined; `NULL` for a decline or a withdrawal                                  |
+| `author_name`           | TEXT    | the display name of the Windows account that decided it                                                             |
+| `created_at`            | TEXT    | UTC                                                                                                                 |
+
+**The effects.** `effects` holds a JSON array of at most 50 effects, each one of three kinds; an
+empty array is a change that is only money.
+
+```json
+[
+  { "kind": "add", "name": "Extra socket", "durationDays": 2, "after": "<activity id>" },
+  { "kind": "duration", "activityId": "<activity id>", "durationDays": 5 },
+  { "kind": "remove", "activityId": "<activity id>" }
+]
+```
+
+**`add`** is a new activity in the change's stage, named in 1–200 characters, of 1–3 650 working
+days, finish-to-start after `after` — an existing activity — or after none when `after` is `null`;
+**`duration`** sets an existing activity's duration, 1–3 650 working days; **`remove`** drops an
+activity, which narrows the scope. When the change is raised the host checks the kinds and the
+ranges; that every activity named exists and is not in a closed stage; that a new duration lies
+inside the activity's range, when it has one; that an activity a payment milestone is earned by is
+not removed; that no activity is named against itself — removed and changed, removed and followed,
+or changed twice; and that the change's stage exists and is not closed — and refuses the change with
+a sentence otherwise. It stores the array as it was validated and never computes a schedule from it:
+the impact is the domain's (`withEffects`, `changeImpact`).
+
+**Who asked, and where it lands, are not foreign keys.** A person removed from the plan, or a stage
+removed after the change was decided, leaves the change order as it was written; the interface says
+the person or the stage is no longer in the plan rather than losing the record.
+
+**The decision freezes the impact.** `finish_before`, `finish_after` and `days_delta` are the
+schedule as it was on the day of the decision: the interface's domain computes them and sends them,
+and the host stores them as the facts of that moment. They are never recomputed — the plan may move
+later for other reasons, and the record keeps what was known when somebody said yes.
+
+**What an approval writes.** In one transaction: a replanning opened with the reason _"Change order
+#N — {title}"_ when none is open (when one is, the change joins it and its reason is not rewritten);
+the effects applied as ordinary rows — an `activity` and its `dependency` added, an activity's
+duration changed, an activity removed — through the same functions the plan's commands use; a
+`cost_line` on the change's stage labelled _"Change order #N"_, with no activity, when the change is
+priced at 0 or more — a saving adds no line, since a planned amount is never negative, and the
+person lowers the plan's own lines by hand in the same replanning; and the decision, carrying the
+replanning's id. If any of it is refused, nothing is written. A decline or a withdrawal writes only
+the decision.
+
+**Insert-only, behind the host.** Migration 013 gives both tables the battery of migrations 003,
+007 and 009: triggers refuse `UPDATE` and `DELETE`, and a guard before insert refuses a key — or,
+for a change, a number — that is already there, so `INSERT OR REPLACE` cannot remove a row whether
+`recursive_triggers` is on or off; a change whose number is not the next one is refused too. Each
+raises `change order: append-only`. What the host refuses first with a sentence, the schema
+refuses again, so a file written by something else holds the same rules: a change raised before
+the plan is approved (`change order: plan not approved`); a decision for a change that is not
+there, dated before the change was raised, or carrying another price than the change's (`change
+order: decision`); an `effects` that is not a JSON array of at most 50; and a replanning named by
+anything but an approval, or an approval that names none. The Rust module that writes them
+(`db/change_orders.rs`) holds no `UPDATE`, `DELETE` or `REPLACE`, and a test reads its source to
+prove it. **Every figure is computed**: the tally — how
+many changes approved, declined, withdrawn and waiting, the price and the working days of the
+approved ones, and who asked them — is the domain's (`changeTally`), from these rows, each figure
+with its rows.
+
+### `funding` and `funding_receipt` — where the money comes from (E2)
+
+The owner writes down the money the work will receive — savings on hand, a loan's tranches, a
+client's instalments — each expected on a day, and records each sum when it actually arrives
+(ADR-042). **Funding is plan** and **receipts are facts**: the first table is edited like a
+commitment, the second is a ledger exactly like the payments.
+
+| `funding`      | Type    | Meaning                                                                                                |
+| -------------- | ------- | ------------------------------------------------------------------------------------------------------ |
+| `id`           | TEXT    | UUID v7                                                                                                |
+| `position`     | INTEGER | 1 … n for the whole work, in the order written, unique, closed up when one is removed; never reordered |
+| `label`        | TEXT    | 1–200 characters, not blank — _Loan tranche 2_                                                         |
+| `source`       | TEXT    | where it comes from, 1–200 characters, or `NULL` — _the bank_                                          |
+| `amount_cents` | INTEGER | the amount expected, `> 0`                                                                             |
+| `expected_on`  | TEXT    | the ISO day it is expected                                                                             |
+| `note`         | TEXT    | up to 2 000 characters, or `NULL`                                                                      |
+| `created_at`   | TEXT    | UTC                                                                                                    |
+
+**A fund is plan.** It is changed freely — its amount, its day, its words — and an approved plan's
+lock does not cover it (ADR-027): funding is not the plan's scope, and no baseline records it. It is
+removed only while no receipt names it; from the first receipt that does, the host refuses with a
+sentence, and the foreign key from `funding_receipt` refuses it after.
+
+| `funding_receipt` | Type    | Meaning                                                                              |
+| ----------------- | ------- | ------------------------------------------------------------------------------------ |
+| `id`              | TEXT    | UUID v7                                                                              |
+| `seq`             | INTEGER | 1, 2, 3 … — one sequence for the whole work, always the last plus one; unique        |
+| `day`             | TEXT    | the ISO day the money arrived — **never after today**, which the host refuses        |
+| `funding_id`      | TEXT    | `REFERENCES funding`, with no action, or `NULL` for money that arrived unplanned     |
+| `amount_cents`    | INTEGER | never 0; positive for money received, negative for a reversal                        |
+| `note`            | TEXT    | 1–200 characters, or `NULL`; a reversal carries none                                 |
+| `reverses_seq`    | INTEGER | for a reversal, the earlier receipt it reverses (`REFERENCES funding_receipt (seq)`) |
+| `author_name`     | TEXT    | the display name of the Windows account that recorded it                             |
+| `created_at`      | TEXT    | UTC                                                                                  |
+
+**Money received is a ledger, append-only.** Migration 014 gives `funding_receipt` the battery of
+migration 007: `BEFORE UPDATE` and `BEFORE DELETE` refused, a guard before insert that refuses an id
+or a `seq` already there — so `INSERT OR REPLACE` cannot remove a row whether `recursive_triggers`
+is on or off — and `seq` accepted only as the next, each raising `funding: append-only`. There is no
+hash chain. A receipt's day is never after today, and that is the host's to refuse: the schema has
+no clock it can trust.
+
+**Reversals.** A `CHECK` makes a receipt positive with no `reverses_seq`, or a reversal negative
+with an earlier `reverses_seq`. The trigger `funding_receipt_reversal_rules` refuses, with `funding:
+reversal`, a reversal of a receipt that is not there or of another reversal, a reversal of any
+amount but the whole receipt's, for another fund than the receipt's, dated before it, and a second
+reversal of the same receipt. Unlike a payment, a receipt is not reversed in part: money that
+arrived short is a reversal and a new receipt of what did arrive. The domain applies reversals
+everywhere money received is shown.
+
+**What goes with what.** The receipts name their fund by a foreign key with no action, so a fund
+money was received against cannot be removed, and nothing that arrived disappears with the plan
+for it. `idx_funding_receipt_funding` serves the lookup by fund and the check a removal makes. The
+Rust module that writes the ledger holds no `UPDATE`, `DELETE` or `REPLACE`, and a test reads its
+source to prove it.
+
+**Nothing here holds a projection.** Whether the money lasts is the domain's (`runway`), computed
+every time from these two tables, the payments, the payment plans, the schedule and the cost lines;
+no table holds a week, a balance or a chance (below, _A comparison, a what-if and a chance are
+computed, not stored_).
+
+### `snag` and `snag_closure` — insert-only (E4)
+
+What is found wrong or unfinished near the end — a cracked tile, a door that sticks — is a **snag**:
+where it is, who must fix it, the day it is due and a photo of it, closed only with a photo of it
+fixed or withdrawn with a reason (ADR-044). Two tables, both **insert-only**: a snag is raised once
+and closed once, and neither row is ever edited or removed. **A snag is never deleted**; a mistake
+is withdrawn, and the record keeps both.
+
+| `snag`        | Type    | Meaning                                                                                                          |
+| ------------- | ------- | ---------------------------------------------------------------------------------------------------------------- |
+| `id`          | TEXT    | UUID v7                                                                                                          |
+| `number`      | INTEGER | 1, 2, … — the next after the highest already written; unique, never reused, so a withdrawn snag keeps its number |
+| `title`       | TEXT    | 1–200 characters, not blank — _Cracked tile by the shower_                                                       |
+| `description` | TEXT    | up to 2 000 characters, or `NULL`                                                                                |
+| `stage_id`    | TEXT    | the stage it is in — required; **not a foreign key**                                                             |
+| `activity_id` | TEXT    | the activity it is in, or `NULL`; **not a foreign key**                                                          |
+| `person_id`   | TEXT    | the person of the plan who must fix it, or `NULL` for nobody yet; **not a foreign key**                          |
+| `raised_on`   | TEXT    | the ISO day it was raised                                                                                        |
+| `due_on`      | TEXT    | the ISO day it is due, never before `raised_on`, or `NULL`                                                       |
+| `photo_hash`  | TEXT    | the hash of a document of the work — the photo of the problem — or `NULL`                                        |
+| `author_name` | TEXT    | the display name of the Windows account that raised it                                                           |
+| `created_at`  | TEXT    | UTC                                                                                                              |
+
+| `snag_closure` | Type | Meaning                                                                                                  |
+| -------------- | ---- | -------------------------------------------------------------------------------------------------------- |
+| `snag_id`      | TEXT | primary key — **one closure per snag**; a closure of a snag the work does not have is refused            |
+| `outcome`      | TEXT | `fixed` or `withdrawn`                                                                                   |
+| `closed_on`    | TEXT | the ISO day it was closed, never before the snag's `raised_on`                                           |
+| `photo_hash`   | TEXT | the hash of a document of the work — the photo of it fixed; **required when `outcome` is `fixed`**       |
+| `note`         | TEXT | up to 2 000 characters; **required when `outcome` is `withdrawn`** — the reason — and optional otherwise |
+| `author_name`  | TEXT | the display name of the Windows account that closed it                                                   |
+| `created_at`   | TEXT | UTC                                                                                                      |
+
+**Where it is, and who must fix it, are not foreign keys.** A person removed from the plan, or a
+stage removed after the snag was raised, leaves the snag as it was written; the interface says the
+person or the stage is no longer in the plan rather than losing the record. The host refuses, with a
+sentence, a stage, an activity or a person the work does not have when the snag is raised. **A
+closed stage takes snags** — they are found after closing — and an approved plan does too: neither
+lock covers a snag, because no baseline records one.
+
+**Photos are documents, by hash.** Both `photo_hash` columns hold 64 lowercase hexadecimal digits,
+and the host accepts one only when an image `document` of the open work names it, as the handover
+book's images are resolved (D3): the interface takes the photo in through the documents' intake
+first. Neither column is a foreign key, and neither is ever read as a path: a document removed while
+a snag names its hash takes its row and its links, and its file stays, as a diary photo's does.
+
+**Insert-only, behind the host.** Migration 016 gives both tables the battery of migrations 003,
+007, 009 and 013: triggers refuse `UPDATE` and `DELETE`, and a guard before insert refuses a key —
+or, for a snag, a number — that is already there, so `INSERT OR REPLACE` cannot remove a row whether
+`recursive_triggers` is on or off; a snag whose number is not the next one is refused too. Each
+raises `snag: append-only`. A `CHECK` makes a `fixed` closure carry a photo and a `withdrawn` one a
+note. What the host refuses first with a sentence, the schema refuses again, so a file written by
+something else holds the same rules: a due day before the raised day, a fixed closure with no photo,
+a withdrawal with no reason, a closure dated before its snag or of a snag that is not there (`snag:
+closure`), and a second closure. The Rust module that writes them holds no `UPDATE`, `DELETE` or
+`REPLACE`, and a test reads its source to prove it.
+
+**A snag found again is a new snag.** A fix that did not hold is not reopened: a new snag is raised,
+which may name the old one in its description, and the old one stays fixed with both its photos.
+
+**Every figure is computed.** Whether a snag is open, fixed or withdrawn, whether it is overdue, how
+long it has waited, and the figures by person and by stage are the domain's (`snagRows`,
+`snagFigures`), from these rows, each figure with its rows. So is a retention's state: the payment
+milestone `retention` (above, `payment_milestone`) is earned from `stage.closed_at` and these two
+tables every time, and nothing records that it was.
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -703,15 +941,17 @@ each that does not is a _missing_ row, named, and opens from the figure. The fig
 must-know`; the rules, summed, give exactly that figure; and the sentence is built from the
 count of missing rows per rule, in the person's language.
 
-| Rule                   | Slice | Applies to                               | Holds when                                                                                   | The sentence, in English                 |
-| ---------------------- | ----- | ---------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `activity.duration`    | F0    | every activity                           | it has a duration of one working day or more                                                 | "1 activity has no duration."            |
-| `activity.responsible` | F0    | every activity                           | its responsible is a person of the work                                                      | "1 activity has no responsible."         |
-| `activity.linked`      | F2    | every activity, in a plan of two or more | a dependency joins it to another, stages expanded                                            | "1 activity is not linked to any other." |
-| `decision.deadline`    | F3    | every decision                           | its stage has a scheduled activity, so it has a deadline                                     | "1 decision has no deadline yet."        |
-| `decision.timely`      | F3    | every decision whose deadline is known   | it is made, or its deadline is today or later                                                | "2 decisions are overdue."               |
-| `stage.checks`         | F5    | every stage                              | it has at least one check at its start gate and one at its close gate                        | "2 stages have no checks."               |
-| `stage.money`          | F6    | every stage                              | it has at least one **priced** cost line, its own or one of its activities' (priced from F9) | "2 stages have no money planned."        |
+| Rule                   | Slice | Applies to                                            | Holds when                                                                                   | The sentence, in English                              |
+| ---------------------- | ----- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `activity.duration`    | F0    | every activity                                        | it has a duration of one working day or more                                                 | "1 activity has no duration."                         |
+| `activity.responsible` | F0    | every activity                                        | its responsible is a person of the work                                                      | "1 activity has no responsible."                      |
+| `activity.linked`      | F2    | every activity, in a plan of two or more              | a dependency joins it to another, stages expanded                                            | "1 activity is not linked to any other."              |
+| `decision.deadline`    | F3    | every decision                                        | its stage has a scheduled activity, so it has a deadline                                     | "1 decision has no deadline yet."                     |
+| `decision.timely`      | F3    | every decision whose deadline is known                | it is made, or its deadline is today or later                                                | "2 decisions are overdue."                            |
+| `stage.checks`         | F5    | every stage                                           | it has at least one check at its start gate and one at its close gate                        | "2 stages have no checks."                            |
+| `stage.money`          | F6    | every stage                                           | it has at least one **priced** cost line, its own or one of its activities' (priced from F9) | "2 stages have no money planned."                     |
+| `change.waiting`       | E1    | every change order                                    | it is decided, or it was raised 7 calendar days ago or less                                  | "1 change is waiting for a decision."                 |
+| `work.funding`         | E2    | the work, when its priced planned money is above zero | at least one fund is recorded — money received with no fund does not count                   | "Where the money comes from is not written down yet." |
 
 A plan with no activity at all is not ready: it has one missing row, "The plan has no activity
 yet.", and a figure of 0 %. The nouns in the sentences follow the lens — the owner reads "job"
@@ -771,7 +1011,8 @@ migration each database has been through, by number and name.
 - Every table that must never lose a row is insert-only: triggers refuse `UPDATE`, `DELETE`
   and `REPLACE`, and the Rust module that writes it contains no `UPDATE` or `DELETE` statement,
   by rule. **Shipped for the baselines (F2) and the diary (F4)**, whose entries also carry the
-  hash of the one before; the payments ledger (F6) follows the same pattern.
+  hash of the one before; the payments ledger (F6), the change orders (E1), the money received (E2)
+  and the snags (E4) follow the same pattern.
 - Text columns that a person types are bounded by `CHECK (length(...) <= n)` in the schema.
 
 ## Migrations
@@ -794,6 +1035,10 @@ covered by a round-trip test that opens a work at version N-1 and migrates it wi
 | `010_templates.sql`                  | F9    | `activity.duration_min_days` and `.duration_max_days`; `decision.lead_min_days` and `.lead_max_days`; `work.template_id`, `.template_version` and `.template_title`; `cost_line` rebuilt with `amount_cents` nullable |
 | `011_payment_milestones.sql`         | D2    | `payment_milestone` with its `CHECK`s and its triggers: an activity of the commitment's stage, at most 100 % per commitment, and locked once a payment names the commitment                                           |
 | `012_handover.sql`                   | D3    | `stage_check.needs_photo` and the trigger that refuses a `yes` without a photo on such a check; `document` rebuilt with the kinds `warranty` and `manual`, its links set aside and restored; `care_note`              |
+| `013_change_orders.sql`              | E1    | `change_order` and `change_order_decision`, each with its `CHECK`s and the insert-only battery of migrations 003, 007 and 009                                                                                         |
+| `014_funding.sql`                    | E2    | `funding`; `funding_receipt` with its `CHECK`s, the insert-only battery of migration 007 and its reversal trigger                                                                                                     |
+| `015_lost_cause.sql`                 | E3    | `diary_entry.lost_cause` and `.lost_party_person_id`, each with its `CHECK`; the canonical form's conditional `lost` record                                                                                           |
+| `016_snags.sql`                      | E4    | `snag` and `snag_closure`, each with its `CHECK`s and the insert-only battery of migration 013; `payment_milestone` rebuilt with the trigger `retention`, every row and D2's triggers kept                            |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its stages
 and activities migrates to schema 2 without loss, a work at schema 2 with rooms and quantities
@@ -809,7 +1054,14 @@ with commitments, payments and a diary migrates to schema 11 with every amount k
 invented, the paid commitment's plan locked from the start — a reversal does not unlock it — and its
 chain still verifying, and a work at schema 11 with documents and their links migrates to schema 12
 with every document, id and link kept, every check not needing a photo and its chain still
-verifying.
+verifying, and a work at schema 12 migrates to schema 13 losing nothing, with its chain still
+verifying, and a work at schema 13 with change orders, payments and a diary migrates to schema 14
+losing nothing, with no fund and no receipt invented and its chain still verifying, and a work at
+schema 14 with diary entries, a correction and photos migrates to schema 15 with every entry's hash
+byte for byte what it was, no cause invented and its chain verifying before and after, and a work at
+schema 15 with commitments, payment plans — one locked by a payment — and a diary migrates to schema
+16 with every milestone kept with its id, share and trigger, the paid plan still locked, no snag
+invented and its chain still verifying.
 
 **Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
 where it came from, one row per hash in this order of precedence: a diary photo (kind `photo`,
@@ -867,6 +1119,42 @@ and `care_note` starts empty: no answer, document or figure an earlier slice sho
 with no payment plan, which the domain reads as _not evaluated_ — never as earned, never as paid
 ahead — so no figure an earlier slice showed moves with the migration.
 
+**Migration 013 adds two tables and nothing else.** No existing row changes: a work migrated from
+schema 12 has no change order, so the tally is empty, readiness's new rule applies to nothing, and
+no figure an earlier slice showed moves with the migration.
+
+**Migration 014 adds two tables and nothing else.** No existing row changes: a work migrated from
+schema 13 has no fund and no receipt. Every figure an earlier slice showed stays as it was; what is
+new is the projection, which for such a work opens with the payments already made and nothing
+received, and readiness's new rule, which a work with priced planned money now misses until a fund
+is recorded.
+
+**Migration 015 adds two columns and nothing else.** It is a plain `ADD COLUMN`, not a rebuild:
+SQLite accepts a column `CHECK` that reads another column of the row and tests it against every row
+already there, and each passes, because both columns are `NULL`. No row is copied, so no row can
+change — every entry keeps its bytes — and the triggers of migration 005 stay exactly as they were.
+Every hash in the chain is the one it was (_The conditional record_, above). A work migrated from
+schema 14 has no lost day with a cause, so the delay ledger counts its lost days as days with no
+cause stated, and no figure an earlier slice showed moves with the migration.
+
+**Migration 016's rebuild of `payment_milestone`.** SQLite cannot change a `CHECK` on a column, so
+the table is rebuilt to take the trigger `retention`, the way migration 010 rebuilt `cost_line` and
+012 rebuilt `document`. No table points at `payment_milestone`, so nothing has to be set aside
+first. `payment_milestone_016` is created with every column, reference, `UNIQUE` and `CHECK` exactly
+as migration 011 wrote them but the list of triggers, which gains `retention` — and the rule that
+only `activity_finished` names an activity is kept as it was, so a retention names none. Every
+milestone is copied across as it is — id, commitment, position, label, share, trigger, activity and
+the moment it was written — so the ids the interface knows stay the ids. The rows go across before
+any trigger exists on the new table, so a paid commitment's plan, which D2's lock would refuse to
+insert into, is copied whole. `payment_milestone` is dropped, which drops its index and its seven
+triggers; `payment_milestone_016` is renamed `payment_milestone`; and
+`idx_payment_milestone_activity` and the seven triggers of migration 011 — the activity of the
+commitment's stage, at most 100 %, and locked once a payment names the commitment, on insert, update
+and delete — are created again under the names they had, word for word. A failure anywhere rolls the
+whole migration back and the file stays at version 15. Every milestone keeps its trigger, so no plan
+holds a retention until one is written; the two snag tables start empty; and no figure an earlier
+slice showed moves with the migration.
+
 The migrations live in `src-tauri/work_migrations/`.
 
 ## A comparison, a what-if and a chance are computed, not stored
@@ -883,6 +1171,39 @@ the durations, the ranges, the links, the calendar and the diary's actuals — e
 asks, seeded by a hash of those inputs so the same plan gives the same numbers
 ([ADR-035](architecture/ADR.md#adr-035)). No table holds a run, a seed or a chance, and the plan's
 own dates are the schedule's, untouched.
+
+A change order's impact (E1) is computed the same way as a what-if — its effects applied to a copy
+of the snapshot in memory (`withEffects`) and scheduled — every time a screen shows a change still
+waiting. Only the decision stores it, once: the finish before and after and the working days
+between them, as they were on the day somebody decided, never recomputed
+([ADR-041](architecture/ADR.md#adr-041)).
+
+Whether the money lasts (E2) is not stored either. The domain projects it week by week from the
+funds, the receipts, the payments, the payment plans, the cost lines and the schedule every time a
+screen asks (`runway`), and its chance from the same seeded runs as the finish's (`runwayChance`,
+[ADR-042](architecture/ADR.md#adr-042)). No table holds a week, a balance or a chance, and nothing
+the projection reads is changed by it. The rules it reads by are the domain's and are set out in
+ADR-042: money earned and not paid, a milestone past its expected day, a closed stage's money still
+owed, and money the schedule cannot date — noted as such — all fall in the current week; the rest of
+a payment plan that covers less than its commitment is spread like a commitment with no plan; money
+planned and not committed is less what was paid on the stage outside any commitment; a fund
+expected today counts, and only one expected on an earlier day is late; and money dated after the
+last week is listed, not counted. The result is one of four states — the money lasts, it runs
+short, there is no funding, or there is nothing to project. The chance counts the runs whose balance
+goes below zero in any week up to that run's own finish week, through a per-run hook on D1's
+simulation that changes none of its results.
+
+When the work will finish as things stand, and why it is late (E3), are not stored either. The
+forecast is the domain's (`forecast`): the plan's activities and links laid on its calendar, forward
+from what the diary says happened — a finished activity at its diary dates, a started one from its
+first day and not finishing before today, one not started not before today — and measured against
+the latest baseline's finish. The delay ledger (`delayLedger`) attributes the working days of that
+difference to causes read from the change orders' frozen days, the lost days and their causes, the
+weather, the decisions made after their deadline in the baseline and the people the diary says were
+not on site, and says what it cannot attribute ([ADR-043](architecture/ADR.md#adr-043)). No table
+holds a forecast date, a day of delay or a cause the domain inferred: the only thing written is the
+cause a person gave for a lost day, in the diary, in the chain. The plan's own schedule and the slip
+are untouched by either.
 
 ## Not yet in the schema
 
@@ -917,12 +1238,12 @@ field means, or removes one, takes the next number.
 }
 ```
 
-| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                                                                         |
-| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks — each saying whether it needs a photo — and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, the care notes, and the open replanning |
-| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                                                            |
+| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks — each saying whether it needs a photo — and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, the care notes, the change orders each with its decision or none, and the open replanning |
+| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos, why a lost day was lost (`lostCause` and `lostPartyPersonId`, `null` when none was given) and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                   |
 
 Field names are camelCase, as the interface receives them; money is whole minor units, dates are
 `YYYY-MM-DD` and instants UTC, as everywhere in this model. Nothing is computed: no schedule, no

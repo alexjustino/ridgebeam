@@ -274,6 +274,8 @@ export function largeWork(seed = 20260928): { plan: WorkSnapshot; entries: Diary
       note: `Note ${seq}`,
       weather: WEATHERS[int(WEATHERS.length)]!,
       lostDay: i % 40 === 0,
+      lostCause: i % 80 === 0 ? 'material' : null,
+      lostPartyPersonId: null,
       hours: 8,
       deliveries: null,
       incidents: null,

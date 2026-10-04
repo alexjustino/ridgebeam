@@ -19,11 +19,15 @@ import type { Direction } from '@/domain/ordering';
 import type {
   Answer,
   CareTargetKind,
+  ChangeAskedBy,
+  ChangeEffect,
+  ChangeOrderOutcome,
   DocumentKind,
   Endpoint,
   Gate,
   Holiday,
   MilestoneTrigger,
+  SnagOutcome,
   TargetKind,
   WorkSnapshot,
 } from '@/domain/plan';
@@ -205,6 +209,22 @@ export const LIMITS = {
   hoursPerDay: 24,
   replanReason: 2000,
   careNote: 1000,
+  changeTitle: 200,
+  changeDescription: 2000,
+  changeAskedByName: 120,
+  changeNote: 2000,
+  changeEffects: 50,
+  /** An added activity's name: an activity's name, as the host keeps it. */
+  changeEffectName: 120,
+  /** A funding row's name, where it comes from and its note; a receipt's note (E2). */
+  fundingLabel: 200,
+  fundingSource: 200,
+  fundingNote: 2000,
+  receiptNote: 200,
+  /** A snag's title, its description, and the note of its closure — the reason of a withdrawal (E4). */
+  snagTitle: 200,
+  snagDescription: 2000,
+  snagNote: 2000,
 } as const;
 
 // ── The application ──────────────────────────────────────────────────────────
@@ -832,6 +852,150 @@ export function careNoteRemove(id: string): Promise<WorkSnapshot> {
 /** Within its target. */
 export function careNoteMove(id: string, direction: Direction): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('care_note_move', { id, direction });
+}
+
+// ── Change orders (E1) ───────────────────────────────────────────────────────
+//
+// A change order is raised on the record and decided once: approved, declined or withdrawn. Both
+// tables are insert-only (ADR-041): there is no command that edits or removes either, and there
+// never will be — a mistake is withdrawn and raised again. The impact a decision carries is the
+// schedule's, computed by the domain at the moment of deciding and sent as that day's fact; the
+// host never computes a schedule.
+
+/** A change as it is raised. */
+export interface ChangeOrderDraft {
+  /** `YYYY-MM-DD`: the day it is raised. */
+  raisedOn: string;
+  title: string;
+  description: string | null;
+  askedBy: ChangeAskedBy;
+  /** Set exactly when `askedBy` is `person`. */
+  askedByPersonId: string | null;
+  /** Set exactly when `askedBy` is `other`. */
+  askedByName: string | null;
+  stageId: string;
+  /** Signed: a change can save money; `null` when it is not priced. */
+  costCents: number | null;
+  effects: readonly ChangeEffect[];
+}
+
+export function changeOrderRaise(draft: ChangeOrderDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('change_order_raise', { draft });
+}
+
+/**
+ * The one decision on a change. `finishBefore`, `finishAfter` and `daysDelta` are the impact the
+ * domain computed as the person decided; an approval applies the effects inside the open replanning
+ * (or opens one naming the change) and adds its money as a cost line, in one transaction.
+ */
+export interface ChangeOrderDecisionDraft {
+  id: string;
+  outcome: ChangeOrderOutcome;
+  /** `YYYY-MM-DD`. */
+  decidedOn: string;
+  note: string | null;
+  finishBefore: string | null;
+  finishAfter: string | null;
+  daysDelta: number | null;
+}
+
+export function changeOrderDecide(decision: ChangeOrderDecisionDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('change_order_decide', { decision });
+}
+
+// ── Funding and money received (E2) ──────────────────────────────────────────
+//
+// Funding is plan: money the work expects, from where and on what day — editable, and removable only
+// while no receipt names it. Receipts are facts: the ledger of money received is append-only exactly
+// as the payments ledger is — a mistake is a reversal, a new negative receipt that names it, once.
+
+/** Money the work expects to receive, as it is written. */
+export interface FundingDraft {
+  label: string;
+  /** Where it comes from; `null` when not said. */
+  source: string | null;
+  /** Whole cents, above zero. */
+  amountCents: number;
+  /** `YYYY-MM-DD`: the day it is expected. */
+  expectedOn: string;
+  note: string | null;
+}
+
+export function fundingAdd(draft: FundingDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('funding_add', { draft });
+}
+
+/** The row named by `id`, rewritten whole. */
+export function fundingUpdate(draft: FundingDraft & { id: string }): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('funding_update', { draft });
+}
+
+/** Refused once a receipt names the row: money received against it stays true. */
+export function fundingRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('funding_remove', { id });
+}
+
+/** Money received, as the ledger will record it. */
+export interface FundingReceiptDraft {
+  /** The funding row it was expected as; `null` for money that arrived unplanned. */
+  fundingId: string | null;
+  /** Whole cents, above zero. */
+  amountCents: number;
+  /** `YYYY-MM-DD`, never after today. */
+  day: string;
+  note: string | null;
+}
+
+export function fundingReceiptAdd(draft: FundingReceiptDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('funding_receipt_add', { draft });
+}
+
+/** Reverse a receipt on `day`: a new, negative receipt naming it. Once per receipt. */
+export function fundingReceiptReverse(seq: number, day: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('funding_receipt_reverse', { seq, day });
+}
+
+// ── Snags (E4) ───────────────────────────────────────────────────────────────
+//
+// A snag is something found wrong or unfinished near the end, raised on the record and closed once:
+// fixed, with a photo of it fixed, or withdrawn, with a reason. Both tables are insert-only: there is
+// no command that edits or removes either — a snag raised by mistake is withdrawn. A photo is named by
+// the hash of a document of the work: the interface adds the file through `documentAdd` first.
+
+/** A snag as it is raised. */
+export interface SnagDraft {
+  /** `YYYY-MM-DD`: the day it is raised. */
+  raisedOn: string;
+  title: string;
+  description: string | null;
+  /** Where it is: a stage of the plan, closed or not. */
+  stageId: string;
+  /** One of the stage's activities; `null` when it is the stage as a whole. */
+  activityId: string | null;
+  /** Who must fix it: a person of the plan; `null` when nobody is named. */
+  personId: string | null;
+  /** `YYYY-MM-DD`, never before `raisedOn`; `null` when no day is said. */
+  dueOn: string | null;
+  /** The photo of the problem, by the hash of a document of the work; `null` when none. */
+  photoHash: string | null;
+}
+
+export function snagRaise(draft: SnagDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('snag_raise', { draft });
+}
+
+/** The one closure of a snag: `fixed` needs its photo, `withdrawn` its reason in `note`. */
+export interface SnagClosureDraft {
+  snagId: string;
+  outcome: SnagOutcome;
+  /** `YYYY-MM-DD`, never before the snag was raised. */
+  closedOn: string;
+  photoHash: string | null;
+  note: string | null;
+}
+
+export function snagClose(closure: SnagClosureDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('snag_close', { closure });
 }
 
 // ── People as contacts, documents and the folder (F7) ────────────────────────

@@ -129,6 +129,20 @@ describe('the diary as a document', () => {
     expect(row(4)).toMatchObject({ photoCount: 2, photoHashes: ['aa', 'bb'] });
   });
 
+  it('says why a lost day was lost and who it is put down to, by name while they are in the plan', () => {
+    const lost = [
+      entry(1, '2026-09-01', { lostDay: true, lostCause: 'absence', lostPartyPersonId: 'p1' }),
+      entry(2, '2026-09-02', { lostDay: true, lostCause: 'material', lostPartyPersonId: 'gone' }),
+      entry(3, '2026-09-03', { lostDay: true }),
+    ];
+    const rows = diaryReport(PLAN, lost).rows;
+    expect(rows.map((each) => [each.lostCause, each.lostParty])).toEqual([
+      ['absence', { personId: 'p1', name: 'Sample tiler' }],
+      ['material', { personId: 'gone', name: null }],
+      [null, null],
+    ]);
+  });
+
   it('sums the diary up: written, corrections, effective, first and last day, the head of the chain', () => {
     expect(report).toMatchObject({
       written: 5,

@@ -2,7 +2,16 @@ import { describe, expect, it } from 'vitest';
 
 import { activity, decision, entry, snapshot, stage } from './__fixtures__/plan';
 import { BACKUP_STALE_DAYS, backupDue, workChanges, type BackupFacts } from './backup';
-import type { Baseline, CareNote, CheckAnswer, Document, Payment, Replanning } from './plan';
+import type {
+  Baseline,
+  CareNote,
+  ChangeOrder,
+  ChangeOrderDecision,
+  CheckAnswer,
+  Document,
+  Payment,
+  Replanning,
+} from './plan';
 
 const TODAY = '2026-10-02';
 
@@ -111,6 +120,21 @@ describe('what the work records as changes', () => {
     ['a check answered', { checkAnswers: [{ answeredAt: at('2026-09-10') } as CheckAnswer] }],
     ['a document added', { documents: [{ createdAt: at('2026-09-10') } as Document] }],
     ['a care note', { careNotes: [{ createdAt: at('2026-09-10') } as CareNote] }],
+    [
+      'a change order raised',
+      { changeOrders: [{ createdAt: at('2026-09-10'), decision: null } as ChangeOrder] },
+    ],
+    [
+      'a change order decided',
+      {
+        changeOrders: [
+          {
+            createdAt: at('2026-09-04'),
+            decision: { createdAt: at('2026-09-10') } as ChangeOrderDecision,
+          } as ChangeOrder,
+        ],
+      },
+    ],
     ['a baseline taken', { baselines: [{ takenAt: at('2026-09-10') } as Baseline] }],
     ['a replanning opened', { replanning: { openedAt: at('2026-09-10') } as Replanning }],
   ])('counts %s', (_, parts) => {

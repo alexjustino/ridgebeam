@@ -250,6 +250,17 @@
       }
     },
     {
+      "key": "forecast",
+      "en": {
+        "term": "forecast",
+        "sentence": "When the work will finish as things stand: the diary’s dates for what has started or finished, the planned durations from today for the rest. The finish date is the plan’s; the forecast is the record’s — the two are shown apart, never as one number."
+      },
+      "pt-BR": {
+        "term": "previsão",
+        "sentence": "Quando a obra vai terminar do jeito que está: as datas do diário para o que começou ou terminou, as durações planejadas a partir de hoje para o resto. A data de término é a do plano; a previsão é a do registro — as duas são mostradas separadas, nunca como um número só."
+      }
+    },
+    {
       "key": "decision",
       "en": {
         "term": "decision",
@@ -524,6 +535,28 @@
       }
     },
     {
+      "key": "retention",
+      "en": {
+        "term": "retention",
+        "sentence": "The last part of a commitment’s payment plan, held back until its stage is closed and every snag on that person is closed with a photo of it fixed. The owner holds it; Ridgebeam holds no money and stops no payment — it shows the money as held, never as due."
+      },
+      "pt-BR": {
+        "term": "retenção",
+        "sentence": "A última parte do plano de pagamento de um compromisso, segurada até a sua etapa fechar e toda pendência dessa pessoa ser fechada com uma foto do conserto. Quem segura é o dono; o Ridgebeam não guarda dinheiro nem impede pagamento — mostra o dinheiro como retido, nunca como devido."
+      }
+    },
+    {
+      "key": "funding",
+      "en": {
+        "term": "funding",
+        "sentence": "Money the work will receive — savings, a loan tranche, a client’s instalment — with where it comes from and the day it is expected. Money received is recorded on the day it arrives; until then it is a plan, and money expected on a day already past and not received is not counted."
+      },
+      "pt-BR": {
+        "term": "recursos",
+        "sentence": "Dinheiro que a obra vai receber — economias, uma parcela de financiamento, uma prestação do cliente — com de onde vem e o dia em que é esperado. Dinheiro recebido é registrado no dia em que chega; até lá é plano, e dinheiro esperado num dia que já passou e não recebido não é contado."
+      }
+    },
+    {
       "key": "person",
       "en": {
         "term": "person",
@@ -632,6 +665,17 @@
       }
     },
     {
+      "key": "changeOrder",
+      "en": {
+        "term": "change order",
+        "sentence": "A change to an approved plan asked for on record: who asked, what changes, what it costs and how many working days it moves the finish — worked out by the schedule, never typed. It is approved, declined or withdrawn once, and never edited."
+      },
+      "pt-BR": {
+        "term": "aditivo",
+        "sentence": "Uma mudança num plano aprovado pedida com registro: quem pediu, o que muda, quanto custa e quantos dias úteis ela move o término — calculado pelo cronograma, nunca digitado. É aprovado, recusado ou retirado uma única vez, e nunca editado."
+      }
+    },
+    {
       "key": "template",
       "en": {
         "term": "template",
@@ -728,6 +772,17 @@
       "pt-BR": {
         "term": "relatório semanal",
         "sentence": "Um PDF de uma semana, nas palavras do dono: o que foi feito, o que atrasou, o que decidir, o que pagar — com quantas páginas a semana pedir."
+      }
+    },
+    {
+      "key": "snag",
+      "en": {
+        "term": "snag",
+        "sentence": "Something found wrong or unfinished near the end — a cracked tile, a door that sticks — written down with where it is, who must fix it, the day it is due and a photo. It is closed only with a photo of it fixed, or withdrawn with a reason; it is never deleted."
+      },
+      "pt-BR": {
+        "term": "pendência",
+        "sentence": "Algo encontrado errado ou inacabado perto do fim — um azulejo trincado, uma porta que agarra — anotado com onde está, quem deve consertar, o dia em que vence e uma foto. Só é fechada com uma foto do conserto, ou retirada com um motivo; nunca é apagada."
       }
     },
     {

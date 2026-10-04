@@ -14,6 +14,9 @@ import { Button } from './Button';
  * everything). Every option stays in the Tab order, as every control in this product does; nothing
  * roves. Space and Enter press the focused option, as they press any button.
  *
+ * Options that do not fit the width wrap onto the next line rather than run out of the card (E3:
+ * the seven causes of a lost day, in Portuguese, are wider than a narrow window).
+ *
  * `compact` is the title bar's form: compact buttons and no visible label — the group is still
  * named, for anybody who is listening rather than looking.
  */
@@ -52,7 +55,7 @@ export function ChoiceGroup<T extends string>({
           {label}
         </span>
       )}
-      <div role="radiogroup" aria-label={label} className="flex gap-1">
+      <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1">
         {options.map((option, index) => (
           <Button
             key={option}

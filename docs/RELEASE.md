@@ -131,6 +131,86 @@ release that skipped a step is a release nobody can reason about afterwards.
      file field. Write the backup there, go back to the dashboard, and the line is gone. Press **Not
      now** on another work and see it come back after a restart. In Portuguese the button reads
      _Fazer a cópia de segurança agora…_;
+   - **raise, approve and decline a change order** on an approved plan with an activity on the
+     critical path and no replanning open. Before approval, the Plan's **Changes** tab offers no
+     form and says why. After it, raise a change the owner asked for that adds an activity of 2
+     working days after the critical one, priced at 300: before it is saved, the form says it
+     finishes 2 working days later, with both dates and the money. Approve it: the dialog shows the
+     same impact and says what approving will do, and afterwards the replanning is open with the
+     reason _"Change order #1 — …"_, the new activity is in the plan with its link, and a cost line
+     _"Change order #1"_ is on its stage. Go to the Schedule and take the next baseline: its reason
+     names the change, and comparing it with the one before lists the change. Raise a second change
+     asked for by a person of the plan and decline it: nothing in the plan moves. Raise a third and
+     leave it waiting. The dashboard's **Changes** card reads +300 and +2 working days, each figure
+     opening onto its rows, and one change waiting; write the owner's snapshot and the weekly
+     report, and both say a change is waiting for a decision. Try to edit or remove a change: there
+     is no control that does it. Do it once in Portuguese, where a change order is an _aditivo_;
+   - **ask whether the money will last** on a work with a scheduled stage of two activities, priced
+     cost lines and a commitment with a payment plan. With no fund recorded, readiness reads _"Where
+     the money comes from is not written down yet."_ On **Money → Funding**, record two funds
+     smaller than the work's total — savings expected today and a loan tranche in three weeks — and
+     **Mark as received…** the savings for their whole amount, today: the receipt is in the ledger,
+     and a day after today is refused with a sentence. The **Will the money last?** card reads
+     _"Money runs short in the week of … — … short."_ beside a danger-toned error icon; **Money runs
+     short in the week of** shows that week's Monday, every week is a row of the table, and the
+     short week's closing reads _"… short"_ with no minus sign. Receive part of the tranche early
+     and read the sentence change; then add a fund that covers the gap and read _"The money lasts to
+     the end, with … to spare."_, with no success colour. Add a fund expected yesterday and leave it
+     unreceived: a note says _"1 expected sum has not arrived: … not counted — money that has not
+     come is not money."_ and **Money expected and late** reads 1; a fund expected today is still
+     counted. Change the late fund's day and amount: it is allowed. Reverse a receipt: the reversal
+     is a new row for the whole amount, the original stays, and reversing it again is refused; try
+     to remove a fund with money received against it and read the refusal. Give two activities a
+     range and read _"N in 10 chances that the money runs short before the work ends."_; take the
+     ranges away and read _"Every duration is taken as certain, …"_. The card ends _"A projection,
+     not a promise: …"_. The dashboard's money card shows the short week's Monday, or the money left
+     at the end, with the sentence and no chance; the weekly report prints the sentence with the
+     short week's rows, and none once the money lasts; and the owner's snapshot, opened in a
+     browser, says the same sentence. Do it once in Portuguese, where the card reads _O dinheiro vai
+     dar?_, the money left is _Dinheiro que sobra no fim_, a fund is _recursos_, and the money that
+     lasts reads _"O dinheiro dá até o fim, e sobram …."_;
+   - **ask why the work is late** — first on a work written by the previous release, with diary
+     entries, a correction, photos and a day marked lost: let it migrate and run **Verify the
+     diary** in Diagnostics. It must still read "N entries, chain intact", with the same N as before
+     the upgrade — no hash moved. Then, on an approved plan with a stage of two chained activities
+     and a responsible, write a day worked, then a day with **No work was possible** ticked: **Why?**
+     offers seven causes; choose _Waiting for a decision_ and save — the entry reads _"Lost — waiting
+     for a decision"_. Write another lost day, rainy, with no cause; choose _Crew did not come_ on a
+     third and name the person under **Who**: the entry carries the name. Correct one entry to change
+     its cause: the original is struck through beside its correction, and no control edits a cause
+     in place. On the **Schedule**, the **As things stand** card sits
+     beside the finish and the slip and says which is which — _"As things stand it finishes on … — N
+     working days after the baseline's …."_ — while the slip, the Gantt and the plan's finish date
+     have not moved. On the dashboard, **Why is it late?** reads the days late as things stand, and
+     the ledger by cause and by party: the stated decision, the weather, the absence on the named
+     person's account, and what the record does not explain in words — every figure opening onto
+     the entries it was counted from. Approve a change order that adds working days and read it
+     appear as a cause of its own, on the account of who asked. Run **Verify the diary** again: still
+     "chain intact". Write the weekly report and the owner's snapshot, and both carry the forecast's
+     sentence and the causes. Do it once in Portuguese, where the cards read _Do jeito que está_ and
+     _Por que está atrasada?_ and the cause _Esperando uma decisão_;
+   - **close the work out** on a work with a stage of one activity, a person of the plan and a
+     commitment on that stage with that person. Give the commitment a payment plan of 95 % when the
+     stage closes and, as its last part, **Hold back as retention**: the editor offers 5 % and says,
+     beside it, that it is a common practice, not advice. Close the stage: the retention reads
+     earned — no snag holds it yet. On **Plan → Snags**, raise two snags in that closed stage, on
+     that person, each with a photo of the problem — one chosen in the dialog, one dropped on the
+     window — and give one a due day already past: the list shows both open, the overdue one marked
+     in words, and the closed stage refused neither. On **Money**, the retention now reads _held
+     until …_ with two snags open, and is not in **due now**; on the **Will the money last?** card
+     it is listed apart as money held, not counted in a week. **Fix…** the first snag with a photo
+     of it fixed: it reads fixed, and the retention is still held, by one snag. Try to fix the
+     second with no photo: it is refused, and the dialog says a fix needs its photo. **Withdraw…**
+     it instead, with a reason: it stays in the list as withdrawn, with its reason, and the
+     retention reads earned. Look for a control that edits or deletes a snag: there is none. Raise a
+     third snag on that person and the retention is held again; record a payment of the whole
+     commitment on the Ledger, and the warning says it pays ahead of the work before it is saved —
+     and it is still recorded. The dashboard's **Still to fix** card reads the open and the overdue,
+     by person, every figure opening onto its rows. On **Reports**, the handover book's gaps list
+     the open snag as **Still to fix**; write the book anyway, and find the fixed snag in its
+     stage's section with both photos, before and after, side by side. Write the weekly report and
+     the owner's snapshot: both say what is still open and on whom. Do it once in Portuguese, where
+     the tab reads _Pendências_, a snag is a _pendência_ and the retention a _retenção_;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and

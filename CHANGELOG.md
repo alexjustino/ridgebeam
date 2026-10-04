@@ -1073,3 +1073,303 @@ its own (ADR-040).
   nothing new reaches the host. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a drop zone is the
   window, and it says what a drop will do_. [`docs/RELEASE.md`](docs/RELEASE.md): files dropped from
   Explorer on the Diary and on Documents, "same people", and the reminder on a work never backed up.
+
+### Added in E1 — change orders
+
+The first slice of a second wave, admitted before the owner's acceptance test: four answers to the
+four ways a small work fails (ADR-041). The first is the work that grows by small changes nobody
+priced. After the plan is approved, **nothing changes without a price and a date**: a change order
+is a request on record — who asked, what changes, what it costs, and what it does to the finish,
+**computed by the schedule before anybody decides**. It is approved, declined or withdrawn once,
+and the decision freezes its impact. An approval opens the replanning with the change already in
+the plan and its price as a cost line, and the next baseline is still the person's to take. A
+standing tally says how much the work has grown, and who asked for it.
+
+- **Change orders** (`change_order`, migration 013). Raised from the Plan's new **Changes** tab once
+  the plan is approved — before that there are no change orders, because the plan is still being
+  written, and the form says so. Each has a number, #1, #2, … never reused; a title of up to 200
+  characters and an optional description; **who asked** — the owner, a person of the plan, or
+  somebody else by name; the stage it lands on; a **price** that may be negative, since a change can
+  save money, or left empty, which is _not priced_ and not 0; and its **effects** — **add** an
+  activity to the stage, with its name, its working days and the activity it follows; change an
+  activity's **duration**; **remove** an activity. At most 50; none at all is a change that is only
+  money. The host validates them when the change is raised — the kinds and ranges, a new duration
+  inside the activity's range, no activity in a closed stage, none named twice, none a payment
+  milestone is earned by removed — and never computes a schedule. Commands `change_order_raise` and
+  `change_order_decide`.
+- **The impact before the decision.** As the change is written, the form shows what it does —
+  _"Finishes 3 working days later — on 14 Nov instead of 11 Nov; costs $1,200.00 more."_ — worked
+  out by the same engine and the same delta as the Schedule's **What if**, from the effects applied
+  to a copy of the plan in memory (`withEffects`, `changeImpact`). An activity added off the
+  critical path moves the finish by no day, and the sentence says so. The dialogs that approve,
+  decline or withdraw show it again, with an optional note.
+- **One decision, frozen** (`change_order_decision`). Approved, declined or withdrawn, once, on a
+  day; the finish before and after and the working days between them are kept as the schedule said
+  them that day, with the price. A second decision, a decision on a change the work does not have,
+  and an approval before the plan is approved are refused with a sentence.
+- **An approval writes the change into the plan, inside a replanning, all or nothing.** With no
+  replanning open it opens one with the reason _"Change order #N — {title}"_; with one open, the
+  change joins it. The effects go through the plan's own functions, with their own refusals — one
+  refused and nothing is written — and a change priced at 0 or more adds a cost line _"Change order
+  #N"_ on its stage; a saving adds none, since a planned amount is never negative, and the plan's
+  own lines are lowered by hand in the same replanning. The screen says that the replanning is open
+  with the change applied and that the next baseline is the person's to take, and offers to go to
+  the Schedule. A decline or a withdrawal writes the decision and nothing else.
+- **The tally, each figure with its rows** (`changeTally`). **Changes approved** (money), **Days
+  added by changes** (working days) and **Waiting for a decision**, each row saying how long that
+  change has waited — on a new **Changes** card on the dashboard, not shown before approval; in the
+  weekly report, the changes decided that week and those waiting; and in the owner's snapshot, what
+  waits for the owner's decision, with the tally. A comparison of two baselines lists the change
+  orders decided between them (`Comparison.changes`).
+- **Readiness learns one rule.** A change order waiting more than 7 calendar days for a decision is
+  something the plan does not know — in the owner's words, _a change is waiting for your decision_.
+- **Insert-only.** Neither table can be edited or emptied: triggers refuse `UPDATE`, `DELETE` and
+  `REPLACE`, with `recursive_triggers` on and off, and the module that writes them holds no such
+  statement, which a test reads its source to prove. A mistake is withdrawn and raised again, and
+  the record keeps both. A work at schema 12 migrates to 13 losing nothing, its chain still
+  verifying.
+- **Documentation.** ADR-041, which admits the second wave — E1 change orders, E2 funding and the
+  cash runway, E3 the delay ledger, E4 the snag list and retention — and records E1, with its costs:
+  a change order is immutable, and a mistake is withdrawn and raised again; the impact frozen at the
+  decision is that day's schedule, and the plan may move later for other reasons; an approval writes
+  into the plan inside a replanning the person still has to close; "who asked" is a record, not a
+  signature; the price is planned money, not an agreement, and a saving is not written into the
+  plan; three kinds of effect are not every change. [`docs/SPEC.md`](docs/SPEC.md) gains the
+  addendum that admits E1 to E4. [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md): migration 013, both
+  tables, their triggers and the effects JSON. [`SECURITY.md`](SECURITY.md): the effects are data
+  validated by the host — kinds, ranges, ids — no SQL comes from the interface, and both tables are
+  insert-only. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _an impact is shown before a
+  decision, always_. [`docs/RELEASE.md`](docs/RELEASE.md): raise a change, see its impact, approve
+  it into the replanning, take the baseline, decline another, and read the tally on the dashboard
+  and in the snapshot. The glossary gains _change order_ (_aditivo_).
+
+### Added in E2 — will the money last?
+
+The second slice of the second wave (ADR-041), for the second way a small work fails: the money
+runs out before the work does. The product already knew what the work will ask for and when — the
+cost lines, the commitments, the payment plans and the schedule — and nothing about the money
+coming in. The owner now writes down **where the money comes from** — savings on hand, a loan's
+tranches, a client's instalments — each expected on a day, and records each sum when it actually
+arrives. Ridgebeam projects, **week by week from today to the finish**, what will have to be paid
+against what will have come in, and says in one sentence whether the money lasts — _"The money
+lasts to the end, with $1,800.00 to spare."_ or _"Money runs short in the week of 16 Nov — $4,200.00
+short."_ — with, from D1's ranges, the chance that it runs short (ADR-042).
+
+- **Funding** (`funding`, migration 014). On Money's new **Funding** tab: a fund's label of up to
+  200 characters, where it comes from, its amount, the day it is expected and a note, listed in the
+  order written. Funding is plan: it is changed at any time — amount and day included, even after
+  money was received against it — and an approved plan does not lock it. Only removing is refused
+  once money has been received against a fund, with a sentence. Commands `funding_add`,
+  `funding_update` and `funding_remove`.
+- **Money received** (`funding_receipt`). **Mark as received…** on a fund asks for the amount and
+  the day; money that arrived unplanned is recorded against no fund. The receipts are a ledger like
+  the payments: numbered in order, never edited or removed, a mistake corrected by a **reversal** of
+  the whole receipt, dated on or after it, once and with no note — a receipt is not reversed in
+  part. **A receipt's day is never in the future**: money that has not arrived is a fund, not a
+  receipt. Commands `funding_receipt_add` and `funding_receipt_reverse`; the work's snapshot carries
+  the funds by position and the receipts by number.
+- **The projection** (`runway`, in the domain, pure). Calendar weeks, Monday to Sunday, from this
+  week to the finish's week — eight weeks past today when the plan has no finish, and never more
+  than 260 weeks. It opens with the **money on hand today**, received less paid, both ledgers with
+  their reversals. **Out**: each payment-plan milestone not yet earned on the day the schedule
+  expects its fact, net of what was paid ahead on its commitment; the rest of a payment plan that
+  covers less than its commitment, and the unpaid rest of a commitment with no payment plan, spread
+  evenly over the stage's remaining working days; and the money planned and not yet committed on
+  each stage, less what was paid on it outside any commitment, spread the same way. Money earned and
+  not paid, a milestone past its expected day, a closed stage's money still owed and money the
+  schedule cannot date — noted as such — fall in the current week. A line not priced yet adds
+  nothing and is counted as such. **In**: what each fund still expects, on its day; a fund expected
+  today counts. **Money expected on an earlier day and not received is not counted**, and a note
+  says how much: _"1 expected sum has not arrived: $5,000.00 not counted — money that has not come
+  is not money."_ Money dated after the last week is listed, not counted. The result is one of four
+  states — lasts, short, no funding, nothing to project. `expectedOn` moves from the lookahead into
+  `milestones.ts`, so the owner's snapshot and the projection read one answer.
+- **Will the money last?** A card on Money with the sentence, the chance, a table of the weeks —
+  what came in, what went out, what was left, a short week's closing reading _"$700.00 short"_ and
+  never a minus sign — and a small balance chart drawn as the S-curve is. Four figures carry their
+  rows: **Money on hand today**, **Money runs short in the week of** (the week's Monday), **Money
+  left at the end** and **Money expected and late** (a count). The short sentence carries a
+  danger-toned error icon; the money lasting is not shown as a success. Beside the number, in words,
+  what the projection left out, and at the end what it is: _"A projection, not a promise: it is as
+  good as the schedule, the payment plans and the dates typed here."_ The dashboard's money card
+  shows the short week's Monday, or the money left at the end, with the sentence, and does not run
+  the chance. The weekly report projects from the day it is written and prints the sentence, with
+  the short week's rows or none when the money lasts; the owner's snapshot carries the same
+  sentence, rows and chance as the weekly report.
+- **The chance, from D1.** `finishProbability` gains an optional per-run hook that changes none of
+  D1's results or its seed, and `runwayChance` counts the runs whose balance goes below zero in any
+  week up to that run's own finish week: _"3 in 10 chances that the money runs short before the work
+  ends."_ About 0.3 s on the 2 000-activity benchmark work. With no range in the plan the card gives
+  no chance and says why: _"Every duration is taken as certain, so the weeks below are the only
+  answer. Give activities a range to see the chance."_
+- **Change orders.** One waiting for a decision is not projected; an approved one is already in the
+  plan, and is projected like any planned money.
+- **Readiness learns one rule** (`work.funding`). A work whose priced planned money is above zero
+  and that has no fund recorded is missing where the money comes from — _"Where the money comes from
+  is not written down yet."_ (_"De onde vem o dinheiro ainda não está anotado."_). Money received
+  with no fund does not answer it. A work from E1 with priced cost lines reads one row more missing
+  until a fund is recorded.
+- **Append-only, behind the host.** `funding_receipt` carries the payments' battery — triggers
+  refuse `UPDATE`, `DELETE` and `REPLACE`, with `recursive_triggers` on and off, and the module that
+  writes it holds no such statement, which a test reads its source to prove — and a reversal that is
+  partial, repeated, for another fund or dated before its receipt is refused again by the schema. A
+  fund money was received against cannot be removed. **Work migration 014** (`014_funding.sql`) adds
+  the two tables and changes no existing row; a work at schema 13 migrates to 14 losing nothing, its
+  chain still verifying.
+- **Documentation.** ADR-042 (will the money last? Funding as plan, receipts as facts, a weekly
+  projection), with its costs: a projection, not a promise — as good as the schedule, the payment
+  plans and the dates the owner typed; money that has not arrived is not counted, which can call a
+  week short that a late tranche would cover; uncommitted planned money is spread evenly, which a
+  real invoice will not be; the chance uses D1's ranges and nothing else; the week is the unit; and
+  money in is recorded, not connected to any bank. [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md):
+  migration 014, both tables, their triggers and the readiness rule. [`SECURITY.md`](SECURITY.md):
+  the receipts ledger is append-only like the payments, a receipt's day is never in the future, and
+  nothing is sent anywhere — money in is recorded, not connected to any bank.
+  [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a projection says what it counts and what it does
+  not, in words, beside the number_. [`docs/RELEASE.md`](docs/RELEASE.md): record funds and a
+  receipt, read the sentence, make the money run short and then last, see a late fund listed and
+  not counted, the chance with ranges, the snapshot's sentence, in Portuguese. The glossary gains
+  _funding_ (_recursos_).
+
+### Added in E3 — why is it late?
+
+The third slice of the second wave (ADR-041), for the third way a small work fails: it is late, and
+nobody can say on whose account. Until now the product had **no forecast**: the slip compares the
+plan with its baseline, so a work weeks behind on site whose plan nobody had touched read as on
+time. Ridgebeam now says **when the work will finish as things stand**, read forward from what the
+diary says happened — _"As things stand it finishes on 23 Oct — 5 working days after the baseline's
+16 Oct."_ — and **why it is late**: every working day of that difference attributed to a cause the
+record names and, where it names one, a party, with the days it cannot attribute said in words. A
+lost day in the diary can now say why (ADR-043).
+
+- **Why a day was lost** (migration 015). When **No work was possible** is ticked, the diary entry
+  form asks **Why?** — Weather, Waiting for a decision, Crew did not come, Material did not arrive,
+  Owner's request, No access to the site, Other — and, for a crew, material or anything else,
+  **Who**, a person of the plan, optional. The entry reads _"Lost — waiting for a decision"_, with
+  the person's name when one is given. A cause on a day not marked lost, a cause outside the seven,
+  a person with no cause and a person who is not one of the work are refused with a sentence. A
+  cause is changed as everything in the diary is, by a correction. `DiaryEntry` and `EntryDraft`
+  gain `lostCause` and `lostPartyPersonId`, `null` when absent.
+- **The chain is extended, not rewritten.** The canonical form gains one record, `lost`, after the
+  photos, **only when a cause is given**: every entry written before this slice — and every one
+  written after it without a cause — has the same canonical string and the same hash, byte for
+  byte, and the tag stays `entry.v1`. `cargo test` hashes every entry of a real schema-14 work with
+  entries, a correction and photos before and after migrating and finds them equal, the chain
+  verifying on both sides; an entry with a cause verifies; and an update of either new column is
+  refused by the existing trigger.
+- **As things stand** (`forecast`, in the domain, pure). The plan's activities and links on its
+  calendar, with its lags, forward from the diary: a finished activity at its diary dates, a started
+  one from the day it started and not finishing before today, one not started not before today. It
+  gives the forecast finish, its critical chain, and the working days against the latest baseline
+  and against the plan's own finish date. On the **Schedule**, an **As things stand** card beside
+  the finish and the slip says which is the plan and which is the forecast. The plan's schedule, the
+  Gantt and the slip are untouched: the slip is still plan against plan.
+- **Why is it late?** (`delayLedger`, in the domain, pure). The working days late as things stand,
+  attributed one cause per working day per activity, in a fixed order so nothing is counted twice:
+  a **change order** approved after the baseline, by the days its decision froze, on the account of
+  who asked; a **cause stated** for a lost day, and the person it names; **weather**; a **decision
+  made late** against its deadline in the baseline, capped at the days its stage actually started
+  late, on the owner's account; and **absence** — a day with an entry on which the responsible for a
+  running critical activity was not on site and nothing was done on it. Days lost count only while
+  an activity of the forecast's critical chain was running or due to start. A day with no entry is
+  not absence. What is left is **not explained**, and is always shown — _"3 days the record does not
+  explain"_. When the work is on or ahead of the baseline the ledger says so and names no cause;
+  before approval it says it needs an approved plan. Three figures carry their rows: **days late as
+  things stand**, **by cause** and **by party**. A **Why is it late?** card on the dashboard; the
+  weekly report prints the forecast's sentence and the ledger, and the owner's snapshot the sentence
+  and the leading causes, in the owner's words.
+- **Exports.** The diary CSV gains two last columns, `lost_cause` and `lost_party`, so a sheet built
+  on the thirteen before them still finds each where it was, with every cell under the same
+  neutralisation; the JSON export carries `lostCause` and `lostPartyPersonId` on every entry.
+- **Work migration 015** (`015_lost_cause.sql`) adds the two columns with a plain `ADD COLUMN` and
+  their `CHECK`s — a cause only on a lost day, a person only with a cause — copies no row and leaves
+  the diary's triggers as they were; a work at schema 14 migrates to 15 losing nothing, every hash
+  as it was and its chain still verifying.
+- **Documentation.** ADR-043 (as things stand: a forecast from the diary, and a ledger of why it is
+  late), with its costs: the forecast assumes every unfinished activity takes its planned duration
+  from today; one cause per day, by a fixed priority, can under-count a day with two causes; a day
+  without an entry is unknown, not absence; a decision's delay is capped at what its stage actually
+  lost; the ledger attributes, it does not judge — it is not a claim or legal evidence — and the
+  party is who the record names. ADR-016's slip is not amended: it stays plan against plan, and the
+  two are shown apart. [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md): migration 015, both columns and
+  the canonical form's conditional record. [`SECURITY.md`](SECURITY.md): the hash of every old entry
+  is unchanged byte for byte, the new record is written only when a cause exists, and the ledger
+  attributes and does not judge. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _the plan and the
+  forecast are never the same number on screen_ and _what the record does not explain is always
+  shown_. [`docs/RELEASE.md`](docs/RELEASE.md): say a cause on a lost day, read the forecast against
+  the baseline, read the ledger by cause and by party, and verify the diary still reads "chain
+  intact" on an upgraded work. The glossary gains _forecast_ (_previsão_).
+
+### Added in E4 — a work that ends well
+
+The fourth and last slice of the second wave (ADR-041), for the last way a small work fails: it ends
+badly — the last payment made with defects still open, and with it the only reason anybody had to
+come back. What is found wrong or unfinished near the end is now a **snag** (_pendência_): written
+down with where it is, who must fix it, the day it is due and a photo, and **closed only with a
+photo of it fixed** — or withdrawn with a reason, never deleted. A commitment's payment plan can
+hold back its last part as **retention** (_retenção_), earned only when its stage is closed and
+every snag on that commitment's person is closed — the retention a layperson never knows to hold.
+The handover book lists what is still to fix and prints each fix with its before and after photos.
+With E4 the second wave is complete (ADR-044).
+
+- **Snags** (`snag`, migration 016). On the Plan's new **Snags** tab: a title of up to 200
+  characters, a description, the stage — required, and allowed after the stage is closed, because
+  that is when snags are found — an activity, optionally, who must fix it, a person of the plan or
+  nobody yet, the day it is due and a photo of the problem, chosen or dropped. Each is numbered in
+  the order raised, from #1, and a number is never reused. The list shows the open ones first, the
+  overdue marked. A stage, an activity or a person the work does not have is refused with a
+  sentence. Command `snag_raise`.
+- **Closing a snag** (`snag_closure`). **Fix…** requires a photo of it fixed and takes a note;
+  **Withdraw…** requires the reason. Once only, on a day not before the snag was raised. A fix with
+  no photo, a withdrawal with no reason, a closure dated before its snag and a second closure are
+  refused with a sentence. A snag found again after its fix is a new snag, which may name the old
+  one. Nothing about a snag is ever edited, and there is no delete. Command `snag_close`; the work's
+  snapshot carries the snags, each with its closure or none.
+- **Photos are documents of the work**, named by their hash as the handover book's are: the photo is
+  taken in through the documents' intake first, and the host refuses a hash that names no image
+  document of the open work.
+- **Retention** (the payment milestone trigger `retention`). A milestone that names no activity and
+  is earned on the day the last snag of its stage on the commitment's person is closed — fixed or
+  withdrawn — or on the day the stage closes, if that is later; with no snag on that person, when
+  the stage closes. Never while one is open: a stage reopened, or a snag raised on that person after
+  it was earned, un-earns it. A snag on nobody, and a commitment with no person, hold nothing. The
+  payment plan's editor offers **Hold back as retention** as the last part, suggested at 5 % and
+  said to be a common practice, not advice. On Money it reads _held until …_ with the snags that
+  hold it, never as due; the projection places it on the stage's expected close while nothing holds
+  it and, while something does, lists it apart as money held rather than projecting it into a week.
+  Paying it early is paying ahead of the work, which the Ledger's warning already says — a warning,
+  not a refusal.
+- **The snag list** (`snagRows`, `snagFigures`, in the domain, pure): open, fixed or withdrawn;
+  overdue by its due day; how long each has waited; and the figures **open**, **overdue**, **by
+  person** and **by stage**, each with its rows. Readiness gains no rule. The dashboard's **Still to
+  fix** card shows open, overdue and by person, and is not shown while the work has never had a
+  snag; the weekly report and the owner's snapshot say what is still open and on whom, in the
+  owner's words.
+- **The handover book.** Each open snag is a gap of its own, **Still to fix**, counted on the
+  Reports card and listed first on the book's first page; writing is still allowed. Each fixed snag
+  is printed in its room's section, or its stage's, with both photos — before and after — half
+  width, side by side.
+- **Insert-only, behind the host.** `snag` and `snag_closure` carry the change orders' battery —
+  triggers refuse `UPDATE`, `DELETE` and `REPLACE`, with `recursive_triggers` on and off, and the
+  module that writes them holds no such statement, which a test reads its source to prove — and a
+  fixed closure without a photo or a withdrawal without a reason is refused again by a `CHECK`.
+  **Work migration 016** (`016_snags.sql`) adds the two tables and rebuilds `payment_milestone` to
+  take the trigger `retention`, keeping every row with its id and creating D2's index and triggers
+  again as they were, so a paid commitment's plan stays locked; a work at schema 15 migrates to 16
+  losing nothing, its chain still verifying.
+- **Documentation.** ADR-044 (a work that ends well: snags closed with a photo, and retention held
+  until they are), with its costs: a snag closed with a photo is closed by the record, not inspected
+  — the photo's honesty is the person's; retention holds money only in the plan's arithmetic — the
+  product holds no money and cannot stop a payment, it warns; 5 % is a common practice offered as a
+  suggestion, not advice; a snag is never deleted, a mistake is withdrawn with a reason; a snag on
+  nobody holds no retention. It amends ADR-037 with the trigger `retention` and ADR-038 with the
+  snags' gaps and before-and-after photos, and their Status lines point to it.
+  [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md): migration 016, both tables, and the rebuild of
+  `payment_milestone` and what it kept. [`SECURITY.md`](SECURITY.md): snags and their closures are
+  insert-only, their photos are documents named by hash inside the work, and the product holds no
+  money and cannot stop a payment. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a snag is closed
+  with a photo or withdrawn with a reason, never deleted_ and _held money is shown as held, never as
+  due_. [`docs/RELEASE.md`](docs/RELEASE.md): raise snags with photos, fix one with a photo, try to
+  fix one without, withdraw one with a reason, watch a retention held and then earned, and read the
+  handover book's gaps and its before-and-after photos, in Portuguese. The glossary gains _snag_
+  (_pendência_) and _retention_ (_retenção_).

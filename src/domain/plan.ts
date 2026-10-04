@@ -142,9 +142,12 @@ export interface CostLine {
  * The fact of the work a milestone is earned by (slice D2): never a date, never a tick. `advance`:
  * the day the commitment was agreed (a "sinal", paid before any work); `stage_started`: the stage's
  * start gate passed; `activity_finished`: an effective diary entry finished the activity;
- * `stage_closed`: the close gate passed (a reopened stage un-earns it).
+ * `stage_closed`: the close gate passed (a reopened stage un-earns it); `retention` (slice E4, pt
+ * "retenção"): the stage closed **and** every snag of that stage on the commitment's person closed,
+ * earned on the later of the two days, never while one is open.
  */
-export type MilestoneTrigger = 'advance' | 'stage_started' | 'activity_finished' | 'stage_closed';
+export type MilestoneTrigger =
+  'advance' | 'stage_started' | 'activity_finished' | 'stage_closed' | 'retention';
 
 /**
  * One step of a commitment's payment plan (slice D2): a share of the commitment's amount, earned by
@@ -405,6 +408,172 @@ export interface CareNote {
   readonly createdAt: string;
 }
 
+/** Who asked for a change: the owner, a person of the plan, or somebody named on the record. */
+export type ChangeAskedBy = 'owner' | 'person' | 'other';
+
+/**
+ * What a change does to the plan (slice E1), as data the schedule can compute: an activity added to
+ * the change's stage, finish-to-start after `after` (or after nothing); an existing activity's
+ * duration; an activity dropped. Durations are whole working days, 1 to 3 650.
+ */
+export type ChangeEffect =
+  | {
+      readonly kind: 'add';
+      readonly name: string;
+      readonly durationDays: number;
+      readonly after: string | null;
+    }
+  | { readonly kind: 'duration'; readonly activityId: string; readonly durationDays: number }
+  | { readonly kind: 'remove'; readonly activityId: string };
+
+/** How a change order was decided. Once, for good. */
+export type ChangeOrderOutcome = 'approved' | 'declined' | 'withdrawn';
+
+/**
+ * The decision on a change order: insert-only, one per change. The impact is **frozen** here as it
+ * was computed the moment it was decided (the plan may move later for other reasons).
+ */
+export interface ChangeOrderDecision {
+  readonly outcome: ChangeOrderOutcome;
+  /** `YYYY-MM-DD`. */
+  readonly decidedOn: string;
+  readonly note: string | null;
+  /** The finish before the change, and with it, as the schedule said that day. */
+  readonly finishBefore: string | null;
+  readonly finishAfter: string | null;
+  /** Working days the change moved the finish, signed; `null` when it could not be counted. */
+  readonly daysDelta: number | null;
+  /** The change's money, copied from it; `null` when it was not priced. */
+  readonly costCents: number | null;
+  /** The replanning the approval opened or joined; `null` unless approved. */
+  readonly replanningId: string | null;
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+}
+
+/**
+ * A change order (slice E1, pt "aditivo"): somebody asked for the work to change, on the record, with
+ * a price and the effects the schedule computes. Insert-only: a mistake is withdrawn and raised again.
+ */
+export interface ChangeOrder {
+  readonly id: string;
+  /** 1, 2, 3 …: the order changes were raised in. */
+  readonly number: number;
+  /** `YYYY-MM-DD`. */
+  readonly raisedOn: string;
+  readonly title: string;
+  readonly description: string | null;
+  readonly askedBy: ChangeAskedBy;
+  /** Set exactly when `askedBy` is `person`; not a tie: a person removed leaves the record. */
+  readonly askedByPersonId: string | null;
+  /** Set exactly when `askedBy` is `other`. */
+  readonly askedByName: string | null;
+  /** The stage it lands in. */
+  readonly stageId: string;
+  /** Signed (a change can save money); `null` when not priced. */
+  readonly costCents: number | null;
+  readonly effects: readonly ChangeEffect[];
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+  /** `null` while it waits for a decision. */
+  readonly decision: ChangeOrderDecision | null;
+}
+
+/**
+ * Money the work expects to receive (slice E2, pt "recursos"): savings on hand, a loan's tranche, a
+ * client's instalment — from where, how much and on what day. Plan, not fact: editable like a
+ * commitment and never locked by approval (funding is not the plan's scope); the host removes one
+ * only while no receipt names it.
+ */
+export interface Funding {
+  readonly id: string;
+  /** Order among the funding rows. */
+  readonly position: number;
+  /** 1 to 200 characters, as the person wrote it. */
+  readonly label: string;
+  /** Where it comes from ("the bank", "my savings"), at most 200 characters; `null` when not said. */
+  readonly source: string | null;
+  /** Above zero, whole cents. */
+  readonly amountCents: number;
+  /** `YYYY-MM-DD`: the day it is expected. */
+  readonly expectedOn: string;
+  readonly note: string | null;
+}
+
+/**
+ * Money received: one row of the receipts ledger (slice E2), append-only exactly as the payments
+ * ledger is. A fact: never edited; a mistake is a new receipt that reverses it, the only kind whose
+ * amount is negative.
+ */
+export interface FundingReceipt {
+  /** 1, 2, 3 …: the order receipts were recorded in. */
+  readonly seq: number;
+  /** The funding row it was expected as; `null` for money that arrived unplanned. */
+  readonly fundingId: string | null;
+  /** Above zero; below zero only for a reversal. */
+  readonly amountCents: number;
+  /** `YYYY-MM-DD`, never in the future. */
+  readonly day: string;
+  readonly note: string | null;
+  /** The seq of the receipt this one reverses; `null` for an ordinary receipt. */
+  readonly reversesSeq: number | null;
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+}
+
+/** How a snag was closed (slice E4): `fixed`, with a photo of it fixed; `withdrawn`, with a reason. */
+export type SnagOutcome = 'fixed' | 'withdrawn';
+
+/**
+ * The closure of a snag: insert-only, one per snag, a fact. `fixed` always carries a photo (the
+ * host refuses one without); `withdrawn` always carries a note, the reason.
+ */
+export interface SnagClosure {
+  readonly outcome: SnagOutcome;
+  /** `YYYY-MM-DD`, never before the snag was raised. */
+  readonly closedOn: string;
+  /** The photo of it fixed, by the hash of a document of the work; `null` for a withdrawal. */
+  readonly photoHash: string | null;
+  readonly note: string | null;
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+}
+
+/**
+ * A snag (slice E4, pt "pendência"): a defect or a pending item found near the end, written down
+ * with where it is, who must fix it, a day it is due and a photo of the problem. Insert-only: a
+ * snag raised by mistake is withdrawn, never deleted; one found again after its fix is a new snag.
+ * None of its ids is a tie: a stage, activity or person removed leaves the record.
+ */
+export interface Snag {
+  readonly id: string;
+  /** 1, 2, 3 …: the order snags were raised in. */
+  readonly number: number;
+  readonly title: string;
+  readonly description: string | null;
+  /** Where it is: a stage, always (a closed one too: snags are found after closing). */
+  readonly stageId: string;
+  /** And, optionally, one of its activities. */
+  readonly activityId: string | null;
+  /** Who must fix it: a person of the plan; `null` when nobody is named. */
+  readonly personId: string | null;
+  /** `YYYY-MM-DD`. */
+  readonly raisedOn: string;
+  /** `YYYY-MM-DD`, never before `raisedOn`; `null` when no day was said. */
+  readonly dueOn: string | null;
+  /** The photo of the problem, by the hash of a document of the work; `null` when none. */
+  readonly photoHash: string | null;
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+  /** `null` while it is open. */
+  readonly closure: SnagClosure | null;
+}
+
 /** The whole plan of one work, as `work_get` returns it. */
 export interface WorkSnapshot {
   readonly work: Work;
@@ -427,6 +596,14 @@ export interface WorkSnapshot {
   readonly documents: readonly Document[];
   /** Every care note of the work, any target (slice D3). */
   readonly careNotes: readonly CareNote[];
+  /** Every change order of the work, each with its decision or `null` (slice E1). */
+  readonly changeOrders: readonly ChangeOrder[];
+  /** Every funding row of the work, by position (slice E2). */
+  readonly funding: readonly Funding[];
+  /** The receipts ledger, by seq, reversals included (slice E2). */
+  readonly fundingReceipts: readonly FundingReceipt[];
+  /** Every snag of the work, by number, each with its closure or `null` (slice E4). */
+  readonly snags: readonly Snag[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────

@@ -58,6 +58,15 @@ import {
   calendarSet,
   careNoteAdd,
   careNoteMove,
+  changeOrderDecide,
+  changeOrderRaise,
+  snagClose,
+  snagRaise,
+  fundingAdd,
+  fundingReceiptAdd,
+  fundingReceiptReverse,
+  fundingRemove,
+  fundingUpdate,
   careNoteRemove,
   careNoteUpdate,
   checkAdd,
@@ -130,6 +139,12 @@ import {
   type BaselineRowDraft,
   type CalendarDraft,
   type CareNoteTarget,
+  type ChangeOrderDecisionDraft,
+  type ChangeOrderDraft,
+  type SnagClosureDraft,
+  type SnagDraft,
+  type FundingDraft,
+  type FundingReceiptDraft,
   type DecisionPatch,
   type EntryDraft,
   type Gate,
@@ -603,6 +618,50 @@ export function useUpdateCareNote() {
 
 export function useRemoveCareNote() {
   return useWorkCommand((id: string) => careNoteRemove(id));
+}
+
+// ── Change orders (E1) ───────────────────────────────────────────────────────
+
+export function useRaiseChange() {
+  return useWorkCommand((draft: ChangeOrderDraft) => changeOrderRaise(draft));
+}
+
+export function useDecideChange() {
+  return useWorkCommand((decision: ChangeOrderDecisionDraft) => changeOrderDecide(decision));
+}
+
+// ── Snags (E4) ───────────────────────────────────────────────────────────────
+
+export function useRaiseSnag() {
+  return useWorkCommand((draft: SnagDraft) => snagRaise(draft));
+}
+
+export function useCloseSnag() {
+  return useWorkCommand((closure: SnagClosureDraft) => snagClose(closure));
+}
+
+// ── Funding and money received (E2) ──────────────────────────────────────────
+
+export function useAddFunding() {
+  return useWorkCommand((draft: FundingDraft) => fundingAdd(draft));
+}
+
+export function useUpdateFunding() {
+  return useWorkCommand((draft: FundingDraft & { id: string }) => fundingUpdate(draft));
+}
+
+export function useRemoveFunding() {
+  return useWorkCommand((id: string) => fundingRemove(id));
+}
+
+export function useAddReceipt() {
+  return useWorkCommand((draft: FundingReceiptDraft) => fundingReceiptAdd(draft));
+}
+
+export function useReverseReceipt() {
+  return useWorkCommand(({ seq, day }: { seq: number; day: string }) =>
+    fundingReceiptReverse(seq, day),
+  );
 }
 
 // ── People and money (F6) ────────────────────────────────────────────────────

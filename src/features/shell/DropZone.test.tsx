@@ -200,6 +200,26 @@ describe('dropping files on the window', () => {
     );
   });
 
+  it('takes a photo for the snag being raised or fixed on the Plan, and says so while hovering', async () => {
+    const onDrop = vi.fn();
+    render('plan', { target: { place: 'snag', onDrop } });
+    await settle();
+    fire({ type: 'enter', paths: [PHOTO] });
+    expect(find('drop-hint')?.textContent).toContain('Drop to use this photo for the snag.');
+    fire({ type: 'drop', paths: [PHOTO, FOLDER] });
+    expect(onDrop).toHaveBeenCalledWith([PHOTO], ['Week 1']);
+    expect(find('drop-status')).toBeNull();
+  });
+
+  it('says on the Plan, with no snag open, where a photo goes — and takes nothing', async () => {
+    render('plan', { language: 'pt-BR' });
+    await settle();
+    fire({ type: 'enter', paths: [PHOTO] });
+    expect(find('drop-hint')?.textContent).toContain('Abra Anotar uma pendência…');
+    fire({ type: 'drop', paths: [PHOTO] });
+    expect(find('drop-status')?.textContent).toContain('na aba Pendências');
+  });
+
   it('stops listening when the shell goes', async () => {
     render('diary');
     await settle();

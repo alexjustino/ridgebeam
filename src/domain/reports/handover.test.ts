@@ -7,6 +7,8 @@ import {
   entry,
   finished,
   person,
+  snag,
+  snagClosure,
   snapshot,
   stage,
   worked,
@@ -632,7 +634,7 @@ describe('what the book still lacks', () => {
     expect(gaps.value).toBe(7);
     expect(gaps.rows[2]!.messageKey).toBe('reports.handover.gap.hiddenUnanswered');
     expect(traceable(gaps)).toBe(true);
-    expect(Object.keys(HANDOVER_GAP_KEYS)).toHaveLength(6);
+    expect(Object.keys(HANDOVER_GAP_KEYS)).toHaveLength(7);
     // The same figure the book carries.
     expect(handover(plan, []).gaps).toEqual(gaps);
   });
@@ -741,5 +743,123 @@ describe('the handover book, on ties and odd rows', () => {
     expect(book.sections[0]!.stages).toEqual([]);
     // Present, but the entry names no stage the plan has: no stage worked.
     expect(book.people[0]!.stages).toEqual([]);
+  });
+});
+
+// ── Snags (slice E4) ─────────────────────────────────────────────────────────
+
+describe('snags in the book', () => {
+  const closedAt = '2026-09-20T17:00:00.000Z';
+  const fixed = (closedOn: string, label: string) => snagClosure('fixed', closedOn, h(label));
+  const SNAGGY = snapshot({
+    stages: [
+      { ...stage('s', 1, 'Wet areas'), startedAt: '2026-09-01T08:00:00.000Z', closedAt },
+      { ...stage('t', 2, 'Painting'), startedAt: '2026-09-01T08:00:00.000Z', closedAt },
+    ],
+    activities: [{ ...activity('a', 's', 1, 2), name: 'Lay the tiles' }, activity('b', 't', 1, 2)],
+    people: [person('tiler', 'Tiler')],
+    documents: [
+      document('before'),
+      document('after'),
+      document('wall-after'),
+      pdf('a-pdf', 'other'),
+    ],
+    snags: [
+      snag('open-2', 4, 's', { personId: 'tiler', dueOn: '2026-09-30' }),
+      snag('fix-a', 1, 's', {
+        activityId: 'a',
+        personId: 'tiler',
+        photoHash: h('before'),
+        closure: fixed('2026-09-24', 'after'),
+      }),
+      snag('out', 2, 's', { closure: snagClosure('withdrawn', '2026-09-22') }),
+      snag('open-1', 3, 't'),
+      snag('fix-t', 5, 't', { closure: fixed('2026-09-25', 'wall-after') }),
+      snag('fix-pdf', 6, 't', { photoHash: h('a-pdf'), closure: fixed('2026-09-25', 'gone') }),
+    ],
+  });
+
+  it('lists every open snag as still to fix, by number, after the stages', () => {
+    const gaps = handoverGaps(SNAGGY, []);
+    const snagGaps = gaps.rows.filter((row) => row.kind === 'snag-open');
+    expect(snagGaps.map((row) => [row.key, row.itemId, row.title, row.day])).toEqual([
+      ['snag-open:open-1', 'open-1', 'Snag open-1', null],
+      ['snag-open:open-2', 'open-2', 'Snag open-2', '2026-09-30'],
+    ]);
+    expect(snagGaps[0]!.messageKey).toBe(HANDOVER_GAP_KEYS['snag-open']);
+    expect(HANDOVER_GAP_KEYS['snag-open']).toBe('reports.handover.gap.snagOpen');
+    expect(traceable(gaps)).toBe(true);
+    expect(handover(SNAGGY, []).gaps).toEqual(gaps);
+  });
+
+  it('has no snag gap once every snag is closed', () => {
+    const closed = { ...SNAGGY, snags: SNAGGY.snags.filter((each) => each.closure !== null) };
+    expect(handoverGaps(closed, []).rows.some((row) => row.kind === 'snag-open')).toBe(false);
+  });
+
+  it('prints each fixed snag in its stage’s section with both photos, never a withdrawn one', () => {
+    const book = handover(SNAGGY, []);
+    const [wet, paint] = book.sections;
+    expect(wet!.snagsFixed).toEqual([
+      {
+        snagId: 'fix-a',
+        number: 1,
+        title: 'Snag fix-a',
+        description: null,
+        stageId: 's',
+        stageName: 'Wet areas',
+        activityId: 'a',
+        activityName: 'Lay the tiles',
+        personId: 'tiler',
+        personName: 'Tiler',
+        raisedOn: '2026-09-21',
+        closedOn: '2026-09-24',
+        before: { photoHash: h('before'), fileName: 'before.jpg' },
+        after: { photoHash: h('after'), fileName: 'after.jpg' },
+        note: null,
+      },
+    ]);
+    // No photo of the problem; one the work does not hold as an image is left out, never asked for.
+    expect(paint!.snagsFixed.map((row) => [row.snagId, row.before, row.after])).toEqual([
+      ['fix-t', null, { photoHash: h('wall-after'), fileName: 'wall-after.jpg' }],
+      ['fix-pdf', null, null],
+    ]);
+  });
+
+  it('does not show a snag’s photos again among the diary photos', () => {
+    const entries = [
+      entry(1, '2026-09-24', { done: [finished('a')], photos: [photo('after'), photo('kept')] }),
+    ];
+    const plan = { ...SNAGGY, documents: [...SNAGGY.documents, document('kept')] };
+    const wet = handover(plan, entries).sections[0]!;
+    expect(wet.photos.map((each) => each.photoHash)).toEqual([h('kept')]);
+  });
+
+  it('puts a snag with an activity where the activity is, one without in every section of its stage', () => {
+    const roomed: WorkSnapshot = {
+      ...SNAGGY,
+      rooms: [
+        { id: 'bath', position: 1, name: 'Bathroom' },
+        { id: 'hall', position: 2, name: 'Hall' },
+      ],
+      activities: [
+        { ...activity('a', 's', 1, 2), roomIds: ['bath'] },
+        { ...activity('a2', 's', 2, 2), roomIds: ['hall'] },
+        activity('b', 't', 1, 2),
+      ],
+      snags: [
+        snag('on-a', 1, 's', { activityId: 'a', closure: fixed('2026-09-24', 'after') }),
+        snag('on-stage', 2, 's', { closure: fixed('2026-09-24', 'wall-after') }),
+      ],
+    };
+    const book = handover(roomed, []);
+    expect(book.by).toBe('room');
+    expect(
+      book.sections.map((each) => [each.key, each.snagsFixed.map((row) => row.snagId)]),
+    ).toEqual([
+      ['room:bath', ['on-a', 'on-stage']],
+      ['room:hall', ['on-stage']],
+      ['other', []],
+    ]);
   });
 });

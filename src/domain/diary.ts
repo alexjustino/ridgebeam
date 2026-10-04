@@ -3,7 +3,8 @@
  *
  * **The plan is intent; the diary is fact.** Nobody types progress. An entry says, for one day,
  * which activities were worked on or finished (and how much), who was on site, the weather,
- * deliveries, incidents, visitors, hours, photos; and progress, actual dates, days lost to weather
+ * deliveries, incidents, visitors, hours, photos, and on a day no work was possible, why and on
+ * whose account when the entry says (slice E3); and progress, actual dates, days lost to weather
  * and days nobody wrote anything are all worked out here, from the entries.
  *
  * **An entry is never edited: it is corrected.** A correction is a new entry that names the one it
@@ -38,6 +39,32 @@ import {
 
 export const WEATHER = ['sun', 'cloud', 'rain', 'storm', 'wind', 'other'] as const;
 export type Weather = (typeof WEATHER)[number];
+
+/**
+ * Why no work was possible on a lost day (slice E3): what the diary's "Why?" offers. The host
+ * stores the same words (`diary_entry.lost_cause`, migration 015) and refuses any other.
+ */
+export const LOST_CAUSES = [
+  'weather',
+  'decision',
+  'absence',
+  'material',
+  'owner',
+  'access',
+  'other',
+] as const;
+export type LostCause = (typeof LOST_CAUSES)[number];
+
+/** How the interface names each cause, in the person's language. */
+export const LOST_CAUSE_KEYS = {
+  weather: 'diary.lostCause.weather',
+  decision: 'diary.lostCause.decision',
+  absence: 'diary.lostCause.absence',
+  material: 'diary.lostCause.material',
+  owner: 'diary.lostCause.owner',
+  access: 'diary.lostCause.access',
+  other: 'diary.lostCause.other',
+} as const satisfies Record<LostCause, string>;
 
 /** What an entry says of one activity: it was worked on that day, or finished. */
 export type DoneState = 'worked' | 'finished';
@@ -76,6 +103,16 @@ export interface DiaryEntry {
   readonly weather: Weather | null;
   /** No work was possible that day. */
   readonly lostDay: boolean;
+  /**
+   * Why no work was possible, when the entry says (slice E3); `null` when it does not, and always
+   * `null` on a day that was not lost.
+   */
+  readonly lostCause: LostCause | null;
+  /**
+   * Who the lost day is put down to, when the entry names somebody: a person of the plan when it
+   * was written. Not a tie: a person removed later leaves the record. `null` without a cause.
+   */
+  readonly lostPartyPersonId: string | null;
   readonly hours: number | null;
   readonly deliveries: string | null;
   readonly incidents: string | null;
@@ -100,6 +137,10 @@ export interface EntryDraft {
   readonly note: string | null;
   readonly weather: Weather | null;
   readonly lostDay: boolean;
+  /** Only with `lostDay`; `null` when no cause is said. */
+  readonly lostCause: LostCause | null;
+  /** Only with a cause; a person of the plan. */
+  readonly lostPartyPersonId: string | null;
   readonly hours: number | null;
   readonly deliveries: string | null;
   readonly incidents: string | null;
@@ -393,6 +434,10 @@ export type DraftProblem =
   | { readonly code: 'worked-and-finished'; readonly activityId: string }
   | { readonly code: 'duplicate-activity'; readonly activityId: string }
   | { readonly code: 'invalid-weather' }
+  | { readonly code: 'invalid-cause' }
+  | { readonly code: 'cause-without-lost-day' }
+  | { readonly code: 'party-without-cause' }
+  | { readonly code: 'unknown-party'; readonly personId: string }
   | { readonly code: 'invalid-hours' }
   | { readonly code: 'too-long'; readonly field: string };
 
@@ -406,8 +451,10 @@ const LIMITS = { note: 4000, deliveries: 2000, incidents: 2000, visitors: 2000, 
  * Refused: a day that is not a day, or is after today; a done line or a person that is not in the
  * plan; a correction that names nothing, or a seq the diary does not have, or has no note saying
  * what was wrong; an entry that names a seq; a negative quantity; one activity said twice in one
- * entry (worked and finished at once is the named case); an unknown weather; hours outside 0–24;
- * text over its limit. A second entry on a day that has one is not a problem: it is added and
+ * entry (worked and finished at once is the named case); an unknown weather; a cause for a lost day
+ * that is not one of `LOST_CAUSES`, or given on a day that was not lost; somebody the day is put
+ * down to without a cause, or who is not a person of the plan; hours outside 0–24; text over its
+ * limit. A second entry on a day that has one is not a problem: it is added and
  * ordered after it. There is no replacement.
  */
 export function validateDraft(
@@ -460,6 +507,18 @@ export function validateDraft(
 
   if (draft.weather !== null && !(WEATHER as readonly string[]).includes(draft.weather)) {
     problems.push({ code: 'invalid-weather' });
+  }
+  if (draft.lostCause !== null) {
+    if (!(LOST_CAUSES as readonly string[]).includes(draft.lostCause)) {
+      problems.push({ code: 'invalid-cause' });
+    }
+    if (!draft.lostDay) problems.push({ code: 'cause-without-lost-day' });
+  }
+  if (draft.lostPartyPersonId !== null) {
+    if (draft.lostCause === null) problems.push({ code: 'party-without-cause' });
+    if (!personIds.has(draft.lostPartyPersonId)) {
+      problems.push({ code: 'unknown-party', personId: draft.lostPartyPersonId });
+    }
   }
   if (draft.hours !== null && !(draft.hours >= 0 && draft.hours <= 24)) {
     problems.push({ code: 'invalid-hours' });

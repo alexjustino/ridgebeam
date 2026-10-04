@@ -24,8 +24,11 @@ import type { Destination } from './destinations';
 import { routeDrop, type DropPlace, type DropRoute } from './drop';
 import { DropContext, type DropHandler, type DropRegistry } from './dropTarget';
 
-/** Why a drop was not taken anywhere, kept until it is dismissed or the screen changes. */
-type Notice = 'no-work' | 'elsewhere';
+/**
+ * Why a drop was not taken anywhere, kept until it is dismissed or the screen changes. `no-snag`: the
+ * Plan takes a photo only for a snag being raised or fixed, and none is open (E4).
+ */
+type Notice = 'no-work' | 'elsewhere' | 'no-snag';
 
 const NoticeContext = createContext<{ notice: Notice | null; dismiss: () => void }>({
   notice: null,
@@ -34,23 +37,34 @@ const NoticeContext = createContext<{ notice: Notice | null; dismiss: () => void
 
 /** The sentence that says where files can be dropped, for a drop that was taken nowhere. */
 function nowhereText({ t }: I18n, why: Notice): string {
+  if (why === 'no-snag') return t('drop.noSnag');
   const places = { diary: t('nav.diary'), documents: t('nav.documents') };
   return t(why === 'no-work' ? 'drop.noWork' : 'drop.elsewhere', places);
 }
+
+const HINT_KEYS = {
+  diary: 'drop.hint.diary',
+  documents: 'drop.hint.documents',
+  snag: 'drop.hint.snag',
+} as const satisfies Record<DropPlace, string>;
 
 /** What the overlay says a drop would do here, in one or two sentences. */
 function hintText(
   i18n: I18n,
   route: DropRoute,
+  placed: (place: DropPlace) => boolean,
 ): { takes: boolean; main: string; left: string | null } {
   const { t, tp } = i18n;
   if (route.kind === 'nowhere') {
     return { takes: false, main: nowhereText(i18n, route.why), left: null };
   }
+  // A snag's photo field is on screen only while a snag is raised or fixed: otherwise the Plan
+  // takes nothing, and the overlay says where to go rather than promising a drop it will refuse.
+  if (route.place === 'snag' && !placed('snag')) {
+    return { takes: false, main: nowhereText(i18n, 'no-snag'), left: null };
+  }
   const main =
-    route.taken.length === 0
-      ? t('drop.hint.none')
-      : tp(route.place === 'diary' ? 'drop.hint.diary' : 'drop.hint.documents', route.taken.length);
+    route.taken.length === 0 ? t('drop.hint.none') : tp(HINT_KEYS[route.place], route.taken.length);
   const left =
     route.refused.length === 0
       ? null
@@ -79,19 +93,29 @@ export function DropZone({
   children: ReactNode;
 }) {
   const i18n = useI18n();
-  const handlers = useRef(new Map<DropPlace, DropHandler>());
+  // Each place keeps the handlers on screen in the order they came; the latest takes a drop — a
+  // dialog opened over a form takes it while open, and the form takes it again once it closes.
+  const handlers = useRef(new Map<DropPlace, DropHandler[]>());
   const registry = useMemo<DropRegistry>(
     () => ({
       register: (place, handler) => {
-        handlers.current.set(place, handler);
+        handlers.current.set(place, [...(handlers.current.get(place) ?? []), handler]);
         return () => {
-          if (handlers.current.get(place) === handler) handlers.current.delete(place);
+          const left = (handlers.current.get(place) ?? []).filter((each) => each !== handler);
+          if (left.length === 0) handlers.current.delete(place);
+          else handlers.current.set(place, left);
         };
       },
     }),
     [],
   );
-  const [hovering, setHovering] = useState<readonly string[] | null>(null);
+  const handlerOf = (place: DropPlace): DropHandler | undefined =>
+    handlers.current.get(place)?.at(-1);
+  // The paths over the window, and the places on screen as they stood when the files came in.
+  const [hovering, setHovering] = useState<{
+    paths: readonly string[];
+    placed: ReadonlySet<DropPlace>;
+  } | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const dismiss = useCallback(() => setNotice(null), []);
 
@@ -107,13 +131,15 @@ export function DropZone({
   useEffect(() => {
     drop.current = (paths) => {
       const route = routeDrop({ destination, workOpen, paths });
-      const handler = route.kind === 'take' ? handlers.current.get(route.place) : undefined;
+      const handler = route.kind === 'take' ? handlerOf(route.place) : undefined;
       if (route.kind === 'take' && handler !== undefined) {
         handler(route.taken, route.refused);
         return;
       }
-      // A place that is not on screen yet — the diary still being read — takes nothing either.
-      const why: Notice = route.kind === 'nowhere' ? route.why : 'elsewhere';
+      // A place that is not on screen yet — the diary still being read, no snag being raised or
+      // fixed — takes nothing either.
+      const why: Notice =
+        route.kind === 'nowhere' ? route.why : route.place === 'snag' ? 'no-snag' : 'elsewhere';
       setNotice(why);
       announce(nowhereText(i18n, why));
     };
@@ -133,7 +159,7 @@ export function DropZone({
         const payload = event.payload;
         if (payload.type === 'enter') {
           setNotice(null);
-          setHovering(payload.paths);
+          setHovering({ paths: payload.paths, placed: new Set(handlers.current.keys()) });
         } else if (payload.type === 'leave') {
           setHovering(null);
         } else if (payload.type === 'drop') {
@@ -155,7 +181,9 @@ export function DropZone({
   const hint =
     hovering === null
       ? null
-      : hintText(i18n, routeDrop({ destination, workOpen, paths: hovering }));
+      : hintText(i18n, routeDrop({ destination, workOpen, paths: hovering.paths }), (place) =>
+          hovering.placed.has(place),
+        );
 
   return (
     <DropContext.Provider value={registry}>

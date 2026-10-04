@@ -37,7 +37,9 @@ export const TERM_KEYS = [
   'criticalPath',
   'baseline',
   'slip',
+  'forecast',
   'replanning',
+  'changeOrder',
   'reason',
   'whatIf',
   'decision',
@@ -57,6 +59,7 @@ export const TERM_KEYS = [
   'commitment',
   'milestone',
   'advance',
+  'funding',
   'trade',
   'document',
   'entry',
@@ -67,6 +70,8 @@ export const TERM_KEYS = [
   'handoverBook',
   'careNote',
   'snapshot',
+  'snag',
+  'retention',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];

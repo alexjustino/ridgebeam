@@ -126,6 +126,83 @@ export function network(ids: readonly string[], edges: readonly Edge[]): Network
   return { ids, graph, ordered, cyclic };
 }
 
+/** Where an activity lies, in working-day offsets: its first day, and the day just after its last. */
+export interface Span {
+  readonly start: number;
+  readonly finish: number;
+}
+
+/**
+ * The forward pass over a network: every activity, in topological order, given the earliest offset
+ * its blockers allow (the largest `finish(blocker) + lagDays`, and 0 when nothing blocks it), and
+ * placed by `place`. The plan places it there for its duration; the forecast (`forecast.ts`, slice
+ * E3) places what the diary says happened where it happened. One pass, two readings, so the two
+ * cannot disagree about what comes first.
+ */
+export function forwardPass(
+  net: Network,
+  place: (id: string, earliest: number) => Span,
+): Map<string, Span> {
+  const spans = new Map<string, Span>();
+  for (const id of net.ordered) {
+    let earliest = 0;
+    for (const edge of edgesInto(net.graph, id)) {
+      earliest = Math.max(earliest, (spans.get(edge.blockerId)?.finish ?? 0) + edge.lagDays);
+    }
+    spans.set(id, place(id, earliest));
+  }
+  return spans;
+}
+
+/** What the backward pass makes of a forward one. */
+export interface Settled {
+  readonly timing: Map<string, Timing>;
+  readonly critical: Set<string>;
+  readonly longestChain: string[];
+}
+
+/**
+ * The backward pass over placed spans, and what follows from it: every activity's latest start and
+ * finish, its slack, which activities are critical, and one longest chain through them. `end` is the
+ * offset the last activities must finish by. Each activity keeps the span it was placed with: its
+ * duration here is `finish − start`.
+ */
+export function settle(net: Network, spans: ReadonlyMap<string, Span>, end: number): Settled {
+  const { graph, ordered } = net;
+  const latestFinish = new Map<string, number>();
+  const latestStart = new Map<string, number>();
+
+  for (let index = ordered.length - 1; index >= 0; index -= 1) {
+    const id = ordered[index]!;
+    const span = spans.get(id)!;
+    let finish = end;
+    for (const edge of edgesOut(graph, id)) {
+      finish = Math.min(finish, (latestStart.get(edge.blockedId) ?? end) - edge.lagDays);
+    }
+    latestFinish.set(id, finish);
+    latestStart.set(id, finish - (span.finish - span.start));
+  }
+
+  const timing = new Map<string, Timing>();
+  const critical = new Set<string>();
+  for (const id of net.ids) {
+    const span = spans.get(id)!;
+    const slack = latestStart.get(id)! - span.start;
+    const isCritical = slack === 0;
+    if (isCritical) critical.add(id);
+    timing.set(id, {
+      earliestStart: span.start,
+      earliestFinish: span.finish,
+      latestStart: latestStart.get(id)!,
+      latestFinish: latestFinish.get(id)!,
+      slack,
+      critical: isCritical,
+      durationDays: span.finish - span.start,
+    });
+  }
+  return { timing, critical, longestChain: chainThrough(ordered, graph, critical, timing) };
+}
+
 /**
  * Compute the plan.
  *
@@ -135,56 +212,24 @@ export function network(ids: readonly string[], edges: readonly Edge[]): Network
  * the edge list per activity.
  */
 export function plan(activities: readonly Planned[], edges: readonly Edge[]): Plan {
-  const ids = activities.map((activity) => activity.id);
-  const { graph, ordered, cyclic } = network(ids, edges);
+  const net = network(
+    activities.map((activity) => activity.id),
+    edges,
+  );
 
   const duration = new Map(activities.map((activity) => [activity.id, durationOf(activity)]));
-  const earliestStart = new Map<string, number>();
-  const earliestFinish = new Map<string, number>();
 
   // ── Forward ──────────────────────────────────────────────────────────────
-  for (const id of ordered) {
-    let start = 0;
-    for (const edge of edgesInto(graph, id)) {
-      start = Math.max(start, (earliestFinish.get(edge.blockerId) ?? 0) + edge.lagDays);
-    }
-    earliestStart.set(id, start);
-    earliestFinish.set(id, start + duration.get(id)!);
-  }
+  const spans = forwardPass(net, (id, earliest) => ({
+    start: earliest,
+    finish: earliest + duration.get(id)!,
+  }));
 
   let durationDays = 0;
-  for (const finish of earliestFinish.values()) durationDays = Math.max(durationDays, finish);
+  for (const span of spans.values()) durationDays = Math.max(durationDays, span.finish);
 
   // ── Backward ─────────────────────────────────────────────────────────────
-  const latestFinish = new Map<string, number>();
-  const latestStart = new Map<string, number>();
-
-  for (let index = ordered.length - 1; index >= 0; index -= 1) {
-    const id = ordered[index]!;
-    let finish = durationDays;
-    for (const edge of edgesOut(graph, id)) {
-      finish = Math.min(finish, (latestStart.get(edge.blockedId) ?? durationDays) - edge.lagDays);
-    }
-    latestFinish.set(id, finish);
-    latestStart.set(id, finish - duration.get(id)!);
-  }
-
-  const timing = new Map<string, Timing>();
-  const critical = new Set<string>();
-  for (const id of ids) {
-    const slack = latestStart.get(id)! - earliestStart.get(id)!;
-    const isCritical = slack === 0;
-    if (isCritical) critical.add(id);
-    timing.set(id, {
-      earliestStart: earliestStart.get(id)!,
-      earliestFinish: earliestFinish.get(id)!,
-      latestStart: latestStart.get(id)!,
-      latestFinish: latestFinish.get(id)!,
-      slack,
-      critical: isCritical,
-      durationDays: duration.get(id)!,
-    });
-  }
+  const { timing, critical, longestChain } = settle(net, spans, durationDays);
 
   const byId = new Map(activities.map((activity) => [activity.id, activity]));
   const withDuration = activities.filter(
@@ -196,7 +241,7 @@ export function plan(activities: readonly Planned[], edges: readonly Edge[]): Pl
     timing,
     durationDays,
     critical,
-    longestChain: unplanned ? [] : chainThrough(ordered, graph, critical, timing),
+    longestChain: unplanned ? [] : longestChain,
     withDuration,
     noDurationOnPath: unplanned
       ? []
@@ -205,7 +250,7 @@ export function plan(activities: readonly Planned[], edges: readonly Edge[]): Pl
           return !activity.isMilestone && knownDuration(activity) === null;
         }),
     unplanned,
-    cyclic,
+    cyclic: net.cyclic,
   };
 }
 

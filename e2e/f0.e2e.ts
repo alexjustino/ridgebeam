@@ -146,7 +146,7 @@ describe('F0 — a work, one stage, one activity, and what the plan does not kno
     await chooseLanguage(session, 'English');
   });
 
-  it('reaches 100 % once a responsible is named and the checks are defined — and nothing on the plan sets progress', async () => {
+  it('reaches 100 % once a responsible is named, the checks are defined and the money has a source — and nothing on the plan sets progress', async () => {
     const { driver } = session;
     await go(session, 'plan');
     await (
@@ -162,6 +162,23 @@ describe('F0 — a work, one stage, one activity, and what the plan does not kno
     await setValue(session, 'stage-cost-line-add-amount', '800');
     await click(session, 'stage-cost-line-add');
     await driver.waitForElement('[data-cost-line-id]');
+    // Where that money comes from (E2): one fund. Money planned with no fund written down is
+    // something the plan does not know.
+    await go(session, 'money');
+    await (await driver.waitForElement('[data-testid="money-tabs"] [data-tab="funding"]')).click();
+    const now = new Date();
+    const today = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+      .map((part, index) => (index === 0 ? String(part) : String(part).padStart(2, '0')))
+      .join('-');
+    await setValue(session, 'funding-label', 'Savings');
+    await setValue(session, 'funding-amount', '800');
+    await setValue(session, 'funding-expected', today);
+    await click(session, 'funding-add');
+    await driver.waitForElement('[data-funding-id]');
+    await go(session, 'plan');
+    await (
+      await session.driver.waitForElement('[data-testid="plan-tabs"] [data-tab="breakdown"]')
+    ).click();
     await setValue(session, 'person-add-name', 'A. Tiler');
     await click(session, 'person-add');
     await driver.waitFor('the person in the select', async () => {

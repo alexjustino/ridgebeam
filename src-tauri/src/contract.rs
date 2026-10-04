@@ -83,6 +83,40 @@
 //! - D4: the owner's snapshot. No new shape: `report_html_write` takes the
 //!   same `ReportDocument`, of the new kind `snapshot`, and answers
 //!   `WrittenFile` without `pages` (`{ path, bytes }`).
+//! - E1: change orders (`ChangeOrder`, `ChangeOrderDecision`, `ChangeEffect`;
+//!   `WorkSnapshot.changeOrders`, by number, each with its decision or
+//!   `null`); `ChangeOrderDraft` (with `ChangeEffectDraft`, an effect as the
+//!   interface sends it) for `change_order_raise`, `ChangeOrderDecisionDraft`
+//!   for `change_order_decide`. An effect is tagged by `kind` — `add`,
+//!   `duration`, `remove` — and its fields are camelCase. Amounts are signed
+//!   whole minor units (`costCents`, `null` when not priced); days are working
+//!   days. The impact on the finish is not computed here: it is the domain's,
+//!   sent with the decision and kept as the fact of that moment.
+//! - E2: funding — where the money comes from (`Funding`, by position;
+//!   `FundingReceipt`, the money received, by `seq`; `WorkSnapshot.funding`,
+//!   `WorkSnapshot.fundingReceipts`); `FundingDraft` for `funding_add` and
+//!   `funding_update` (written whole: `null` clears `source` and `note`),
+//!   `FundingReceiptDraft` for `funding_receipt_add`. A receipt is a fact:
+//!   a reversal is the negative of the receipt it reverses, naming it by
+//!   `reversesSeq`. Whether the money lasts is not here: it is the domain's,
+//!   computed every time.
+//! - E3: why a day was lost. `DiaryEntry.lostCause` — `weather`, `decision`,
+//!   `absence`, `material`, `owner`, `access` or `other`, `null` when none was
+//!   given — and `DiaryEntry.lostPartyPersonId`, the person the day is put
+//!   down to, `null` when nobody was named; both `null` for every entry
+//!   written before E3. `EntryDraft` gains the same two, optional (left out is
+//!   `null`): a cause only on a lost day, a person only with a cause. A cause
+//!   is changed by a correction, as everything in the diary. The forecast and
+//!   the delay ledger are not here: they are the domain's, computed every time.
+//! - E4: snags (`Snag`, `SnagClosure`; `WorkSnapshot.snags`, by number, each
+//!   with its closure or `null` while open); `SnagDraft` for `snag_raise`,
+//!   `SnagClosureDraft` for `snag_close`. A closure is `fixed` — always with
+//!   a photo — or `withdrawn` — always with a note. Photos cross by
+//!   `photoHash`, the SHA-256 of an image document of the work, never by a
+//!   path. A payment milestone may be earned by `retention`
+//!   (`Milestone.trigger`), naming no activity. Whether a snag is overdue and
+//!   whether a retention is held or earned are not here: they are the
+//!   domain's, computed every time.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -379,6 +413,303 @@ pub struct WorkSnapshot {
     /// Care notes (D3): the work's first, then each room's in the rooms'
     /// order, then each stage's in the stages' order; by position within each.
     pub care_notes: Vec<CareNote>,
+    /// Change orders (E1), by number, each with its decision or `null` while
+    /// it waits for one. Empty before the plan is approved: there are none.
+    pub change_orders: Vec<ChangeOrder>,
+    /// Where the money comes from (E2): the funds expected, by position.
+    pub funding: Vec<Funding>,
+    /// The money received (E2): the ledger, by `seq` — reversals included,
+    /// as they were written.
+    pub funding_receipts: Vec<FundingReceipt>,
+    /// Snags (E4), by number, each with its closure or `null` while it is
+    /// open.
+    pub snags: Vec<Snag>,
+}
+
+/// A snag (E4, pt "pendência"): a defect or a pending item found near the
+/// end, on record — where it is, who must fix it, when it is due, a photo of
+/// it. Insert-only: a snag raised by mistake is withdrawn, never deleted.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct Snag {
+    /// UUID v7.
+    pub id: String,
+    /// 1, 2, 3 … for the whole work, in the order raised.
+    pub number: i64,
+    /// What is wrong, 1 to 200 characters.
+    pub title: String,
+    /// More words, up to 2000 characters; `null` when none.
+    pub description: Option<String>,
+    /// The stage it is in. Not a tie: a stage removed later leaves the record
+    /// as it was.
+    pub stage_id: String,
+    /// The activity of that stage it is about; `null` for the stage as a
+    /// whole. Not a tie either.
+    pub activity_id: Option<String>,
+    /// The person of the plan who must fix it; `null` for nobody named. Not a
+    /// tie either.
+    pub person_id: Option<String>,
+    /// The day it was raised, `YYYY-MM-DD`.
+    pub raised_on: String,
+    /// The day it should be fixed by, not before `raisedOn`; `null` when none.
+    pub due_on: Option<String>,
+    /// A photo of the problem, by the SHA-256 of an image document of the
+    /// work; `null` when none.
+    pub photo_hash: Option<String>,
+    /// The Windows account that raised it.
+    pub author_name: String,
+    /// When it was raised, UTC.
+    pub created_at: String,
+    /// How it was closed; `null` while it is open.
+    pub closure: Option<SnagClosure>,
+}
+
+/// The one closure of a snag (E4): fixed, with a photo of it fixed, or
+/// withdrawn, with a note saying why.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct SnagClosure {
+    /// `fixed` or `withdrawn`.
+    pub outcome: String,
+    /// The day it was closed, `YYYY-MM-DD`, not before the snag was raised.
+    pub closed_on: String,
+    /// The photo of it fixed, by hash — always given for `fixed`; `null` or a
+    /// photo for `withdrawn`.
+    pub photo_hash: Option<String>,
+    /// Why, in the person's words — always given for `withdrawn`; `null` when
+    /// none.
+    pub note: Option<String>,
+    /// The Windows account that closed it.
+    pub author_name: String,
+    /// When it was closed, UTC.
+    pub created_at: String,
+}
+
+/// A snag as the interface raises it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SnagDraft {
+    /// `YYYY-MM-DD`, not after today.
+    pub raised_on: String,
+    /// What is wrong, 1 to 200 characters.
+    pub title: String,
+    /// More words, up to 2000 characters.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// The stage it is in — a closed stage takes one.
+    pub stage_id: String,
+    /// An activity of that stage, or `null`.
+    #[serde(default)]
+    pub activity_id: Option<String>,
+    /// Who must fix it: a person of the plan, or `null`.
+    #[serde(default)]
+    pub person_id: Option<String>,
+    /// `YYYY-MM-DD`, not before `raisedOn`, or `null`.
+    #[serde(default)]
+    pub due_on: Option<String>,
+    /// A photo of the problem: the hash of an image document of the work —
+    /// the interface adds the file as a document first — or `null`.
+    #[serde(default)]
+    pub photo_hash: Option<String>,
+}
+
+/// A snag's closure as the interface sends it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SnagClosureDraft {
+    /// The snag's id.
+    pub snag_id: String,
+    /// `fixed` or `withdrawn`.
+    pub outcome: String,
+    /// `YYYY-MM-DD`, not after today and not before the snag was raised.
+    pub closed_on: String,
+    /// The photo of it fixed — required for `fixed` — by the hash of an image
+    /// document of the work.
+    #[serde(default)]
+    pub photo_hash: Option<String>,
+    /// Why — required for `withdrawn` — up to 2000 characters.
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+/// What a change does to the plan (E1), as data the schedule can compute.
+/// Tagged by `kind`; its fields are camelCase. Durations are whole working
+/// days, 1 to 3650.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum ChangeEffect {
+    /// A new activity in the change's stage, finish-to-start after `after`.
+    Add {
+        /// Its name, 1 to 120 characters.
+        name: String,
+        /// Its duration.
+        duration_days: i64,
+        /// The activity it starts after, or `null` for none.
+        after: Option<String>,
+    },
+    /// An existing activity's new duration.
+    Duration {
+        /// The activity.
+        activity_id: String,
+        /// Its new duration.
+        duration_days: i64,
+    },
+    /// An existing activity dropped — scope reduced.
+    Remove {
+        /// The activity.
+        activity_id: String,
+    },
+}
+
+/// A change order (E1, pt "aditivo"): a change somebody asked for, on record,
+/// with what it costs and what it does to the plan. Insert-only: a mistake is
+/// withdrawn and raised again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeOrder {
+    /// UUID v7.
+    pub id: String,
+    /// 1, 2, 3 … for the whole work, in the order raised.
+    pub number: i64,
+    /// The day it was raised, `YYYY-MM-DD`.
+    pub raised_on: String,
+    /// What changes, 1 to 200 characters.
+    pub title: String,
+    /// More words, up to 2000 characters; `null` when none.
+    pub description: Option<String>,
+    /// `owner`, `person` or `other`.
+    pub asked_by: String,
+    /// The person who asked — given exactly when `askedBy` is `person`. Not a
+    /// tie: a person removed later leaves the record as it was.
+    pub asked_by_person_id: Option<String>,
+    /// Who asked, by name — given exactly when `askedBy` is `other`.
+    pub asked_by_name: Option<String>,
+    /// The stage it lands in. Not a tie either.
+    pub stage_id: String,
+    /// What it costs, signed whole minor units (a change can save money);
+    /// `null` when it was not priced, which is not 0.
+    pub cost_cents: Option<i64>,
+    /// What it does to the plan, in order; empty for a change of money alone.
+    pub effects: Vec<ChangeEffect>,
+    /// The Windows account that raised it.
+    pub author_name: String,
+    /// When it was raised, UTC.
+    pub created_at: String,
+    /// How it was decided; `null` while it waits.
+    pub decision: Option<ChangeOrderDecision>,
+}
+
+/// The one decision on a change order (E1), with its impact as the schedule
+/// said it the moment it was decided.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeOrderDecision {
+    /// `approved`, `declined` or `withdrawn`.
+    pub outcome: String,
+    /// The day it was decided, `YYYY-MM-DD`.
+    pub decided_on: String,
+    /// Why, in the person's words; `null` when none.
+    pub note: Option<String>,
+    /// The finish before the change, as the schedule said that day; `null`
+    /// when it could not say.
+    pub finish_before: Option<String>,
+    /// The finish with the change, as the schedule said that day.
+    pub finish_after: Option<String>,
+    /// The working days the change moved the finish, signed; `null` when it
+    /// could not be counted.
+    pub days_delta: Option<i64>,
+    /// The change's money, copied from it; `null` when not priced.
+    pub cost_cents: Option<i64>,
+    /// The replanning the approval was written into; `null` unless approved.
+    pub replanning_id: Option<String>,
+    /// The Windows account that decided it.
+    pub author_name: String,
+    /// When it was decided, UTC.
+    pub created_at: String,
+}
+
+/// An effect as the interface sends it: the fields of every kind, each left
+/// out or `null` when the kind has none. Read by the host into a
+/// [`ChangeEffect`], so that a kind that is not one is a sentence, not a
+/// failure to deserialise.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeEffectDraft {
+    /// `add`, `duration` or `remove`.
+    pub kind: String,
+    /// `add`: the new activity's name.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// `add` and `duration`: whole working days, 1 to 3650.
+    #[serde(default)]
+    pub duration_days: Option<f64>,
+    /// `add`: the activity it starts after, or `null`.
+    #[serde(default)]
+    pub after: Option<String>,
+    /// `duration` and `remove`: the activity.
+    #[serde(default)]
+    pub activity_id: Option<String>,
+}
+
+/// A change order as the interface raises it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeOrderDraft {
+    /// `YYYY-MM-DD`, not after today.
+    pub raised_on: String,
+    /// What changes, 1 to 200 characters.
+    pub title: String,
+    /// More words, up to 2000 characters.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// `owner`, `person` or `other`.
+    pub asked_by: String,
+    /// When a person asked: their id.
+    #[serde(default)]
+    pub asked_by_person_id: Option<String>,
+    /// When somebody else asked: their name, 1 to 120 characters.
+    #[serde(default)]
+    pub asked_by_name: Option<String>,
+    /// The stage it lands in.
+    pub stage_id: String,
+    /// Signed whole minor units, or `null` when not priced.
+    #[serde(default)]
+    pub cost_cents: Option<f64>,
+    /// What it does to the plan, at most 50; empty for money alone.
+    #[serde(default)]
+    pub effects: Vec<ChangeEffectDraft>,
+}
+
+/// A decision as the interface sends it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeOrderDecisionDraft {
+    /// The change order's id.
+    pub id: String,
+    /// `approved`, `declined` or `withdrawn`.
+    pub outcome: String,
+    /// `YYYY-MM-DD`, not after today and not before it was raised.
+    pub decided_on: String,
+    /// Why, up to 2000 characters.
+    #[serde(default)]
+    pub note: Option<String>,
+    /// The finish before the change, as the schedule says it now.
+    #[serde(default)]
+    pub finish_before: Option<String>,
+    /// The finish with the change.
+    #[serde(default)]
+    pub finish_after: Option<String>,
+    /// The working days between them, signed and whole.
+    #[serde(default)]
+    pub days_delta: Option<f64>,
 }
 
 /// What the owner must know to look after the work — "Reseal the shower grout
@@ -635,7 +966,9 @@ pub struct Milestone {
     /// ("30 %" is 3000). A plan's shares add up to at most 10 000.
     pub share_bp: i64,
     /// The fact that earns it: `advance` (the day the commitment was agreed),
-    /// `stage_started`, `activity_finished` or `stage_closed`.
+    /// `stage_started`, `activity_finished`, `stage_closed`, or (E4)
+    /// `retention` — held back until the stage is closed and every snag of it
+    /// on the commitment's person is closed.
     pub trigger: String,
     /// The activity whose finish earns it — given exactly when the trigger is
     /// `activity_finished`, and of the commitment's stage; `null` otherwise.
@@ -761,6 +1094,95 @@ pub struct PaymentDraft {
     /// A receipt image the work already holds, by hash.
     #[serde(default)]
     pub receipt_hash: Option<String>,
+}
+
+/// A fund expected (E2, pt "recursos"): money the work will receive, from
+/// where and when. Plan, not fact: edited freely, and not locked by the plan's
+/// approval. Removable only while no receipt names it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct Funding {
+    /// UUID v7.
+    pub id: String,
+    /// Its order among the work's funds: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// What it is, 1 to 200 characters.
+    pub label: String,
+    /// Where it comes from, up to 200 characters; `null` when not said.
+    pub source: Option<String>,
+    /// How much is expected, in the currency's minor unit; more than 0.
+    pub amount_cents: i64,
+    /// The day it is expected, `YYYY-MM-DD`.
+    pub expected_on: String,
+    /// More words, up to 2000 characters; `null` when none.
+    pub note: Option<String>,
+}
+
+/// A fund as the interface sends it — to add one, or to write one whole.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FundingDraft {
+    /// The fund to change, for `funding_update`; left out or `null` for
+    /// `funding_add`.
+    #[serde(default)]
+    pub id: Option<String>,
+    /// What it is, 1 to 200 characters.
+    pub label: String,
+    /// Where it comes from, up to 200 characters; `null` for none.
+    #[serde(default)]
+    pub source: Option<String>,
+    /// How much, whole minor units, more than 0.
+    pub amount_cents: f64,
+    /// `YYYY-MM-DD` — any day, past or to come.
+    pub expected_on: String,
+    /// More words, up to 2000 characters; `null` for none.
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+/// Money received (E2): one line of the ledger — never edited. A reversal is
+/// a receipt with the negative amount of the one it reverses, naming it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct FundingReceipt {
+    /// UUID v7.
+    pub id: String,
+    /// 1, 2, 3 … for the whole work, in the order written.
+    pub seq: i64,
+    /// The day the money arrived (for a reversal, the day it was undone);
+    /// never after the day it was recorded.
+    pub day: String,
+    /// The fund it belongs to; `null` for money that arrived unplanned.
+    pub funding_id: Option<String>,
+    /// How much, in the currency's minor unit: positive for money received,
+    /// negative for a reversal.
+    pub amount_cents: i64,
+    /// A few words, up to 200 characters; `null` when none.
+    pub note: Option<String>,
+    /// The receipt this one reverses; `null` for money received.
+    pub reverses_seq: Option<i64>,
+    /// The Windows account that recorded it.
+    pub author_name: String,
+    /// When it was recorded, UTC.
+    pub created_at: String,
+}
+
+/// Money received, as the interface sends it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FundingReceiptDraft {
+    /// The fund it belongs to; `null` for money that arrived unplanned.
+    #[serde(default)]
+    pub funding_id: Option<String>,
+    /// How much, whole minor units, more than 0.
+    pub amount_cents: f64,
+    /// `YYYY-MM-DD`, not after today.
+    pub day: String,
+    /// A few words, up to 200 characters.
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 /// A question a stage must answer at one of its gates.
@@ -1056,6 +1478,14 @@ pub struct EntryDraft {
     /// No work was possible that day.
     #[serde(default)]
     pub lost_day: bool,
+    /// Why no work was possible (E3): `weather`, `decision`, `absence`,
+    /// `material`, `owner`, `access`, `other`, or `null`. Only on a lost day.
+    #[serde(default)]
+    pub lost_cause: Option<String>,
+    /// The person the lost day is put down to, by id (E3); `null` when nobody.
+    /// Only with a cause.
+    #[serde(default)]
+    pub lost_party_person_id: Option<String>,
     /// Hours worked on site, 0 to 24.
     #[serde(default)]
     pub hours: Option<f64>,
@@ -1138,6 +1568,12 @@ pub struct DiaryEntry {
     pub weather: Option<String>,
     /// No work was possible.
     pub lost_day: bool,
+    /// Why no work was possible (E3); `null` when no cause was given — and for
+    /// every entry written before E3.
+    pub lost_cause: Option<String>,
+    /// The person the lost day is put down to, by id — who may since have been
+    /// removed from the plan; `null` when nobody was named.
+    pub lost_party_person_id: Option<String>,
     /// Hours on site; `null` when not said.
     pub hours: Option<f64>,
     /// What arrived.

@@ -37,7 +37,9 @@
  * - **payments**: what **falls due** in the window — a milestone of a payment plan not earned yet
  *   whose fact the schedule expects in the window (an activity's scheduled finish for
  *   `activity_finished`; the stage's first activity start for `stage_started`; its last activity's
- *   finish for `stage_closed`; the day agreed for an `advance` agreed after today) — each with what
+ *   finish for `stage_closed` and for a `retention` nothing holds; the day agreed for an `advance`
+ *   agreed after today; a retention **held** by open snags is money held, never falling due) — each
+ *   with what
  *   money already paid ahead on its commitment covers of it; and what is **earned and not paid now**
  *   (`dueFigure`, slice D2).
  *
@@ -57,12 +59,20 @@ import { breakdown } from '../arrangements';
 import { addCalendarDays, isIsoDay, isWorkingDay } from '../calendar';
 import { gateStatus, holdingItems, stageState, type GateItem } from '../checks';
 import { peopleExpectedFigure, type ExpectedRow } from '../dashboard';
-import { decisionRows, decisionsDueWithin, stageStart, type DecisionDueRow } from '../decisions';
+import {
+  decisionRows,
+  decisionsDueWithin,
+  stageFinish,
+  stageStart,
+  type DecisionDueRow,
+} from '../decisions';
 import { progress, type DiaryEntry } from '../diary';
 import { counted, moneyFigure, type AmountRow, type Figure, type ReportRow } from '../figure';
 import {
   dueFigure,
+  milestoneExpectation,
   paymentPlans,
+  scheduledFacts,
   type MilestoneTarget,
   type MilestoneTrigger,
   type PlanRow,
@@ -223,17 +233,6 @@ export interface Lookahead {
 
 const inWindow = (window: LookaheadWindow, day: string | null): day is string =>
   day !== null && day >= window.from && day <= window.to;
-
-/** The last day anything in the stage is scheduled to finish, or `null` when nothing is. */
-function stageFinish(scheduled: Schedule, stageId: string): string | null {
-  let last: string | null = null;
-  for (const activity of scheduled.activities) {
-    if (activity.stageId !== stageId) continue;
-    const finish = scheduled.dates.get(activity.id)?.finish;
-    if (finish !== undefined && (last === null || finish > last)) last = finish;
-  }
-  return last;
-}
 
 function windowOf(scheduled: Schedule, today: string, days: number): LookaheadWindow {
   const calendar = scheduled.calendar;
@@ -402,27 +401,21 @@ export function lookahead(
   // ── Payments falling due ──
   const plans = paymentPlans(snapshot, entries, today);
   const agreed = new Map(snapshot.commitments.map((each) => [each.id, each.agreedOn]));
+  const facts = scheduledFacts(scheduled);
   const falling: FallingDueRow[] = [];
   for (const plan of plans.commitments) {
     if (!plan.hasPlan || closed.has(plan.stageId)) continue;
-    const expectedOn = (trigger: MilestoneTrigger, activityId: string | null): string | null => {
-      switch (trigger) {
-        case 'advance':
-          return agreed.get(plan.commitmentId)!;
-        case 'stage_started':
-          return stageStart(scheduled, plan.stageId);
-        case 'stage_closed':
-          return stageFinish(scheduled, plan.stageId);
-        case 'activity_finished':
-          return scheduled.dates.get(activityId!)?.finish ?? null;
-      }
-    };
+    const commitment = { stageId: plan.stageId, agreedOn: agreed.get(plan.commitmentId)! };
     const coming = plan.milestones
       .filter((status) => !status.earned)
       .map((status) => ({
         status,
-        day: expectedOn(status.milestone.trigger, status.milestone.activityId),
+        expectation: milestoneExpectation(facts, commitment, status),
       }))
+      // A retention held by open snags is money held, not falling due (slice E4).
+      .flatMap(({ status, expectation }) =>
+        expectation.held ? [] : [{ status, day: expectation.day }],
+      )
       .filter((each): each is typeof each & { day: string } => inWindow(window, each.day))
       // Position order already (`milestonesInOrder`); by day first, the sort being stable.
       .sort((a, b) => compareText(a.day, b.day));

@@ -1,16 +1,17 @@
 /**
  * Readiness: how much of what the plan must know, it does know, as a measure from the rows.
  *
- * Every activity, decision and stage is tested against every rule in `rules.ts` that applies to it
- * (the linking rule asks nothing of a plan with one activity; the timing rule asks nothing of a
- * decision with no deadline). Each test is one thing the plan must know (`mustKnow`); each that
+ * Every activity, decision, stage, change order and the work itself is tested against every rule in
+ * `rules.ts` that applies to it (the linking rule asks nothing of a plan with one activity; the
+ * timing rule asks nothing of a decision with no deadline; the funding rule nothing of a work with
+ * no money planned). Each test is one thing the plan must know (`mustKnow`); each that
  * passes is one it knows (`known`); each that fails is a missing row that names the activity or
  * decision, its stage and the rule. The figure is the share known, and it opens onto exactly those
  * rows, so the number and the list can never disagree. `readinessByRule` splits the same count
  * rule by rule, and the rules add up to the figure.
  *
- * Decisions are judged against the schedule and a `today` the caller passes: the domain never
- * reads the clock.
+ * Decisions are judged against the schedule and a `today` the caller passes, and change orders
+ * waiting for a decision against the same `today`: the domain never reads the clock.
  *
  * A plan with no activity has nothing to measure. It is not ready: its share is 0, and one missing
  * row says why (the plan has no activity) rather than a 100 % that means nothing. Its decisions
@@ -21,14 +22,17 @@
  * interface renders in the person's language; nothing here is ever written to the database.
  */
 
+import { changeOrderRows } from '../changes';
 import { decisionRows } from '../decisions';
 import { percent, type Figure, type ReportRow } from '../figure';
 import { activitiesInOrder, durationRangeOf, stagesInOrder, type WorkSnapshot } from '../plan';
 import type { Schedule } from '../schedule';
 import {
   ACTIVITY_RULES,
+  CHANGE_RULES,
   DECISION_RULES,
   STAGE_RULES,
+  WORK_RULES,
   READINESS_LABEL_KEY,
   READINESS_MESSAGE_KEYS,
   RULE_EXPLANATION_KEYS,
@@ -48,13 +52,19 @@ export interface ReadinessContext {
   readonly today: string;
 }
 
+/** What a missing row is about (`change`: a change order, slice E1; `work`: the work, slice E2). */
+export type ReadinessEntity = 'activity' | 'decision' | 'stage' | 'change' | 'work' | 'plan';
+
 /** One thing the plan does not know. */
 export interface MissingRow {
   readonly ruleId: MissingId;
-  readonly entity: 'activity' | 'decision' | 'stage' | 'plan';
-  /** The activity's, decision's or stage's id, or the work's for a row about the whole plan. */
+  readonly entity: ReadinessEntity;
+  /**
+   * The activity's, decision's, stage's or change order's id, or the work's for a row about the
+   * whole plan.
+   */
   readonly id: string;
-  /** The activity's, decision's or stage's name, or the work's. */
+  /** The activity's, decision's or stage's name, the change order's title, or the work's. */
   readonly name: string;
   /** The stage it belongs to, or `null` for the plan or a row whose stage is not in the plan. */
   readonly stageName: string | null;
@@ -161,6 +171,20 @@ export function readiness(snapshot: WorkSnapshot, context: ReadinessContext): Re
     stageName: stage.name,
     durationRange: null,
   }));
+  tally(changeOrderRows(snapshot, context.today), CHANGE_RULES, (change) => ({
+    entity: 'change',
+    id: change.changeOrderId,
+    name: change.title,
+    stageName: change.stageName,
+    durationRange: null,
+  }));
+  tally([snapshot.work], WORK_RULES, (work) => ({
+    entity: 'work',
+    id: work.workId,
+    name: work.name,
+    stageName: null,
+    durationRange: null,
+  }));
 
   let known = 0;
   let mustKnow = 0;
@@ -174,7 +198,7 @@ export function readiness(snapshot: WorkSnapshot, context: ReadinessContext): Re
 /** A row of a readiness figure: the missing row, in the shape every figure's rows share. */
 export interface ReadinessRow extends ReportRow {
   readonly ruleId: MissingId;
-  readonly entity: 'activity' | 'decision' | 'stage' | 'plan';
+  readonly entity: ReadinessEntity;
   readonly stageName: string | null;
   /** The template's range for an activity with no duration yet; `null` otherwise. */
   readonly durationRange: { readonly min: number; readonly max: number } | null;

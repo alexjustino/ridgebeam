@@ -31,6 +31,15 @@ export interface Navigation {
    * "Back up now…" goes to the one flow that writes a backup, rather than writing from there).
    */
   openBackup: () => void;
+  /**
+   * Open the Schedule (E1: after a change order is approved, the replanning it opened is closed by
+   * taking the next baseline there).
+   */
+  openSchedule: () => void;
+  /** Open the Plan on its Changes tab (E1: the dashboard's Changes card leads to the record). */
+  openChanges: () => void;
+  /** Open the Plan on its Snags tab (E4: the dashboard's Still to fix card leads to the list). */
+  openSnags: () => void;
 }
 
 export const NavigationContext = createContext<Navigation>({
@@ -40,6 +49,9 @@ export const NavigationContext = createContext<Navigation>({
   openPaymentPlan: () => undefined,
   openSnapshot: () => undefined,
   openBackup: () => undefined,
+  openSchedule: () => undefined,
+  openChanges: () => undefined,
+  openSnags: () => undefined,
 });
 
 export function useNavigation(): Navigation {

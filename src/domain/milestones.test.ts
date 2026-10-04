@@ -5,6 +5,7 @@ import {
   correction,
   entry,
   finished,
+  link,
   snapshot,
   stage,
   withStageRules,
@@ -27,6 +28,7 @@ import {
   commitmentPlanOf,
   commitmentsWithMoney,
   dueFigure,
+  expectedOn,
   lastActivityOf,
   milestoneCents,
   milestonesInOrder,
@@ -35,6 +37,7 @@ import {
   paymentPlans,
   paymentPreview,
   percentToBp,
+  scheduledFacts,
   shareOfCents,
   usualPlan,
   validateMilestone,
@@ -311,6 +314,7 @@ describe('earned, by the facts of the work', () => {
       trigger: 'activity_finished',
       target: { kind: 'activity', id: 'lay', name: 'Lay the tiles' },
       pendingKey: MILESTONE_PENDING_KEYS.activity_finished,
+      openSnags: 0,
     });
   });
 
@@ -677,6 +681,7 @@ describe('the preview before a payment', () => {
         trigger: 'activity_finished',
         target: { kind: 'activity', id: 'lay', name: 'Lay the tiles' },
         pendingKey: MILESTONE_PENDING_KEYS.activity_finished,
+        openSnags: 0,
       },
     });
   });
@@ -1008,5 +1013,48 @@ describe('the message keys', () => {
     expect(Object.keys(MILESTONE_PROBLEM_KEYS)).toHaveLength(12);
     expect(MILESTONE_MESSAGE_KEYS).toContain(MILESTONE_STATE_KEYS.earned);
     expect(MILESTONE_MESSAGE_KEYS).toContain(USUAL_PLAN_LABEL_KEYS.note);
+  });
+});
+
+// ── When the schedule expects a milestone (lifted from the lookahead, slice E2) ──
+
+describe('the day a milestone is expected', () => {
+  // Tuesday 1 September 2026 on: a (3 days, 1–3 Sep) → b (2 days, 4–7 Sep); c has no duration.
+  const plan = snapshot({
+    stages: [stage('s1', 1), stage('s2', 2)],
+    activities: [
+      activity('a', 's1', 1, 3),
+      activity('b', 's1', 2, 2),
+      activity('c', 's2', 1, null),
+    ],
+    dependencies: [link('ab', 'a', 'b')],
+  });
+  const facts = scheduledFacts(schedule(plan));
+  const on = { stageId: 's1', agreedOn: '2026-08-20' };
+  const expected = (trigger: MilestoneTrigger, activityId: string | null = null) =>
+    expectedOn(facts, on, { trigger, activityId });
+
+  it('is the day agreed for an advance, whatever the schedule says', () => {
+    expect(expected('advance')).toBe('2026-08-20');
+  });
+
+  it('is the stage’s first start, its last finish, or the activity’s finish', () => {
+    expect(expected('stage_started')).toBe('2026-09-01');
+    expect(expected('stage_closed')).toBe('2026-09-07');
+    expect(expected('activity_finished', 'a')).toBe('2026-09-03');
+  });
+
+  it('is unknown when the schedule places nothing that says it', () => {
+    expect(
+      expectedOn(facts, { ...on, stageId: 's2' }, { trigger: 'stage_started', activityId: null }),
+    ).toBeNull();
+    expect(expected('activity_finished', 'c')).toBeNull();
+    expect(expected('activity_finished', null)).toBeNull();
+    expect(expected('activity_finished', 'gone')).toBeNull();
+  });
+
+  it('reads one schedule once: the same facts for the same schedule', () => {
+    const scheduled = schedule(plan);
+    expect(scheduledFacts(scheduled)).toBe(scheduledFacts(scheduled));
   });
 });

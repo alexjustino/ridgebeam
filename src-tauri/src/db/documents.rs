@@ -22,6 +22,7 @@
 //! - F7: documents recorded, re-linked by hash, titled and kinded, linked and
 //!   unlinked, removed; the backfill completed; the hashes the work names.
 //! - D3: two more kinds, `warranty` and `manual`.
+//! - E4: a snag's photo and its closure's are hashes the work names.
 
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
@@ -333,7 +334,7 @@ pub fn remove(conn: &Connection, id: &str) -> Result<String> {
 }
 
 /// The hashes of every file something in the work names: a document, a diary
-/// photo, an answer, a receipt, a quote.
+/// photo, an answer, a receipt, a quote, a snag's photo or its closure's (E4).
 ///
 /// # Errors
 ///
@@ -345,7 +346,9 @@ pub fn named_hashes(conn: &Connection) -> Result<BTreeSet<String>> {
              UNION SELECT file_hash FROM diary_photo
              UNION SELECT photo_hash FROM check_answer WHERE photo_hash IS NOT NULL
              UNION SELECT receipt_hash FROM payment WHERE receipt_hash IS NOT NULL
-             UNION SELECT document_hash FROM commitment WHERE document_hash IS NOT NULL",
+             UNION SELECT document_hash FROM commitment WHERE document_hash IS NOT NULL
+             UNION SELECT photo_hash FROM snag WHERE photo_hash IS NOT NULL
+             UNION SELECT photo_hash FROM snag_closure WHERE photo_hash IS NOT NULL",
         )?
         .query_map([], |row| row.get::<_, String>(0))?
         .collect::<std::result::Result<BTreeSet<_>, _>>()?;

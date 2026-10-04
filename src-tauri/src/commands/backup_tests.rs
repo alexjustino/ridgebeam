@@ -13,11 +13,15 @@ use rusqlite::Connection;
 use serde_json::json;
 
 use crate::commands::backup::*;
+use crate::commands::change_orders::{change_order_decide_with, change_order_raise_with};
 use crate::commands::checks::{check_answer_with, stage_start_with, AnswerDraft};
 use crate::commands::decisions::decision_make_with;
 use crate::commands::diary::{diary_entry_add_with, diary_list_with};
 use crate::commands::documents::tests::minimal_pdf;
 use crate::commands::documents::{document_add_with, documents_verify_with};
+use crate::commands::funding::{
+    funding_add_with, funding_receipt_add_with, funding_receipt_reverse_with,
+};
 use crate::commands::milestones::milestone_add_with;
 use crate::commands::money::{
     commitment_add_with, cost_line_add_with, payment_add_with, payment_reverse_with,
@@ -27,6 +31,7 @@ use crate::commands::plan::{
     activity_update_with, calendar_set_with, person_add_with, person_set_stages_with,
 };
 use crate::commands::schedule::{baseline_take_with, replan_open_with};
+use crate::commands::snags::{snag_close_with, snag_raise_with};
 use crate::commands::work::tests::{draft, host, host_with_a_work};
 use crate::commands::work::{
     recent_works_with, work_close_with, work_create_from, work_current_with, work_get_with,
@@ -114,7 +119,8 @@ pub fn entries_of(archive: &[u8]) -> Vec<(String, Vec<u8>)> {
 /// the stage it opens started; a priced line; a commitment with its quote
 /// and its payment plan (D2);
 /// two payments with receipts and the reversal of one; the approval (baseline
-/// 1); a replanning closed by baseline 2; and a second replanning left open.
+/// 1); a replanning closed by baseline 2; a second replanning left open; and a
+/// change order raised and declined (E1).
 pub struct FullWork {
     pub db: Db,
     pub open: OpenWork,
@@ -303,6 +309,8 @@ pub fn a_full_work() -> FullWork {
         None,
     )
     .unwrap();
+    // E4: the last part held back as retention.
+    milestone_add_with(&open, &commitment, "Retention", 500.0, "retention", None).unwrap();
     payment_add_with(
         &open,
         &from(json!({
@@ -347,12 +355,100 @@ pub fn a_full_work() -> FullWork {
     replan_open_with(&open, "The skip came late", AUTHOR).unwrap();
     take(&open);
     replan_open_with(&open, "The tiles are back-ordered", AUTHOR).unwrap();
+    // E1: a change order, raised and declined — the plan stays as it is.
+    let change = change_order_raise_with(
+        &open,
+        &from(json!({
+            "raisedOn": "2026-10-08", "title": "Heated floor", "askedBy": "other",
+            "askedByName": "The neighbour", "stageId": strip, "costCents": 250000
+        })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap()
+    .change_orders[0]
+        .id
+        .clone();
+    change_order_decide_with(
+        &open,
+        &from(json!({
+            "id": change, "outcome": "declined", "decidedOn": "2026-10-09",
+            "note": "Not in this budget."
+        })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap();
+    // E2: a fund, received, the receipt reversed and received again.
+    let savings = funding_add_with(
+        &open,
+        &from(json!({
+            "label": "Savings", "source": "Our account", "amountCents": 400000,
+            "expectedOn": "2026-10-01", "note": "On hand."
+        })),
+    )
+    .unwrap()
+    .funding[0]
+        .id
+        .clone();
+    for day in ["2026-10-02", "2026-10-03"] {
+        funding_receipt_add_with(
+            &open,
+            &from(json!({ "fundingId": savings, "amountCents": 400000, "day": day })),
+            today(),
+            AUTHOR,
+        )
+        .unwrap();
+    }
+    funding_receipt_reverse_with(&open, 2, "2026-10-03", today(), AUTHOR).unwrap();
+    // E4: two snags on the strip-out — one fixed with its photo, one open.
+    let fixed_photo = intake::sha256_hex(&jpeg(32, 24));
+    let snag = snag_raise_with(
+        &open,
+        &from(json!({
+            "raisedOn": "2026-10-07", "title": "Wall plug left behind", "stageId": strip,
+            "activityId": remove_tiles, "personId": person, "dueOn": "2026-10-09",
+            "photoHash": wall_hash, "description": "By the hall door."
+        })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap()
+    .snags[0]
+        .id
+        .clone();
+    snag_close_with(
+        &open,
+        &from(json!({
+            "snagId": snag, "outcome": "fixed", "closedOn": "2026-10-08",
+            "photoHash": fixed_photo, "note": "Filled and sanded."
+        })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap();
+    snag_raise_with(
+        &open,
+        &from(json!({
+            "raisedOn": "2026-10-08", "title": "Skirting chipped", "stageId": tiling,
+            "personId": person
+        })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap();
 
     let plan = work_get_with(&open).unwrap();
+    assert_eq!(
+        plan.funding_receipts.len(),
+        3,
+        "two receipts and a reversal"
+    );
     assert_eq!(plan.baselines.len(), 2);
     assert!(plan.replanning.is_some(), "a replanning is open");
     assert_eq!(plan.payments.len(), 3, "two payments and a reversal");
     assert_eq!(plan.documents.len(), 8);
+    assert_eq!(plan.snags.len(), 2, "one fixed, one open");
     FullWork {
         db,
         open,
@@ -892,6 +988,8 @@ fn a_backup_of_a_work_at_an_older_schema_restores_migrated_forward() {
                 note: Some("Tiles laid.".into()),
                 weather: None,
                 lost_day: false,
+                lost_cause: None,
+                lost_party_person_id: None,
                 hours: None,
                 deliveries: None,
                 incidents: None,

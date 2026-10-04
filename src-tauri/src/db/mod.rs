@@ -49,12 +49,29 @@
 //! - D3: `care_notes` — what the owner must know to look after the work, on
 //!   the work, a room or a stage; a check may need its photo; two more
 //!   document kinds; work migration 012, which rebuilds `document`.
+//! - E1: `change_orders` — a change asked for after approval, raised on
+//!   record and decided once (insert-only, holding no statement that edits or
+//!   removes a row); `change_effects` — what an approved one does to the
+//!   plan, written through the plan's own functions in the decision's
+//!   transaction; work migration 013.
+//! - E2: `funding` — the funds the work expects, plan, edited freely and kept
+//!   while a receipt names them — and `funding_receipts`, the money received
+//!   (append-only, holding no statement that edits or removes a row); work
+//!   migration 014.
+//! - E4: `snags` — what is still to fix near the end, raised on record and
+//!   closed once, fixed with a photo or withdrawn with a note (insert-only,
+//!   holding no statement that edits or removes a row); work migration 016,
+//!   which also rebuilds `payment_milestone` for the `retention` trigger.
 
 #[cfg(test)]
 mod append_only_tests;
 pub mod backups;
 pub mod baselines;
 pub mod care_notes;
+pub mod change_effects;
+pub mod change_orders;
+#[cfg(test)]
+mod change_orders_tests;
 pub mod check_answers;
 pub mod checks;
 pub mod decisions;
@@ -63,6 +80,8 @@ pub mod diary;
 #[cfg(test)]
 mod diary_tests;
 pub mod documents;
+pub mod funding;
+pub mod funding_receipts;
 pub mod migrations;
 pub mod milestones;
 pub mod money;
@@ -72,6 +91,9 @@ pub mod recent;
 pub mod replanning;
 pub mod rooms;
 pub mod settings;
+pub mod snags;
+#[cfg(test)]
+mod snags_tests;
 pub mod templates;
 pub mod work;
 

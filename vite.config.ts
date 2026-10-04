@@ -51,6 +51,11 @@ export default defineConfig({
   test: {
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     environment: 'node',
+    // Half the cores, not all of them. With every core busy, Vitest 5 on Windows intermittently
+    // fails to load a test file with "Cannot find module" for a file that is there — reproduced with
+    // suites run side by side, even for a file in node_modules. Fewer workers make it rare; the
+    // cause is still being looked for.
+    maxWorkers: '50%',
     coverage: {
       provider: 'v8',
       include: ['src/domain/**/*.ts'],

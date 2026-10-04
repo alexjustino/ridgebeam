@@ -38,12 +38,57 @@ import {
   type WeekActivityRow,
   type Weekly,
 } from '@/domain/reports/weekly';
+import { CHANGE_LABEL_KEYS, changeTally, type ChangeTally } from '@/domain/changes';
+import { RUNWAY_LABEL_KEYS, type Runway, type RunwayChance } from '@/domain/runway';
+import { DELAY_LABEL_KEYS, type DelayLedger } from '@/domain/delay';
+import { SNAG_LABEL_KEYS, snagFigures, snagRows, type SnagRow } from '@/domain/snags';
+import {
+  delayCauseText,
+  delayLeftText,
+  delayPartyRowText,
+  delayResidualText,
+  delayStatusText,
+  delayTraceText,
+} from '@/features/dashboard/delayWords';
+import {
+  forecastAssumesText,
+  forecastPlanText,
+  forecastSentence,
+} from '@/features/schedule/forecastWords';
 import { pendingText, percentText } from '@/features/money/paymentPlanWords';
+import {
+  runwayChanceText,
+  runwayMethodText,
+  runwayNotes,
+  runwayRowLine,
+  runwaySentenceText,
+  runwayValue,
+} from '@/features/money/runwayWords';
+import {
+  askedByText,
+  changeCostText,
+  signedDays,
+  changeRowTitle,
+  changeStateText,
+  decidedImpactSentence,
+  finishMoveText,
+  tallySentence,
+  waitedText,
+} from '@/features/plan/changeWords';
+import {
+  snagClosureText,
+  snagDueText,
+  snagGroupLabel,
+  snagRowTitle,
+  snagSentence,
+  snagWhereText,
+  snagWhoText,
+} from '@/features/plan/snagWords';
 import type { MessageKey } from '@/i18n/en';
 import { termsFor } from '@/i18n/terms';
 import type { I18n } from '@/i18n/useI18n';
 
-import { finished, shortened } from './document';
+import { finished, REPORT_LIMITS, shortened } from './document';
 import {
   baselineChanceText,
   criticalText,
@@ -70,6 +115,11 @@ function row(...parts: ReadonlyArray<string | null | undefined | false>): string
       .filter((part, index, all) => index === 0 || part !== all[index - 1])
       .join(' — ')
   );
+}
+
+/** A row that may carry names typed by a person, kept inside the host's string limit. */
+function line(...parts: ReadonlyArray<string | null | undefined | false>): string {
+  return shortened(row(...parts), REPORT_LIMITS.text);
 }
 
 function figure(label: string, value: string, rows: readonly string[]): ReportBlock {
@@ -148,6 +198,358 @@ function stageRows(i18n: I18n, figureOf: Figure<ReportRow>): string[] {
 }
 
 /**
+ * The week's change orders (E1), in the owner's words: the ones decided this week, each with how it
+ * was decided and the impact its decision froze; the ones still waiting, each with how long it has
+ * waited; then the standing tally — the approved changes' money and working days, each a figure with
+ * its changes as rows — and the tally in words, with who asked. The owner's snapshot prints the same
+ * waiting figure and tally (`changeTallyBlocks`).
+ */
+function weeklyChangeBlocks(weekly: Weekly, snapshot: WorkSnapshot, i18n: I18n): ReportBlock[] {
+  const { t, number } = i18n;
+  const currency = snapshot.work.currency;
+  const tally = changeTally(snapshot, weekly.today);
+  const decided = snapshot.changeOrders
+    .filter(
+      (change) =>
+        change.decision !== null &&
+        change.decision.decidedOn >= weekly.week.from &&
+        change.decision.decidedOn <= weekly.week.to,
+    )
+    .sort((a, b) => a.number - b.number);
+  return [
+    { type: 'heading', level: 2, text: t('reports.weekly.changes') },
+    figure(
+      t('reports.weekly.changes.decided'),
+      number(decided.length),
+      decided.map((change) =>
+        line(
+          changeRowTitle(i18n, change),
+          askedByText(i18n, snapshot, change, true),
+          changeStateText(i18n, change),
+          decidedImpactSentence(i18n, change, currency),
+        ),
+      ),
+    ),
+    ...changeTallyBlocks(i18n, snapshot, tally, t(CHANGE_LABEL_KEYS.waiting)),
+  ];
+}
+
+/**
+ * The waiting change orders and the standing tally, as both owner's documents print them: "Waiting
+ * for a decision" (or the snapshot's "Waiting for your decision") with each change, who asked and how
+ * long it has waited; the approved changes' money and working days, each change a row; and the tally
+ * in one sentence, with who asked.
+ */
+export function changeTallyBlocks(
+  i18n: I18n,
+  snapshot: WorkSnapshot,
+  tally: ChangeTally,
+  waitingLabel: string,
+): ReportBlock[] {
+  const { t, number, money, day } = i18n;
+  const currency = snapshot.work.currency;
+  const byId = new Map(snapshot.changeOrders.map((change) => [change.id, change]));
+  const { cost, days, waiting } = tally.figures;
+  return [
+    figure(
+      waitingLabel,
+      number(waiting.value),
+      waiting.rows.map((each) => {
+        const change = byId.get(each.changeOrderId);
+        return line(
+          changeRowTitle(i18n, each),
+          change === undefined ? null : askedByText(i18n, snapshot, change, true),
+          waitedText(i18n, each.waitedDays, each.tooLong),
+          change === undefined ? null : changeCostText(i18n, change.costCents, currency),
+        );
+      }),
+    ),
+    figure(
+      t(CHANGE_LABEL_KEYS.cost),
+      money(cost.value, currency),
+      cost.rows.map((each) =>
+        line(
+          changeRowTitle(i18n, each),
+          each.day === null ? null : day(each.day),
+          each.priced ? money(each.amountCents, currency) : t('changes.row.unpriced'),
+        ),
+      ),
+    ),
+    figure(
+      t(CHANGE_LABEL_KEYS.days),
+      signedDays(i18n, days.value),
+      days.rows.map((each) =>
+        line(changeRowTitle(i18n, each), finishMoveText(i18n, { ...each, days: each.daysDelta })),
+      ),
+    ),
+    {
+      type: 'paragraph',
+      text: shortened(tallySentence(i18n, tally, currency, true), REPORT_LIMITS.text),
+    },
+  ];
+}
+
+/**
+ * **Still to fix** (E4), as both owner's documents print it, in the owner's words: what is still
+ * open and on whom in one sentence, then the open snags and those past their day — each a figure with
+ * its snags as rows, who must fix each and its day — and the open ones by who must fix them. Printed
+ * once a snag has been raised; a work that never found one has nothing to say here, as the
+ * dashboard's card has not. `closedThisWeek` adds, for the weekly report, the snags closed in its week.
+ */
+export function snagBlocks(
+  i18n: I18n,
+  snapshot: WorkSnapshot,
+  today: string,
+  level: 1 | 2,
+  closedThisWeek: { readonly from: string; readonly to: string } | null = null,
+): ReportBlock[] {
+  const { t, number } = i18n;
+  const figures = snagFigures(snapshot, today);
+  if (figures.raised === 0) return [];
+  const term = termsFor(i18n.language, 'owner');
+  const openRow = (each: SnagRow) =>
+    line(
+      snagRowTitle(i18n, each),
+      snagWhereText(i18n, term, each),
+      snagWhoText(i18n, each),
+      snagDueText(i18n, each),
+    );
+  const blocks: ReportBlock[] = [
+    { type: 'heading', level, text: t('dashboard.snags.title') },
+    {
+      type: 'paragraph',
+      tone: 'strong',
+      text: shortened(snagSentence(i18n, figures), REPORT_LIMITS.text),
+    },
+    figure(t(SNAG_LABEL_KEYS.open), number(figures.open.value), figures.open.rows.map(openRow)),
+    figure(
+      t(SNAG_LABEL_KEYS.overdue),
+      number(figures.overdue.value),
+      figures.overdue.rows.map(openRow),
+    ),
+    ...figures.byPerson.map((group) =>
+      figure(
+        snagGroupLabel(i18n, group),
+        number(group.open.value),
+        group.open.rows.map((each) => line(snagRowTitle(i18n, each), snagDueText(i18n, each))),
+      ),
+    ),
+  ];
+  if (closedThisWeek !== null) {
+    const closed = snagRows(snapshot, today).filter(
+      (each) =>
+        each.closedOn !== null &&
+        each.closedOn >= closedThisWeek.from &&
+        each.closedOn <= closedThisWeek.to,
+    );
+    const byId = new Map(snapshot.snags.map((snag) => [snag.id, snag]));
+    blocks.push(
+      figure(
+        t('reports.weekly.snags.closed'),
+        number(closed.length),
+        closed.map((each) =>
+          line(
+            snagRowTitle(i18n, each),
+            snagWhoText(i18n, each),
+            snagClosureText(i18n, each, byId.get(each.snagId)),
+            each.state === 'withdrawn' ? each.note : null,
+          ),
+        ),
+      ),
+    );
+  }
+  return blocks;
+}
+
+/** The runway and its chance, as the Money page computes them from the same three inputs. */
+export interface Cash {
+  readonly runway: Runway;
+  readonly chance: RunwayChance;
+}
+
+/**
+ * **Will the money last?** (E2), as both owner's documents print it: the heading, the sentence and
+ * the chance in natural frequencies (never a percentage: they are the owner's), then one figure — the
+ * week the money runs short, opening onto what comes in and goes out that week, or the money left at
+ * the end — and, when any, the money expected and late, which is not counted; then what the sentence
+ * leaves out and how the chance was computed.
+ */
+export function runwayBlocks(
+  i18n: I18n,
+  snapshot: WorkSnapshot,
+  cash: Cash,
+  level: 1 | 2,
+): ReportBlock[] {
+  const { t, number } = i18n;
+  const { runway, chance } = cash;
+  const currency = snapshot.work.currency;
+  const blocks: ReportBlock[] = [
+    { type: 'heading', level, text: t('money.runway.title') },
+    {
+      type: 'paragraph',
+      tone: 'strong',
+      text: shortened(runwaySentenceText(i18n, runway.sentence, currency), REPORT_LIMITS.text),
+    },
+    {
+      type: 'paragraph',
+      text: shortened(runwayChanceText(i18n, chance), REPORT_LIMITS.text),
+    },
+  ];
+  if (runway.state !== 'nothing') {
+    const shortWeek = runway.shortWeek;
+    blocks.push(
+      figure(
+        t(shortWeek === null ? RUNWAY_LABEL_KEYS.end : RUNWAY_LABEL_KEYS.short),
+        runwayValue(i18n, runway, currency),
+        shortWeek === null
+          ? []
+          : [
+              line(
+                t('money.runway.weekRange', {
+                  from: i18n.day(shortWeek.from),
+                  to: i18n.day(shortWeek.to),
+                }),
+                t('money.runway.shortBy', { amount: i18n.money(runway.shortBy ?? 0, currency) }),
+              ),
+              ...shortWeek.rows.map((each) =>
+                shortened(runwayRowLine(i18n, each, snapshot, currency), REPORT_LIMITS.text),
+              ),
+            ],
+      ),
+    );
+  }
+  const late = runway.figures.late;
+  if (late.value > 0) {
+    blocks.push(
+      figure(
+        t(RUNWAY_LABEL_KEYS.late),
+        number(late.value),
+        late.rows.map((each) =>
+          shortened(runwayRowLine(i18n, each, snapshot, currency), REPORT_LIMITS.text),
+        ),
+      ),
+    );
+  }
+  // E4: retention held while snags are open — the money the owner is holding, never in a week.
+  const held = runway.figures.held;
+  if (held.rows.length > 0) {
+    blocks.push(
+      figure(
+        t(RUNWAY_LABEL_KEYS.held),
+        i18n.money(held.value, currency),
+        held.rows.map((each) =>
+          shortened(runwayRowLine(i18n, each, snapshot, currency), REPORT_LIMITS.text),
+        ),
+      ),
+    );
+  }
+  const facts = [...runwayNotes(i18n, runway, currency), runwayMethodText(i18n, chance)].filter(
+    (each): each is string => each !== null,
+  );
+  if (facts.length > 0) {
+    blocks.push({
+      type: 'paragraph',
+      tone: 'muted',
+      text: shortened(facts.join(' '), REPORT_LIMITS.text),
+    });
+  }
+  return blocks;
+}
+
+/**
+ * **As things stand** and **Why is it late?** (E3), as both owner's documents print them: the
+ * forecast in one sentence against the baseline, and against the plan's own date — two answers,
+ * labelled — then where the work stands, and, when it is late, the days late as a figure opening
+ * onto what finishes later, and the ledger by cause (and, with `byParty`, by whose account), each
+ * line with its working days and every day or change it was made from; what the record does not
+ * explain in a strong sentence of its own; and what the forecast assumes and the ledger is not.
+ */
+export function delayBlocks(
+  i18n: I18n,
+  snapshot: WorkSnapshot,
+  ledger: DelayLedger,
+  level: 1 | 2,
+  byParty: boolean,
+): ReportBlock[] {
+  const { t, tp, number } = i18n;
+  const term = termsFor(i18n.language, 'owner');
+  const days = (value: number) => tp('plan.checklist.days', Math.abs(value));
+  const blocks: ReportBlock[] = [
+    { type: 'heading', level, text: t(DELAY_LABEL_KEYS.title) },
+    {
+      type: 'paragraph',
+      tone: 'strong',
+      text: shortened(forecastSentence(i18n, term, ledger.forecast), REPORT_LIMITS.text),
+    },
+  ];
+  const plan =
+    ledger.forecast.problem === null ? forecastPlanText(i18n, term, ledger.forecast) : null;
+  if (plan !== null) blocks.push({ type: 'paragraph', text: shortened(plan, REPORT_LIMITS.text) });
+  blocks.push({
+    type: 'paragraph',
+    text: shortened(delayStatusText(i18n, term, ledger), REPORT_LIMITS.text),
+  });
+  const figures = ledger.status === 'late' ? ledger.figures : null;
+  if (figures !== null) {
+    blocks.push(
+      figure(
+        t(DELAY_LABEL_KEYS.total),
+        number(figures.total.value),
+        figures.total.rows.map((each) => line(each.name, slipRowText(i18n, each))),
+      ),
+    );
+    blocks.push(
+      figure(
+        t(DELAY_LABEL_KEYS.byCause),
+        number(figures.byCause.value),
+        figures.byCause.rows.map((each) =>
+          line(
+            delayCauseText(i18n, each),
+            days(each.days),
+            each.cause === 'unexplained' || each.cause === 'made-up'
+              ? delayResidualText(i18n, each.cause)
+              : each.trace.map((trace) => delayTraceText(i18n, snapshot, trace)).join('; '),
+          ),
+        ),
+      ),
+    );
+    if (byParty) {
+      blocks.push(
+        figure(
+          t(DELAY_LABEL_KEYS.byParty),
+          number(figures.byParty.value),
+          figures.byParty.rows.map((each) =>
+            line(
+              delayPartyRowText(i18n, each),
+              days(each.days),
+              each.residual !== null
+                ? delayResidualText(i18n, each.residual)
+                : each.trace.map((trace) => delayTraceText(i18n, snapshot, trace)).join('; '),
+            ),
+          ),
+        ),
+      );
+    }
+  }
+  const left = delayLeftText(i18n, ledger);
+  if (left !== null) blocks.push({ type: 'paragraph', tone: 'strong', text: left });
+  const facts = [
+    ledger.forecast.problem === null
+      ? forecastAssumesText(i18n, term, ledger.forecast, snapshot.activities.length)
+      : null,
+    figures !== null ? t('delay.caveat') : null,
+  ].filter((each): each is string => each !== null);
+  if (facts.length > 0) {
+    blocks.push({
+      type: 'paragraph',
+      tone: 'muted',
+      text: shortened(facts.join(' '), REPORT_LIMITS.text),
+    });
+  }
+  return blocks;
+}
+
+/**
  * The finish as a probability, as the page prints it: one figure, then what it rests on. The owner's
  * snapshot (D4) prints the same blocks.
  */
@@ -198,7 +600,10 @@ export function probabilityBlocks(i18n: I18n, probability: FinishProbabilityResu
 /**
  * The weekly report for the selection `weekly`, in `i18n`'s language and the owner's words.
  * `scheduled` is the schedule the selection was made from, for why a finish is not known;
- * `probability` is `finishProbability` over the same plan, schedule and diary (D1).
+ * `probability` is `finishProbability` over the same plan, schedule and diary (D1); `cash` is the
+ * runway and its chance over the same three (E2), printed after the money when given; `delay` is
+ * `delayLedger` over the same three (E3), printed after the plan when given — the forecast and why
+ * it is late.
  */
 export function composeWeekly(
   weekly: Weekly,
@@ -206,6 +611,8 @@ export function composeWeekly(
   scheduled: Pick<Schedule, 'finishDate' | 'cyclic' | 'unplaced'>,
   i18n: I18n,
   probability: FinishProbabilityResult,
+  cash: Cash | null = null,
+  delay: DelayLedger | null = null,
 ): ReportDocument {
   const { t, tp, day, number, money } = i18n;
   const term = termsFor(i18n.language, 'owner');
@@ -353,6 +760,9 @@ export function composeWeekly(
     ),
   );
 
+  // ── As things stand, and why it is late (E3) ──
+  if (delay !== null) blocks.push(...delayBlocks(i18n, snapshot, delay, 2, true));
+
   // ── Money ──
   blocks.push({ type: 'heading', level: 2, text: t('nav.money') });
   for (const name of ['planned', 'committed', 'paid'] as const) {
@@ -387,6 +797,17 @@ export function composeWeekly(
       planRows(i18n, weekly.money.dueNow, snapshot, 'money.paymentPlan.dueNow.mark'),
     ),
   );
+
+  // E2: will the money last, in the same words as the Money page.
+  if (cash !== null) blocks.push(...runwayBlocks(i18n, snapshot, cash, 2));
+
+  // ── Changes (E1) — once the plan is approved; before that there are none to report ──
+  if (snapshot.work.approvedAt !== null) {
+    blocks.push(...weeklyChangeBlocks(weekly, snapshot, i18n));
+  }
+
+  // ── Still to fix (E4) — once a snag has been raised ──
+  blocks.push(...snagBlocks(i18n, snapshot, weekly.today, 2, weekly.week));
 
   // ── Stages ──
   blocks.push({ type: 'heading', level: 2, text: t('reports.weekly.stages') });

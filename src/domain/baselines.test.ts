@@ -3,16 +3,26 @@ import { describe, expect, it } from 'vitest';
 import {
   COMPARISON_LABEL_KEYS,
   COMPARISON_PROBLEM_KEYS,
+  changesBetween,
   compareBaselines,
   comparisonFigures,
   defaultPair,
+  explainedByChanges,
   orderPair,
   sameBaseline,
   type Comparison,
   type ComparisonResult,
 } from './baselines';
 import { traceable } from './figure';
-import { activity, link, snapshot, stage, takeBaseline } from './__fixtures__/plan';
+import {
+  activity,
+  changeDecision,
+  changeOrder,
+  link,
+  snapshot,
+  stage,
+  takeBaseline,
+} from './__fixtures__/plan';
 import { workingCalendarOf, type Baseline, type WorkSnapshot } from './plan';
 
 /**
@@ -317,5 +327,65 @@ describe('a baseline that lists something twice', () => {
     };
     const comparison = compared(compareBaselines([B1, tied], 1, 2, CALENDAR));
     expect(comparison.stagesAdded.rows.map((row) => row.stageId)).toEqual(['s4', 'y', 'z']);
+  });
+});
+
+describe('the change orders approved between two baselines (E1)', () => {
+  const first = { ...B1, takenAt: '2026-09-01T12:00:00.000Z' };
+  const second = { ...B2, takenAt: '2026-09-10T12:00:00.000Z' };
+  const approved = (id: string, number: number, createdAt: string, parts = {}) =>
+    changeOrder(id, number, 's1', '2026-09-01', {
+      decision: {
+        ...changeDecision('approved', createdAt.slice(0, 10), parts),
+        createdAt,
+      },
+    });
+  const changes = [
+    approved('before', 1, '2026-09-01T12:00:00.000Z'),
+    approved('co3', 3, '2026-09-10T12:00:00.000Z', { daysDelta: 1, costCents: null }),
+    approved('co2', 2, '2026-09-04T08:00:00.000Z', { daysDelta: 2, costCents: 300_00 }),
+    approved('after', 4, '2026-09-10T12:00:00.001Z'),
+    changeOrder('declined', 5, 's1', '2026-09-02', {
+      decision: changeDecision('declined', '2026-09-03', { costCents: 900_00 }),
+    }),
+    changeOrder('waiting', 6, 's1', '2026-09-02'),
+  ];
+  const comparison = compared(compareBaselines([first, second], 1, 2, CALENDAR, changes));
+
+  it('lists the approvals recorded after the earlier was taken, up to the later, by number', () => {
+    expect(comparison.changes).toMatchObject({
+      unit: 'count',
+      value: 2,
+      label: COMPARISON_LABEL_KEYS.changes,
+    });
+    expect(
+      comparison.changes.rows.map((row) => [row.changeOrderId, row.number, row.daysDelta]),
+    ).toEqual([
+      ['co2', 2, 2],
+      ['co3', 3, 1],
+    ]);
+    expect(traceable(comparison.changes)).toBe(true);
+  });
+
+  it('is the same pair whichever way round it was chosen', () => {
+    const swapped = compared(compareBaselines([first, second], 2, 1, CALENDAR, changes));
+    expect(swapped.changes.rows).toEqual(comparison.changes.rows);
+  });
+
+  it('says what of the move the changes explain', () => {
+    expect(explainedByChanges(comparison)).toEqual({
+      costCents: 300_00,
+      days: 3,
+      unpriced: 1,
+      uncounted: 0,
+    });
+  });
+
+  it('puts them in the summary line, last, when there are any', () => {
+    expect(comparisonFigures(comparison).at(-1)).toBe(comparison.changes);
+    const none = compared(compareBaselines([first, second], 1, 2, CALENDAR));
+    expect(none.changes.rows).toEqual([]);
+    expect(comparisonFigures(none)).not.toContain(none.changes);
+    expect(changesBetween(changes, second, first)).toEqual([]);
   });
 });

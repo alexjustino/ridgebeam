@@ -201,3 +201,117 @@ describe('photos dropped on the Diary', () => {
     expect(find('entry-photo-left')).toBeNull();
   });
 });
+
+describe('why a day was lost (E3)', () => {
+  const draftSent = () =>
+    (
+      invoke.mock.calls.find(([command]) => command === 'diary_entry_add')?.[1] as {
+        draft: Record<string, unknown>;
+      }
+    )?.draft;
+
+  function openLost() {
+    act(() => find('entry-more')?.click());
+    expect(find('entry-lost-cause')).toBeNull();
+    act(() => find('entry-lost-day')?.click());
+  }
+
+  it('asks why only once no work was possible, with the seven causes', () => {
+    render([]);
+    openLost();
+    const values = [...host.querySelectorAll('[data-testid="entry-lost-cause"] [data-value]')].map(
+      (option) => option.getAttribute('data-value'),
+    );
+    expect(values).toEqual([
+      'weather',
+      'decision',
+      'absence',
+      'material',
+      'owner',
+      'access',
+      'other',
+    ]);
+    expect(find('entry-lost-cause')?.textContent).toContain('Waiting for a decision');
+    // Who is asked only for a cause that can name somebody.
+    act(() => host.querySelector<HTMLElement>('[data-value="decision"]')?.click());
+    expect(find('entry-lost-party')).toBeNull();
+    act(() => host.querySelector<HTMLElement>('[data-value="absence"]')?.click());
+    expect(find('entry-lost-party')).not.toBeNull();
+    // Unticked, the day is not lost, and the question goes with it.
+    act(() => find('entry-lost-day')?.click());
+    expect(find('entry-lost-cause')).toBeNull();
+  });
+
+  it('sends the cause and who in the draft', async () => {
+    invoke.mockResolvedValue(entry(1, TODAY, { lostDay: true }));
+    render([]);
+    openLost();
+    act(() => host.querySelector<HTMLElement>('[data-value="absence"]')?.click());
+    const party = find('entry-lost-party') as HTMLSelectElement;
+    act(() => {
+      party.value = 'tiler';
+      party.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    act(() => find('entry-save')?.click());
+    await settle();
+    expect(draftSent()).toMatchObject({
+      lostDay: true,
+      lostCause: 'absence',
+      lostPartyPersonId: 'tiler',
+    });
+  });
+
+  it('sends no person for a cause that names nobody, and nothing at all for a day not lost', async () => {
+    invoke.mockResolvedValue(entry(1, TODAY));
+    render([]);
+    openLost();
+    act(() => host.querySelector<HTMLElement>('[data-value="absence"]')?.click());
+    const party = find('entry-lost-party') as HTMLSelectElement;
+    act(() => {
+      party.value = 'tiler';
+      party.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    act(() => host.querySelector<HTMLElement>('[data-value="weather"]')?.click());
+    act(() => find('entry-save')?.click());
+    await settle();
+    expect(draftSent()).toMatchObject({ lostCause: 'weather', lostPartyPersonId: null });
+
+    invoke.mockReset();
+    invoke.mockResolvedValue(entry(2, TODAY));
+    render([]);
+    act(() => find('entry-save')?.click());
+    await settle();
+    expect(draftSent()).toMatchObject({ lostDay: false, lostCause: null, lostPartyPersonId: null });
+  });
+
+  it('opens a correction with the cause and who it restates', () => {
+    const lost = entry(1, '2026-09-02', {
+      lostDay: true,
+      lostCause: 'material',
+      lostPartyPersonId: 'mason',
+    });
+    render([lost], { correcting: lost });
+    expect(host.querySelector('[data-value="material"]')?.getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    expect((find('entry-lost-party') as HTMLSelectElement).value).toBe('mason');
+  });
+
+  it('says it in Portuguese', () => {
+    render([], { language: 'pt-BR' });
+    openLost();
+    const text = find('entry-lost-cause')?.textContent ?? '';
+    for (const word of [
+      'Por quê?',
+      'Clima',
+      'Esperando uma decisão',
+      'A equipe não veio',
+      'O material não chegou',
+      'Pedido do dono',
+      'Sem acesso à obra',
+      'Outro',
+    ]) {
+      expect(text).toContain(word);
+    }
+  });
+});

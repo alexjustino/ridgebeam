@@ -259,7 +259,10 @@ words to anybody who is not looking at it.
 
 `ChoiceGroup` is for two to four mutually exclusive options — the language, the theme, the lens
 in Settings — a radio group underneath, drawn with the canonical button. A longer list is a
-`Select`.
+`Select`, with **one exception**: a quick choice made on site in every diary entry — the day's
+weather, a lost day's cause — may hold **up to seven short options**, because one tap beats opening
+a list with gloves on; the group wraps onto a second line rather than overflowing its card
+(ADR-043).
 
 **`ProgressBar` is for a job the product is running, never for the work.** It is a real
 `<progress>` with a required label, for something like a backup being written. It is never drawn
@@ -620,6 +623,89 @@ breaks one is not merged.
   announced, closable, gone at the next screen or the next drag — and every name a drop left out is
   named in one sentence, _"Week 1 was left out: it is a folder, or not a kind of file taken here."_
   (ADR-040).
+- **An impact is shown before a decision, always.** Nothing that moves the finish or the money is
+  decided on a blank. The form that raises a change order shows what it does **as it is written,
+  before it is saved** (`change-impact`) — computed by the schedule, never typed, in one sentence
+  that says the working days, both dates and the money: _"Finishes 3 working days later — on 14 Nov
+  instead of 11 Nov; costs $1,200.00 more."_ The dialog that approves, declines or withdraws it
+  shows the same impact again, from the same call, so the two readings cannot disagree (§2), and
+  says what approving will do — _"The replanning is open with this change applied; review the plan
+  and take the next baseline."_ — before the button is pressed, not after. Days are always
+  **working** days and the sentence says so; a change that does not move the finish says that in
+  words, and a change with no price says _not priced_, never _$0.00_. The impact is a figure like
+  any other, and opens onto the activities it moves. Approving is not destructive and does not take
+  the danger tone; the confirming button repeats the verb — **Approve**, **Decline**, **Withdraw**
+  (ADR-041). A change declined or withdrawn is **never shown as a cost**: it has no price line of
+  its own, and its impact reads as what approving it would have done — _"Not applied. Had it been
+  approved: …"_. A figure's value is a number and its unit lives in the label — _Working days added
+  by changes_ **+2**, never a sentence in the value's place.
+- **A projection says what it counts and what it does not, in words, beside the number.** A figure
+  about the future — whether the money lasts, and its chance — is read as a promise unless the
+  screen says what it was made from. So the **Will the money last?** card (`runway-card`) puts,
+  beside its sentence and never behind a tooltip, what it **left out**, each counted with its rows:
+  money expected on an earlier day that has not arrived — _"1 expected sum has not arrived:
+  $5,000.00 not counted — money that has not come is not money."_ — the cost lines _not priced yet_,
+  money the schedule cannot date, which it counted this week, and money dated after the last week,
+  listed and not counted. A late sum is never quietly added to the money coming in and never quietly
+  dropped. The sentence is one, from the domain, and the figures, the weeks' table and the balance
+  chart read the same rows in the same call, so they cannot disagree (§2): _"Money runs short in the
+  week of 16 Nov — $4,200.00 short."_ or _"The money lasts to the end, with $1,800.00 to spare."_ A
+  figure's label carries its unit — **Money runs short in the week of** shows the week's Monday as a
+  day, **Money left at the end** an amount — and a short week's closing reads _"$700.00 short"_,
+  never a minus sign, which a layperson misreads and a screen reader reads as "minus". The short
+  sentence takes the **danger** tone with its error icon and its words, never colour alone; the
+  money that lasts is **not** a success state, because a projection is not an achievement. The weeks
+  are a real table, as the S-curve's is, each week a row with what came in, what went out and what
+  was left, and the chart is drawn as the S-curve is. The chance follows _a probability is said as N
+  in 10, in words_ — _"3 in 10 chances that the money runs short before the work ends."_ — and where
+  no activity has a range the card says so instead of giving one: _"Every duration is taken as
+  certain, so the weeks below are the only answer. Give activities a range to see the chance."_ The
+  card ends with what it is: _"A projection, not a promise: it is as good as the schedule, the
+  payment plans and the dates typed here."_ The dashboard shows the week or the money left with the
+  sentence, and no chance (ADR-042).
+- **The plan and the forecast are never the same number on screen.** The plan's finish date and its
+  slip say what the plan says — plan against plan — and the forecast says when the work will finish
+  **as things stand**, read from the diary (ADR-043). They are two facts, and a screen shows them
+  apart, each labelled with what it is and never one in the place of the other: the **As things
+  stand** card (`forecast-card`) sits beside the finish and the slip, not over them; the Gantt, the
+  slip and the deadlines stay the plan's; and the card's sentence says which is which — _"As things
+  stand it finishes on 23 Oct — 5 working days after the baseline's 16 Oct."_ Its days are working
+  days, said in words as the slip says them, and ahead of the baseline reads as early in words, not
+  as a minus sign alone. A forecast that happens to fall on the plan's date is still labelled as the
+  forecast: the two agreeing is a fact about the site, not a reason to show one number.
+- **What the record does not explain is always shown.** The **Why is it late?** card
+  (`delay-card`) attributes the working days the work is late to causes, each a figure that opens
+  onto the entries, decisions and changes it was counted from (§2, _a number can be opened_). The
+  days it cannot attribute are a row of their own (`delay-unexplained`), said in words —
+  _"3 days the record does not explain"_ — **whenever they are not zero**: never folded into
+  _other_, never behind a tooltip, never left off because the rest looks complete (§2, _a view says
+  what it left out_). Causes are said in the owner's words — _waiting for a decision_, _the crew did
+  not come_ — and a party is the name the record gives, never a verdict: the card attributes, it does
+  not judge. When the work is on or ahead of the baseline the card says so, and lists no cause.
+- **A snag is closed with a photo or withdrawn with a reason, never deleted.** The Plan's **Snags**
+  tab (`data-tab="snags"`) lists what is still to fix, open first, an overdue one marked in words
+  and with its icon, never by colour alone (§2), each row carrying its state (`data-snag-id`,
+  `data-state`). An open snag offers exactly two ways out and no third: **Fix…** (`snag-fix`), whose
+  dialog requires a photo of it fixed — its photo field is open from the start and says why, so
+  nobody learns the rule from a refusal — and **Withdraw…** (`snag-withdraw`), whose dialog requires
+  the reason. There is **no Edit and no Delete**, on the row or in a menu, because a snag that can
+  disappear is a snag nobody fixed: a mistake is withdrawn, and a withdrawn snag stays in the list
+  as withdrawn, with its reason. A fixed snag shows its two photos side by side, the problem and the
+  fix. Withdrawing is not destructive and does not take the danger tone; the confirming button
+  repeats the verb — **Fix**, **Withdraw**. The dashboard's **Still to fix** card
+  (`dashboard-snags`) — open, overdue, by person, each a figure with its rows — is not shown while
+  the work has never had a snag, and once it has had one it stays, reading zero when all are closed,
+  so the end of the list is a fact on screen and not a card that vanished (ADR-044).
+- **Held money is shown as held, never as due.** A retention not yet earned reads _held until …_ —
+  its stage closed and its person's snags closed — with how many snags hold it, in the neutral tone:
+  it is not owed, so it is never in **due now**, never in the danger or warning tone, never in a
+  week of the projection as money going out; the projection lists it apart, beside the number, as
+  money the owner is holding (§8, _a projection says what it counts and what it does not_). The
+  payment plan's editor offers **Hold back as retention** (`milestone-retention`) as the last part,
+  suggested at 5 % and editable, and says in a sentence beside it that this is a common practice,
+  not advice — as the usual split does. Paying a retention before it is earned is paying ahead of
+  the work: the Ledger's warning says so before the payment is saved, as for any milestone, and the
+  button is never disabled (ADR-044).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
