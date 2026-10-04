@@ -1099,3 +1099,91 @@ standing tally says how much the work has grown, and who asked for it.
   decision, always_. [`docs/RELEASE.md`](docs/RELEASE.md): raise a change, see its impact, approve
   it into the replanning, take the baseline, decline another, and read the tally on the dashboard
   and in the snapshot. The glossary gains _change order_ (_aditivo_).
+
+### Added in E2 — will the money last?
+
+The second slice of the second wave (ADR-041), for the second way a small work fails: the money
+runs out before the work does. The product already knew what the work will ask for and when — the
+cost lines, the commitments, the payment plans and the schedule — and nothing about the money
+coming in. The owner now writes down **where the money comes from** — savings on hand, a loan's
+tranches, a client's instalments — each expected on a day, and records each sum when it actually
+arrives. Ridgebeam projects, **week by week from today to the finish**, what will have to be paid
+against what will have come in, and says in one sentence whether the money lasts — _"The money
+lasts to the end, with $1,800.00 to spare."_ or _"Money runs short in the week of 16 Nov — $4,200.00
+short."_ — with, from D1's ranges, the chance that it runs short (ADR-042).
+
+- **Funding** (`funding`, migration 014). On Money's new **Funding** tab: a fund's label of up to
+  200 characters, where it comes from, its amount, the day it is expected and a note, listed in the
+  order written. Funding is plan: it is changed at any time — amount and day included, even after
+  money was received against it — and an approved plan does not lock it. Only removing is refused
+  once money has been received against a fund, with a sentence. Commands `funding_add`,
+  `funding_update` and `funding_remove`.
+- **Money received** (`funding_receipt`). **Mark as received…** on a fund asks for the amount and
+  the day; money that arrived unplanned is recorded against no fund. The receipts are a ledger like
+  the payments: numbered in order, never edited or removed, a mistake corrected by a **reversal** of
+  the whole receipt, dated on or after it, once and with no note — a receipt is not reversed in
+  part. **A receipt's day is never in the future**: money that has not arrived is a fund, not a
+  receipt. Commands `funding_receipt_add` and `funding_receipt_reverse`; the work's snapshot carries
+  the funds by position and the receipts by number.
+- **The projection** (`runway`, in the domain, pure). Calendar weeks, Monday to Sunday, from this
+  week to the finish's week — eight weeks past today when the plan has no finish, and never more
+  than 260 weeks. It opens with the **money on hand today**, received less paid, both ledgers with
+  their reversals. **Out**: each payment-plan milestone not yet earned on the day the schedule
+  expects its fact, net of what was paid ahead on its commitment; the rest of a payment plan that
+  covers less than its commitment, and the unpaid rest of a commitment with no payment plan, spread
+  evenly over the stage's remaining working days; and the money planned and not yet committed on
+  each stage, less what was paid on it outside any commitment, spread the same way. Money earned and
+  not paid, a milestone past its expected day, a closed stage's money still owed and money the
+  schedule cannot date — noted as such — fall in the current week. A line not priced yet adds
+  nothing and is counted as such. **In**: what each fund still expects, on its day; a fund expected
+  today counts. **Money expected on an earlier day and not received is not counted**, and a note
+  says how much: _"1 expected sum has not arrived: $5,000.00 not counted — money that has not come
+  is not money."_ Money dated after the last week is listed, not counted. The result is one of four
+  states — lasts, short, no funding, nothing to project. `expectedOn` moves from the lookahead into
+  `milestones.ts`, so the owner's snapshot and the projection read one answer.
+- **Will the money last?** A card on Money with the sentence, the chance, a table of the weeks —
+  what came in, what went out, what was left, a short week's closing reading _"$700.00 short"_ and
+  never a minus sign — and a small balance chart drawn as the S-curve is. Four figures carry their
+  rows: **Money on hand today**, **Money runs short in the week of** (the week's Monday), **Money
+  left at the end** and **Money expected and late** (a count). The short sentence carries a
+  danger-toned error icon; the money lasting is not shown as a success. Beside the number, in words,
+  what the projection left out, and at the end what it is: _"A projection, not a promise: it is as
+  good as the schedule, the payment plans and the dates typed here."_ The dashboard's money card
+  shows the short week's Monday, or the money left at the end, with the sentence, and does not run
+  the chance. The weekly report projects from the day it is written and prints the sentence, with
+  the short week's rows or none when the money lasts; the owner's snapshot carries the same
+  sentence, rows and chance as the weekly report.
+- **The chance, from D1.** `finishProbability` gains an optional per-run hook that changes none of
+  D1's results or its seed, and `runwayChance` counts the runs whose balance goes below zero in any
+  week up to that run's own finish week: _"3 in 10 chances that the money runs short before the work
+  ends."_ About 0.3 s on the 2 000-activity benchmark work. With no range in the plan the card gives
+  no chance and says why: _"Every duration is taken as certain, so the weeks below are the only
+  answer. Give activities a range to see the chance."_
+- **Change orders.** One waiting for a decision is not projected; an approved one is already in the
+  plan, and is projected like any planned money.
+- **Readiness learns one rule** (`work.funding`). A work whose priced planned money is above zero
+  and that has no fund recorded is missing where the money comes from — _"Where the money comes from
+  is not written down yet."_ (_"De onde vem o dinheiro ainda não está anotado."_). Money received
+  with no fund does not answer it. A work from E1 with priced cost lines reads one row more missing
+  until a fund is recorded.
+- **Append-only, behind the host.** `funding_receipt` carries the payments' battery — triggers
+  refuse `UPDATE`, `DELETE` and `REPLACE`, with `recursive_triggers` on and off, and the module that
+  writes it holds no such statement, which a test reads its source to prove — and a reversal that is
+  partial, repeated, for another fund or dated before its receipt is refused again by the schema. A
+  fund money was received against cannot be removed. **Work migration 014** (`014_funding.sql`) adds
+  the two tables and changes no existing row; a work at schema 13 migrates to 14 losing nothing, its
+  chain still verifying.
+- **Documentation.** ADR-042 (will the money last? Funding as plan, receipts as facts, a weekly
+  projection), with its costs: a projection, not a promise — as good as the schedule, the payment
+  plans and the dates the owner typed; money that has not arrived is not counted, which can call a
+  week short that a late tranche would cover; uncommitted planned money is spread evenly, which a
+  real invoice will not be; the chance uses D1's ranges and nothing else; the week is the unit; and
+  money in is recorded, not connected to any bank. [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md):
+  migration 014, both tables, their triggers and the readiness rule. [`SECURITY.md`](SECURITY.md):
+  the receipts ledger is append-only like the payments, a receipt's day is never in the future, and
+  nothing is sent anywhere — money in is recorded, not connected to any bank.
+  [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a projection says what it counts and what it does
+  not, in words, beside the number_. [`docs/RELEASE.md`](docs/RELEASE.md): record funds and a
+  receipt, read the sentence, make the money run short and then last, see a late fund listed and
+  not counted, the chance with ranges, the snapshot's sentence, in Portuguese. The glossary gains
+  _funding_ (_recursos_).

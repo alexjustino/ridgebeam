@@ -60,6 +60,11 @@ import {
   careNoteMove,
   changeOrderDecide,
   changeOrderRaise,
+  fundingAdd,
+  fundingReceiptAdd,
+  fundingReceiptReverse,
+  fundingRemove,
+  fundingUpdate,
   careNoteRemove,
   careNoteUpdate,
   checkAdd,
@@ -134,6 +139,8 @@ import {
   type CareNoteTarget,
   type ChangeOrderDecisionDraft,
   type ChangeOrderDraft,
+  type FundingDraft,
+  type FundingReceiptDraft,
   type DecisionPatch,
   type EntryDraft,
   type Gate,
@@ -617,6 +624,30 @@ export function useRaiseChange() {
 
 export function useDecideChange() {
   return useWorkCommand((decision: ChangeOrderDecisionDraft) => changeOrderDecide(decision));
+}
+
+// ── Funding and money received (E2) ──────────────────────────────────────────
+
+export function useAddFunding() {
+  return useWorkCommand((draft: FundingDraft) => fundingAdd(draft));
+}
+
+export function useUpdateFunding() {
+  return useWorkCommand((draft: FundingDraft & { id: string }) => fundingUpdate(draft));
+}
+
+export function useRemoveFunding() {
+  return useWorkCommand((id: string) => fundingRemove(id));
+}
+
+export function useAddReceipt() {
+  return useWorkCommand((draft: FundingReceiptDraft) => fundingReceiptAdd(draft));
+}
+
+export function useReverseReceipt() {
+  return useWorkCommand(({ seq, day }: { seq: number; day: string }) =>
+    fundingReceiptReverse(seq, day),
+  );
 }
 
 // ── People and money (F6) ────────────────────────────────────────────────────

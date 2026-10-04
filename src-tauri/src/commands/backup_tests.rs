@@ -19,6 +19,9 @@ use crate::commands::decisions::decision_make_with;
 use crate::commands::diary::{diary_entry_add_with, diary_list_with};
 use crate::commands::documents::tests::minimal_pdf;
 use crate::commands::documents::{document_add_with, documents_verify_with};
+use crate::commands::funding::{
+    funding_add_with, funding_receipt_add_with, funding_receipt_reverse_with,
+};
 use crate::commands::milestones::milestone_add_with;
 use crate::commands::money::{
     commitment_add_with, cost_line_add_with, payment_add_with, payment_reverse_with,
@@ -373,8 +376,35 @@ pub fn a_full_work() -> FullWork {
         AUTHOR,
     )
     .unwrap();
+    // E2: a fund, received, the receipt reversed and received again.
+    let savings = funding_add_with(
+        &open,
+        &from(json!({
+            "label": "Savings", "source": "Our account", "amountCents": 400000,
+            "expectedOn": "2026-10-01", "note": "On hand."
+        })),
+    )
+    .unwrap()
+    .funding[0]
+        .id
+        .clone();
+    for day in ["2026-10-02", "2026-10-03"] {
+        funding_receipt_add_with(
+            &open,
+            &from(json!({ "fundingId": savings, "amountCents": 400000, "day": day })),
+            today(),
+            AUTHOR,
+        )
+        .unwrap();
+    }
+    funding_receipt_reverse_with(&open, 2, "2026-10-03", today(), AUTHOR).unwrap();
 
     let plan = work_get_with(&open).unwrap();
+    assert_eq!(
+        plan.funding_receipts.len(),
+        3,
+        "two receipts and a reversal"
+    );
     assert_eq!(plan.baselines.len(), 2);
     assert!(plan.replanning.is_some(), "a replanning is open");
     assert_eq!(plan.payments.len(), 3, "two payments and a reversal");

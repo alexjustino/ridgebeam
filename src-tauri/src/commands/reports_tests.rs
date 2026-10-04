@@ -513,6 +513,28 @@ fn the_work_as_json_reads_back_into_the_snapshot_and_the_diary() {
     let written = Written::default();
     let folder = Scratch::create();
     let path = at(&folder, "work.json");
+    // E2: the funds and the money received travel with the work.
+    let savings = crate::commands::funding::funding_add_with(
+        &site.open,
+        &serde_json::from_value(serde_json::json!({
+            "label": "Savings", "amountCents": 400000, "expectedOn": "2026-10-01"
+        }))
+        .unwrap(),
+    )
+    .unwrap()
+    .funding[0]
+        .id
+        .clone();
+    crate::commands::funding::funding_receipt_add_with(
+        &site.open,
+        &serde_json::from_value(serde_json::json!({
+            "fundingId": savings, "amountCents": 400000, "day": "2026-10-02"
+        }))
+        .unwrap(),
+        today(),
+        "A. Owner (synthetic)",
+    )
+    .unwrap();
 
     let file = work_export_json_with(
         &site.open,
@@ -535,6 +557,12 @@ fn the_work_as_json_reads_back_into_the_snapshot_and_the_diary() {
     assert_eq!(export.exported_at, "2026-10-09T17:05:30.000Z");
     assert_eq!(export.work, work_get_with(&site.open).unwrap());
     assert_eq!(export.work.work.name, "Synthetic bathroom");
+    assert_eq!(export.work.funding[0].id, savings);
+    assert_eq!(
+        export.work.funding_receipts[0].funding_id.as_deref(),
+        Some(savings.as_str())
+    );
+    assert!(text.contains("\"fundingReceipts\": ["));
     assert_eq!(
         export.diary,
         crate::db::diary::all(&lock(&site.open.0).as_ref().unwrap().conn).unwrap()

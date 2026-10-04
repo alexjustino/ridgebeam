@@ -524,6 +524,17 @@
       }
     },
     {
+      "key": "funding",
+      "en": {
+        "term": "funding",
+        "sentence": "Money the work will receive — savings, a loan tranche, a client’s instalment — with where it comes from and the day it is expected. Money received is recorded on the day it arrives; until then it is a plan, and money expected on a day already past and not received is not counted."
+      },
+      "pt-BR": {
+        "term": "recursos",
+        "sentence": "Dinheiro que a obra vai receber — economias, uma parcela de financiamento, uma prestação do cliente — com de onde vem e o dia em que é esperado. Dinheiro recebido é registrado no dia em que chega; até lá é plano, e dinheiro esperado num dia que já passou e não recebido não é contado."
+      }
+    },
+    {
       "key": "person",
       "en": {
         "term": "person",

@@ -215,6 +215,11 @@ export const LIMITS = {
   changeEffects: 50,
   /** An added activity's name: an activity's name, as the host keeps it. */
   changeEffectName: 120,
+  /** A funding row's name, where it comes from and its note; a receipt's note (E2). */
+  fundingLabel: 200,
+  fundingSource: 200,
+  fundingNote: 2000,
+  receiptNote: 200,
 } as const;
 
 // ── The application ──────────────────────────────────────────────────────────
@@ -891,6 +896,58 @@ export interface ChangeOrderDecisionDraft {
 
 export function changeOrderDecide(decision: ChangeOrderDecisionDraft): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('change_order_decide', { decision });
+}
+
+// ── Funding and money received (E2) ──────────────────────────────────────────
+//
+// Funding is plan: money the work expects, from where and on what day — editable, and removable only
+// while no receipt names it. Receipts are facts: the ledger of money received is append-only exactly
+// as the payments ledger is — a mistake is a reversal, a new negative receipt that names it, once.
+
+/** Money the work expects to receive, as it is written. */
+export interface FundingDraft {
+  label: string;
+  /** Where it comes from; `null` when not said. */
+  source: string | null;
+  /** Whole cents, above zero. */
+  amountCents: number;
+  /** `YYYY-MM-DD`: the day it is expected. */
+  expectedOn: string;
+  note: string | null;
+}
+
+export function fundingAdd(draft: FundingDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('funding_add', { draft });
+}
+
+/** The row named by `id`, rewritten whole. */
+export function fundingUpdate(draft: FundingDraft & { id: string }): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('funding_update', { draft });
+}
+
+/** Refused once a receipt names the row: money received against it stays true. */
+export function fundingRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('funding_remove', { id });
+}
+
+/** Money received, as the ledger will record it. */
+export interface FundingReceiptDraft {
+  /** The funding row it was expected as; `null` for money that arrived unplanned. */
+  fundingId: string | null;
+  /** Whole cents, above zero. */
+  amountCents: number;
+  /** `YYYY-MM-DD`, never after today. */
+  day: string;
+  note: string | null;
+}
+
+export function fundingReceiptAdd(draft: FundingReceiptDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('funding_receipt_add', { draft });
+}
+
+/** Reverse a receipt on `day`: a new, negative receipt naming it. Once per receipt. */
+export function fundingReceiptReverse(seq: number, day: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('funding_receipt_reverse', { seq, day });
 }
 
 // ── People as contacts, documents and the folder (F7) ────────────────────────

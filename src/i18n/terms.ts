@@ -58,6 +58,7 @@ export const TERM_KEYS = [
   'commitment',
   'milestone',
   'advance',
+  'funding',
   'trade',
   'document',
   'entry',
