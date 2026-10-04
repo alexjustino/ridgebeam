@@ -402,6 +402,10 @@ export const en = {
     'An activity is either worked on or finished in one entry, not both.',
   'diary.problem.duplicate': 'An activity appears twice in the entry.',
   'diary.problem.weather': 'That weather is not one of the choices.',
+  'diary.problem.cause':
+    'Why a day was lost is said only on a lost day, and only with one of the choices.',
+  'diary.problem.party':
+    'Who a lost day is put down to must be a person in the plan, with a cause.',
   'diary.problem.hours': 'Hours worked are between 0 and 24.',
   'diary.problem.tooLong': 'A field is longer than it may be.',
   'diary.correction.title': 'Correcting entry #{seq}',
@@ -1208,7 +1212,7 @@ export const en = {
   'reports.file.snapshot': '{work} snapshot {day}',
 
   'reports.weekly.holds':
-    'One PDF of a week in the owner’s words: the days written and the working days with nothing written, what was done, who was on site, how ready the plan is, when it ends and the chance of finishing by then, the decisions due, the money — with what was paid ahead of the work and what is earned and not paid — and the stages. It does not hold the photos, and long notes are shortened — the diary’s PDF has them whole.',
+    'One PDF of a week in the owner’s words: the days written and the working days with nothing written, what was done, who was on site, how ready the plan is, when it ends and the chance of finishing by then, when it ends as things stand and why it is late, the decisions due, the money — with what was paid ahead of the work and what is earned and not paid — and the stages. It does not hold the photos, and long notes are shortened — the diary’s PDF has them whole.',
   'reports.week': 'Week',
   'reports.weekly.write': 'Write the weekly report',
   'reports.weekly.waiting': 'Reading the diary…',
@@ -1399,7 +1403,7 @@ export const en = {
   'reports.lookahead.gate.close': '{stage} ends on {day}: its close gate',
   'reports.snapshot.title': 'The {snapshot}',
   'reports.snapshot.holds':
-    'One web page for the owner, to open on any phone or computer: how ready the plan is, when it ends and the chance of finishing by then, the next two weeks — what starts, who must be there, what to decide or order, the gates and the payments falling due — the last diary entries with up to two photos each, and the money. Nothing in it runs and nothing is loaded from anywhere. It does not hold anybody’s phone or e-mail, the documents, or the whole schedule.',
+    'One web page for the owner, to open on any phone or computer: how ready the plan is, when it ends and the chance of finishing by then, when it ends as things stand and why it is late, the next two weeks — what starts, who must be there, what to decide or order, the gates and the payments falling due — the last diary entries with up to two photos each, and the money. Nothing in it runs and nothing is loaded from anywhere. It does not hold anybody’s phone or e-mail, the documents, or the whole schedule.',
   'reports.snapshot.sending':
     'Ridgebeam writes the file and sends nothing: sending it — by WhatsApp, by e-mail — is yours to do. The {snapshot} does not change when the work does; write a new one to send what changed.',
   'reports.snapshot.write': 'Write the {snapshot}',
@@ -2136,6 +2140,113 @@ export const en = {
   'readiness.explanation.work.funding':
     'A work with money planned must say where that money comes from and when — savings, a loan, a client — or nobody can say whether it lasts.',
   'readiness.row.work.funding': 'where the money comes from is not written down yet',
+  // ── Why is it late? (E3) ──────────────────────────────────────────────────
+  'diary.form.lostCause': 'Why?',
+  'diary.form.lostCause.hint':
+    'If you know why, say it: it is how the work explains a delay later. It can be left blank.',
+  'diary.form.lostParty': 'Who',
+  'diary.form.lostParty.nobody': 'Nobody named',
+  'diary.form.lostParty.noPeople': 'Add people in the plan to name who it was.',
+  'diary.lostCause.weather': 'Weather',
+  'diary.lostCause.decision': 'Waiting for a decision',
+  'diary.lostCause.absence': 'Crew did not come',
+  'diary.lostCause.material': 'Material did not arrive',
+  'diary.lostCause.owner': 'Owner’s request',
+  'diary.lostCause.access': 'No access to the site',
+  'diary.lostCause.other': 'Other',
+  'diary.lost.weather': 'weather',
+  'diary.lost.decision': 'waiting for a decision',
+  'diary.lost.absence': 'the crew did not come',
+  'diary.lost.material': 'the material did not arrive',
+  'diary.lost.owner': 'the owner’s request',
+  'diary.lost.access': 'no access to the site',
+  'diary.lost.other': 'another reason',
+  'diary.entry.lost': 'Lost — {cause}',
+  'diary.entry.lostBy': 'Lost — {cause} ({name})',
+  'schedule.forecast.title': 'As things stand',
+  'schedule.forecast.lead':
+    'When the work finishes from what the diary records, beside the plan’s own date — two answers, never one number.',
+  'schedule.forecast.reading': 'Reading the diary…',
+  'schedule.forecast.finish': 'Finish date by the forecast',
+  'schedule.forecast.planFinish': 'The plan’s finish date',
+  'schedule.forecast.againstBaseline': 'Working days against the baseline’s finish',
+  'schedule.forecast.againstPlan': 'Working days against the plan’s finish',
+  'schedule.forecast.noBaseline':
+    'There is no {baseline} yet: once the plan is approved, the {forecast} is read against it.',
+  'schedule.forecast.problem.noSchedule':
+    'No forecast yet: the plan itself cannot be put on the calendar.',
+  'schedule.forecast.problem.invalidToday': 'No forecast: today’s date could not be read.',
+  'schedule.forecast.nothing': 'Nothing in the plan has a duration yet, so there is no {forecast}.',
+  'schedule.forecast.sentence.plain': 'As things stand it finishes on {day}.',
+  'schedule.forecast.sentence.later':
+    'As things stand it finishes on {day} — {days} after the {baseline}’s {baselineDay}.',
+  'schedule.forecast.sentence.earlier':
+    'As things stand it finishes on {day} — {days} before the {baseline}’s {baselineDay}.',
+  'schedule.forecast.sentence.same':
+    'As things stand it finishes on {day} — the {baseline}’s own date.',
+  'schedule.forecast.plan.later':
+    'The plan’s own finish date is {day}: the {forecast} is {days} later, from what the diary records.',
+  'schedule.forecast.plan.earlier':
+    'The plan’s own finish date is {day}: the {forecast} is {days} earlier, from what the diary records.',
+  'schedule.forecast.plan.same':
+    'The plan’s own finish date is {day} too: what the diary records has not moved it.',
+  'schedule.forecast.assumes':
+    'A {forecast}, not a promise: what has started or finished keeps the diary’s dates, and everything else takes its planned duration from today. The plan, its finish date and its slip are not changed by it.',
+  'schedule.forecast.leftOut.one': '{count} activity has no duration and is not in it.',
+  'schedule.forecast.leftOut.other': '{count} activities have no duration and are not in it.',
+  'delay.title': 'Why is it late?',
+  'delay.reading': 'Reading the diary…',
+  'delay.figure.total': 'Working days late, as things stand',
+  'delay.figure.byCause': 'By cause, in working days',
+  'delay.figure.byParty': 'On whose account, in working days',
+  'delay.status.late':
+    'As things stand the work finishes {days} after the finish of {baseline} {number}. Here is why, as far as the record says.',
+  'delay.status.onTime':
+    'As things stand the work finishes on the date of {baseline} {number}: there is nothing late to explain.',
+  'delay.status.ahead':
+    'As things stand the work finishes {days} before the finish of {baseline} {number}: it is ahead, and no cause is made up for that.',
+  'delay.status.needsApproval':
+    'Why a work is late is read against an approved plan. Approve the plan to take {baseline} 1, and from then on the diary says why.',
+  'delay.status.noForecast':
+    'There is no forecast yet, so nothing can be said about why it is late: the plan itself cannot be put on the calendar.',
+  'delay.cause.change': 'Change orders approved since the baseline',
+  'delay.cause.decision': 'Waiting for a decision',
+  'delay.cause.weather': 'Weather',
+  'delay.cause.unstated': 'Lost, no cause said',
+  'delay.cause.absence': 'The crew did not come',
+  'delay.cause.material': 'The material did not arrive',
+  'delay.cause.owner': 'The owner’s request',
+  'delay.cause.access': 'No access to the site',
+  'delay.cause.other': 'Another reason',
+  'delay.cause.unexplained': 'Not explained by the record',
+  'delay.cause.madeUp': 'Days made up since',
+  'delay.basis.change': 'a change order approved',
+  'delay.basis.stated': 'the diary says why',
+  'delay.basis.weather': 'bad weather and nothing done',
+  'delay.basis.unstated': 'a lost day with no cause said',
+  'delay.basis.decision': 'a decision made after its deadline',
+  'delay.basis.absence': 'the responsible was not on site and nothing was done',
+  'delay.party.owner': 'The owner',
+  'delay.party.none': 'Nobody named',
+  'delay.party.formerPerson': 'Someone no longer in the plan',
+  'delay.unexplained.one': '{count} working day the record does not explain.',
+  'delay.unexplained.other': '{count} working days the record does not explain.',
+  'delay.madeUp.one':
+    'The record names {count} working day more than the finish lost: it was made up since.',
+  'delay.madeUp.other':
+    'The record names {count} working days more than the finish lost: they were made up since.',
+  'delay.rows.cause': 'What was put down to {cause}',
+  'delay.rows.party': 'What was put down to {party}',
+  'delay.rows.total': 'What finishes later than in the baseline',
+  'delay.row.day': '{day} — {basis}',
+  'delay.row.change': '{title} — {basis}: {days}',
+  'delay.row.decision': '{day} — {title}: {basis}',
+  'delay.row.activities': 'on the way to the finish: {names}',
+  'delay.row.residual':
+    'Nothing in the diary, the decisions or the changes accounts for these days.',
+  'delay.row.madeUp': 'Days the record names that the finish has since won back.',
+  'delay.caveat':
+    'The record attributes, it does not judge: each working day goes to one cause, in a fixed order — changes, what the diary says, the weather, lost days with no cause, late decisions, a crew that was not there — and to whoever the record names. A day with no entry is nobody’s absence. It is not a claim and not evidence.',
 } as const;
 
 /** Every key the interface may ask for. */

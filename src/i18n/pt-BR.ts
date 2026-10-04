@@ -398,6 +398,10 @@ export const ptBR: Dictionary = {
     'Numa entrada, uma atividade é trabalhada ou terminada, não as duas coisas.',
   'diary.problem.duplicate': 'Uma atividade aparece duas vezes na entrada.',
   'diary.problem.weather': 'Esse tempo não é uma das opções.',
+  'diary.problem.cause':
+    'O porquê de um dia perdido só se diz num dia perdido, e só com uma das opções.',
+  'diary.problem.party':
+    'A quem se atribui um dia perdido precisa ser uma pessoa do plano, com um motivo.',
   'diary.problem.hours': 'As horas trabalhadas ficam entre 0 e 24.',
   'diary.problem.tooLong': 'Um campo passou do tamanho permitido.',
   'diary.correction.title': 'Corrigindo a entrada nº {seq}',
@@ -1216,7 +1220,7 @@ export const ptBR: Dictionary = {
   'reports.file.snapshot': '{work} retrato {day}',
 
   'reports.weekly.holds':
-    'Um PDF de uma semana nas palavras do dono: os dias escritos e os dias úteis sem nada escrito, o que foi feito, quem esteve na obra, quanto o plano está pronto, quando termina e a chance de terminar até lá, as decisões a tomar, o dinheiro — com o que foi pago à frente da obra e o que é devido e não pago — e as etapas. Não traz as fotos, e anotações longas vêm encurtadas — o PDF do diário as traz inteiras.',
+    'Um PDF de uma semana nas palavras do dono: os dias escritos e os dias úteis sem nada escrito, o que foi feito, quem esteve na obra, quanto o plano está pronto, quando termina e a chance de terminar até lá, quando termina do jeito que está e por que está atrasada, as decisões a tomar, o dinheiro — com o que foi pago à frente da obra e o que é devido e não pago — e as etapas. Não traz as fotos, e anotações longas vêm encurtadas — o PDF do diário as traz inteiras.',
   'reports.week': 'Semana',
   'reports.weekly.write': 'Gravar o relatório semanal',
   'reports.weekly.waiting': 'Lendo o diário…',
@@ -1410,7 +1414,7 @@ export const ptBR: Dictionary = {
   'reports.lookahead.gate.close': '{stage} termina em {day}: o portão de fechamento',
   'reports.snapshot.title': 'O {snapshot}',
   'reports.snapshot.holds':
-    'Uma página da web para o dono, para abrir em qualquer celular ou computador: quanto o plano está pronto, quando termina e a chance de terminar até lá, as próximas duas semanas — o que começa, quem precisa estar lá, o que decidir ou encomendar, os portões e os pagamentos que vencem — as últimas entradas do diário com até duas fotos cada, e o dinheiro. Nada nela executa e nada é carregado de lugar nenhum. Ela não traz telefone nem e-mail de ninguém, nem os documentos, nem o cronograma inteiro.',
+    'Uma página da web para o dono, para abrir em qualquer celular ou computador: quanto o plano está pronto, quando termina e a chance de terminar até lá, quando termina do jeito que está e por que está atrasada, as próximas duas semanas — o que começa, quem precisa estar lá, o que decidir ou encomendar, os portões e os pagamentos que vencem — as últimas entradas do diário com até duas fotos cada, e o dinheiro. Nada nela executa e nada é carregado de lugar nenhum. Ela não traz telefone nem e-mail de ninguém, nem os documentos, nem o cronograma inteiro.',
   'reports.snapshot.sending':
     'O Ridgebeam grava o arquivo e não envia nada: enviá-lo — por WhatsApp, por e-mail — é com você. O {snapshot} não muda quando a obra muda; grave um novo para enviar o que mudou.',
   'reports.snapshot.write': 'Gravar o {snapshot}',
@@ -2162,4 +2166,110 @@ export const ptBR: Dictionary = {
   'readiness.explanation.work.funding':
     'Uma obra com dinheiro planejado precisa dizer de onde vem esse dinheiro e quando — economias, um financiamento, um cliente —, senão ninguém sabe dizer se ele dá.',
   'readiness.row.work.funding': 'de onde vem o dinheiro ainda não está anotado',
+  // ── Por que está atrasada? (E3) ───────────────────────────────────────────
+  'diary.form.lostCause': 'Por quê?',
+  'diary.form.lostCause.hint':
+    'Se você sabe por quê, diga: é assim que a obra explica um atraso depois. Pode ficar em branco.',
+  'diary.form.lostParty': 'Quem',
+  'diary.form.lostParty.nobody': 'Ninguém em particular',
+  'diary.form.lostParty.noPeople': 'Cadastre pessoas no plano para dizer quem foi.',
+  'diary.lostCause.weather': 'Clima',
+  'diary.lostCause.decision': 'Esperando uma decisão',
+  'diary.lostCause.absence': 'A equipe não veio',
+  'diary.lostCause.material': 'O material não chegou',
+  'diary.lostCause.owner': 'Pedido do dono',
+  'diary.lostCause.access': 'Sem acesso à obra',
+  'diary.lostCause.other': 'Outro',
+  'diary.lost.weather': 'o clima',
+  'diary.lost.decision': 'esperando uma decisão',
+  'diary.lost.absence': 'a equipe não veio',
+  'diary.lost.material': 'o material não chegou',
+  'diary.lost.owner': 'pedido do dono',
+  'diary.lost.access': 'sem acesso à obra',
+  'diary.lost.other': 'outro motivo',
+  'diary.entry.lost': 'Dia perdido — {cause}',
+  'diary.entry.lostBy': 'Dia perdido — {cause} ({name})',
+  'schedule.forecast.title': 'Do jeito que está',
+  'schedule.forecast.lead':
+    'Quando a obra termina pelo que o diário registra, ao lado da data do próprio plano — duas respostas, nunca um número só.',
+  'schedule.forecast.reading': 'Lendo o diário…',
+  'schedule.forecast.finish': 'Data de término pela previsão',
+  'schedule.forecast.planFinish': 'Data de término do plano',
+  'schedule.forecast.againstBaseline': 'Dias úteis em relação ao término da linha de base',
+  'schedule.forecast.againstPlan': 'Dias úteis em relação ao término do plano',
+  'schedule.forecast.noBaseline':
+    'Ainda não há {baseline}: depois que o plano for aprovado, a {forecast} é comparada com ela.',
+  'schedule.forecast.problem.noSchedule':
+    'Ainda não há previsão: o próprio plano não pode ser posto no calendário.',
+  'schedule.forecast.problem.invalidToday': 'Sem previsão: não foi possível ler a data de hoje.',
+  'schedule.forecast.nothing': 'Nada no plano tem duração ainda, então não há {forecast}.',
+  'schedule.forecast.sentence.plain': 'Do jeito que está, termina em {day}.',
+  'schedule.forecast.sentence.later':
+    'Do jeito que está, termina em {day} — {days} depois de {baselineDay}, a data da {baseline}.',
+  'schedule.forecast.sentence.earlier':
+    'Do jeito que está, termina em {day} — {days} antes de {baselineDay}, a data da {baseline}.',
+  'schedule.forecast.sentence.same':
+    'Do jeito que está, termina em {day} — a própria data da {baseline}.',
+  'schedule.forecast.plan.later':
+    'A data de término do próprio plano é {day}: a {forecast} é {days} depois, pelo que o diário registra.',
+  'schedule.forecast.plan.earlier':
+    'A data de término do próprio plano é {day}: a {forecast} é {days} antes, pelo que o diário registra.',
+  'schedule.forecast.plan.same':
+    'A data de término do próprio plano também é {day}: o que o diário registra não a moveu.',
+  'schedule.forecast.assumes':
+    'Uma {forecast}, não uma promessa: o que começou ou terminou fica com as datas do diário, e todo o resto leva a duração planejada a partir de hoje. O plano, a data de término dele e o atraso dele não mudam por isso.',
+  'schedule.forecast.leftOut.one': '{count} atividade não tem duração e não entra nela.',
+  'schedule.forecast.leftOut.other': '{count} atividades não têm duração e não entram nela.',
+  'delay.title': 'Por que está atrasada?',
+  'delay.reading': 'Lendo o diário…',
+  'delay.figure.total': 'Dias úteis além da linha de base, do jeito que está',
+  'delay.figure.byCause': 'Por motivo, em dias úteis',
+  'delay.figure.byParty': 'Por conta de quem, em dias úteis',
+  'delay.status.late':
+    'Do jeito que está, a obra termina {days} depois do término da {baseline} {number}. Eis o porquê, até onde o registro diz.',
+  'delay.status.onTime':
+    'Do jeito que está, a obra termina na data da {baseline} {number}: não há dia a mais para explicar.',
+  'delay.status.ahead':
+    'Do jeito que está, a obra termina {days} antes do término da {baseline} {number}: está adiantada, e nenhum motivo é inventado para isso.',
+  'delay.status.needsApproval':
+    'Por que uma obra está atrasada se lê contra um plano aprovado. Aprove o plano para tirar a {baseline} 1, e a partir daí o diário diz por quê.',
+  'delay.status.noForecast':
+    'Ainda não há previsão, então não há como dizer por que está atrasada: o próprio plano não pode ser posto no calendário.',
+  'delay.cause.change': 'Aditivos aprovados depois da linha de base',
+  'delay.cause.decision': 'Esperando uma decisão',
+  'delay.cause.weather': 'Clima',
+  'delay.cause.unstated': 'Dia perdido sem causa dita',
+  'delay.cause.absence': 'A equipe não veio',
+  'delay.cause.material': 'O material não chegou',
+  'delay.cause.owner': 'Pedido do dono',
+  'delay.cause.access': 'Sem acesso à obra',
+  'delay.cause.other': 'Outro motivo',
+  'delay.cause.unexplained': 'Não explicado pelo registro',
+  'delay.cause.madeUp': 'Dias recuperados depois',
+  'delay.basis.change': 'um aditivo aprovado',
+  'delay.basis.stated': 'o diário diz por quê',
+  'delay.basis.weather': 'tempo ruim e nada feito',
+  'delay.basis.unstated': 'um dia perdido sem causa dita',
+  'delay.basis.decision': 'uma decisão tomada depois do prazo',
+  'delay.basis.absence': 'o responsável não estava na obra e nada foi feito',
+  'delay.party.owner': 'O dono',
+  'delay.party.none': 'Ninguém em particular',
+  'delay.party.formerPerson': 'Alguém que não está mais no plano',
+  'delay.unexplained.one': '{count} dia útil não explicado pelo registro.',
+  'delay.unexplained.other': '{count} dias úteis não explicados pelo registro.',
+  'delay.madeUp.one':
+    'O registro aponta {count} dia útil a mais do que o término perdeu: ele foi recuperado desde então.',
+  'delay.madeUp.other':
+    'O registro aponta {count} dias úteis a mais do que o término perdeu: eles foram recuperados desde então.',
+  'delay.rows.cause': 'O que foi atribuído a: {cause}',
+  'delay.rows.party': 'O que foi atribuído a: {party}',
+  'delay.rows.total': 'O que termina depois do que na linha de base',
+  'delay.row.day': '{day} — {basis}',
+  'delay.row.change': '{title} — {basis}: {days}',
+  'delay.row.decision': '{day} — {title}: {basis}',
+  'delay.row.activities': 'no caminho do término: {names}',
+  'delay.row.residual': 'Nada no diário, nas decisões ou nos aditivos explica esses dias.',
+  'delay.row.madeUp': 'Dias que o registro aponta e que o término já recuperou.',
+  'delay.caveat':
+    'O registro atribui, não julga: cada dia útil vai para um motivo só, numa ordem fixa — aditivos, o que o diário diz, o clima, dias perdidos sem causa, decisões atrasadas, uma equipe que não veio — e para quem o registro nomeia. Um dia sem entrada não é falta de ninguém. Não é pleito nem prova.',
 };

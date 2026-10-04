@@ -37,6 +37,7 @@ export const TERM_KEYS = [
   'criticalPath',
   'baseline',
   'slip',
+  'forecast',
   'replanning',
   'changeOrder',
   'reason',
