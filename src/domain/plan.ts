@@ -142,9 +142,12 @@ export interface CostLine {
  * The fact of the work a milestone is earned by (slice D2): never a date, never a tick. `advance`:
  * the day the commitment was agreed (a "sinal", paid before any work); `stage_started`: the stage's
  * start gate passed; `activity_finished`: an effective diary entry finished the activity;
- * `stage_closed`: the close gate passed (a reopened stage un-earns it).
+ * `stage_closed`: the close gate passed (a reopened stage un-earns it); `retention` (slice E4, pt
+ * "retenção"): the stage closed **and** every snag of that stage on the commitment's person closed,
+ * earned on the later of the two days, never while one is open.
  */
-export type MilestoneTrigger = 'advance' | 'stage_started' | 'activity_finished' | 'stage_closed';
+export type MilestoneTrigger =
+  'advance' | 'stage_started' | 'activity_finished' | 'stage_closed' | 'retention';
 
 /**
  * One step of a commitment's payment plan (slice D2): a share of the commitment's amount, earned by
@@ -521,6 +524,56 @@ export interface FundingReceipt {
   readonly createdAt: string;
 }
 
+/** How a snag was closed (slice E4): `fixed`, with a photo of it fixed; `withdrawn`, with a reason. */
+export type SnagOutcome = 'fixed' | 'withdrawn';
+
+/**
+ * The closure of a snag: insert-only, one per snag, a fact. `fixed` always carries a photo (the
+ * host refuses one without); `withdrawn` always carries a note, the reason.
+ */
+export interface SnagClosure {
+  readonly outcome: SnagOutcome;
+  /** `YYYY-MM-DD`, never before the snag was raised. */
+  readonly closedOn: string;
+  /** The photo of it fixed, by the hash of a document of the work; `null` for a withdrawal. */
+  readonly photoHash: string | null;
+  readonly note: string | null;
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+}
+
+/**
+ * A snag (slice E4, pt "pendência"): a defect or a pending item found near the end, written down
+ * with where it is, who must fix it, a day it is due and a photo of the problem. Insert-only: a
+ * snag raised by mistake is withdrawn, never deleted; one found again after its fix is a new snag.
+ * None of its ids is a tie: a stage, activity or person removed leaves the record.
+ */
+export interface Snag {
+  readonly id: string;
+  /** 1, 2, 3 …: the order snags were raised in. */
+  readonly number: number;
+  readonly title: string;
+  readonly description: string | null;
+  /** Where it is: a stage, always (a closed one too: snags are found after closing). */
+  readonly stageId: string;
+  /** And, optionally, one of its activities. */
+  readonly activityId: string | null;
+  /** Who must fix it: a person of the plan; `null` when nobody is named. */
+  readonly personId: string | null;
+  /** `YYYY-MM-DD`. */
+  readonly raisedOn: string;
+  /** `YYYY-MM-DD`, never before `raisedOn`; `null` when no day was said. */
+  readonly dueOn: string | null;
+  /** The photo of the problem, by the hash of a document of the work; `null` when none. */
+  readonly photoHash: string | null;
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+  /** `null` while it is open. */
+  readonly closure: SnagClosure | null;
+}
+
 /** The whole plan of one work, as `work_get` returns it. */
 export interface WorkSnapshot {
   readonly work: Work;
@@ -549,6 +602,8 @@ export interface WorkSnapshot {
   readonly funding: readonly Funding[];
   /** The receipts ledger, by seq, reversals included (slice E2). */
   readonly fundingReceipts: readonly FundingReceipt[];
+  /** Every snag of the work, by number, each with its closure or `null` (slice E4). */
+  readonly snags: readonly Snag[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────

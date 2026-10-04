@@ -37,7 +37,9 @@
  * - **payments**: what **falls due** in the window — a milestone of a payment plan not earned yet
  *   whose fact the schedule expects in the window (an activity's scheduled finish for
  *   `activity_finished`; the stage's first activity start for `stage_started`; its last activity's
- *   finish for `stage_closed`; the day agreed for an `advance` agreed after today) — each with what
+ *   finish for `stage_closed` and for a `retention` nothing holds; the day agreed for an `advance`
+ *   agreed after today; a retention **held** by open snags is money held, never falling due) — each
+ *   with what
  *   money already paid ahead on its commitment covers of it; and what is **earned and not paid now**
  *   (`dueFigure`, slice D2).
  *
@@ -68,7 +70,7 @@ import { progress, type DiaryEntry } from '../diary';
 import { counted, moneyFigure, type AmountRow, type Figure, type ReportRow } from '../figure';
 import {
   dueFigure,
-  expectedOn,
+  milestoneExpectation,
   paymentPlans,
   scheduledFacts,
   type MilestoneTarget,
@@ -408,8 +410,12 @@ export function lookahead(
       .filter((status) => !status.earned)
       .map((status) => ({
         status,
-        day: expectedOn(facts, commitment, status.milestone),
+        expectation: milestoneExpectation(facts, commitment, status),
       }))
+      // A retention held by open snags is money held, not falling due (slice E4).
+      .flatMap(({ status, expectation }) =>
+        expectation.held ? [] : [{ status, day: expectation.day }],
+      )
       .filter((each): each is typeof each & { day: string } => inWindow(window, each.day))
       // Position order already (`milestonesInOrder`); by day first, the sort being stable.
       .sort((a, b) => compareText(a.day, b.day));

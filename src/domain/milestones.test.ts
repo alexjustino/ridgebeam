@@ -314,6 +314,7 @@ describe('earned, by the facts of the work', () => {
       trigger: 'activity_finished',
       target: { kind: 'activity', id: 'lay', name: 'Lay the tiles' },
       pendingKey: MILESTONE_PENDING_KEYS.activity_finished,
+      openSnags: 0,
     });
   });
 
@@ -680,6 +681,7 @@ describe('the preview before a payment', () => {
         trigger: 'activity_finished',
         target: { kind: 'activity', id: 'lay', name: 'Lay the tiles' },
         pendingKey: MILESTONE_PENDING_KEYS.activity_finished,
+        openSnags: 0,
       },
     });
   });
