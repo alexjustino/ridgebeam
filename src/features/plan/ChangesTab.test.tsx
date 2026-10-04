@@ -79,6 +79,7 @@ const NAVIGATION: Navigation = {
   openBackup: () => undefined,
   openSchedule,
   openChanges: () => undefined,
+  openSnags: () => undefined,
 };
 
 /** What the host answers: `next` for any command that answers with the plan. */
