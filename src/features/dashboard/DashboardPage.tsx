@@ -46,6 +46,7 @@ import { InfoBar } from '@/ui/InfoBar';
 
 import { BackupReminder } from './BackupReminder';
 import { ChangesCard } from './ChangesCard';
+import { DelayCard } from './DelayCard';
 import { DocumentsCard } from './DocumentsCard';
 import { MoneyCard } from './MoneyCard';
 import { NextQuestionCard } from './NextQuestionCard';
@@ -185,6 +186,8 @@ export function DashboardPage({
         <DecisionsDueCard snapshot={snapshot} scheduled={scheduled} today={today} />
         <CalendarCard snapshot={snapshot} />
       </div>
+
+      <DelayCard snapshot={snapshot} scheduled={scheduled} today={today} />
 
       <StagesCard snapshot={snapshot} />
 
