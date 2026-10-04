@@ -207,6 +207,13 @@ BEAM" in class 27. Two of the three left out last time were done: **TMview** has
 — its search answers with unrelated popular apps. **Not re-checked**, stated plainly: the INPI radical
 search, which needs a session the built-in browser did not keep; it stands as it was on 2026-09-24.
 
+**Re-checked for the second recut — 2026-10-04.** Nothing moved since 2026-10-02: the GitHub user
+"Ridgebeam" still holds four repositories; npm, crates.io, PyPI and RubyGems are still free; `.com`
+is still registered and `.app`, `.dev`, `.io` and `.com.br` still free; USPTO, with its control at 73,
+still has no mark containing "ridgebeam" and the one "RIDGE BEAM". TMview, the Microsoft Store and
+INPI were not re-checked this time; they stand as on 2026-10-02 (TMview, the Store) and 2026-09-24
+(INPI).
+
 ## ADR-002 — Tauri 2 with a deliberately thin Rust host {#adr-002}
 
 **Status.** Accepted — 2026-09-25.
