@@ -4,7 +4,8 @@
  * Files dragged from Explorer onto the window arrive as absolute paths, the same paths the system's
  * file dialog would have returned had the person chosen them there. So a drop is routed to the place
  * that already takes chosen paths on the screen it lands on — the photos of the entry being written
- * on the Diary, the work's documents on Documents — and to nothing anywhere else. Nothing new
+ * on the Diary, the work's documents on Documents, the photo of the snag being raised or fixed on the
+ * Plan (E4) — and to nothing anywhere else. Nothing new
  * reaches the host: a dropped path goes through the same intake as a chosen one.
  *
  * Each place takes what its dialog offers and nothing more: the dialog filters by these extensions,
@@ -25,12 +26,17 @@ export const PHOTO_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'] as 
 /** What the documents dialog offers — photos and PDFs. */
 export const DOCUMENT_EXTENSIONS = [...PHOTO_EXTENSIONS, 'pdf'] as const;
 
-/** The places on screen a drop can be taken in. */
-export type DropPlace = 'diary' | 'documents';
+/**
+ * The places on screen a drop can be taken in. `snag` is the photo field of the snag being raised,
+ * or of the one being fixed, on the Plan's Snags tab (E4): it takes what the photo dialog offers, and
+ * only while such a field is on screen — the overlay says so when none is.
+ */
+export type DropPlace = 'diary' | 'documents' | 'snag';
 
 const ACCEPTS: Record<DropPlace, ReadonlySet<string>> = {
   diary: new Set(PHOTO_EXTENSIONS),
   documents: new Set(DOCUMENT_EXTENSIONS),
+  snag: new Set(PHOTO_EXTENSIONS),
 };
 
 /** What a drop on the current screen does. */
@@ -69,6 +75,7 @@ function extensionOf(path: string): string | null {
 
 /** The place a destination takes dropped files in, or `null` when it takes none. */
 export function dropPlaceOf(destination: Destination): DropPlace | null {
+  if (destination === 'plan') return 'snag';
   return destination === 'diary' || destination === 'documents' ? destination : null;
 }
 

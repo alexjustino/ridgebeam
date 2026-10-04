@@ -75,11 +75,19 @@ describe('routing a drop', () => {
     }
   });
 
-  it('has a place for exactly the Diary and Documents', () => {
+  it('has a place for exactly the Plan (a snag’s photo), the Diary and Documents', () => {
     expect(DESTINATIONS.filter((each) => dropPlaceOf(each) !== null)).toEqual([
+      'plan',
       'diary',
       'documents',
     ]);
+    expect(dropPlaceOf('plan')).toBe('snag');
+  });
+
+  it('takes photos on the Plan, for a snag, and leaves out a PDF and a folder by name', () => {
+    expect(routeDrop({ destination: 'plan', workOpen: true, paths: [PDF, PHOTO, FOLDER] })).toEqual(
+      { kind: 'take', place: 'snag', taken: [PHOTO], refused: ['quote.pdf', 'Week 1'] },
+    );
   });
 
   it('reads a path’s last part whichever separator it uses', () => {
