@@ -31,6 +31,8 @@
  * - **changes** (E1), once the plan is approved: what waits for the owner's decision, each change
  *   with who asked and how long it has waited, and the standing tally — the approved changes' money
  *   and working days, with who asked;
+ * - **still to fix** (E4), once a snag has been raised: what is open and on whom, in a sentence and
+ *   as figures with the snags as rows — who must fix each and its day;
  * - **the closing line**: when Ridgebeam wrote it, and that a snapshot does not change when the work
  *   does.
  *
@@ -77,7 +79,13 @@ import { termsFor } from '@/i18n/terms';
 import type { I18n } from '@/i18n/useI18n';
 
 import { pieces, REPORT_LIMITS, shortened } from './document';
-import { changeTallyBlocks, delayBlocks, probabilityBlocks, runwayBlocks } from './weekly';
+import {
+  changeTallyBlocks,
+  delayBlocks,
+  probabilityBlocks,
+  runwayBlocks,
+  snagBlocks,
+} from './weekly';
 import {
   decisionStatusText,
   finishText,
@@ -601,6 +609,8 @@ export function composeSnapshot(input: SnapshotInput, i18n: I18n): ReportDocumen
     ...latelyBlocks(input, i18n, term),
     ...moneyBlocks(input, ahead, i18n, term),
     ...changeBlocks(input, i18n),
+    // E4: what is still to fix, and on whom — once a snag has been raised.
+    ...snagBlocks(i18n, snapshot, today, 1),
     { type: 'rule' },
     { type: 'paragraph', tone: 'muted', text: t('reports.snapshot.closing', { day: day(today) }) },
   ];

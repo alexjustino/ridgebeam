@@ -44,6 +44,9 @@ mod reports_tests;
 pub mod rooms;
 pub mod schedule;
 pub mod settings;
+pub mod snags;
+#[cfg(test)]
+mod snags_tests;
 #[cfg(test)]
 mod snapshot_tests;
 pub mod system;

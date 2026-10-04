@@ -13,7 +13,14 @@
  * - `activity_finished` — the first day an effective diary entry finished the activity (F4
  *   `progress`, corrections applied: a correction that un-finishes it un-earns the milestone);
  * - `stage_closed` — the day the stage was closed (F5 `closedAt`); a reopened stage has no `closedAt`,
- *   so it un-earns it.
+ *   so it un-earns it;
+ * - `retention` (slice E4, decision 3) — the money held back until the work ends well: earned on the
+ *   **later** of the stage's close day and the day the last of that stage's snags **on the
+ *   commitment's person** was closed (fixed or withdrawn), and **never while one is open** — it is
+ *   then **held**, with the open snags listed. With no snag on that person (or a commitment on
+ *   nobody), it is earned when the stage closes. **A snag on nobody holds no retention**, nor does a
+ *   snag of another stage or on another person. A snag raised after it was earned holds it again, as
+ *   a reopened stage un-earns `stage_closed`.
  *
  * A fact dated after today is not a fact yet. **Today is an input**, as everywhere in the domain.
  *
@@ -45,6 +52,7 @@ import { isIsoDay } from './calendar';
 import { counted, moneyFigure, type AmountRow, type Figure } from './figure';
 import { progress, type DiaryEntry } from './diary';
 import { paidRowsByCommitment, type MoneyRow, type PaymentDraft } from './money';
+import { snagHold } from './snags';
 import {
   compareText,
   stagesInOrder,
@@ -66,6 +74,7 @@ export const MILESTONE_TRIGGERS = [
   'stage_started',
   'activity_finished',
   'stage_closed',
+  'retention',
 ] as const satisfies readonly MilestoneTrigger[];
 
 /** A whole plan: 100 %, in basis points. */
@@ -80,19 +89,50 @@ export const MILESTONE_TRIGGER_KEYS = {
   stage_started: 'money.milestone.trigger.stageStarted',
   activity_finished: 'money.milestone.trigger.activityFinished',
   stage_closed: 'money.milestone.trigger.stageClosed',
+  retention: 'money.milestone.trigger.retention',
 } as const satisfies Record<MilestoneTrigger, string>;
 
 /**
  * What a milestone not earned yet waits for, said of its target: `{name}` — "{name} is not agreed
  * yet" (an advance dated after today), "{name} is not started yet", "{name} is not finished yet",
- * "{name} is not closed yet".
+ * "{name} is not closed yet"; a retention with no snag open — "Held until {name} is closed and its
+ * snags are fixed". A retention **held** by open snags is said with `RETENTION_KEYS.held` instead.
  */
 export const MILESTONE_PENDING_KEYS = {
   advance: 'money.milestone.pending.advance',
   stage_started: 'money.milestone.pending.stageStarted',
   activity_finished: 'money.milestone.pending.activityFinished',
   stage_closed: 'money.milestone.pending.stageClosed',
+  retention: 'money.milestone.pending.retention',
 } as const satisfies Record<MilestoneTrigger, string>;
+
+/**
+ * The suggested retention (decision 3): 5 % of the commitment, in basis points. **A usual practice
+ * offered as a suggestion, never advice**: the sentence under the offer says so, and the person
+ * types what they agreed.
+ */
+export const RETENTION_SUGGESTED_BP = 500;
+
+/**
+ * Retention's words (slice E4):
+ *
+ * - `held`: `{count}`, `{name}` (the stage) — "Held: {count} snags still to fix on {name}";
+ * - `offer`: the payment plan editor's option — "Hold back as retention";
+ * - `label`: the label it suggests for the milestone — "Retention";
+ * - `note`: `{share}` (percent) — "{share} is a usual practice, not advice: it is earned when the
+ *   stage is closed and every snag on this person is fixed. Change it to what you agreed.";
+ * - `noPerson`: under the offer, for a commitment on nobody — "Nobody is named on this commitment,
+ *   so no snag can hold it: it is earned when the stage closes.";
+ * - `full`: the plan has no share left — "The plan is already 100 %: lower another part first."
+ */
+export const RETENTION_KEYS = {
+  held: 'money.milestone.held',
+  offer: 'money.paymentPlan.retention.offer',
+  label: 'money.paymentPlan.retention.label',
+  note: 'money.paymentPlan.retention.note',
+  noPerson: 'money.paymentPlan.retention.noPerson',
+  full: 'money.paymentPlan.retention.full',
+} as const;
 
 /**
  * A milestone's state: `{day}` — "earned on {day}"; "not yet". And the sum line: `{planned}`,
@@ -185,6 +225,7 @@ export const MILESTONE_MESSAGE_KEYS: readonly string[] = [
   ...Object.values(PAYMENT_PREVIEW_KEYS),
   ...Object.values(MILESTONE_PROBLEM_KEYS),
   ...Object.values(USUAL_PLAN_LABEL_KEYS),
+  ...Object.values(RETENTION_KEYS),
 ];
 
 // ── Basis points on cents ────────────────────────────────────────────────────
@@ -274,6 +315,13 @@ export interface MilestoneStatus {
   readonly earned: boolean;
   /** The day of the fact that earned it; `null` while not earned. */
   readonly earnedOn: string | null;
+  /**
+   * A retention's open snags: those of its stage on the commitment's person still open, by number;
+   * empty for every other trigger, and for a retention nothing holds.
+   */
+  readonly openSnagIds: readonly string[];
+  /** A retention with a snag open: held, never projected as due (`openSnagIds` says by what). */
+  readonly held: boolean;
 }
 
 /** A row of an earned figure: one milestone reached, on the day of its fact. */
@@ -295,8 +343,14 @@ export interface NextMilestone {
   readonly cents: number;
   readonly trigger: MilestoneTrigger;
   readonly target: MilestoneTarget;
-  /** The sentence of what it waits for (`MILESTONE_PENDING_KEYS`), `{name}` the target's. */
-  readonly pendingKey: (typeof MILESTONE_PENDING_KEYS)[MilestoneTrigger];
+  /**
+   * The sentence of what it waits for (`MILESTONE_PENDING_KEYS`), `{name}` the target's; for a held
+   * retention, `RETENTION_KEYS.held`, with `{count}` its `openSnags`.
+   */
+  readonly pendingKey:
+    (typeof MILESTONE_PENDING_KEYS)[MilestoneTrigger] | typeof RETENTION_KEYS.held;
+  /** The snags still open that hold a retention; 0 for every other milestone. */
+  readonly openSnags: number;
 }
 
 /** One commitment's payment plan and what the work has made of it. */
@@ -377,6 +431,7 @@ export interface PaymentPlans {
 const dayOf = (at: string): string => at.slice(0, 10);
 
 interface Facts {
+  readonly snapshot: WorkSnapshot;
   readonly upTo: string | null;
   readonly stages: ReadonlyMap<string, Stage>;
   readonly activities: ReadonlyMap<string, Activity>;
@@ -394,6 +449,7 @@ function factsOf(snapshot: WorkSnapshot, entries: readonly DiaryEntry[], today: 
     }
   }
   return {
+    snapshot,
     upTo: isIsoDay(today) ? today : null,
     stages: new Map(snapshot.stages.map((stage) => [stage.id, stage])),
     activities: new Map(snapshot.activities.map((activity) => [activity.id, activity])),
@@ -401,12 +457,15 @@ function factsOf(snapshot: WorkSnapshot, entries: readonly DiaryEntry[], today: 
   };
 }
 
-/** The target a milestone is earned by, and the day of its fact when there is one. */
+/**
+ * The target a milestone is earned by, the day of its fact when there is one, and, for a retention,
+ * the open snags that hold it (none for every other trigger).
+ */
 function factOf(
   commitment: Commitment,
   milestone: Milestone,
   facts: Facts,
-): { target: MilestoneTarget; day: string | null } {
+): { target: MilestoneTarget; day: string | null; open: readonly string[] } {
   const stage = facts.stages.get(commitment.stageId);
   const onStage: MilestoneTarget = {
     kind: 'stage',
@@ -418,21 +477,33 @@ function factOf(
       return {
         target: { kind: 'commitment', id: commitment.id, name: commitment.label },
         day: commitment.agreedOn,
+        open: [],
       };
     case 'stage_started': {
       const at = stage?.startedAt ?? stage?.closedAt ?? null;
-      return { target: onStage, day: at === null ? null : dayOf(at) };
+      return { target: onStage, day: at === null ? null : dayOf(at), open: [] };
     }
     case 'stage_closed': {
       const at = stage?.closedAt ?? null;
-      return { target: onStage, day: at === null ? null : dayOf(at) };
+      return { target: onStage, day: at === null ? null : dayOf(at), open: [] };
     }
     case 'activity_finished': {
       const id = milestone.activityId ?? '';
       return {
         target: { kind: 'activity', id, name: facts.activities.get(id)?.name ?? null },
         day: facts.finishedOn.get(id) ?? null,
+        open: [],
       };
+    }
+    case 'retention': {
+      // Decision 3: the later of the close and the last closure on the person; never while one is open.
+      const hold = snagHold(facts.snapshot, commitment.stageId, commitment.personId);
+      const open = hold.open.map((snag) => snag.id);
+      const at = stage?.closedAt ?? null;
+      if (at === null || open.length > 0) return { target: onStage, day: null, open };
+      const closedOn = dayOf(at);
+      const last = hold.lastClosedOn;
+      return { target: onStage, day: last !== null && last > closedOn ? last : closedOn, open };
     }
   }
 }
@@ -451,7 +522,7 @@ function commitmentPlan(
   const ordered = milestonesInOrder(commitment);
   const cents = milestoneCents(commitment.amountCents, ordered);
   const milestones: MilestoneStatus[] = ordered.map((milestone, index) => {
-    const { target, day } = factOf(commitment, milestone, facts);
+    const { target, day, open } = factOf(commitment, milestone, facts);
     const earned = day !== null && (facts.upTo === null || day <= facts.upTo);
     return {
       milestone,
@@ -460,6 +531,8 @@ function commitmentPlan(
       target,
       earned,
       earnedOn: earned ? day : null,
+      openSnagIds: open,
+      held: open.length > 0,
     };
   });
 
@@ -516,7 +589,10 @@ function commitmentPlan(
             cents: pending.cents,
             trigger: pending.milestone.trigger,
             target: pending.target,
-            pendingKey: MILESTONE_PENDING_KEYS[pending.milestone.trigger],
+            pendingKey: pending.held
+              ? RETENTION_KEYS.held
+              : MILESTONE_PENDING_KEYS[pending.milestone.trigger],
+            openSnags: pending.openSnagIds.length,
           },
     earned,
     paid,
@@ -741,8 +817,10 @@ export function scheduledFacts(scheduled: Schedule): FactDays {
 /**
  * The day a milestone's fact is expected (slice D4's lookahead, shared since slice E2): the day
  * agreed for an `advance`; the stage's first scheduled start for `stage_started`; its last scheduled
- * finish for `stage_closed`; the activity's scheduled finish for `activity_finished`. `null` when the
- * schedule places nothing that says it. Whether the milestone is already earned is not asked here.
+ * finish for `stage_closed` and for a `retention` (the stage's expected close: snags are not
+ * planned); the activity's scheduled finish for `activity_finished`. `null` when the schedule places
+ * nothing that says it. Whether the milestone is already earned, or held, is not asked here: that
+ * is `milestoneExpectation`.
  */
 export function expectedOn(
   facts: FactDays,
@@ -755,10 +833,29 @@ export function expectedOn(
     case 'stage_started':
       return facts.stageStart(commitment.stageId);
     case 'stage_closed':
+    case 'retention':
       return facts.stageFinish(commitment.stageId);
     case 'activity_finished':
       return milestone.activityId === null ? null : facts.activityFinish(milestone.activityId);
   }
+}
+
+/**
+ * When a milestone not earned yet is expected, said whole (slice E4): a retention held by open
+ * snags is `held`, with how many — **held money is not projected as due**, whatever the schedule
+ * says; any other is expected on `expectedOn`'s day (`null` when the schedule gives none).
+ */
+export type MilestoneExpectation =
+  | { readonly held: true; readonly openSnags: number }
+  | { readonly held: false; readonly day: string | null };
+
+export function milestoneExpectation(
+  facts: FactDays,
+  commitment: Pick<Commitment, 'stageId' | 'agreedOn'>,
+  status: Pick<MilestoneStatus, 'milestone' | 'held' | 'openSnagIds'>,
+): MilestoneExpectation {
+  if (status.held) return { held: true, openSnags: status.openSnagIds.length };
+  return { held: false, day: expectedOn(facts, commitment, status.milestone) };
 }
 
 // ── The warning before a payment ─────────────────────────────────────────────
@@ -870,7 +967,7 @@ export type MilestoneProblem =
  * milestone would become. Never throws; every problem is reported. Refused: a commitment or milestone
  * not in the plan; a commitment money has moved on (`locked`); an empty label, or one over 120
  * characters; a share that is not whole basis points from 1 to 10 000, or that takes the plan over
- * 100 %; a trigger that is not one of the four; an activity missing for `activity_finished` or given
+ * 100 %; a trigger that is not one of the five; an activity missing for `activity_finished` or given
  * for another trigger, not in the plan, or of another stage than the commitment's.
  */
 export function validateMilestone(
@@ -974,5 +1071,67 @@ export function usualPlan(snapshot: WorkSnapshot, commitmentId: string): UsualPl
       trigger: each.trigger,
       activityId: each.trigger === 'activity_finished' ? last.id : null,
     })),
+  };
+}
+
+// ── Retention (slice E4) ─────────────────────────────────────────────────────
+
+/** The retention the payment plan editor offers as a commitment's last part, or why it does not. */
+export type RetentionOffer =
+  | {
+      readonly ok: true;
+      readonly labelKey: typeof RETENTION_KEYS.label;
+      /** `RETENTION_KEYS.note`, `{share}` the suggested share said as a percent. */
+      readonly noteKey: typeof RETENTION_KEYS.note;
+      /** The suggestion: 5 %, or what is left of the plan when that is less. */
+      readonly shareBp: number;
+      /** The suggestion in cents of the commitment's amount (`shareOfCents`). */
+      readonly cents: number;
+      readonly trigger: 'retention';
+      readonly activityId: null;
+      /** What is left of the plan, in basis points: the most the retention may be. */
+      readonly availableBp: number;
+      /**
+       * The commitment names a person, so their snags can hold it; `false` for one on nobody, which
+       * is earned when the stage closes (`RETENTION_KEYS.noPerson` says so).
+       */
+      readonly holdsOnPerson: boolean;
+    }
+  | {
+      readonly ok: false;
+      /**
+       * `has-retention`: its plan already holds one back; `full`: no share is left in the plan
+       * (`RETENTION_KEYS.full`); `locked`: money has moved on it.
+       */
+      readonly code: 'unknown-commitment' | 'locked' | 'has-retention' | 'full';
+    };
+
+/**
+ * "Hold back as retention" (decision 3): the last part of a commitment's payment plan, suggested at
+ * `RETENTION_SUGGESTED_BP` (5 %, a usual practice, not advice) or what the plan has left when that
+ * is less. Offered on a commitment money has not moved on, whose plan holds no retention yet and has
+ * some share left. Paying it early is already warned about (`paymentPreview`).
+ */
+export function retentionOffer(snapshot: WorkSnapshot, commitmentId: string): RetentionOffer {
+  const commitment = snapshot.commitments.find((each) => each.id === commitmentId);
+  if (commitment === undefined) return { ok: false, code: 'unknown-commitment' };
+  if (milestonesLocked(snapshot, commitmentId)) return { ok: false, code: 'locked' };
+  if (commitment.milestones.some((each) => each.trigger === 'retention')) {
+    return { ok: false, code: 'has-retention' };
+  }
+  const planned = commitment.milestones.reduce((sum, each) => sum + each.shareBp, 0);
+  const availableBp = Math.max(0, FULL_PLAN_BP - planned);
+  if (availableBp === 0) return { ok: false, code: 'full' };
+  const shareBp = Math.min(RETENTION_SUGGESTED_BP, availableBp);
+  return {
+    ok: true,
+    labelKey: RETENTION_KEYS.label,
+    noteKey: RETENTION_KEYS.note,
+    shareBp,
+    cents: shareOfCents(commitment.amountCents, shareBp),
+    trigger: 'retention',
+    activityId: null,
+    availableBp,
+    holdsOnPerson: commitment.personId !== null,
   };
 }

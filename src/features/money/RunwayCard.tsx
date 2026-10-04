@@ -80,7 +80,7 @@ function RunwayBody({
   const currency = snapshot.work.currency;
   const notes = runwayNotes(i18n, runway, currency);
   const method = runwayMethodText(i18n, chance);
-  const { end, short, late } = runway.figures;
+  const { end, short, late, held } = runway.figures;
   // Each row of "Money at the end" under its week: the opening's under "to date".
   const weekOf = new Map<string, { id: string; label: string; order: number }>();
   for (const row of runway.opening.rows) {
@@ -193,6 +193,18 @@ function RunwayBody({
             figure={late}
             label={t(RUNWAY_LABEL_KEYS.late)}
             value={number(late.value)}
+            rowsLabel={t('money.runway.rows')}
+            renderRow={renderRow}
+          />
+        )}
+        {/* E4: money held back as retention while snags are open — listed, never in a week. */}
+        {held.rows.length > 0 && (
+          <FigureRow<RunwayRow>
+            testId="runway-held"
+            size="title"
+            figure={held}
+            label={t(RUNWAY_LABEL_KEYS.held)}
+            value={money(held.value, currency)}
             rowsLabel={t('money.runway.rows')}
             renderRow={renderRow}
           />

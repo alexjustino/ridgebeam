@@ -48,6 +48,7 @@
 //!   effects are written through them with its decision or not at all.
 //! - E2: the snapshot carries the funds and the money received
 //!   (`db::funding`, `db::funding_receipts`).
+//! - E4: the snapshot carries snags, each with its closure (`db::snags`).
 
 use std::collections::HashMap;
 
@@ -57,7 +58,7 @@ use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, Wo
 use crate::db::order::{ACTIVITIES, STAGES};
 use crate::db::{
     baselines, care_notes, change_orders, check_answers, checks, decisions, dependencies,
-    documents, funding, funding_receipts, milestones, money, payments, replanning,
+    documents, funding, funding_receipts, milestones, money, payments, replanning, snags,
 };
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
@@ -303,6 +304,7 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         change_orders: change_orders::list(conn)?,
         funding: funding::list(conn)?,
         funding_receipts: funding_receipts::list(conn)?,
+        snags: snags::list(conn)?,
     })
 }
 
@@ -881,6 +883,8 @@ pub(crate) mod tests {
             "change_order_decision",
             "funding",
             "funding_receipt",
+            "snag",
+            "snag_closure",
         ] {
             let found: i64 = conn
                 .query_row(

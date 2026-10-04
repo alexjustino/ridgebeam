@@ -192,6 +192,20 @@
 //!   `fundingReceipts`, and so the JSON export and every backup do. Whether
 //!   the money lasts is the domain's. No new crate, no new error kind, no new
 //!   capability.
+//! - E4: snags and retention. Work migration 016 adds `snag` (what is still
+//!   to fix near the end: a stage, optionally an activity of it, who must fix
+//!   it, a due day not before it was raised, a photo — numbered max + 1) and
+//!   `snag_closure` (once per snag, not before it was raised: `fixed` with a
+//!   photo, `withdrawn` with a note — both CHECKs), both insert-only by
+//!   trigger (`snag: append-only`, with `recursive_triggers` on and off;
+//!   `snag: closure`). It rebuilds `payment_milestone` for the `retention`
+//!   trigger, every row kept and the seven triggers of migration 011 created
+//!   again. Two commands (`snag_raise`, `snag_close`), each returning the
+//!   snapshot, which carries `snags`; `milestone_add` and `milestone_update`
+//!   take `retention`. A photo is the hash of an image document of the work,
+//!   never a path, and a snag's photos keep their files in the folder. A
+//!   closed stage takes a snag. What is held and earned is the domain's. No
+//!   new crate, no new error kind, no new capability.
 
 pub mod commands;
 pub mod contract;
@@ -326,6 +340,8 @@ pub fn run() {
             commands::funding::funding_remove,
             commands::funding::funding_receipt_add,
             commands::funding::funding_receipt_reverse,
+            commands::snags::snag_raise,
+            commands::snags::snag_close,
             commands::documents::document_add,
             commands::documents::document_update,
             commands::documents::document_link,

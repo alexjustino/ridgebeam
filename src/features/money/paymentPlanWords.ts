@@ -41,6 +41,7 @@ const WHEN_KEYS: Record<MilestoneTrigger, MessageKey> = {
   stage_started: 'money.milestone.when.stageStarted',
   activity_finished: 'money.milestone.when.activityFinished',
   stage_closed: 'money.milestone.when.stageClosed',
+  retention: 'money.milestone.when.retention',
 };
 
 /** What earns a milestone, said of its target: "when Lay the tiles is finished". */
@@ -52,9 +53,15 @@ export function whenText(
   return i18n.t(WHEN_KEYS[trigger], { name: nameOf(i18n, target) });
 }
 
-/** What the next milestone waits for: "Lay the tiles is not finished yet." */
-export function pendingText(i18n: Pick<I18n, 't'>, next: NextMilestone): string {
-  return i18n.t(next.pendingKey as MessageKey, { name: nameOf(i18n, next.target) });
+/**
+ * What the next milestone waits for: "Lay the tiles is not finished yet."; a retention held by open
+ * snags (E4), with how many: "Held until its snags in Tiling are fixed — still open: 2."
+ */
+export function pendingText(i18n: Pick<I18n, 't' | 'number'>, next: NextMilestone): string {
+  return i18n.t(next.pendingKey as MessageKey, {
+    name: nameOf(i18n, next.target),
+    count: i18n.number(next.openSnags),
+  });
 }
 
 /**

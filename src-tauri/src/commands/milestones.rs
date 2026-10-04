@@ -19,6 +19,9 @@
 //!   `milestone_remove`, `milestones_usual` (30 % stage started, 40 % the
 //!   stage's last activity finished, 30 % stage closed — in the labels the
 //!   interface sends, in the person's language).
+//! - E4: `milestone_add` and `milestone_update` take the trigger `retention`
+//!   — the part held back until the stage is closed and its snags on the
+//!   commitment's person are closed — which names no activity.
 
 use tauri::State;
 

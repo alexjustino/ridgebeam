@@ -26,6 +26,8 @@
 //! - D2: milestones listed per commitment, added, changed, moved (via
 //!   `db::order`), removed; the usual plan written in one transaction; an
 //!   activity a milestone is earned by is not removed.
+//! - E4: the trigger `retention` (work migration 016, which rebuilds the
+//!   table with every row and trigger kept); it names no activity.
 
 use std::collections::HashMap;
 
@@ -97,7 +99,7 @@ pub struct MilestoneFields {
     pub label: String,
     /// 1 to 10 000.
     pub share_bp: i64,
-    /// One of the four triggers.
+    /// One of the five triggers.
     pub trigger: String,
     /// The activity, for `activity_finished`.
     pub activity_id: Option<String>,

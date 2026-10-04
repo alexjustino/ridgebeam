@@ -22,6 +22,10 @@
  *     `HANDOVER_PHOTO_LIMIT`, picked **the latest per activity first** — each activity's newest
  *     photo in plan order, then each one's second newest, and so on — never one already shown as
  *     hidden work, each photo once; how many were left out is said (`photosNotShown`);
+ *   - **snags fixed** (slice E4): each fixed snag of its stages, by number, with **both photos** —
+ *     the problem and the fix — when the work holds them. A snag naming an activity is told where
+ *     that activity is; one naming none, in every section its stage is in. A withdrawn snag is not
+ *     work done, and is not printed. Its photos are never shown again as diary photos;
  *   - **its care notes**: the room's (for a room), then those of its stages.
  * - **the documents** the owner keeps, by kind in a fixed order (`HANDOVER_DOCUMENT_KINDS`: permits,
  *   warranties, manuals, contracts, receipts), each with its name, day and what it is attached to.
@@ -39,8 +43,9 @@
  *
  * `handoverGaps` is what the book still lacks, counted, with its rows (decision 6): hidden-work
  * checks answered `yes` with no photo the work holds, hidden-work checks never answered, stages not
- * closed, rooms with no photo at all, no warranty or manual, no care note. Writing is allowed
- * anyway: the book may be wanted mid-work, and its cover then says so.
+ * closed, **every snag still open** ("Still to fix", slice E4, by number), rooms with no photo at
+ * all, no warranty or manual, no care note. Writing is allowed anyway: the book may be wanted
+ * mid-work, and its cover then says so.
  *
  * What this module is not: text, layout or I/O.
  */
@@ -56,6 +61,7 @@ import {
   type TargetDescription,
 } from '../documents';
 import { counted, type Figure, type ReportRow } from '../figure';
+import { snagsInOrder } from '../snags';
 import {
   careNotesOf,
   compareText,
@@ -106,6 +112,7 @@ export type HandoverGapKind =
   | 'hidden-without-photo'
   | 'hidden-unanswered'
   | 'stage-open'
+  | 'snag-open'
   | 'room-without-photo'
   | 'no-warranty-or-manual'
   | 'no-care-note';
@@ -114,6 +121,8 @@ export const HANDOVER_GAP_KEYS = {
   'hidden-without-photo': 'reports.handover.gap.hiddenWithoutPhoto',
   'hidden-unanswered': 'reports.handover.gap.hiddenUnanswered',
   'stage-open': 'reports.handover.gap.stageOpen',
+  /** "Still to fix: {title}", one per open snag. */
+  'snag-open': 'reports.handover.gap.snagOpen',
   'room-without-photo': 'reports.handover.gap.roomWithoutPhoto',
   'no-warranty-or-manual': 'reports.handover.gap.noWarrantyOrManual',
   'no-care-note': 'reports.handover.gap.noCareNote',
@@ -207,6 +216,33 @@ export interface HandoverDiaryPhoto {
   readonly activityName: string;
 }
 
+/** A photo the work holds, as the book shows it. */
+export interface HandoverPhoto {
+  readonly photoHash: string;
+  readonly fileName: string;
+}
+
+/** A snag fixed (slice E4): the problem and the fix, each photo when the work holds it. */
+export interface HandoverSnagRow {
+  readonly snagId: string;
+  readonly number: number;
+  readonly title: string;
+  readonly description: string | null;
+  readonly stageId: string;
+  readonly stageName: string | null;
+  readonly activityId: string | null;
+  readonly activityName: string | null;
+  readonly personId: string | null;
+  readonly personName: string | null;
+  readonly raisedOn: string;
+  readonly closedOn: string;
+  /** The photo of the problem; `null` when none was taken or the work does not hold it. */
+  readonly before: HandoverPhoto | null;
+  /** The photo of it fixed; `null` only when the work does not hold it as an image. */
+  readonly after: HandoverPhoto | null;
+  readonly note: string | null;
+}
+
 /** A care note as the book prints it. */
 export interface HandoverCareNote {
   readonly noteId: string;
@@ -236,6 +272,8 @@ export interface HandoverSection {
   readonly photos: readonly HandoverDiaryPhoto[];
   /** Diary photos of the section's activities that the limit left out. */
   readonly photosNotShown: number;
+  /** The snags of the section fixed, by number, with both photos (slice E4). */
+  readonly snagsFixed: readonly HandoverSnagRow[];
   readonly careNotes: readonly HandoverCareNote[];
 }
 
@@ -519,6 +557,49 @@ function diaryPhotosOf(
   return { photos: picked, notShown: all.size - picked.length };
 }
 
+/**
+ * The fixed snags of a section, by number: those naming one of its activities, and those naming no
+ * activity (or one no longer in the plan) whose stage is one of its stages.
+ */
+function snagsFixedOf(reading: Reading, scope: Scope): HandoverSnagRow[] {
+  const { snapshot, images } = reading;
+  const activityIds = new Set(scope.activities.map((activity) => activity.id));
+  const stageIds = new Set(scope.stages.map((stage) => stage.id));
+  const activities = new Map(snapshot.activities.map((activity) => [activity.id, activity]));
+  const people = new Map(snapshot.people.map((person) => [person.id, person.name]));
+  const photo = (hash: string | null): HandoverPhoto | null => {
+    if (hash === null) return null;
+    const fileName = images.get(hash);
+    return fileName === undefined ? null : { photoHash: hash, fileName };
+  };
+  const rows: HandoverSnagRow[] = [];
+  for (const snag of snagsInOrder(snapshot)) {
+    const closure = snag.closure;
+    if (closure === null || closure.outcome !== 'fixed') continue;
+    const activity = snag.activityId === null ? undefined : activities.get(snag.activityId);
+    const here = activity !== undefined ? activityIds.has(activity.id) : stageIds.has(snag.stageId);
+    if (!here) continue;
+    rows.push({
+      snagId: snag.id,
+      number: snag.number,
+      title: snag.title,
+      description: snag.description,
+      stageId: snag.stageId,
+      stageName: reading.stageById.get(snag.stageId)?.name ?? null,
+      activityId: snag.activityId,
+      activityName: activity?.name ?? null,
+      personId: snag.personId,
+      personName: snag.personId === null ? null : (people.get(snag.personId) ?? null),
+      raisedOn: snag.raisedOn,
+      closedOn: closure.closedOn,
+      before: photo(snag.photoHash),
+      after: photo(closure.photoHash),
+      note: closure.note,
+    });
+  }
+  return rows;
+}
+
 function section(reading: Reading, scope: Scope): HandoverSection {
   const { snapshot } = reading;
   const stageIds = new Set(scope.stages.map((stage) => stage.id));
@@ -549,10 +630,16 @@ function section(reading: Reading, scope: Scope): HandoverSection {
     }));
 
   const hiddenWork = hiddenWorkOf(reading, scope.stages);
+  const snagsFixed = snagsFixedOf(reading, scope);
   const { photos, notShown } = diaryPhotosOf(
     reading,
     scope.activities,
-    new Set(hiddenWork.map((photo) => photo.photoHash)),
+    new Set(
+      [
+        ...hiddenWork.map((photo) => photo.photoHash),
+        ...snagsFixed.flatMap((row) => [row.before?.photoHash, row.after?.photoHash]),
+      ].filter((hash): hash is string => hash !== undefined),
+    ),
   );
 
   const careNotes: HandoverCareNote[] = [];
@@ -585,6 +672,7 @@ function section(reading: Reading, scope: Scope): HandoverSection {
     hiddenWork,
     photos,
     photosNotShown: notShown,
+    snagsFixed,
     careNotes,
   };
 }
@@ -750,6 +838,16 @@ function gapsOf(reading: Reading, sections: readonly HandoverSection[]): Figure<
   for (const stage of stagesInOrder(snapshot)) {
     if (stageState(stage) !== 'closed') {
       rows.push(gap('stage-open', `stage-open:${stage.id}`, stage.id, stage.name));
+    }
+  }
+
+  // Still to fix: every open snag, by number, whatever its stage.
+  for (const snag of snagsInOrder(snapshot)) {
+    if (snag.closure === null) {
+      rows.push({
+        ...gap('snag-open', `snag-open:${snag.id}`, snag.id, snag.title),
+        day: snag.dueOn,
+      });
     }
   }
 

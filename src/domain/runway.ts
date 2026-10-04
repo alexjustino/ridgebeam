@@ -36,6 +36,12 @@
  * one is already in the plan — its cost line, its activities — and is projected like any planned
  * money.
  *
+ * **E4**: a **retention held** by open snags (`milestoneExpectation`) is **not projected as due**: it
+ * is money the owner is holding, listed apart (`held`, "Held back as retention"), never in a week,
+ * net of what money paid ahead on its commitment covers of it (what is left after the milestones to
+ * come and the plan's rest). A retention nothing holds is projected as `stage_closed` is: at the
+ * stage's expected close.
+ *
  * Every number carries its rows: each week's rows are what came in and went out that week, signed;
  * "Money at the end" opens onto the opening's rows and every week's; "Runs short in" onto the week
  * the balance first goes below zero; "Funding late" onto the late rows.
@@ -71,7 +77,7 @@ import {
   type ReportRow,
 } from './figure';
 import { fundingStatuses, receiptRows } from './funding';
-import { expectedOn, paymentPlans, scheduledFacts, type FactDays } from './milestones';
+import { milestoneExpectation, paymentPlans, scheduledFacts, type FactDays } from './milestones';
 import { paidRowsByCommitment, spreadSum, stageOfLine } from './money';
 import { isPriced, stagesInOrder, type Milestone, type WorkSnapshot } from './plan';
 import type { Schedule } from './schedule';
@@ -107,6 +113,8 @@ export const RUNWAY_LABEL_KEYS = {
   notPriced: 'money.runway.figure.notPriced',
   /** "Chance it runs short". */
   chance: 'money.runway.figure.chance',
+  /** "Held back as retention": retentions held by open snags, not projected. */
+  held: 'money.runway.figure.held',
 } as const;
 
 /**
@@ -131,6 +139,8 @@ export const RUNWAY_SENTENCE_KEYS = {
  *
  * - `late`: `{count}`, `{amount}` — "{count} expected funds have not arrived: {amount} is not
  *   counted."
+ * - `held`: `{count}`, `{amount}`, `{snags}` — "{amount} is held back as retention until {snags}
+ *   snags are fixed: it is not counted as due."
  * - `undated`: `{count}`, `{amount}` — "{amount} has no day in the schedule yet and is counted this
  *   week."
  * - `notPriced`: `{count}` — "{count} cost lines are not priced and count as nothing."
@@ -140,6 +150,7 @@ export const RUNWAY_SENTENCE_KEYS = {
  */
 export const RUNWAY_NOTE_KEYS = {
   late: 'money.runway.note.late',
+  held: 'money.runway.note.held',
   undated: 'money.runway.note.undated',
   notPriced: 'money.runway.note.notPriced',
   beyond: 'money.runway.note.beyond',
@@ -164,7 +175,9 @@ export type RunwaySource =
   /** A commitment without a payment plan, its unpaid rest. */
   | 'commitment'
   /** A stage's planned money not yet committed. */
-  | 'uncommitted';
+  | 'uncommitted'
+  /** A retention held by open snags: listed, never projected (slice E4). */
+  | 'retention';
 
 /** What each row is, said on the row: "{title}: a milestone of {commitment}". */
 export const RUNWAY_ROW_KEYS = {
@@ -176,6 +189,7 @@ export const RUNWAY_ROW_KEYS = {
   'plan-rest': 'money.runway.row.planRest',
   commitment: 'money.runway.row.commitment',
   uncommitted: 'money.runway.row.uncommitted',
+  retention: 'money.runway.row.retention',
 } as const satisfies Record<RunwaySource, string>;
 
 /**
@@ -183,9 +197,10 @@ export const RUNWAY_ROW_KEYS = {
  * `spread` (evenly over its stage's remaining working days); `past` (its day or its span is already
  * over, or it is earned and not paid: still owed, counted now; for a funding row, late: not
  * counted); `closed` (its stage is closed: counted now); `undated` (the schedule gives it no day:
- * counted now). Said on the row: "expected on {day}, still owed".
+ * counted now); `held` (a retention open snags hold: not counted, slice E4). Said on the row:
+ * "expected on {day}, still owed".
  */
-export type RunwayWhen = 'to-date' | 'on-day' | 'spread' | 'past' | 'closed' | 'undated';
+export type RunwayWhen = 'to-date' | 'on-day' | 'spread' | 'past' | 'closed' | 'undated' | 'held';
 
 export const RUNWAY_WHEN_KEYS = {
   'to-date': 'money.runway.when.toDate',
@@ -194,6 +209,7 @@ export const RUNWAY_WHEN_KEYS = {
   past: 'money.runway.when.past',
   closed: 'money.runway.when.closed',
   undated: 'money.runway.when.undated',
+  held: 'money.runway.when.held',
 } as const satisfies Record<RunwayWhen, string>;
 
 /**
@@ -233,6 +249,8 @@ export interface RunwayRow extends AmountRow {
   readonly expectedOn: string | null;
   /** A milestone's money paid ahead on its commitment covered: `amountCents` is the rest, negated. */
   readonly coveredCents: number;
+  /** A held retention's open snags; 0 for every other row. */
+  readonly openSnags: number;
   readonly messageKey: (typeof RUNWAY_ROW_KEYS)[RunwaySource];
   readonly whenKey: (typeof RUNWAY_WHEN_KEYS)[RunwayWhen];
 }
@@ -303,6 +321,11 @@ export interface Runway {
   readonly beyond: readonly RunwayRow[];
   /** Money counted this week because the schedule gives it no day. */
   readonly undated: readonly RunwayRow[];
+  /**
+   * Retentions held by open snags (slice E4): money the owner is holding, listed and never counted
+   * in a week. Each row's amount is the money held, above zero.
+   */
+  readonly held: readonly RunwayRow[];
   readonly figures: {
     /** "Money at the end": the opening's rows and every week's; its value is `spare`. */
     readonly end: Figure<RunwayRow>;
@@ -315,6 +338,8 @@ export interface Runway {
     readonly late: Figure<RunwayRow>;
     /** Cost lines not priced yet: they count as nothing. */
     readonly notPriced: Figure<NotPricedRow>;
+    /** "Held back as retention": the money held, its rows `held`. */
+    readonly held: Figure<RunwayRow>;
   };
 }
 
@@ -337,6 +362,9 @@ interface PlanObligation {
     readonly item: OutItem;
     readonly milestone: Milestone;
     readonly cents: number;
+    /** Already asked of the plan's schedule when it is held: a held retention never has a day. */
+    readonly held: boolean;
+    readonly openSnagIds: readonly string[];
   }>;
   /** The amount its plan does not hold, before any cover. */
   readonly rest: { readonly item: OutItem; readonly cents: number } | null;
@@ -348,11 +376,21 @@ interface SpreadObligation {
   readonly closed: boolean;
 }
 
+interface HeldObligation {
+  readonly item: OutItem;
+  /** What is held, net of what money paid ahead covers. */
+  readonly cents: number;
+  readonly coveredCents: number;
+  readonly openSnags: number;
+}
+
 interface Obligations {
   /** Owed now: counted in the current week whatever the schedule says. */
   readonly dues: ReadonlyArray<{ readonly item: OutItem; readonly cents: number }>;
   readonly plans: readonly PlanObligation[];
   readonly spreads: readonly SpreadObligation[];
+  /** Retentions held by open snags: listed, never placed. */
+  readonly held: readonly HeldObligation[];
 }
 
 function obligationsOf(
@@ -370,6 +408,7 @@ function obligationsOf(
   const dues: Array<{ item: OutItem; cents: number }> = [];
   const plans: PlanObligation[] = [];
   const spreads: SpreadObligation[] = [];
+  const held: HeldObligation[] = [];
 
   for (const plan of paymentPlans(snapshot, entries, today).commitments) {
     const about = { stageId: plan.stageId, commitmentId: plan.commitmentId, title: plan.label };
@@ -392,23 +431,25 @@ function obligationsOf(
     }
     const inPlan = plan.milestones.reduce((total, status) => total + status.cents, 0);
     const restCents = plan.amountCents - inPlan;
+    const pending = plan.milestones.filter((status) => !status.earned && status.cents > 0);
+    const coming = pending.filter((status) => !status.held);
     plans.push({
       commitment: { stageId: plan.stageId, agreedOn: agreed.get(plan.commitmentId)! },
       closed: closed(plan.stageId),
       aheadCents: plan.ahead.value,
-      milestones: plan.milestones
-        .filter((status) => !status.earned && status.cents > 0)
-        .map((status) => ({
-          item: {
-            source: 'milestone',
-            sourceId: status.milestone.id,
-            stageId: plan.stageId,
-            commitmentId: plan.commitmentId,
-            title: status.milestone.label,
-          },
-          milestone: status.milestone,
-          cents: status.cents,
-        })),
+      milestones: coming.map((status) => ({
+        item: {
+          source: 'milestone',
+          sourceId: status.milestone.id,
+          stageId: plan.stageId,
+          commitmentId: plan.commitmentId,
+          title: status.milestone.label,
+        },
+        milestone: status.milestone,
+        cents: status.cents,
+        held: false,
+        openSnagIds: status.openSnagIds,
+      })),
       rest:
         restCents > 0
           ? {
@@ -417,6 +458,30 @@ function obligationsOf(
             }
           : null,
     });
+    // Money paid ahead covers what comes, then the plan's rest (`placeOut`, whatever the days), and
+    // only what is left of it covers what is held.
+    let ahead = Math.max(
+      0,
+      plan.ahead.value - coming.reduce((total, status) => total + status.cents, 0),
+    );
+    ahead = Math.max(0, ahead - Math.max(0, restCents));
+    for (const status of pending.filter((each) => each.held)) {
+      const covered = Math.min(ahead, status.cents);
+      ahead -= covered;
+      if (status.cents - covered <= 0) continue;
+      held.push({
+        item: {
+          source: 'retention',
+          sourceId: status.milestone.id,
+          stageId: plan.stageId,
+          commitmentId: plan.commitmentId,
+          title: status.milestone.label,
+        },
+        cents: status.cents - covered,
+        coveredCents: covered,
+        openSnags: status.openSnagIds.length,
+      });
+    }
   }
 
   // Planned money not yet committed, per stage: what was paid on the stage on no commitment is
@@ -444,7 +509,7 @@ function obligationsOf(
       closed: stage.closedAt !== null,
     });
   }
-  return { dues, plans, spreads };
+  return { dues, plans, spreads, held };
 }
 
 // ── The frame: weeks and working-day offsets ─────────────────────────────────
@@ -544,7 +609,8 @@ function scheduledPlacement(scheduled: Schedule): Placement {
 }
 
 interface Placed {
-  readonly day: string;
+  /** `null` only for a held retention, which is never placed. */
+  readonly day: string | null;
   readonly when: RunwayWhen;
   readonly expectedOn: string | null;
   readonly coveredCents: number;
@@ -612,7 +678,9 @@ function placeOut(
     const coming = plan.milestones
       .map((each) => {
         if (plan.closed) return { each, expected: null, when: 'closed' as const, day: frame.today };
-        const expected = expectedOn(placement.facts, plan.commitment, each.milestone);
+        const expectation = milestoneExpectation(placement.facts, plan.commitment, each);
+        // A held retention never reaches here (`obligationsOf` lists it apart).
+        const expected = expectation.held ? null : expectation.day;
         if (expected === null)
           return { each, expected, when: 'undated' as const, day: frame.today };
         if (expected < frame.today) return { each, expected, when: 'past' as const, day: expected };
@@ -663,6 +731,7 @@ function outRow(item: OutItem, week: string, cents: number, placed: Placed): Run
     when: placed.when,
     expectedOn: placed.expectedOn,
     coveredCents: placed.coveredCents,
+    openSnags: 0,
     messageKey: RUNWAY_ROW_KEYS[item.source],
     whenKey: RUNWAY_WHEN_KEYS[placed.when],
   };
@@ -732,6 +801,7 @@ export function runway(
       when: 'to-date',
       expectedOn: null,
       coveredCents: 0,
+      openSnags: 0,
       messageKey: RUNWAY_ROW_KEYS.receipt,
       whenKey: RUNWAY_WHEN_KEYS['to-date'],
     });
@@ -756,6 +826,7 @@ export function runway(
       when: 'to-date',
       expectedOn: null,
       coveredCents: 0,
+      openSnags: 0,
       messageKey: RUNWAY_ROW_KEYS.payment,
       whenKey: RUNWAY_WHEN_KEYS['to-date'],
     });
@@ -782,6 +853,7 @@ export function runway(
       when: status.late ? 'past' : 'on-day',
       expectedOn: funding.expectedOn,
       coveredCents: 0,
+      openSnags: 0,
       messageKey: RUNWAY_ROW_KEYS.funding,
       whenKey: RUNWAY_WHEN_KEYS[status.late ? 'past' : 'on-day'],
     };
@@ -795,13 +867,26 @@ export function runway(
 
   // ── Out ──
   const undated: RunwayRow[] = [];
-  placeOut(obligationsOf(snapshot, entries, today), frame, scheduledPlacement(scheduled), count, {
+  const obligations = obligationsOf(snapshot, entries, today);
+  placeOut(obligations, frame, scheduledPlacement(scheduled), count, {
     put: (week, cents, item, placed) => {
       const row = outRow(item, weekLabel(week), cents, placed);
       if (placed.when === 'undated') undated.push(row);
       put(week, row);
     },
   });
+
+  // ── Held: listed, never in a week ──
+  const held: RunwayRow[] = obligations.held.map((each) => ({
+    ...outRow(each.item, 'held', each.cents, {
+      day: null,
+      when: 'held',
+      expectedOn: null,
+      coveredCents: each.coveredCents,
+    }),
+    amountCents: each.cents,
+    openSnags: each.openSnags,
+  }));
 
   // ── The weeks, in order ──
   const weeks: RunwayWeek[] = [];
@@ -879,6 +964,7 @@ export function runway(
       })),
   );
   const lateFigure = counted('runway.late', RUNWAY_LABEL_KEYS.late, late);
+  const heldFigure = moneyFigure('runway.held', RUNWAY_LABEL_KEYS.held, held);
 
   // ── The sentence ──
   const noFunding = snapshot.funding.length === 0 && snapshot.fundingReceipts.length === 0;
@@ -908,6 +994,16 @@ export function runway(
     notes.push({
       key: RUNWAY_NOTE_KEYS.late,
       params: { count: late.length, amount: amountOf(late) },
+    });
+  }
+  if (held.length > 0) {
+    notes.push({
+      key: RUNWAY_NOTE_KEYS.held,
+      params: {
+        count: held.length,
+        amount: heldFigure.value,
+        snags: held.reduce((sum, row) => sum + row.openSnags, 0),
+      },
     });
   }
   if (undated.length > 0) {
@@ -942,7 +1038,8 @@ export function runway(
     truncated: wanted > count,
     beyond,
     undated,
-    figures: { end, short, late: lateFigure, notPriced },
+    held,
+    figures: { end, short, late: lateFigure, notPriced, held: heldFigure },
   };
 }
 

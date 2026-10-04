@@ -51,6 +51,7 @@ import { DocumentsCard } from './DocumentsCard';
 import { MoneyCard } from './MoneyCard';
 import { NextQuestionCard } from './NextQuestionCard';
 import { SiteCard } from './SiteCard';
+import { SnagsCard } from './SnagsCard';
 import { StagesCard } from './StagesCard';
 
 /** The heading each missing row is listed under: its rule, in rule order; the plan's own row last. */
@@ -194,6 +195,8 @@ export function DashboardPage({
       <MoneyCard snapshot={snapshot} />
 
       <ChangesCard snapshot={snapshot} today={today} />
+
+      <SnagsCard snapshot={snapshot} today={today} />
 
       <DocumentsCard snapshot={snapshot} />
 

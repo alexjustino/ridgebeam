@@ -60,6 +60,8 @@ import {
   careNoteMove,
   changeOrderDecide,
   changeOrderRaise,
+  snagClose,
+  snagRaise,
   fundingAdd,
   fundingReceiptAdd,
   fundingReceiptReverse,
@@ -139,6 +141,8 @@ import {
   type CareNoteTarget,
   type ChangeOrderDecisionDraft,
   type ChangeOrderDraft,
+  type SnagClosureDraft,
+  type SnagDraft,
   type FundingDraft,
   type FundingReceiptDraft,
   type DecisionPatch,
@@ -624,6 +628,16 @@ export function useRaiseChange() {
 
 export function useDecideChange() {
   return useWorkCommand((decision: ChangeOrderDecisionDraft) => changeOrderDecide(decision));
+}
+
+// ── Snags (E4) ───────────────────────────────────────────────────────────────
+
+export function useRaiseSnag() {
+  return useWorkCommand((draft: SnagDraft) => snagRaise(draft));
+}
+
+export function useCloseSnag() {
+  return useWorkCommand((closure: SnagClosureDraft) => snagClose(closure));
 }
 
 // ── Funding and money received (E2) ──────────────────────────────────────────

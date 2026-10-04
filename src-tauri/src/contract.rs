@@ -108,6 +108,15 @@
 //!   `null`): a cause only on a lost day, a person only with a cause. A cause
 //!   is changed by a correction, as everything in the diary. The forecast and
 //!   the delay ledger are not here: they are the domain's, computed every time.
+//! - E4: snags (`Snag`, `SnagClosure`; `WorkSnapshot.snags`, by number, each
+//!   with its closure or `null` while open); `SnagDraft` for `snag_raise`,
+//!   `SnagClosureDraft` for `snag_close`. A closure is `fixed` — always with
+//!   a photo — or `withdrawn` — always with a note. Photos cross by
+//!   `photoHash`, the SHA-256 of an image document of the work, never by a
+//!   path. A payment milestone may be earned by `retention`
+//!   (`Milestone.trigger`), naming no activity. Whether a snag is overdue and
+//!   whether a retention is held or earned are not here: they are the
+//!   domain's, computed every time.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -412,6 +421,117 @@ pub struct WorkSnapshot {
     /// The money received (E2): the ledger, by `seq` — reversals included,
     /// as they were written.
     pub funding_receipts: Vec<FundingReceipt>,
+    /// Snags (E4), by number, each with its closure or `null` while it is
+    /// open.
+    pub snags: Vec<Snag>,
+}
+
+/// A snag (E4, pt "pendência"): a defect or a pending item found near the
+/// end, on record — where it is, who must fix it, when it is due, a photo of
+/// it. Insert-only: a snag raised by mistake is withdrawn, never deleted.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct Snag {
+    /// UUID v7.
+    pub id: String,
+    /// 1, 2, 3 … for the whole work, in the order raised.
+    pub number: i64,
+    /// What is wrong, 1 to 200 characters.
+    pub title: String,
+    /// More words, up to 2000 characters; `null` when none.
+    pub description: Option<String>,
+    /// The stage it is in. Not a tie: a stage removed later leaves the record
+    /// as it was.
+    pub stage_id: String,
+    /// The activity of that stage it is about; `null` for the stage as a
+    /// whole. Not a tie either.
+    pub activity_id: Option<String>,
+    /// The person of the plan who must fix it; `null` for nobody named. Not a
+    /// tie either.
+    pub person_id: Option<String>,
+    /// The day it was raised, `YYYY-MM-DD`.
+    pub raised_on: String,
+    /// The day it should be fixed by, not before `raisedOn`; `null` when none.
+    pub due_on: Option<String>,
+    /// A photo of the problem, by the SHA-256 of an image document of the
+    /// work; `null` when none.
+    pub photo_hash: Option<String>,
+    /// The Windows account that raised it.
+    pub author_name: String,
+    /// When it was raised, UTC.
+    pub created_at: String,
+    /// How it was closed; `null` while it is open.
+    pub closure: Option<SnagClosure>,
+}
+
+/// The one closure of a snag (E4): fixed, with a photo of it fixed, or
+/// withdrawn, with a note saying why.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct SnagClosure {
+    /// `fixed` or `withdrawn`.
+    pub outcome: String,
+    /// The day it was closed, `YYYY-MM-DD`, not before the snag was raised.
+    pub closed_on: String,
+    /// The photo of it fixed, by hash — always given for `fixed`; `null` or a
+    /// photo for `withdrawn`.
+    pub photo_hash: Option<String>,
+    /// Why, in the person's words — always given for `withdrawn`; `null` when
+    /// none.
+    pub note: Option<String>,
+    /// The Windows account that closed it.
+    pub author_name: String,
+    /// When it was closed, UTC.
+    pub created_at: String,
+}
+
+/// A snag as the interface raises it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SnagDraft {
+    /// `YYYY-MM-DD`, not after today.
+    pub raised_on: String,
+    /// What is wrong, 1 to 200 characters.
+    pub title: String,
+    /// More words, up to 2000 characters.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// The stage it is in — a closed stage takes one.
+    pub stage_id: String,
+    /// An activity of that stage, or `null`.
+    #[serde(default)]
+    pub activity_id: Option<String>,
+    /// Who must fix it: a person of the plan, or `null`.
+    #[serde(default)]
+    pub person_id: Option<String>,
+    /// `YYYY-MM-DD`, not before `raisedOn`, or `null`.
+    #[serde(default)]
+    pub due_on: Option<String>,
+    /// A photo of the problem: the hash of an image document of the work —
+    /// the interface adds the file as a document first — or `null`.
+    #[serde(default)]
+    pub photo_hash: Option<String>,
+}
+
+/// A snag's closure as the interface sends it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SnagClosureDraft {
+    /// The snag's id.
+    pub snag_id: String,
+    /// `fixed` or `withdrawn`.
+    pub outcome: String,
+    /// `YYYY-MM-DD`, not after today and not before the snag was raised.
+    pub closed_on: String,
+    /// The photo of it fixed — required for `fixed` — by the hash of an image
+    /// document of the work.
+    #[serde(default)]
+    pub photo_hash: Option<String>,
+    /// Why — required for `withdrawn` — up to 2000 characters.
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 /// What a change does to the plan (E1), as data the schedule can compute.
@@ -846,7 +966,9 @@ pub struct Milestone {
     /// ("30 %" is 3000). A plan's shares add up to at most 10 000.
     pub share_bp: i64,
     /// The fact that earns it: `advance` (the day the commitment was agreed),
-    /// `stage_started`, `activity_finished` or `stage_closed`.
+    /// `stage_started`, `activity_finished`, `stage_closed`, or (E4)
+    /// `retention` — held back until the stage is closed and every snag of it
+    /// on the commitment's person is closed.
     pub trigger: String,
     /// The activity whose finish earns it — given exactly when the trigger is
     /// `activity_finished`, and of the commitment's stage; `null` otherwise.

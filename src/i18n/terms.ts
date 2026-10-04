@@ -70,6 +70,8 @@ export const TERM_KEYS = [
   'handoverBook',
   'careNote',
   'snapshot',
+  'snag',
+  'retention',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];

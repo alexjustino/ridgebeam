@@ -43,6 +43,7 @@ import {
 import { FORECAST_LABEL_KEYS, FORECAST_PROBLEM_KEYS } from '@/domain/schedule/forecast';
 import { PROBABILITY_MESSAGE_KEYS } from '@/domain/schedule/probability';
 import { SLIP_LABEL_KEY } from '@/domain/schedule/slip';
+import { SNAG_MESSAGE_KEYS } from '@/domain/snags';
 import { WHAT_IF_LABEL_KEY, WHAT_IF_PROBLEM_KEYS } from '@/domain/schedule/whatIf';
 import { LANGUAGES as LANGUAGE_CHOICES } from '@/domain/settings';
 import { TEMPLATE_NOTE_KEYS } from '@/domain/templates/apply';
@@ -229,6 +230,7 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         ...LOOKAHEAD_MESSAGE_KEYS,
         ...Object.values(CHANGE_PROBLEM_KEYS),
         ...Object.values(CHANGE_LABEL_KEYS),
+        ...SNAG_MESSAGE_KEYS,
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }
@@ -269,6 +271,7 @@ describe('where the money comes from and whether it lasts, in both languages (E2
     RUNWAY_NOTE_KEYS.late,
     RUNWAY_NOTE_KEYS.notPriced,
     RUNWAY_NOTE_KEYS.beyond,
+    RUNWAY_NOTE_KEYS.held,
   ]);
 
   it.each(LANGUAGES)(

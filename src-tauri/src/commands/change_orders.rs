@@ -176,7 +176,7 @@ fn invalid(sentence: impl Into<String>) -> Error {
 }
 
 /// A day that has happened, by the host's clock.
-fn not_after_today(day: String, today: NaiveDate, rule: &str) -> Result<String> {
+pub(crate) fn not_after_today(day: String, today: NaiveDate, rule: &str) -> Result<String> {
     if day > today.format("%Y-%m-%d").to_string() {
         return Err(invalid(format!("{day} has not happened yet: {rule}.")));
     }
@@ -184,7 +184,7 @@ fn not_after_today(day: String, today: NaiveDate, rule: &str) -> Result<String> 
 }
 
 /// Whether a text holds a control character other than a line break or a tab.
-fn has_control(value: &str, line_breaks: bool) -> bool {
+pub(crate) fn has_control(value: &str, line_breaks: bool) -> bool {
     value
         .chars()
         .any(|c| c.is_control() && !(line_breaks && matches!(c, '\n' | '\r' | '\t')))
@@ -211,7 +211,7 @@ fn title(value: &str) -> Result<String> {
 
 /// A longer text: trimmed, empty is none, at most [`MAX_TEXT_CHARS`], no
 /// control characters but line breaks and tabs.
-fn text(what: &str, value: Option<&str>) -> Result<Option<String>> {
+pub(crate) fn text(what: &str, value: Option<&str>) -> Result<Option<String>> {
     let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
         return Ok(None);
     };

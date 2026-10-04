@@ -613,6 +613,19 @@ fn the_work_as_json_reads_back_into_the_snapshot_and_the_diary() {
         "A. Owner (synthetic)",
     )
     .unwrap();
+    // E4: a snag, with its photo by hash, travels with the work.
+    let stage = work_get_with(&site.open).unwrap().stages[0].id.clone();
+    crate::commands::snags::snag_raise_with(
+        &site.open,
+        &serde_json::from_value(serde_json::json!({
+            "raisedOn": "2026-10-07", "title": "Cracked tile", "stageId": stage,
+            "photoHash": site.photo_hash
+        }))
+        .unwrap(),
+        today(),
+        "A. Owner (synthetic)",
+    )
+    .unwrap();
 
     let file = work_export_json_with(
         &site.open,
@@ -641,6 +654,14 @@ fn the_work_as_json_reads_back_into_the_snapshot_and_the_diary() {
         Some(savings.as_str())
     );
     assert!(text.contains("\"fundingReceipts\": ["));
+    assert_eq!(
+        export.work.snags[0].photo_hash.as_deref(),
+        Some(site.photo_hash.as_str())
+    );
+    assert!(
+        text.contains("\"closure\": null"),
+        "open, and null never absent"
+    );
     assert_eq!(
         export.diary,
         crate::db::diary::all(&lock(&site.open.0).as_ref().unwrap().conn).unwrap()

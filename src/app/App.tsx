@@ -104,6 +104,10 @@ export function App({ settings }: { settings: Settings }) {
         setPlanTab('changes');
         setDestination('plan');
       },
+      openSnags: () => {
+        setPlanTab('snags');
+        setDestination('plan');
+      },
     }),
     [],
   );

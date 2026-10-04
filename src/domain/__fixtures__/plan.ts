@@ -15,6 +15,8 @@ import type {
   Dependency,
   Endpoint,
   Person,
+  Snag,
+  SnagClosure,
   Stage,
   WorkSnapshot,
 } from '../plan';
@@ -55,6 +57,7 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     changeOrders: [],
     funding: [],
     fundingReceipts: [],
+    snags: [],
     ...parts,
   };
 }
@@ -327,5 +330,42 @@ export function changeDecision(
     authorName: 'Sample author',
     createdAt: `${decidedOn}T12:00:00.000Z`,
     ...parts,
+  };
+}
+
+/** A snag raised on 21 September 2026, open, on nobody, in `stageId` (slice E4). */
+export function snag(id: string, number: number, stageId: string, parts: Partial<Snag> = {}): Snag {
+  const raisedOn = parts.raisedOn ?? '2026-09-21';
+  return {
+    id,
+    number,
+    title: `Snag ${id}`,
+    description: null,
+    stageId,
+    activityId: null,
+    personId: null,
+    raisedOn,
+    dueOn: null,
+    photoHash: null,
+    authorName: 'Sample author',
+    createdAt: `${raisedOn}T12:00:00.000Z`,
+    closure: null,
+    ...parts,
+  };
+}
+
+/** A snag's closure on `closedOn`: fixed with a photo, or withdrawn with a reason. */
+export function snagClosure(
+  outcome: SnagClosure['outcome'],
+  closedOn: string,
+  photoHash: string | null = outcome === 'fixed' ? 'fixed-photo'.padEnd(64, '0') : null,
+): SnagClosure {
+  return {
+    outcome,
+    closedOn,
+    photoHash,
+    note: outcome === 'withdrawn' ? 'Raised by mistake' : null,
+    authorName: 'Sample author',
+    createdAt: `${closedOn}T12:00:00.000Z`,
   };
 }

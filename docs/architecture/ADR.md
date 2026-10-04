@@ -52,7 +52,10 @@ short, if it does ([ADR-042](#adr-042)). The third, slice E3, says when the work
 things stand — a forecast read forward from what the diary says happened, beside the plan's own
 date and never in its place — and why it is late: every working day of the difference from the
 baseline attributed to a cause the record names, and the days it cannot attribute said in words
-([ADR-043](#adr-043)).
+([ADR-043](#adr-043)). The fourth, slice E4, completes the wave: what is found wrong near the end is
+a snag, raised with a photo, put on the person who must fix it and closed only with a photo of it
+fixed — or withdrawn with a reason, never deleted — and a commitment's last part can be held back as
+retention, earned only when its stage is closed and that person's snags are ([ADR-044](#adr-044)).
 
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -99,6 +102,7 @@ baseline attributed to a cause the record names, and the days it cannot attribut
 | [041](#adr-041) | Change orders: nothing changes without a price and a date                                                             | Accepted — 2026-10-02          |
 | [042](#adr-042) | Will the money last? Funding as plan, receipts as facts, a weekly projection                                          | Accepted — 2026-10-02          |
 | [043](#adr-043) | As things stand: a forecast from the diary, and a ledger of why it is late                                            | Accepted — 2026-10-04          |
+| [044](#adr-044) | A work that ends well: snags closed with a photo, and retention held until they are                                   | Accepted — 2026-10-04          |
 
 ---
 
@@ -2078,7 +2082,8 @@ who set it aside, once and by name, and a fifth differentiator would need a reco
 
 ## ADR-037 — A payment plan is earned by facts, and paying ahead is warned, not refused {#adr-037}
 
-**Status.** Accepted — 2026-09-29.
+**Status.** Accepted — 2026-09-29. Its closed list of triggers gains a fifth, `retention`, in
+[ADR-044](#adr-044): earned only when the stage is closed and its person's snags are.
 
 **Context.** Slice F6 answers what was planned, what was agreed and what was paid, and flags a
 payment that goes past what was agreed ([ADR-023](#adr-023), [ADR-024](#adr-024)). It does not see
@@ -2180,7 +2185,8 @@ before it.
 
 ## ADR-038 — The handover book: the work's record for its owner, photos of hidden work required where it matters {#adr-038}
 
-**Status.** Accepted — 2026-10-01.
+**Status.** Accepted — 2026-10-01. Amended by [ADR-044](#adr-044): each open snag is a gap of its
+own, and each fixed snag is printed with both photos, before and after.
 
 **Context.** The third differentiator ([ADR-036](#adr-036)). At the end of a work the owner is left
 with a folder of receipts, a phone full of photos and what the builder remembers to say on the way
@@ -2954,3 +2960,139 @@ and on whose account it falls under a contract, is the contract's and the jurisd
 person responsible for an activity they were not on site for, whoever asked for a change — not who
 is to blame, and only as true as what was written. A wrong cause is put right by a correction, and
 the record keeps both.
+
+## ADR-044 — A work that ends well: snags closed with a photo, and retention held until they are {#adr-044}
+
+**Status.** Accepted — 2026-10-04.
+
+**Context.** This is E4, the fourth and last slice of the second wave ([ADR-041](#adr-041)), for the
+last of the four ways a small work fails: **it ends badly**. Near the end every work has a list — a
+cracked tile, a door that sticks, a socket with no cover plate, the paint touched up in one corner
+and not the other — and the list lives on a sheet of paper, in a message thread or in the owner's
+head. Meanwhile the last payment falls due: the stage closed, its payment plan said _30 % when the
+stage closes_ ([ADR-037](#adr-037)), and the owner paid, because the product said it was earned.
+From that day nobody has a reason to come back for the tile. The product had the parts and not the
+record. A closed stage is closed ([ADR-022](#adr-022)), so what was found after it had nowhere to
+go; the diary's incidents are a day's sentences, with nobody named to put them right and no way to
+say they were; and the handover book ([ADR-038](#adr-038)) says what the book lacks — a photo, a
+warranty, a care note — and not what the work lacks. A builder's contract calls the answer
+**retention**: the last part of the price held back until the defects are put right. It is the one
+protection a layperson never knows to ask for, and the product's own usual split — 30 %, 40 %, 30 %
+— held none. With this slice the second wave is complete: a work that grows, runs out of money, runs
+late or ends badly now has a record for each.
+
+**Decision.**
+
+- **A snag is a record** (`snag`, migration 016, [`DATA_MODEL.md`](../DATA_MODEL.md)). It carries a
+  **number** — #1, #2, … in the order raised, never reused; the day it was **raised**; a title
+  (1–200 characters) and an optional description (up to 2 000); **where it is** — a stage, required,
+  and an activity, optionally; **who must fix it** — a person of the plan, or nobody yet; the day it
+  is **due**, optional and never before the day it was raised; **a photo of the problem**, optional;
+  and the name the Windows account gives. The stage, the activity and the person are not foreign
+  keys: a person or a stage removed from the plan leaves the snag as it was written. A stage, an
+  activity or a person the work does not have is refused with a sentence. **A closed stage takes
+  snags** — they are found after closing, which is when they matter — and so does an approved plan:
+  a snag changes nothing the plan or a baseline records, so neither the closed stage's lock
+  ([ADR-022](#adr-022)) nor the approved plan's ([ADR-027](#adr-027)) covers it.
+- **A snag is closed once: fixed with a photo, or withdrawn with a reason** (`snag_closure`).
+  **Fixed** requires a photo of it fixed, and takes an optional note; **withdrawn** — raised by
+  mistake, or not a defect after all — requires the reason, in up to 2 000 characters. Either is
+  dated on or after the day the snag was raised and carries the account's name. A fixed closure with
+  no photo, a withdrawal with no reason, a closure dated before its snag, a second closure and a
+  closure of a snag the work does not have are refused by the host with a sentence, and again by the
+  schema. **A snag found again after its fix is a new snag**, which may name the old one in its
+  description; the old one stays fixed, with its photos, as it was.
+- **Insert-only.** Neither row is ever edited or removed. **A snag is never deleted**: a mistake is
+  withdrawn with its reason, and the record keeps both. Both tables carry the battery of migrations
+  003, 007, 009 and 013 — triggers refuse `UPDATE` and `DELETE`, and a guard before insert refuses a
+  key, or a snag's number, already there, so `INSERT OR REPLACE` removes nothing whether
+  `recursive_triggers` is on or off — and the Rust module that writes them holds no `UPDATE`,
+  `DELETE` or `REPLACE`, which a test reads its source to prove. The commands are `snag_raise` and
+  `snag_close`, each returning the work's snapshot, which now carries the snags, each with its
+  closure or none.
+- **A photo is a document of the work, named by its hash** — D3's rule ([ADR-038](#adr-038)). The
+  interface takes the photo in as a document first, through the same intake as every file
+  ([ADR-025](#adr-025)) — chosen in the dialog or dropped on the window ([ADR-040](#adr-040)) — and
+  the snag and its closure name it only by its 64-hex-digit hash. The host refuses a hash that names
+  no image document of the open work; a photo is never read from a path and never copied twice.
+- **Retention: the last part of a payment plan, held until the snags are closed** (amending
+  [ADR-037](#adr-037)). A payment milestone gains a fifth trigger beside D2's four, **`retention`**,
+  which names no activity. It is earned **on the day the last snag of the commitment's stage put on
+  the commitment's person is closed — fixed or withdrawn — or on the day the stage closes, if that
+  is later**; with no snag on that person it is earned when the stage closes, as `stage_closed` is.
+  **Never while one is open**: like every milestone it follows its facts both ways, so a stage
+  reopened un-earns it, and so does a snag raised on that person after it was earned. A snag on
+  another person, on another stage or on nobody holds nothing, and a commitment that names no person
+  is held by no snag. Earned is still never stored: the domain reads it from the gates and the snags
+  every time (`src/domain/milestones.ts`). Migration 016 rebuilds `payment_milestone` to widen its
+  trigger `CHECK`, the way migration 012 rebuilt `document`: every row kept with its id, the index
+  and D2's triggers created again exactly as they were — so a paid commitment's plan stays locked, a
+  retention is not added to it after money has moved, and a renegotiation is still a new commitment.
+- **Held money is shown as held, never as due.** Until it is earned, a retention on Money's payment
+  plan reads _held until …_ — its stage closed and the snags on that person closed — with how many
+  are open. The projection ([ADR-042](#adr-042)) places it where it places `stage_closed`, on the
+  day the schedule expects the stage to close, **while no snag holds it**; while one does, it is
+  **not projected as due** in any week, but listed apart as money the owner is holding, with the
+  snags that hold it, and it joins the weeks again when the last of them is closed. `expectedOn`
+  learns the trigger, so the owner's snapshot and the projection still read one answer. Paying a
+  retention before it is earned is paying ahead of the work, which D2's warning already says before
+  the payment is saved — a warning, not a refusal.
+- **Hold back as retention, offered and not advised.** The payment plan's editor offers **Hold back
+  as retention** as the last part of a plan, suggested at **5 %** and editable, and says that it is
+  a common practice, not advice — as D2's usual split does. It is offered while the plan has a share
+  left and holds no retention yet — at 5 %, or at what is left when that is less — and on a
+  commitment that names nobody it says that no snag can hold it.
+- **The snag list is the domain's** (`snagRows`, `snagFigures`, pure). Each snag is **open**,
+  **fixed** or **withdrawn**; an open one past its due day is **overdue**; and each says how many
+  days it has waited. The figures carry their rows ([ADR-024](#adr-024)): **open**, **overdue**,
+  **by person** and **by stage**. Readiness learns no rule: snags are found at the end, not planned,
+  and a plan does not lack them.
+- **The handover book learns the snags** (amending [ADR-038](#adr-038)). Each open snag is a gap of
+  its own — **Still to fix**, with its number, its title and who must fix it — counted on the
+  Reports card before the book is written and listed on its first page, first among the gaps;
+  writing is still allowed. Each fixed snag is printed in its room's section, or its stage's, with
+  **both photos** — the problem and the fix — half width, side by side, under the same caps and the
+  same image pipeline as every photo in the book.
+- **Where it lives.** The Plan gains a **Snags** tab: the form that raises one — title, stage,
+  activity, who must fix it, due day and photo, chosen or dropped; the list, open first, the overdue
+  marked; and on each open snag **Fix…**, which requires a photo of it fixed and takes a note, and
+  **Withdraw…**, which requires the reason. There is no edit and no delete. The dashboard gains
+  **Still to fix** — open, overdue, by person — not shown while the work has never had a snag.
+  Money's payment plan shows a retention as held until it is earned. The weekly report and the
+  owner's snapshot say what is still open and on whom, in the owner's words.
+- **Words.** The glossary gains _snag_ (_pendência_): something found wrong or unfinished near the
+  end, closed only with a photo of it fixed or withdrawn with a reason; and _retention_
+  (_retenção_): the last part of a payment plan, held until its stage is closed and its person's
+  snags are.
+- **ADR-037 and ADR-038 are amended, not replaced.** D2 gains a trigger and nothing else of it
+  changes: a milestone is earned by facts, never by a date or a tick; paying ahead is warned, not
+  refused; the plan locks once money moves. D3 gains a kind of gap and a pair of photos, and its
+  caps, its image pipeline and its rule that the book is written anyway stay as they were. Their
+  Status lines point here.
+
+**Why.** The last payment is the only lever an owner has at the end of a work, and the product was
+telling him to let go of it on the day the stage closed. A retention earned by a record — snags
+raised with a photo and closed with a photo — makes "is it finished?" a question with an answer, as
+D2 made "is the work there?" one. The photo before and after is the one thing both sides can look at
+without an argument, and the one the owner wants in the book years later, when the tile cracks
+again. The list is insert-only because it is the conversation: a snag that can be quietly deleted is
+a snag nobody fixed. And a retention is held by the snags on its own person, not by every snag in
+the stage, because a tiler's money held for the painter's scratch is a retention nobody can earn,
+and gets ignored.
+
+**Cost accepted.** **A snag closed with a photo is closed by the record, not inspected**: the
+product checks that a photo is attached, not what it shows or when it was taken, and the honesty of
+the photo is the person's — as D3 says of hidden work. **Retention holds money only in the plan's
+arithmetic**: Ridgebeam holds no money, is connected to no bank and cannot stop a payment; it shows
+the money as held and warns before a payment that would pay it early, and paying it is still the
+person's act. **5 % is a common practice offered as a suggestion, not advice**: how much to hold
+back, and whether the contract or the law allows it, is the contract's and the jurisdiction's to
+say. **A snag is never deleted**: one raised by mistake is withdrawn with a reason and stays in the
+list as withdrawn, its number kept; a typo in a title, a wrong stage or the wrong person is put
+right by withdrawing the snag and raising it again. **A snag on nobody holds no retention**: until
+somebody is named it holds nobody's money, and a snag is on one person, so a defect two trades share
+holds one of them unless it is raised twice. **A withdrawal releases a retention as a fix does**:
+its reason is on record, and the product does not judge it. **The snags have to be on record before
+the money goes**: with no snag raised on that person, a retention is earned the day its stage
+closes, and a snag raised after that holds it again — if the retention was already paid, the
+commitment reads as paid ahead of the work until that snag is closed, which, by then, it is.

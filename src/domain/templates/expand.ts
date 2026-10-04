@@ -230,6 +230,7 @@ export function draftCycle(shape: DraftShape, links: readonly DraftLink[]): Draf
     changeOrders: [],
     funding: [],
     fundingReceipts: [],
+    snags: [],
   };
 
   let current = plan;

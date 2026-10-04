@@ -599,7 +599,7 @@ of the work, never by a date (ADR-037).
 | `position`          | INTEGER | 1 … n within the commitment, renumbered in the same transaction as a move or a removal                                                     |
 | `label`             | TEXT    | 1–120 characters, not blank — _Tiles laid_                                                                                                 |
 | `share_bp`          | INTEGER | the share of the commitment's amount in basis points, 1–10 000 — "30 %" is 3 000                                                           |
-| `trigger`           | TEXT    | the fact that earns it: `advance`, `stage_started`, `activity_finished` or `stage_closed`                                                  |
+| `trigger`           | TEXT    | the fact that earns it: `advance`, `stage_started`, `activity_finished`, `stage_closed` or, from E4, `retention`                           |
 | `activity_id`       | TEXT    | `REFERENCES activity`, with no action; required when `trigger` is `activity_finished`, `NULL` otherwise — a `CHECK` holds the two together |
 | `created_at`        | TEXT    | UTC                                                                                                                                        |
 
@@ -608,9 +608,12 @@ of the work, never by a date (ADR-037).
 (`stage.started_at`, F5); `stage_closed` the day it passed its close gate (`stage.closed_at`), and a
 stage reopened has none, so it un-earns it; `activity_finished` the first day an effective diary
 entry finished the activity, corrections applied (F4), so a correction that takes the finish back
-un-earns it. A fact dated after today is not a fact yet. **Nothing records that a milestone was
-earned**: the domain reads it from those facts every time (`src/domain/milestones.ts`), so there is
-no column to set and none to tamper with.
+un-earns it; `retention` (E4) the day its stage closed or the day the last snag of that stage on the
+commitment's person was closed, whichever is later, and not while one is open — a snag raised on
+that person after it was earned un-earns it, and a commitment with no person, or a snag on nobody,
+holds nothing (ADR-044). A fact dated after today is not a fact yet. **Nothing records that a
+milestone was earned**: the domain reads it from those facts every time
+(`src/domain/milestones.ts`), so there is no column to set and none to tamper with.
 
 **What the schema holds, behind the host.** The host refuses each of these first, with a sentence,
 and the migration's triggers refuse them again, so a file written by something else holds the same
@@ -853,6 +856,72 @@ every time from these two tables, the payments, the payment plans, the schedule 
 no table holds a week, a balance or a chance (below, _A comparison, a what-if and a chance are
 computed, not stored_).
 
+### `snag` and `snag_closure` — insert-only (E4)
+
+What is found wrong or unfinished near the end — a cracked tile, a door that sticks — is a **snag**:
+where it is, who must fix it, the day it is due and a photo of it, closed only with a photo of it
+fixed or withdrawn with a reason (ADR-044). Two tables, both **insert-only**: a snag is raised once
+and closed once, and neither row is ever edited or removed. **A snag is never deleted**; a mistake
+is withdrawn, and the record keeps both.
+
+| `snag`        | Type    | Meaning                                                                                                          |
+| ------------- | ------- | ---------------------------------------------------------------------------------------------------------------- |
+| `id`          | TEXT    | UUID v7                                                                                                          |
+| `number`      | INTEGER | 1, 2, … — the next after the highest already written; unique, never reused, so a withdrawn snag keeps its number |
+| `title`       | TEXT    | 1–200 characters, not blank — _Cracked tile by the shower_                                                       |
+| `description` | TEXT    | up to 2 000 characters, or `NULL`                                                                                |
+| `stage_id`    | TEXT    | the stage it is in — required; **not a foreign key**                                                             |
+| `activity_id` | TEXT    | the activity it is in, or `NULL`; **not a foreign key**                                                          |
+| `person_id`   | TEXT    | the person of the plan who must fix it, or `NULL` for nobody yet; **not a foreign key**                          |
+| `raised_on`   | TEXT    | the ISO day it was raised                                                                                        |
+| `due_on`      | TEXT    | the ISO day it is due, never before `raised_on`, or `NULL`                                                       |
+| `photo_hash`  | TEXT    | the hash of a document of the work — the photo of the problem — or `NULL`                                        |
+| `author_name` | TEXT    | the display name of the Windows account that raised it                                                           |
+| `created_at`  | TEXT    | UTC                                                                                                              |
+
+| `snag_closure` | Type | Meaning                                                                                                  |
+| -------------- | ---- | -------------------------------------------------------------------------------------------------------- |
+| `snag_id`      | TEXT | primary key — **one closure per snag**; a closure of a snag the work does not have is refused            |
+| `outcome`      | TEXT | `fixed` or `withdrawn`                                                                                   |
+| `closed_on`    | TEXT | the ISO day it was closed, never before the snag's `raised_on`                                           |
+| `photo_hash`   | TEXT | the hash of a document of the work — the photo of it fixed; **required when `outcome` is `fixed`**       |
+| `note`         | TEXT | up to 2 000 characters; **required when `outcome` is `withdrawn`** — the reason — and optional otherwise |
+| `author_name`  | TEXT | the display name of the Windows account that closed it                                                   |
+| `created_at`   | TEXT | UTC                                                                                                      |
+
+**Where it is, and who must fix it, are not foreign keys.** A person removed from the plan, or a
+stage removed after the snag was raised, leaves the snag as it was written; the interface says the
+person or the stage is no longer in the plan rather than losing the record. The host refuses, with a
+sentence, a stage, an activity or a person the work does not have when the snag is raised. **A
+closed stage takes snags** — they are found after closing — and an approved plan does too: neither
+lock covers a snag, because no baseline records one.
+
+**Photos are documents, by hash.** Both `photo_hash` columns hold 64 lowercase hexadecimal digits,
+and the host accepts one only when an image `document` of the open work names it, as the handover
+book's images are resolved (D3): the interface takes the photo in through the documents' intake
+first. Neither column is a foreign key, and neither is ever read as a path: a document removed while
+a snag names its hash takes its row and its links, and its file stays, as a diary photo's does.
+
+**Insert-only, behind the host.** Migration 016 gives both tables the battery of migrations 003,
+007, 009 and 013: triggers refuse `UPDATE` and `DELETE`, and a guard before insert refuses a key —
+or, for a snag, a number — that is already there, so `INSERT OR REPLACE` cannot remove a row whether
+`recursive_triggers` is on or off; a snag whose number is not the next one is refused too. Each
+raises `snag: append-only`. A `CHECK` makes a `fixed` closure carry a photo and a `withdrawn` one a
+note. What the host refuses first with a sentence, the schema refuses again, so a file written by
+something else holds the same rules: a due day before the raised day, a fixed closure with no photo,
+a withdrawal with no reason, a closure dated before its snag or of a snag that is not there (`snag:
+closure`), and a second closure. The Rust module that writes them holds no `UPDATE`, `DELETE` or
+`REPLACE`, and a test reads its source to prove it.
+
+**A snag found again is a new snag.** A fix that did not hold is not reopened: a new snag is raised,
+which may name the old one in its description, and the old one stays fixed with both its photos.
+
+**Every figure is computed.** Whether a snag is open, fixed or withdrawn, whether it is overdue, how
+long it has waited, and the figures by person and by stage are the domain's (`snagRows`,
+`snagFigures`), from these rows, each figure with its rows. So is a retention's state: the payment
+milestone `retention` (above, `payment_milestone`) is earned from `stage.closed_at` and these two
+tables every time, and nothing records that it was.
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -942,8 +1011,8 @@ migration each database has been through, by number and name.
 - Every table that must never lose a row is insert-only: triggers refuse `UPDATE`, `DELETE`
   and `REPLACE`, and the Rust module that writes it contains no `UPDATE` or `DELETE` statement,
   by rule. **Shipped for the baselines (F2) and the diary (F4)**, whose entries also carry the
-  hash of the one before; the payments ledger (F6), the change orders (E1) and the money received
-  (E2) follow the same pattern.
+  hash of the one before; the payments ledger (F6), the change orders (E1), the money received (E2)
+  and the snags (E4) follow the same pattern.
 - Text columns that a person types are bounded by `CHECK (length(...) <= n)` in the schema.
 
 ## Migrations
@@ -969,6 +1038,7 @@ covered by a round-trip test that opens a work at version N-1 and migrates it wi
 | `013_change_orders.sql`              | E1    | `change_order` and `change_order_decision`, each with its `CHECK`s and the insert-only battery of migrations 003, 007 and 009                                                                                         |
 | `014_funding.sql`                    | E2    | `funding`; `funding_receipt` with its `CHECK`s, the insert-only battery of migration 007 and its reversal trigger                                                                                                     |
 | `015_lost_cause.sql`                 | E3    | `diary_entry.lost_cause` and `.lost_party_person_id`, each with its `CHECK`; the canonical form's conditional `lost` record                                                                                           |
+| `016_snags.sql`                      | E4    | `snag` and `snag_closure`, each with its `CHECK`s and the insert-only battery of migration 013; `payment_milestone` rebuilt with the trigger `retention`, every row and D2's triggers kept                            |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its stages
 and activities migrates to schema 2 without loss, a work at schema 2 with rooms and quantities
@@ -988,7 +1058,10 @@ verifying, and a work at schema 12 migrates to schema 13 losing nothing, with it
 verifying, and a work at schema 13 with change orders, payments and a diary migrates to schema 14
 losing nothing, with no fund and no receipt invented and its chain still verifying, and a work at
 schema 14 with diary entries, a correction and photos migrates to schema 15 with every entry's hash
-byte for byte what it was, no cause invented and its chain verifying before and after.
+byte for byte what it was, no cause invented and its chain verifying before and after, and a work at
+schema 15 with commitments, payment plans — one locked by a payment — and a diary migrates to schema
+16 with every milestone kept with its id, share and trigger, the paid plan still locked, no snag
+invented and its chain still verifying.
 
 **Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
 where it came from, one row per hash in this order of precedence: a diary photo (kind `photo`,
@@ -1063,6 +1136,24 @@ change — every entry keeps its bytes — and the triggers of migration 005 sta
 Every hash in the chain is the one it was (_The conditional record_, above). A work migrated from
 schema 14 has no lost day with a cause, so the delay ledger counts its lost days as days with no
 cause stated, and no figure an earlier slice showed moves with the migration.
+
+**Migration 016's rebuild of `payment_milestone`.** SQLite cannot change a `CHECK` on a column, so
+the table is rebuilt to take the trigger `retention`, the way migration 010 rebuilt `cost_line` and
+012 rebuilt `document`. No table points at `payment_milestone`, so nothing has to be set aside
+first. `payment_milestone_016` is created with every column, reference, `UNIQUE` and `CHECK` exactly
+as migration 011 wrote them but the list of triggers, which gains `retention` — and the rule that
+only `activity_finished` names an activity is kept as it was, so a retention names none. Every
+milestone is copied across as it is — id, commitment, position, label, share, trigger, activity and
+the moment it was written — so the ids the interface knows stay the ids. The rows go across before
+any trigger exists on the new table, so a paid commitment's plan, which D2's lock would refuse to
+insert into, is copied whole. `payment_milestone` is dropped, which drops its index and its seven
+triggers; `payment_milestone_016` is renamed `payment_milestone`; and
+`idx_payment_milestone_activity` and the seven triggers of migration 011 — the activity of the
+commitment's stage, at most 100 %, and locked once a payment names the commitment, on insert, update
+and delete — are created again under the names they had, word for word. A failure anywhere rolls the
+whole migration back and the file stays at version 15. Every milestone keeps its trigger, so no plan
+holds a retention until one is written; the two snag tables start empty; and no figure an earlier
+slice showed moves with the migration.
 
 The migrations live in `src-tauri/work_migrations/`.
 

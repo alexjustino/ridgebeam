@@ -189,6 +189,28 @@ release that skipped a step is a release nobody can reason about afterwards.
      "chain intact". Write the weekly report and the owner's snapshot, and both carry the forecast's
      sentence and the causes. Do it once in Portuguese, where the cards read _Do jeito que está_ and
      _Por que está atrasada?_ and the cause _Esperando uma decisão_;
+   - **close the work out** on a work with a stage of one activity, a person of the plan and a
+     commitment on that stage with that person. Give the commitment a payment plan of 95 % when the
+     stage closes and, as its last part, **Hold back as retention**: the editor offers 5 % and says,
+     beside it, that it is a common practice, not advice. Close the stage: the retention reads
+     earned — no snag holds it yet. On **Plan → Snags**, raise two snags in that closed stage, on
+     that person, each with a photo of the problem — one chosen in the dialog, one dropped on the
+     window — and give one a due day already past: the list shows both open, the overdue one marked
+     in words, and the closed stage refused neither. On **Money**, the retention now reads _held
+     until …_ with two snags open, and is not in **due now**; on the **Will the money last?** card
+     it is listed apart as money held, not counted in a week. **Fix…** the first snag with a photo
+     of it fixed: it reads fixed, and the retention is still held, by one snag. Try to fix the
+     second with no photo: it is refused, and the dialog says a fix needs its photo. **Withdraw…**
+     it instead, with a reason: it stays in the list as withdrawn, with its reason, and the
+     retention reads earned. Look for a control that edits or deletes a snag: there is none. Raise a
+     third snag on that person and the retention is held again; record a payment of the whole
+     commitment on the Ledger, and the warning says it pays ahead of the work before it is saved —
+     and it is still recorded. The dashboard's **Still to fix** card reads the open and the overdue,
+     by person, every figure opening onto its rows. On **Reports**, the handover book's gaps list
+     the open snag as **Still to fix**; write the book anyway, and find the fixed snag in its
+     stage's section with both photos, before and after, side by side. Write the weekly report and
+     the owner's snapshot: both say what is still open and on whom. Do it once in Portuguese, where
+     the tab reads _Pendências_, a snag is a _pendência_ and the retention a _retenção_;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and

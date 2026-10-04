@@ -682,6 +682,30 @@ breaks one is not merged.
   what it left out_). Causes are said in the owner's words — _waiting for a decision_, _the crew did
   not come_ — and a party is the name the record gives, never a verdict: the card attributes, it does
   not judge. When the work is on or ahead of the baseline the card says so, and lists no cause.
+- **A snag is closed with a photo or withdrawn with a reason, never deleted.** The Plan's **Snags**
+  tab (`data-tab="snags"`) lists what is still to fix, open first, an overdue one marked in words
+  and with its icon, never by colour alone (§2), each row carrying its state (`data-snag-id`,
+  `data-state`). An open snag offers exactly two ways out and no third: **Fix…** (`snag-fix`), whose
+  dialog requires a photo of it fixed — its photo field is open from the start and says why, so
+  nobody learns the rule from a refusal — and **Withdraw…** (`snag-withdraw`), whose dialog requires
+  the reason. There is **no Edit and no Delete**, on the row or in a menu, because a snag that can
+  disappear is a snag nobody fixed: a mistake is withdrawn, and a withdrawn snag stays in the list
+  as withdrawn, with its reason. A fixed snag shows its two photos side by side, the problem and the
+  fix. Withdrawing is not destructive and does not take the danger tone; the confirming button
+  repeats the verb — **Fix**, **Withdraw**. The dashboard's **Still to fix** card
+  (`dashboard-snags`) — open, overdue, by person, each a figure with its rows — is not shown while
+  the work has never had a snag, and once it has had one it stays, reading zero when all are closed,
+  so the end of the list is a fact on screen and not a card that vanished (ADR-044).
+- **Held money is shown as held, never as due.** A retention not yet earned reads _held until …_ —
+  its stage closed and its person's snags closed — with how many snags hold it, in the neutral tone:
+  it is not owed, so it is never in **due now**, never in the danger or warning tone, never in a
+  week of the projection as money going out; the projection lists it apart, beside the number, as
+  money the owner is holding (§8, _a projection says what it counts and what it does not_). The
+  payment plan's editor offers **Hold back as retention** (`milestone-retention`) as the last part,
+  suggested at 5 % and editable, and says in a sentence beside it that this is a common practice,
+  not advice — as the usual split does. Paying a retention before it is earned is paying ahead of
+  the work: the Ledger's warning says so before the payment is saved, as for any milestone, and the
+  button is never disabled (ADR-044).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
