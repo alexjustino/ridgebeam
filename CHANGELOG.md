@@ -9,13 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
-## [1.0.0] — 2026-10-02
+## [1.0.0] — 2026-10-04
 
 The first release. Ridgebeam plans a building work — a bathroom, a kitchen, a roof, a house — for
 the engineer, the architect and the owner who is not either, on one Windows machine, with no
-account and no network. It is built in twelve slices, F0 to F11, four differentiators, D1 to D4,
-and U1, which takes away the friction a first real week meets — each described below in the order
-it arrived, with the round of dependency updates that came between them.
+account and no network. It is built in twelve slices, F0 to F11; four differentiators, D1 to D4;
+U1, which takes away the friction a first real week meets; and a second wave, E1 to E4, that
+answers the four ways a small work fails — each described below in the order it arrived, with the
+round of dependency updates that came between them.
 
 **What it does.** A work is a folder on the person's disk. Its plan is stages and activities on a
 working calendar, linked with lags, with the critical path and the finish date computed, and the
@@ -41,12 +42,21 @@ Photos and files dragged from Explorer onto the Diary or Documents are taken as 
 ticks the last entry's people in one press, and the front door reminds — quietly, and never in
 place of the person — when the work has not been backed up (U1).
 
+**The four ways a small work fails, each answered on the record.** Nothing changes after approval
+without a price and a date: a change order says who asked, what it costs and what it does to the
+finish, worked out by the schedule before anybody decides (E1). The money is projected week by week
+against where it comes from, and the week it runs short is named — money that has not arrived is
+not counted (E2). The work says when it finishes as things stand, from the diary, beside the plan's
+own date, and why it is late, cause by cause and on whose account, with what the record does not
+explain said as such (E3). And what is still wrong at the end is closed only with a photo of it
+fixed, with the last part of a payment held back until it is (E4).
+
 **What it is not.** Not a signature and not legal proof: the diary's chain shows whether the file
 was changed outside the product, nothing more. Not a quote: the library carries ranges and no
 prices. Not synchronised, not shared and not in the cloud — one person, one machine, in 1.0. The
 installers are not code-signed, so Windows SmartScreen warns on the first run.
 
-**Migrations.** A work written by this release is at schema 12 and the application database at 3.
+**Migrations.** A work written by this release is at schema 16 and the application database at 3.
 There is no earlier release to migrate from.
 
 ### Added in F0 — the foundation, the shell, one stage, and readiness
