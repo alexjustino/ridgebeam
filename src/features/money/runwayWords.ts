@@ -40,6 +40,7 @@ const PLURAL_NOTES: ReadonlySet<string> = new Set([
   RUNWAY_NOTE_KEYS.late,
   RUNWAY_NOTE_KEYS.notPriced,
   RUNWAY_NOTE_KEYS.beyond,
+  RUNWAY_NOTE_KEYS.held,
 ]);
 
 /** A sentence the domain hands over as a key and raw params, in words: money and days formatted. */

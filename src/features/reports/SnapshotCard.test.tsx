@@ -43,6 +43,7 @@ const NAVIGATION: Navigation = {
   openBackup: () => undefined,
   openSchedule: () => undefined,
   openChanges: () => undefined,
+  openSnags: () => undefined,
 };
 
 let host: HTMLDivElement;

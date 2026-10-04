@@ -13,8 +13,10 @@
  * - **a section per room** (or per stage when the work has no rooms; "everything else" last when
  *   something touches no room): its stages and where they are, what was done and when, the decisions
  *   made, **the photos of hidden work** — each full width, captioned with the check, its stage and
- *   the day — then the diary's photos in half-width pairs, captioned with the activity and the day,
- *   and the care notes;
+ *   the day — then, once the work has had a snag (E4), **the snags fixed** there, each with the photo
+ *   of the problem and the photo of the fix side by side, half width — then the diary's photos in
+ *   half-width pairs, captioned with the activity and the day, and the care notes. An open snag is a
+ *   gap on the cover: "Still to fix: …";
  * - **the documents** by kind — permits, warranties, manuals, contracts, receipts — each by its name
  *   and file, the day it was added and what it is attached to; the files themselves are in the
  *   work's folder, never embedded (a PDF among them is listed, not printed);
@@ -115,7 +117,12 @@ function careNoteBlocks(
   });
 }
 
-function sectionBlocks(i18n: I18n, section: HandoverSection, budget: ImageBudget): ReportBlock[] {
+function sectionBlocks(
+  i18n: I18n,
+  section: HandoverSection,
+  budget: ImageBudget,
+  hasSnags: boolean,
+): ReportBlock[] {
   const { t, tp, day, number } = i18n;
   const blocks: ReportBlock[] = [];
   blocks.push({
@@ -194,6 +201,50 @@ function sectionBlocks(i18n: I18n, section: HandoverSection, budget: ImageBudget
       'full',
     );
     if (block !== null) blocks.push(block);
+  }
+
+  // E4: the snags fixed here, each with the photo of the problem and of the fix, side by side.
+  if (hasSnags) {
+    blocks.push({ type: 'heading', level: 2, text: t('reports.handover.snags.title') });
+    if (section.snagsFixed.length === 0) {
+      blocks.push({ type: 'paragraph', tone: 'muted', text: t('reports.handover.snags.none') });
+    }
+    for (const snag of section.snagsFixed) {
+      const name = t('snags.row.title', { number: snag.number, title: snag.title });
+      blocks.push({
+        type: 'paragraph',
+        text: row(
+          name,
+          snag.activityName ?? snag.stageName,
+          snag.personName,
+          t('reports.handover.snags.fixedOn', { day: day(snag.closedOn) }),
+        ),
+      });
+      if (snag.before === null) {
+        blocks.push({
+          type: 'paragraph',
+          tone: 'muted',
+          text: t('reports.handover.snags.noBefore', { name }),
+        });
+      } else {
+        const before = image(
+          budget,
+          snag.before.photoHash,
+          t('reports.handover.snags.before', { name, day: day(snag.raisedOn) }),
+          'half',
+        );
+        if (before !== null) blocks.push(before);
+      }
+      if (snag.after !== null) {
+        const after = image(
+          budget,
+          snag.after.photoHash,
+          t('reports.handover.snags.after', { name, day: day(snag.closedOn) }),
+          'half',
+        );
+        if (after !== null) blocks.push(after);
+      }
+    }
   }
 
   // Other photos, from the diary: half width, two to a row.
@@ -328,7 +379,7 @@ export function composeHandover(
   // ── Room by room, or stage by stage ──
   for (const section of book.sections) {
     blocks.push({ type: 'pageBreak' });
-    blocks.push(...sectionBlocks(i18n, section, budget));
+    blocks.push(...sectionBlocks(i18n, section, budget, snapshot.snags.length > 0));
   }
   if (book.sections.length === 0) {
     blocks.push({ type: 'paragraph', tone: 'muted', text: t('reports.handover.sections.none') });

@@ -41,6 +41,7 @@ import {
 import { CHANGE_LABEL_KEYS, changeTally, type ChangeTally } from '@/domain/changes';
 import { RUNWAY_LABEL_KEYS, type Runway, type RunwayChance } from '@/domain/runway';
 import { DELAY_LABEL_KEYS, type DelayLedger } from '@/domain/delay';
+import { SNAG_LABEL_KEYS, snagFigures, snagRows, type SnagRow } from '@/domain/snags';
 import {
   delayCauseText,
   delayLeftText,
@@ -74,6 +75,15 @@ import {
   tallySentence,
   waitedText,
 } from '@/features/plan/changeWords';
+import {
+  snagClosureText,
+  snagDueText,
+  snagGroupLabel,
+  snagRowTitle,
+  snagSentence,
+  snagWhereText,
+  snagWhoText,
+} from '@/features/plan/snagWords';
 import type { MessageKey } from '@/i18n/en';
 import { termsFor } from '@/i18n/terms';
 import type { I18n } from '@/i18n/useI18n';
@@ -279,6 +289,78 @@ export function changeTallyBlocks(
   ];
 }
 
+/**
+ * **Still to fix** (E4), as both owner's documents print it, in the owner's words: what is still
+ * open and on whom in one sentence, then the open snags and those past their day — each a figure with
+ * its snags as rows, who must fix each and its day — and the open ones by who must fix them. Printed
+ * once a snag has been raised; a work that never found one has nothing to say here, as the
+ * dashboard's card has not. `closedThisWeek` adds, for the weekly report, the snags closed in its week.
+ */
+export function snagBlocks(
+  i18n: I18n,
+  snapshot: WorkSnapshot,
+  today: string,
+  level: 1 | 2,
+  closedThisWeek: { readonly from: string; readonly to: string } | null = null,
+): ReportBlock[] {
+  const { t, number } = i18n;
+  const figures = snagFigures(snapshot, today);
+  if (figures.raised === 0) return [];
+  const term = termsFor(i18n.language, 'owner');
+  const openRow = (each: SnagRow) =>
+    line(
+      snagRowTitle(i18n, each),
+      snagWhereText(i18n, term, each),
+      snagWhoText(i18n, each),
+      snagDueText(i18n, each),
+    );
+  const blocks: ReportBlock[] = [
+    { type: 'heading', level, text: t('dashboard.snags.title') },
+    {
+      type: 'paragraph',
+      tone: 'strong',
+      text: shortened(snagSentence(i18n, figures), REPORT_LIMITS.text),
+    },
+    figure(t(SNAG_LABEL_KEYS.open), number(figures.open.value), figures.open.rows.map(openRow)),
+    figure(
+      t(SNAG_LABEL_KEYS.overdue),
+      number(figures.overdue.value),
+      figures.overdue.rows.map(openRow),
+    ),
+    ...figures.byPerson.map((group) =>
+      figure(
+        snagGroupLabel(i18n, group),
+        number(group.open.value),
+        group.open.rows.map((each) => line(snagRowTitle(i18n, each), snagDueText(i18n, each))),
+      ),
+    ),
+  ];
+  if (closedThisWeek !== null) {
+    const closed = snagRows(snapshot, today).filter(
+      (each) =>
+        each.closedOn !== null &&
+        each.closedOn >= closedThisWeek.from &&
+        each.closedOn <= closedThisWeek.to,
+    );
+    const byId = new Map(snapshot.snags.map((snag) => [snag.id, snag]));
+    blocks.push(
+      figure(
+        t('reports.weekly.snags.closed'),
+        number(closed.length),
+        closed.map((each) =>
+          line(
+            snagRowTitle(i18n, each),
+            snagWhoText(i18n, each),
+            snagClosureText(i18n, each, byId.get(each.snagId)),
+            each.state === 'withdrawn' ? each.note : null,
+          ),
+        ),
+      ),
+    );
+  }
+  return blocks;
+}
+
 /** The runway and its chance, as the Money page computes them from the same three inputs. */
 export interface Cash {
   readonly runway: Runway;
@@ -343,6 +425,19 @@ export function runwayBlocks(
         t(RUNWAY_LABEL_KEYS.late),
         number(late.value),
         late.rows.map((each) =>
+          shortened(runwayRowLine(i18n, each, snapshot, currency), REPORT_LIMITS.text),
+        ),
+      ),
+    );
+  }
+  // E4: retention held while snags are open — the money the owner is holding, never in a week.
+  const held = runway.figures.held;
+  if (held.rows.length > 0) {
+    blocks.push(
+      figure(
+        t(RUNWAY_LABEL_KEYS.held),
+        i18n.money(held.value, currency),
+        held.rows.map((each) =>
           shortened(runwayRowLine(i18n, each, snapshot, currency), REPORT_LIMITS.text),
         ),
       ),
@@ -710,6 +805,9 @@ export function composeWeekly(
   if (snapshot.work.approvedAt !== null) {
     blocks.push(...weeklyChangeBlocks(weekly, snapshot, i18n));
   }
+
+  // ── Still to fix (E4) — once a snag has been raised ──
+  blocks.push(...snagBlocks(i18n, snapshot, weekly.today, 2, weekly.week));
 
   // ── Stages ──
   blocks.push({ type: 'heading', level: 2, text: t('reports.weekly.stages') });
