@@ -948,6 +948,8 @@ fn a_backup_of_a_work_at_an_older_schema_restores_migrated_forward() {
                 note: Some("Tiles laid.".into()),
                 weather: None,
                 lost_day: false,
+                lost_cause: None,
+                lost_party_person_id: None,
                 hours: None,
                 deliveries: None,
                 incidents: None,

@@ -100,6 +100,14 @@
 //!   a reversal is the negative of the receipt it reverses, naming it by
 //!   `reversesSeq`. Whether the money lasts is not here: it is the domain's,
 //!   computed every time.
+//! - E3: why a day was lost. `DiaryEntry.lostCause` — `weather`, `decision`,
+//!   `absence`, `material`, `owner`, `access` or `other`, `null` when none was
+//!   given — and `DiaryEntry.lostPartyPersonId`, the person the day is put
+//!   down to, `null` when nobody was named; both `null` for every entry
+//!   written before E3. `EntryDraft` gains the same two, optional (left out is
+//!   `null`): a cause only on a lost day, a person only with a cause. A cause
+//!   is changed by a correction, as everything in the diary. The forecast and
+//!   the delay ledger are not here: they are the domain's, computed every time.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -1348,6 +1356,14 @@ pub struct EntryDraft {
     /// No work was possible that day.
     #[serde(default)]
     pub lost_day: bool,
+    /// Why no work was possible (E3): `weather`, `decision`, `absence`,
+    /// `material`, `owner`, `access`, `other`, or `null`. Only on a lost day.
+    #[serde(default)]
+    pub lost_cause: Option<String>,
+    /// The person the lost day is put down to, by id (E3); `null` when nobody.
+    /// Only with a cause.
+    #[serde(default)]
+    pub lost_party_person_id: Option<String>,
     /// Hours worked on site, 0 to 24.
     #[serde(default)]
     pub hours: Option<f64>,
@@ -1430,6 +1446,12 @@ pub struct DiaryEntry {
     pub weather: Option<String>,
     /// No work was possible.
     pub lost_day: bool,
+    /// Why no work was possible (E3); `null` when no cause was given — and for
+    /// every entry written before E3.
+    pub lost_cause: Option<String>,
+    /// The person the lost day is put down to, by id — who may since have been
+    /// removed from the plan; `null` when nobody was named.
+    pub lost_party_person_id: Option<String>,
     /// Hours on site; `null` when not said.
     pub hours: Option<f64>,
     /// What arrived.

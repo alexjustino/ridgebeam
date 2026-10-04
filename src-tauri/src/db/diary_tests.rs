@@ -19,7 +19,7 @@
 
 use rusqlite::Connection;
 
-use crate::contract::{DoneLine, Photo};
+use crate::contract::{DiaryEntry, DoneLine, Photo};
 use crate::db::diary::{self, NewEntry};
 use crate::db::testing::Scratch;
 use crate::db::work::{add_activity, add_person, add_stage};
@@ -57,6 +57,8 @@ fn entry(day: &str) -> NewEntry {
         note: None,
         weather: None,
         lost_day: false,
+        lost_cause: None,
+        lost_party_person_id: None,
         hours: None,
         deliveries: None,
         incidents: None,
@@ -529,4 +531,281 @@ fn the_module_that_writes_the_diary_holds_no_update_delete_or_replace() {
         source.contains("INSERT INTO diary_entry"),
         "the scan is reading the right file"
     );
+}
+
+// ── E3: why a day was lost ─────────────────────────────────────────────────
+
+const ACTIVITY_A: &str = "00000000-0000-7000-8000-00000000000a";
+const ACTIVITY_C: &str = "00000000-0000-7000-8000-00000000000c";
+const PERSON_D: &str = "00000000-0000-7000-8000-00000000000d";
+const PERSON_E: &str = "00000000-0000-7000-8000-00000000000e";
+
+/// An entry with every field the canonical form has a place for — its
+/// children deliberately out of order — and no cause.
+fn golden_entry() -> DiaryEntry {
+    DiaryEntry {
+        seq: 2,
+        day: "2026-10-06".into(),
+        kind: "correction".into(),
+        corrects_seq: Some(1),
+        note: Some("Grout delivered.".into()),
+        weather: Some("rain".into()),
+        lost_day: true,
+        lost_cause: None,
+        lost_party_person_id: None,
+        hours: Some(7.5),
+        deliveries: Some("Grout, 4 bags".into()),
+        incidents: None,
+        visitors: None,
+        author_name: "Synthetic author".into(),
+        created_at: "2026-10-06T17:00:00.000Z".into(),
+        prev_hash: "ab".repeat(32),
+        hash: String::new(),
+        done: vec![
+            DoneLine {
+                activity_id: ACTIVITY_C.into(),
+                state: "worked".into(),
+                quantity: Some(6.0),
+                note: None,
+            },
+            DoneLine {
+                activity_id: ACTIVITY_A.into(),
+                state: "finished".into(),
+                quantity: None,
+                note: Some("Edges.".into()),
+            },
+        ],
+        present: vec![PERSON_E.into(), PERSON_D.into()],
+        photos: vec![photo(&"a1".repeat(32))],
+    }
+}
+
+/// The canonical string of `golden_entry`, written out from the module
+/// header's description — the form every entry before E3 was hashed under.
+fn golden_canonical() -> String {
+    let record = |fields: &[&str]| fields.join("\u{1F}");
+    let prev = format!("+{}", "ab".repeat(32));
+    let photo = format!("+{}", "a1".repeat(32));
+    let (a, c) = (format!("+{ACTIVITY_A}"), format!("+{ACTIVITY_C}"));
+    let (d, e) = (format!("+{PERSON_D}"), format!("+{PERSON_E}"));
+    [
+        record(&[
+            "entry.v1",
+            "+2",
+            "+2026-10-06",
+            "+correction",
+            "+1",
+            "+Grout delivered.",
+            "+rain",
+            "+1",
+            "+7.5",
+            "+Grout, 4 bags",
+            "",
+            "",
+            "+Synthetic author",
+            "+2026-10-06T17:00:00.000Z",
+            &prev,
+        ]),
+        record(&["done", &a, "+finished", "", "+Edges."]),
+        record(&["done", &c, "+worked", "+6", ""]),
+        record(&["present", &d]),
+        record(&["present", &e]),
+        record(&["photo", &photo, "+wall.jpg", "+1024", "+640", "+480"]),
+    ]
+    .join("\u{1E}")
+}
+
+/// The promise of E3: the code learned a fifth record, and an entry without a
+/// cause does not know it. Its canonical string is the one the header always
+/// described, and its hash the one computed from that string outside this
+/// code (with Python's hashlib), pinned here.
+#[test]
+fn an_entry_without_a_cause_has_the_canonical_string_and_hash_it_had_before_e3() {
+    let entry = golden_entry();
+
+    assert_eq!(diary::canonical(&entry), golden_canonical());
+    assert_eq!(
+        diary::hash_of(&entry),
+        "bad896c22ff031dda1b56bf316e285006f36658d3ed1e90fae43cea55bba3f0e"
+    );
+    assert!(!diary::canonical(&entry).contains("lost\u{1F}"));
+}
+
+/// With a cause, one record more and nothing else different: `lost`, the
+/// cause, the person — NULL as the empty field, like every NULL.
+#[test]
+fn a_cause_adds_exactly_one_lost_record_after_the_photos() {
+    let with_party = DiaryEntry {
+        lost_cause: Some("absence".into()),
+        lost_party_person_id: Some(PERSON_D.into()),
+        ..golden_entry()
+    };
+    assert_eq!(
+        diary::canonical(&with_party),
+        format!(
+            "{}\u{1E}lost\u{1F}+absence\u{1F}+{PERSON_D}",
+            golden_canonical()
+        )
+    );
+
+    let nobody = DiaryEntry {
+        lost_cause: Some("weather".into()),
+        ..golden_entry()
+    };
+    assert_eq!(
+        diary::canonical(&nobody),
+        format!("{}\u{1E}lost\u{1F}+weather\u{1F}", golden_canonical())
+    );
+    assert_ne!(diary::hash_of(&nobody), diary::hash_of(&golden_entry()));
+    assert_ne!(diary::hash_of(&nobody), diary::hash_of(&with_party));
+    assert_eq!(diary::LOST_TAG, "lost");
+}
+
+/// The fixture, and entry #4: a lost day put down to the person, by cause.
+fn with_a_lost_day() -> (Fixture, String) {
+    let f = fixture();
+    let ana = diary::get(f.conn(), 1).unwrap().unwrap().present[0].clone();
+    diary::append(
+        f.conn(),
+        &NewEntry {
+            lost_day: true,
+            lost_cause: Some("absence".into()),
+            lost_party_person_id: Some(ana.clone()),
+            note: Some("The tiler did not come.".into()),
+            ..entry("2026-10-07")
+        },
+    )
+    .unwrap();
+    (f, ana)
+}
+
+#[test]
+fn a_lost_day_with_its_cause_and_person_reads_back_and_verifies() {
+    let (f, ana) = with_a_lost_day();
+    let lost = diary::get(f.conn(), 4).unwrap().unwrap();
+
+    assert_eq!(lost.lost_cause.as_deref(), Some("absence"));
+    assert_eq!(lost.lost_party_person_id.as_deref(), Some(ana.as_str()));
+    assert!(diary::canonical(&lost).ends_with(&format!("\u{1E}lost\u{1F}+absence\u{1F}+{ana}")));
+    assert_eq!(diary::hash_of(&lost), lost.hash);
+    for seq in 1..=3 {
+        let old = diary::get(f.conn(), seq).unwrap().unwrap();
+        assert_eq!(
+            (old.lost_cause, old.lost_party_person_id),
+            (None, None),
+            "#{seq}"
+        );
+    }
+    let report = diary::verify(f.conn()).unwrap();
+    assert_eq!((report.entries, report.intact), (4, true));
+}
+
+/// The triggers of migration 005 name no column: the two columns of 015 are
+/// as fixed as the rest — every UPDATE, upsert and REPLACE that would set,
+/// change or clear a cause or a person is refused, whatever the pragmas.
+#[test]
+fn every_update_of_a_cause_or_its_person_is_refused_whatever_the_pragmas() {
+    let (f, ana) = with_a_lost_day();
+    let before = diary::all(f.conn()).unwrap();
+    let hash_3 = before[2].hash.clone();
+    let new_hash = "cd".repeat(32);
+    let other = PERSON_E;
+
+    let attacks = [
+        "UPDATE diary_entry SET lost_cause = 'weather' WHERE seq = 4".to_string(),
+        "UPDATE diary_entry SET lost_cause = NULL, lost_party_person_id = NULL WHERE seq = 4"
+            .to_string(),
+        format!("UPDATE diary_entry SET lost_party_person_id = '{other}' WHERE seq = 4"),
+        "UPDATE diary_entry SET lost_party_person_id = NULL".to_string(),
+        "UPDATE diary_entry SET lost_day = 1, lost_cause = 'decision' WHERE seq = 2".to_string(),
+        "UPDATE OR REPLACE diary_entry SET lost_cause = 'other' WHERE seq = 4".to_string(),
+        format!(
+            "INSERT INTO diary_entry (seq, day, kind, lost_day, author_name, created_at,
+               prev_hash, hash, lost_cause)
+             VALUES (4, '2026-10-07', 'entry', 1, 'x', 't', '{hash_3}', '{new_hash}', 'owner')
+             ON CONFLICT (seq) DO UPDATE SET lost_cause = 'owner'"
+        ),
+        format!(
+            "INSERT OR REPLACE INTO diary_entry (seq, day, kind, lost_day, author_name,
+               created_at, prev_hash, hash, lost_cause, lost_party_person_id)
+             VALUES (4, '2026-10-07', 'entry', 1, 'x', 't', '{hash_3}', '{new_hash}', 'owner',
+               '{ana}')"
+        ),
+        format!(
+            "REPLACE INTO diary_entry (seq, day, kind, lost_day, author_name, created_at,
+               prev_hash, hash, lost_cause)
+             VALUES (4, '2026-10-07', 'entry', 1, 'x', 't', '{hash_3}', '{new_hash}', 'access')"
+        ),
+    ];
+
+    for recursive in ["ON", "OFF"] {
+        f.conn()
+            .pragma_update(None, "recursive_triggers", recursive)
+            .unwrap();
+        for attack in &attacks {
+            let refused = f
+                .conn()
+                .execute(attack, [])
+                .expect_err(&format!("recursive_triggers {recursive}: {attack}"));
+            assert!(
+                refused.to_string().contains(REFUSAL),
+                "recursive_triggers {recursive}: `{attack}` was refused for the wrong reason: {refused}"
+            );
+        }
+    }
+
+    assert_eq!(diary::all(f.conn()).unwrap(), before);
+    assert!(diary::verify(f.conn()).unwrap().intact);
+}
+
+/// The schema's own rule, behind the host's: a cause only on a lost day, only
+/// one of the seven, a person only with a cause and only an id. Each insert
+/// continues the chain properly, so the CHECK is what refuses it.
+#[test]
+fn the_schema_refuses_a_cause_that_does_not_fit_even_from_sql() {
+    let (f, ana) = with_a_lost_day();
+    let last = diary::get(f.conn(), 4).unwrap().unwrap().hash;
+    let insert = |lost_day: i64, cause: Option<&str>, party: Option<&str>| {
+        f.conn().execute(
+            "INSERT INTO diary_entry (seq, day, kind, lost_day, author_name, created_at,
+               prev_hash, hash, lost_cause, lost_party_person_id)
+             VALUES (5, '2026-10-08', 'entry', ?1, 'x', 't', ?2, ?3, ?4, ?5)",
+            rusqlite::params![lost_day, last, "ef".repeat(32), cause, party],
+        )
+    };
+
+    for (lost_day, cause, party) in [
+        (0, Some("weather"), None),
+        (0, Some("absence"), Some(ana.as_str())),
+        (1, Some("snow"), None),
+        (1, Some(""), None),
+        (1, None, Some(ana.as_str())),
+        (1, Some("absence"), Some("short")),
+    ] {
+        let refused = insert(lost_day, cause, party).expect_err(&format!(
+            "lost_day {lost_day}, cause {cause:?}, person {party:?}"
+        ));
+        assert!(
+            refused.to_string().contains("CHECK constraint failed"),
+            "{cause:?} {party:?}: {refused}"
+        );
+    }
+    insert(1, Some("access"), None).expect("a cause on a lost day, put down to nobody");
+}
+
+/// Whoever owns the file can drop the trigger and rewrite a cause, or clear
+/// the person. The chain says where.
+#[test]
+fn a_cause_rewritten_through_a_plain_connection_breaks_the_chain_at_its_entry() {
+    for rewrite in [
+        "UPDATE diary_entry SET lost_cause = 'weather' WHERE seq = 4",
+        "UPDATE diary_entry SET lost_party_person_id = NULL WHERE seq = 4",
+        "UPDATE diary_entry SET lost_cause = NULL, lost_party_person_id = NULL WHERE seq = 4",
+    ] {
+        let (f, _) = with_a_lost_day();
+        f.outsider()
+            .execute_batch(&format!("DROP TRIGGER diary_entry_no_update; {rewrite};"))
+            .unwrap();
+        assert_eq!(verify(&f), (false, Some(4), Some("contents")), "{rewrite}");
+    }
 }
