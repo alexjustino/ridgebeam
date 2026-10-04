@@ -1256,3 +1256,77 @@ lost day in the diary can now say why (ADR-043).
   shown_. [`docs/RELEASE.md`](docs/RELEASE.md): say a cause on a lost day, read the forecast against
   the baseline, read the ledger by cause and by party, and verify the diary still reads "chain
   intact" on an upgraded work. The glossary gains _forecast_ (_previsão_).
+
+### Added in E4 — a work that ends well
+
+The fourth and last slice of the second wave (ADR-041), for the last way a small work fails: it ends
+badly — the last payment made with defects still open, and with it the only reason anybody had to
+come back. What is found wrong or unfinished near the end is now a **snag** (_pendência_): written
+down with where it is, who must fix it, the day it is due and a photo, and **closed only with a
+photo of it fixed** — or withdrawn with a reason, never deleted. A commitment's payment plan can
+hold back its last part as **retention** (_retenção_), earned only when its stage is closed and
+every snag on that commitment's person is closed — the retention a layperson never knows to hold.
+The handover book lists what is still to fix and prints each fix with its before and after photos.
+With E4 the second wave is complete (ADR-044).
+
+- **Snags** (`snag`, migration 016). On the Plan's new **Snags** tab: a title of up to 200
+  characters, a description, the stage — required, and allowed after the stage is closed, because
+  that is when snags are found — an activity, optionally, who must fix it, a person of the plan or
+  nobody yet, the day it is due and a photo of the problem, chosen or dropped. Each is numbered in
+  the order raised, from #1, and a number is never reused. The list shows the open ones first, the
+  overdue marked. A stage, an activity or a person the work does not have is refused with a
+  sentence. Command `snag_raise`.
+- **Closing a snag** (`snag_closure`). **Fix…** requires a photo of it fixed and takes a note;
+  **Withdraw…** requires the reason. Once only, on a day not before the snag was raised. A fix with
+  no photo, a withdrawal with no reason, a closure dated before its snag and a second closure are
+  refused with a sentence. A snag found again after its fix is a new snag, which may name the old
+  one. Nothing about a snag is ever edited, and there is no delete. Command `snag_close`; the work's
+  snapshot carries the snags, each with its closure or none.
+- **Photos are documents of the work**, named by their hash as the handover book's are: the photo is
+  taken in through the documents' intake first, and the host refuses a hash that names no image
+  document of the open work.
+- **Retention** (the payment milestone trigger `retention`). A milestone that names no activity and
+  is earned on the day the last snag of its stage on the commitment's person is closed — fixed or
+  withdrawn — or on the day the stage closes, if that is later; with no snag on that person, when
+  the stage closes. Never while one is open: a stage reopened, or a snag raised on that person after
+  it was earned, un-earns it. A snag on nobody, and a commitment with no person, hold nothing. The
+  payment plan's editor offers **Hold back as retention** as the last part, suggested at 5 % and
+  said to be a common practice, not advice. On Money it reads _held until …_ with the snags that
+  hold it, never as due; the projection places it on the stage's expected close while nothing holds
+  it and, while something does, lists it apart as money held rather than projecting it into a week.
+  Paying it early is paying ahead of the work, which the Ledger's warning already says — a warning,
+  not a refusal.
+- **The snag list** (`snagRows`, `snagFigures`, in the domain, pure): open, fixed or withdrawn;
+  overdue by its due day; how long each has waited; and the figures **open**, **overdue**, **by
+  person** and **by stage**, each with its rows. Readiness gains no rule. The dashboard's **Still to
+  fix** card shows open, overdue and by person, and is not shown while the work has never had a
+  snag; the weekly report and the owner's snapshot say what is still open and on whom, in the
+  owner's words.
+- **The handover book.** Each open snag is a gap of its own, **Still to fix**, counted on the
+  Reports card and listed first on the book's first page; writing is still allowed. Each fixed snag
+  is printed in its room's section, or its stage's, with both photos — before and after — half
+  width, side by side.
+- **Insert-only, behind the host.** `snag` and `snag_closure` carry the change orders' battery —
+  triggers refuse `UPDATE`, `DELETE` and `REPLACE`, with `recursive_triggers` on and off, and the
+  module that writes them holds no such statement, which a test reads its source to prove — and a
+  fixed closure without a photo or a withdrawal without a reason is refused again by a `CHECK`.
+  **Work migration 016** (`016_snags.sql`) adds the two tables and rebuilds `payment_milestone` to
+  take the trigger `retention`, keeping every row with its id and creating D2's index and triggers
+  again as they were, so a paid commitment's plan stays locked; a work at schema 15 migrates to 16
+  losing nothing, its chain still verifying.
+- **Documentation.** ADR-044 (a work that ends well: snags closed with a photo, and retention held
+  until they are), with its costs: a snag closed with a photo is closed by the record, not inspected
+  — the photo's honesty is the person's; retention holds money only in the plan's arithmetic — the
+  product holds no money and cannot stop a payment, it warns; 5 % is a common practice offered as a
+  suggestion, not advice; a snag is never deleted, a mistake is withdrawn with a reason; a snag on
+  nobody holds no retention. It amends ADR-037 with the trigger `retention` and ADR-038 with the
+  snags' gaps and before-and-after photos, and their Status lines point to it.
+  [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md): migration 016, both tables, and the rebuild of
+  `payment_milestone` and what it kept. [`SECURITY.md`](SECURITY.md): snags and their closures are
+  insert-only, their photos are documents named by hash inside the work, and the product holds no
+  money and cannot stop a payment. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a snag is closed
+  with a photo or withdrawn with a reason, never deleted_ and _held money is shown as held, never as
+  due_. [`docs/RELEASE.md`](docs/RELEASE.md): raise snags with photos, fix one with a photo, try to
+  fix one without, withdraw one with a reason, watch a retention held and then earned, and read the
+  handover book's gaps and its before-and-after photos, in Portuguese. The glossary gains _snag_
+  (_pendência_) and _retention_ (_retenção_).
