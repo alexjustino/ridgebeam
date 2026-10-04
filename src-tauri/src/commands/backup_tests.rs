@@ -31,6 +31,7 @@ use crate::commands::plan::{
     activity_update_with, calendar_set_with, person_add_with, person_set_stages_with,
 };
 use crate::commands::schedule::{baseline_take_with, replan_open_with};
+use crate::commands::snags::{snag_close_with, snag_raise_with};
 use crate::commands::work::tests::{draft, host, host_with_a_work};
 use crate::commands::work::{
     recent_works_with, work_close_with, work_create_from, work_current_with, work_get_with,
@@ -308,6 +309,8 @@ pub fn a_full_work() -> FullWork {
         None,
     )
     .unwrap();
+    // E4: the last part held back as retention.
+    milestone_add_with(&open, &commitment, "Retention", 500.0, "retention", None).unwrap();
     payment_add_with(
         &open,
         &from(json!({
@@ -398,6 +401,42 @@ pub fn a_full_work() -> FullWork {
         .unwrap();
     }
     funding_receipt_reverse_with(&open, 2, "2026-10-03", today(), AUTHOR).unwrap();
+    // E4: two snags on the strip-out — one fixed with its photo, one open.
+    let fixed_photo = intake::sha256_hex(&jpeg(32, 24));
+    let snag = snag_raise_with(
+        &open,
+        &from(json!({
+            "raisedOn": "2026-10-07", "title": "Wall plug left behind", "stageId": strip,
+            "activityId": remove_tiles, "personId": person, "dueOn": "2026-10-09",
+            "photoHash": wall_hash, "description": "By the hall door."
+        })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap()
+    .snags[0]
+        .id
+        .clone();
+    snag_close_with(
+        &open,
+        &from(json!({
+            "snagId": snag, "outcome": "fixed", "closedOn": "2026-10-08",
+            "photoHash": fixed_photo, "note": "Filled and sanded."
+        })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap();
+    snag_raise_with(
+        &open,
+        &from(json!({
+            "raisedOn": "2026-10-08", "title": "Skirting chipped", "stageId": tiling,
+            "personId": person
+        })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap();
 
     let plan = work_get_with(&open).unwrap();
     assert_eq!(
@@ -409,6 +448,7 @@ pub fn a_full_work() -> FullWork {
     assert!(plan.replanning.is_some(), "a replanning is open");
     assert_eq!(plan.payments.len(), 3, "two payments and a reversal");
     assert_eq!(plan.documents.len(), 8);
+    assert_eq!(plan.snags.len(), 2, "one fixed, one open");
     FullWork {
         db,
         open,

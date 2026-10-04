@@ -58,6 +58,10 @@
 //!   while a receipt names them — and `funding_receipts`, the money received
 //!   (append-only, holding no statement that edits or removes a row); work
 //!   migration 014.
+//! - E4: `snags` — what is still to fix near the end, raised on record and
+//!   closed once, fixed with a photo or withdrawn with a note (insert-only,
+//!   holding no statement that edits or removes a row); work migration 016,
+//!   which also rebuilds `payment_milestone` for the `retention` trigger.
 
 #[cfg(test)]
 mod append_only_tests;
@@ -87,6 +91,9 @@ pub mod recent;
 pub mod replanning;
 pub mod rooms;
 pub mod settings;
+pub mod snags;
+#[cfg(test)]
+mod snags_tests;
 pub mod templates;
 pub mod work;
 

@@ -190,16 +190,19 @@ pub fn share_bp(value: f64) -> Result<i64> {
 }
 
 /// The facts that earn a payment milestone (D2) — the schema's closed list.
-pub const MILESTONE_TRIGGERS: [&str; 4] = [
+/// E4 adds `retention`: earned when the stage is closed and every snag of it
+/// on the commitment's person is closed (work migration 016).
+pub const MILESTONE_TRIGGERS: [&str; 5] = [
     "advance",
     "stage_started",
     "activity_finished",
     "stage_closed",
+    "retention",
 ];
 
 /// The sentence for a trigger that is not on the list.
 pub const TRIGGER_UNKNOWN: &str =
-    "A milestone is earned by an advance, the stage started, an activity finished or the stage closed.";
+    "A milestone is earned by an advance, the stage started, an activity finished, the stage closed, or — held back as retention — the stage closed with its snags fixed.";
 
 /// A payment milestone's trigger: one of [`MILESTONE_TRIGGERS`], exactly.
 ///

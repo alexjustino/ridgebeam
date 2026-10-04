@@ -2261,7 +2261,6 @@ mod tests {
         let state = open(scratch.path()).expect("an E2 work opens in E3");
         let conn = &state.conn;
 
-        assert_eq!(migrations::WORK.current_version(conn), 15);
         assert_eq!(
             migrations::WORK.current_version(conn),
             migrations::WORK.target_version()
@@ -2339,6 +2338,273 @@ mod tests {
         assert_eq!(diary::all(&again.conn).unwrap()[..4], diary_before[..]);
         let report = diary::verify(&again.conn).unwrap();
         assert_eq!((report.entries, report.intact), (5, true));
+        close(again);
+        assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
+    }
+
+    /// The upgrade a person makes from E3: a work folder at schema 15 with
+    /// money — two commitments with payment plans, one paid against (its plan
+    /// fixed) and one not — a closed stage, documents and a diary. Opened by
+    /// E4, `payment_milestone` is rebuilt for the `retention` trigger: every
+    /// milestone keeps its id and every column, the index and the seven
+    /// triggers of migration 011 are back word for word, nothing of the
+    /// rebuild is left behind, and the paid plan is still fixed. `snag` and
+    /// `snag_closure` are there, empty and guarded. A retention milestone and
+    /// a snag fixed with its photo are written on the migrated file, the
+    /// chain verifies, and they are there when it opens again.
+    #[test]
+    fn a_work_folder_at_schema_fifteen_with_payment_plans_rebuilds_them_for_retention_and_keeps_every_row(
+    ) {
+        use crate::db::{diary, milestones, snags};
+
+        let scratch = Scratch::create();
+        let bathroom = "00000000-0000-7000-8000-00000000000b";
+        let tiling = "00000000-0000-7000-8000-00000000000c";
+        let tiler = "00000000-0000-7000-8000-00000000000a";
+        let paid = "00000000-0000-7000-8000-0000000000d1";
+        let unpaid = "00000000-0000-7000-8000-0000000000d2";
+        let (crack, mended) = ("a1".repeat(32), "b2".repeat(32));
+        let kept = [
+            "SELECT * FROM payment_milestone ORDER BY id",
+            "SELECT * FROM commitment ORDER BY id",
+            "SELECT * FROM payment ORDER BY seq",
+            "SELECT * FROM stage ORDER BY id",
+            "SELECT * FROM activity ORDER BY id",
+            "SELECT * FROM document ORDER BY id",
+            "SELECT * FROM document_link ORDER BY document_id, target_kind, target_id",
+            "SELECT * FROM person ORDER BY id",
+            "SELECT * FROM diary_entry ORDER BY seq",
+            "SELECT * FROM diary_done ORDER BY entry_seq, activity_id",
+            "SELECT name, sql FROM sqlite_master WHERE type IN ('trigger', 'index')
+               AND tbl_name = 'payment_milestone' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+        ];
+
+        let (rows_before, diary_before);
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 15).unwrap();
+            conn.execute_batch(&format!(
+                "INSERT INTO commitment (id, stage_id, person_id, label, amount_cents, agreed_on,
+                                         created_at)
+                 VALUES ('{paid}', '{bathroom}', '{tiler}', 'Tiler''s quote', 1000000,
+                         '2026-10-01', '2026-10-01T09:00:00.000Z'),
+                        ('{unpaid}', '{bathroom}', NULL, 'Plumber''s quote', 500000,
+                         '2026-10-02', '2026-10-02T09:00:00.000Z');
+                 INSERT INTO payment_milestone (id, commitment_id, position, label, share_bp,
+                                                trigger, activity_id, created_at)
+                 VALUES ('00000000-0000-7000-8000-0000000000f1', '{paid}', 1, 'Advance', 3000,
+                         'advance', NULL, '2026-10-01T09:01:00.000Z'),
+                        ('00000000-0000-7000-8000-0000000000f2', '{paid}', 2, 'Tiles laid', 4000,
+                         'activity_finished', '{tiling}', '2026-10-01T09:02:00.000Z'),
+                        ('00000000-0000-7000-8000-0000000000f3', '{paid}', 3, 'Handover', 3000,
+                         'stage_closed', NULL, '2026-10-01T09:03:00.000Z'),
+                        ('00000000-0000-7000-8000-0000000000f4', '{unpaid}', 1, 'Start', 3000,
+                         'stage_started', NULL, '2026-10-02T09:01:00.000Z'),
+                        ('00000000-0000-7000-8000-0000000000f5', '{unpaid}', 2, 'Pipes in', 4000,
+                         'activity_finished', '{tiling}', '2026-10-02T09:02:00.000Z'),
+                        ('00000000-0000-7000-8000-0000000000f6', '{unpaid}', 3, 'Closed', 2500,
+                         'stage_closed', NULL, '2026-10-02T09:03:00.000Z');
+                 INSERT INTO payment (id, seq, day, person_id, stage_id, commitment_id,
+                                      amount_cents, what_for, author_name, created_at)
+                 VALUES ('00000000-0000-7000-8000-0000000000e1', 1, '2026-10-03', '{tiler}',
+                         '{bathroom}', '{paid}', 300000, 'Advance', 'Synthetic author',
+                         '2026-10-03T09:00:00.000Z');
+                 INSERT INTO document (id, file_hash, file_name, media_type, bytes, width,
+                                       height, kind, title, added_on, author_name, created_at)
+                 VALUES ('00000000-0000-7000-8000-0000000000c1', '{crack}', 'crack.jpg',
+                         'image/jpeg', 2048, 640, 480, 'photo', 'The crack', '2026-10-06',
+                         'Synthetic author', '2026-10-06T09:00:00.000Z'),
+                        ('00000000-0000-7000-8000-0000000000c2', '{mended}', 'mended.png',
+                         'image/png', 1024, 320, 240, 'photo', 'Mended', '2026-10-08',
+                         'Synthetic author', '2026-10-08T09:00:00.000Z');
+                 INSERT INTO document_link (document_id, target_kind, target_id)
+                 VALUES ('00000000-0000-7000-8000-0000000000c1', 'stage', '{bathroom}');"
+            ))
+            .expect("an E3 work's payment plans and documents");
+            db::checks::start(&conn, bathroom).unwrap();
+            db::checks::close(&conn, bathroom).unwrap();
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    day: "2026-10-06".into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Tiles laid.".into()),
+                    weather: None,
+                    lost_day: false,
+                    lost_cause: None,
+                    lost_party_person_id: None,
+                    hours: None,
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: vec![crate::contract::DoneLine {
+                        activity_id: tiling.into(),
+                        state: "finished".into(),
+                        quantity: None,
+                        note: None,
+                    }],
+                    present: Vec::new(),
+                    photos: Vec::new(),
+                },
+            )
+            .unwrap();
+
+            rows_before = kept.map(|sql| raw_rows(&conn, sql));
+            diary_before = diary::all(&conn).unwrap();
+            assert_eq!(migrations::WORK.current_version(&conn), 15);
+            assert_eq!(
+                raw_rows(
+                    &conn,
+                    "SELECT count(*) FROM sqlite_master WHERE name IN ('snag', 'snag_closure')"
+                ),
+                vec!["Integer(0)"]
+            );
+        }
+
+        let state = open(scratch.path()).expect("an E3 work opens in E4");
+        let conn = &state.conn;
+
+        assert_eq!(migrations::WORK.current_version(conn), 16);
+        assert_eq!(
+            migrations::WORK.current_version(conn),
+            migrations::WORK.target_version()
+        );
+        assert_eq!(
+            kept.map(|sql| raw_rows(conn, sql)),
+            rows_before,
+            "every row as it was; the index and the triggers word for word"
+        );
+        assert_eq!(rows_before[0].len(), 6, "six milestones");
+        assert_eq!(rows_before[10].len(), 8, "an index and seven triggers");
+        assert_eq!(diary::all(conn).unwrap(), diary_before);
+        let report = diary::verify(conn).unwrap();
+        assert_eq!((report.entries, report.intact), (1, true));
+        assert!(
+            raw_rows(
+                conn,
+                "SELECT sql FROM sqlite_master WHERE name = 'payment_milestone'"
+            )[0]
+            .contains("'retention'"),
+            "the trigger rule is widened"
+        );
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT count(*) FROM sqlite_master WHERE name LIKE '%016%'
+                 OR sql LIKE '%payment_milestone_016%'"
+            ),
+            vec!["Integer(0)"],
+            "nothing of the rebuild is left behind"
+        );
+        for table in ["snag", "snag_closure"] {
+            assert_eq!(
+                raw_rows(conn, &format!("SELECT count(*) FROM {table}")),
+                vec!["Integer(0)"],
+                "`{table}` is there, and empty"
+            );
+            assert_eq!(
+                raw_rows(
+                    conn,
+                    &format!(
+                        "SELECT count(*) FROM sqlite_master WHERE type = 'trigger'
+                         AND tbl_name = '{table}'"
+                    )
+                ),
+                vec!["Integer(4)"],
+                "`{table}` is insert-only"
+            );
+        }
+        assert!(raw_rows(conn, "PRAGMA foreign_key_check").is_empty());
+
+        // The paid plan is still fixed, by the host and by the schema.
+        let retention = milestones::MilestoneFields {
+            label: "Retention".into(),
+            share_bp: 500,
+            trigger: "retention".into(),
+            activity_id: None,
+        };
+        assert_eq!(
+            milestones::add(conn, paid, &retention)
+                .unwrap_err()
+                .to_string(),
+            milestones::PLAN_LOCKED
+        );
+        for attack in [
+            "DELETE FROM payment_milestone WHERE id = '00000000-0000-7000-8000-0000000000f3'",
+            "UPDATE payment_milestone SET trigger = 'retention'
+             WHERE id = '00000000-0000-7000-8000-0000000000f3'",
+        ] {
+            assert!(
+                conn.execute(attack, [])
+                    .unwrap_err()
+                    .to_string()
+                    .contains("money: payment plan locked"),
+                "{attack}"
+            );
+        }
+        // The unpaid one takes its last 5 % as retention; a snag on the closed
+        // stage is raised and fixed with its photo.
+        milestones::add(conn, unpaid, &retention).unwrap();
+        snags::raise(
+            conn,
+            &snags::NewSnag {
+                raised_on: "2026-10-06".into(),
+                title: "Cracked tile by the drain".into(),
+                description: None,
+                stage_id: bathroom.into(),
+                activity_id: Some(tiling.into()),
+                person_id: Some(tiler.into()),
+                due_on: Some("2026-10-08".into()),
+                photo_hash: Some(crack.clone()),
+                author_name: "Synthetic author".into(),
+            },
+        )
+        .unwrap();
+        let id = db::work::snapshot(conn).unwrap().snags[0].id.clone();
+        snags::close(
+            conn,
+            &snags::NewClosure {
+                snag_id: id,
+                outcome: snags::Outcome::Fixed,
+                closed_on: "2026-10-08".into(),
+                photo_hash: Some(mended.clone()),
+                note: None,
+                author_name: "Synthetic author".into(),
+            },
+        )
+        .unwrap();
+        assert!(conn.execute("DELETE FROM snag", []).is_err(), "guarded");
+        close(state);
+
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        let plan = db::work::snapshot(&again.conn).unwrap();
+        assert_eq!(
+            plan.commitments
+                .iter()
+                .map(|c| (c.id.as_str(), c.locked, c.milestones.len()))
+                .collect::<Vec<_>>(),
+            vec![(paid, true, 3), (unpaid, false, 4)]
+        );
+        let last = plan.commitments[1].milestones.last().unwrap();
+        assert_eq!(
+            (last.position, last.trigger.as_str(), last.share_bp),
+            (4, "retention", 500)
+        );
+        assert_eq!(plan.snags.len(), 1);
+        assert_eq!(
+            plan.snags[0]
+                .closure
+                .as_ref()
+                .unwrap()
+                .photo_hash
+                .as_deref(),
+            Some(mended.as_str())
+        );
+        assert!(diary::verify(&again.conn).unwrap().intact);
         close(again);
         assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
     }

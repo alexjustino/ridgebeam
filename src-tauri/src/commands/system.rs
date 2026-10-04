@@ -390,7 +390,7 @@ mod tests {
             migrations::WORK.target_version()
         )));
         assert!(text.contains(
-            "011_payment_milestones, 012_handover, 013_change_orders, 014_funding, 015_lost_cause\n"
+            "011_payment_milestones, 012_handover, 013_change_orders, 014_funding, 015_lost_cause, 016_snags\n"
         ));
         assert!(text.contains("  Database: journal wal, synchronous full, foreign keys on\n"));
         assert!(text.contains("  Diary: 0 entries, chain verified\n"));
