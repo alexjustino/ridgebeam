@@ -535,6 +535,17 @@
       }
     },
     {
+      "key": "retention",
+      "en": {
+        "term": "retention",
+        "sentence": "The last part of a commitment’s payment plan, held back until its stage is closed and every snag on that person is closed with a photo of it fixed. The owner holds it; Ridgebeam holds no money and stops no payment — it shows the money as held, never as due."
+      },
+      "pt-BR": {
+        "term": "retenção",
+        "sentence": "A última parte do plano de pagamento de um compromisso, segurada até a sua etapa fechar e toda pendência dessa pessoa ser fechada com uma foto do conserto. Quem segura é o dono; o Ridgebeam não guarda dinheiro nem impede pagamento — mostra o dinheiro como retido, nunca como devido."
+      }
+    },
+    {
       "key": "funding",
       "en": {
         "term": "funding",
@@ -761,6 +772,17 @@
       "pt-BR": {
         "term": "relatório semanal",
         "sentence": "Um PDF de uma semana, nas palavras do dono: o que foi feito, o que atrasou, o que decidir, o que pagar — com quantas páginas a semana pedir."
+      }
+    },
+    {
+      "key": "snag",
+      "en": {
+        "term": "snag",
+        "sentence": "Something found wrong or unfinished near the end — a cracked tile, a door that sticks — written down with where it is, who must fix it, the day it is due and a photo. It is closed only with a photo of it fixed, or withdrawn with a reason; it is never deleted."
+      },
+      "pt-BR": {
+        "term": "pendência",
+        "sentence": "Algo encontrado errado ou inacabado perto do fim — um azulejo trincado, uma porta que agarra — anotado com onde está, quem deve consertar, o dia em que vence e uma foto. Só é fechada com uma foto do conserto, ou retirada com um motivo; nunca é apagada."
       }
     },
     {
