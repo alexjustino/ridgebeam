@@ -169,6 +169,26 @@ release that skipped a step is a release nobody can reason about afterwards.
      browser, says the same sentence. Do it once in Portuguese, where the card reads _O dinheiro vai
      dar?_, the money left is _Dinheiro que sobra no fim_, a fund is _recursos_, and the money that
      lasts reads _"O dinheiro dá até o fim, e sobram …."_;
+   - **ask why the work is late** — first on a work written by the previous release, with diary
+     entries, a correction, photos and a day marked lost: let it migrate and run **Verify the
+     diary** in Diagnostics. It must still read "N entries, chain intact", with the same N as before
+     the upgrade — no hash moved. Then, on an approved plan with a stage of two chained activities
+     and a responsible, write a day worked, then a day with **No work was possible** ticked: **Why?**
+     offers seven causes; choose _Waiting for a decision_ and save — the entry reads _"Lost — waiting
+     for a decision"_. Write another lost day, rainy, with no cause; choose _Crew did not come_ on a
+     third and name the person under **Who**: the entry carries the name. Correct one entry to change
+     its cause: the original is struck through beside its correction, and no control edits a cause
+     in place. On the **Schedule**, the **As things stand** card sits
+     beside the finish and the slip and says which is which — _"As things stand it finishes on … — N
+     working days after the baseline's …."_ — while the slip, the Gantt and the plan's finish date
+     have not moved. On the dashboard, **Why is it late?** reads the days late as things stand, and
+     the ledger by cause and by party: the stated decision, the weather, the absence on the named
+     person's account, and what the record does not explain in words — every figure opening onto
+     the entries it was counted from. Approve a change order that adds working days and read it
+     appear as a cause of its own, on the account of who asked. Run **Verify the diary** again: still
+     "chain intact". Write the weekly report and the owner's snapshot, and both carry the forecast's
+     sentence and the causes. Do it once in Portuguese, where the cards read _Do jeito que está_ and
+     _Por que está atrasada?_ and the cause _Esperando uma decisão_;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and

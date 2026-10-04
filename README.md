@@ -18,12 +18,13 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F11, D1 to D4, U1, E1 and E2; a second wave in progress.**
+> **Status: pre-release — slices F0 to F11, D1 to D4, U1, and E1 to E3; a second wave in progress.**
 > The product was named on 2026-09-24 ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to
 > F11 — from the foundation to backup, restore and polish — all four differentiators, D1 to D4, a
 > round of dependency updates and U1 — the friction a first real week meets — are in `develop`, and
-> so are E1, change orders, and E2, whether the money will last — the first two of a second wave, E1
-> to E4, built there one slice at a time; all of it runs from source. There is no published
+> so are E1, change orders, E2, whether the money will last, and E3, why the work is late — the
+> first three of a second wave, E1 to E4, built there one slice at a time; all of it runs from
+> source. There is no published
 > installer yet: that is F12, the release, whose branch is cut again from `develop` once the second
 > wave is in. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for
 > every slice; [What exists today](#what-exists-today) says exactly how far the code has got.
@@ -49,8 +50,8 @@ date** — change orders, with their effect on the finish computed by the schedu
 decides; **E2, will the money last?** — funds against what the work will ask for, week by week;
 **E3, why is it late, and on whose account?** — each working day lost on the critical path
 attributed to its cause; and **E4, a work that ends well** — snags closed with a photo before the
-last milestone is earned. **E1 and E2 are in `develop`**; E3 and E4 follow, and the release branch
-is cut again after them.
+last milestone is earned. **E1, E2 and E3 are in `develop`**; E4 follows, and the release branch is
+cut again after it.
 
 ## Why
 
@@ -99,8 +100,8 @@ in Portuguese, "rídj-bim".
 
 ## What exists today
 
-Slices **F0** to **F11**, the four differentiators, **D1** to **D4**, **U1**, and **E1** and **E2**,
-the first two of the second wave — nothing after them:
+Slices **F0** to **F11**, the four differentiators, **D1** to **D4**, **U1**, and **E1** to **E3**,
+the first three of the second wave — nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -310,6 +311,20 @@ the first two of the second wave — nothing after them:
   short or the money left at the end, the weekly report prints the sentence with the short week's
   rows, and the owner's snapshot carries the sentence. Nothing is connected to a bank, and nothing
   is sent ([ADR-042](docs/architecture/ADR.md#adr-042)).
+- **Why is it late? (E3).** A diary entry that says no work was possible can now say why — weather,
+  waiting for a decision, a crew that did not come, material that did not arrive, the owner's
+  request, no access to the site, or something else — and who, when it was somebody; the cause is
+  in the entry's hash, written so that **no hash of an entry before it changed**. The Schedule's
+  **As things stand** card says when the work will finish as things stand, read forward from what
+  the diary says happened, beside the plan's own date and never in its place: _"As things stand it
+  finishes on 23 Oct — 5 working days after the baseline's 16 Oct."_ The slip is still the plan
+  against its baseline. The dashboard's **Why is it late?** card attributes every working day of
+  that difference to a cause — a change order approved since, a cause the diary gives, the weather,
+  a decision made after its deadline, a responsible who was not on site — and to the party the
+  record names, by cause and by party, every figure opening onto its rows; what the record does not
+  explain is always shown, in words. The weekly report and the owner's snapshot carry the sentence
+  and the causes. The ledger attributes; it does not judge, and it is not a claim or legal
+  evidence ([ADR-043](docs/architecture/ADR.md#adr-043)).
 - **Readiness.** A figure that says how much of what the plan must know it does know, from nine
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -326,13 +341,13 @@ the first two of the second wave — nothing after them:
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-two binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-three binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **the rest of the second wave**, E3 and E4; and **the release** (F12) —
+Not yet, and not pretended: **the rest of the second wave**, E4; and **the release** (F12) —
 its branch cut again from `develop` once the second wave is merged, an installer, tried on a clean
 machine, and a real work planned, run for a week and its weekly report read by somebody who is not
 an engineer.
