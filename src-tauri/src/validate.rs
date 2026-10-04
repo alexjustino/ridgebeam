@@ -1,0 +1,718 @@
+//! What the host refuses before it writes, and the sentence it refuses with.
+//!
+//! The domain checks the same rules first (`src/domain/`), and the schema
+//! checks them again last (`work_migrations/001_init.sql`). The host checks
+//! them in between because it does not trust the webview: a value that reaches
+//! a `CHECK` is a `database` error with a generic sentence, and a value refused
+//! here is an `invalid_input` error that names the field and what it takes.
+//!
+//! Every function returns the value as it will be stored — trimmed, and for a
+//! currency upper-cased — so that what was checked is what is written.
+
+use chrono::NaiveDate;
+
+use crate::contract::Endpoint;
+use crate::db::dependencies::{End, Kind};
+use crate::db::order::Direction;
+use crate::error::{Error, Result};
+
+/// The longest unit a quantity is counted in — `m²`, `m`, `un`, `sacks`.
+pub const MAX_UNIT_CHARS: usize = 16;
+
+/// A quantity: a number, at least 0.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a negative number or one that is not a number.
+pub fn quantity(value: f64) -> Result<f64> {
+    if value.is_finite() && value >= 0.0 {
+        Ok(value)
+    } else {
+        Err(invalid("A quantity is a number, 0 or more."))
+    }
+}
+
+/// A unit: trimmed, at most [`MAX_UNIT_CHARS`] characters. Nothing, or only
+/// spaces, is no unit.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is too long.
+pub fn unit(value: Option<&str>) -> Result<Option<String>> {
+    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    if value.chars().count() > MAX_UNIT_CHARS {
+        return Err(invalid(format!(
+            "A unit is at most {MAX_UNIT_CHARS} characters, such as m² or un."
+        )));
+    }
+    Ok(Some(value.to_string()))
+}
+
+/// Which way a row moves: `up` or `down`, exactly as written.
+///
+/// Taken as text and read here, rather than left to the deserialiser, so that
+/// a direction that is neither is a sentence with a kind like every other
+/// refusal, not an error the interface cannot translate.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for anything else.
+pub fn direction(value: &str) -> Result<Direction> {
+    match value {
+        "up" => Ok(Direction::Up),
+        "down" => Ok(Direction::Down),
+        _ => Err(invalid("A move is up or down.")),
+    }
+}
+
+/// The longest lag a dependency may carry, in working days — the same bound as
+/// a duration.
+pub const MAX_LAG_DAYS: i64 = 3650;
+
+/// A lag: a whole number of working days, from 0 to [`MAX_LAG_DAYS`]. A lag is
+/// waiting, not work, so 0 is the ordinary case.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a negative number, a fraction, or one past the
+/// bound.
+pub fn lag_days(value: f64) -> Result<i64> {
+    if value.is_finite() && value.fract() == 0.0 && (0.0..=MAX_LAG_DAYS as f64).contains(&value) {
+        Ok(value as i64)
+    } else {
+        Err(invalid(format!(
+            "A lag is a whole number of working days, from 0 to {MAX_LAG_DAYS}."
+        )))
+    }
+}
+
+/// One end of a dependency: `activity` or `stage`, exactly as written, and an id.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for any other kind.
+pub fn endpoint(value: &Endpoint) -> Result<End> {
+    let kind = match value.kind.as_str() {
+        "activity" => Kind::Activity,
+        "stage" => Kind::Stage,
+        _ => return Err(invalid("A dependency joins an activity or a stage.")),
+    };
+    Ok(End {
+        kind,
+        id: value.id.clone(),
+    })
+}
+
+/// The longest answer a made decision keeps.
+pub const MAX_ANSWER_CHARS: usize = 500;
+
+/// A lead time: a whole number of working days, from 0 to [`MAX_LAG_DAYS`] —
+/// the time between deciding and having. 0 means "decided on the day is soon
+/// enough".
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a negative number, a fraction, or one past the
+/// bound.
+pub fn lead_time_days(value: f64) -> Result<i64> {
+    if value.is_finite() && value.fract() == 0.0 && (0.0..=MAX_LAG_DAYS as f64).contains(&value) {
+        Ok(value as i64)
+    } else {
+        Err(invalid(format!(
+            "A lead time is a whole number of working days, from 0 to {MAX_LAG_DAYS}."
+        )))
+    }
+}
+
+/// The answer a decision was made with: trimmed, at most
+/// [`MAX_ANSWER_CHARS`] characters. Nothing, or only spaces, is no answer — a
+/// decision may be made without writing one down.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is too long.
+pub fn answer(value: Option<&str>) -> Result<Option<String>> {
+    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    if value.chars().count() > MAX_ANSWER_CHARS {
+        return Err(invalid(format!(
+            "An answer is at most {MAX_ANSWER_CHARS} characters."
+        )));
+    }
+    Ok(Some(value.to_string()))
+}
+
+/// The largest amount the product keeps, in minor units: ten trillion of the
+/// currency — far past any work, and inside the whole numbers a JavaScript
+/// number holds exactly.
+pub const MAX_AMOUNT_CENTS: i64 = 1_000_000_000_000_000;
+
+/// An amount of money: a whole number of minor units (cents), 0 or more — or,
+/// when `positive`, more than 0. It arrives as a JSON number and is checked
+/// here to be whole, so money never passes through a fraction.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a fraction, a negative number, 0 when it must be
+/// positive, or one past [`MAX_AMOUNT_CENTS`].
+pub fn amount_cents(value: f64, positive: bool) -> Result<i64> {
+    let low = if positive { 1.0 } else { 0.0 };
+    if value.is_finite() && value.fract() == 0.0 && value >= low && value <= MAX_AMOUNT_CENTS as f64
+    {
+        Ok(value as i64)
+    } else if positive {
+        Err(invalid("An amount paid is more than zero, in whole cents."))
+    } else {
+        Err(invalid("An amount is zero or more, in whole cents."))
+    }
+}
+
+/// The sentence for a milestone's share that does not fit (D2).
+pub const SHARE_BP_RANGE: &str =
+    "A milestone's share is more than 0 % and at most 100 % of the commitment, in whole hundredths of a percent.";
+
+/// A payment milestone's share, in basis points (D2): a whole number from 1 to
+/// 10 000 — "30 %" is 3000. It arrives as a JSON number and is checked here to
+/// be whole, as money is.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a fraction, 0 or less, or more than 10 000.
+pub fn share_bp(value: f64) -> Result<i64> {
+    if value.is_finite() && value.fract() == 0.0 && (1.0..=10_000.0).contains(&value) {
+        Ok(value as i64)
+    } else {
+        Err(invalid(SHARE_BP_RANGE))
+    }
+}
+
+/// The facts that earn a payment milestone (D2) — the schema's closed list.
+/// E4 adds `retention`: earned when the stage is closed and every snag of it
+/// on the commitment's person is closed (work migration 016).
+pub const MILESTONE_TRIGGERS: [&str; 5] = [
+    "advance",
+    "stage_started",
+    "activity_finished",
+    "stage_closed",
+    "retention",
+];
+
+/// The sentence for a trigger that is not on the list.
+pub const TRIGGER_UNKNOWN: &str =
+    "A milestone is earned by an advance, the stage started, an activity finished, the stage closed, or — held back as retention — the stage closed with its snags fixed.";
+
+/// A payment milestone's trigger: one of [`MILESTONE_TRIGGERS`], exactly.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for anything else.
+pub fn milestone_trigger(value: &str) -> Result<String> {
+    if MILESTONE_TRIGGERS.contains(&value) {
+        Ok(value.to_string())
+    } else {
+        Err(invalid(TRIGGER_UNKNOWN))
+    }
+}
+
+/// The longest trade a person keeps.
+pub const MAX_TRADE_CHARS: usize = 60;
+
+/// A trade: trimmed, at most [`MAX_TRADE_CHARS`] characters; nothing is no
+/// trade.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is too long.
+pub fn trade(value: Option<&str>) -> Result<Option<String>> {
+    let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
+        return Ok(None);
+    };
+    if value.chars().count() > MAX_TRADE_CHARS {
+        return Err(invalid(format!(
+            "A trade is at most {MAX_TRADE_CHARS} characters."
+        )));
+    }
+    Ok(Some(value.to_string()))
+}
+
+/// The longest phone number a person keeps.
+pub const MAX_PHONE_CHARS: usize = 40;
+/// The longest e-mail address a person keeps.
+pub const MAX_EMAIL_CHARS: usize = 120;
+/// The longest note about a person.
+pub const MAX_PERSON_NOTE_CHARS: usize = 500;
+/// The longest availability, in the person's words.
+pub const MAX_AVAILABILITY_CHARS: usize = 200;
+
+/// A contact field as the person typed it: trimmed, empty is none, bounded,
+/// no control characters. Its shape is not checked — a phone number or an
+/// e-mail address is text the person typed, stored and shown, never used.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is too long or holds a control character.
+pub fn contact(what: &str, value: Option<&str>, max: usize) -> Result<Option<String>> {
+    let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
+        return Ok(None);
+    };
+    if value.chars().count() > max {
+        return Err(invalid(format!("{what} is at most {max} characters.")));
+    }
+    if value
+        .chars()
+        .any(|c| c.is_control() && !matches!(c, '\n' | '\r' | '\t'))
+    {
+        return Err(invalid(format!(
+            "{what} holds a control character that cannot be kept."
+        )));
+    }
+    Ok(Some(value.to_string()))
+}
+
+/// The longest reason a replanning — and the baseline it ends in — keeps.
+pub const MAX_REPLAN_REASON_CHARS: usize = 2000;
+
+/// The sentence for a replanning asked for with no reason.
+pub const REPLAN_REASON_NEEDED: &str = "A replanning needs a reason: say why the plan changes.";
+
+/// Why an approved plan changes: trimmed, not blank, at most
+/// [`MAX_REPLAN_REASON_CHARS`] characters, no control characters but line
+/// breaks and tabs.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is blank, too long, or holds a control
+/// character.
+pub fn replan_reason(value: &str) -> Result<String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(invalid(REPLAN_REASON_NEEDED));
+    }
+    if value.chars().count() > MAX_REPLAN_REASON_CHARS {
+        return Err(invalid(format!(
+            "A reason is at most {MAX_REPLAN_REASON_CHARS} characters."
+        )));
+    }
+    if value
+        .chars()
+        .any(|c| c.is_control() && !matches!(c, '\n' | '\r' | '\t'))
+    {
+        return Err(invalid(
+            "A reason holds a control character that cannot be kept.",
+        ));
+    }
+    Ok(value.to_string())
+}
+
+/// An optional date: `null`, or a date written `YYYY-MM-DD` that exists.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] naming the field.
+pub fn optional_date(what: &str, value: Option<&str>) -> Result<Option<String>> {
+    value.map(|value| date(what, value)).transpose()
+}
+
+/// The longest name any row of a work keeps — a work, a stage, an activity, a
+/// person, a holiday. One number for one idea; the schema spells it out in SQL.
+pub const MAX_NAME_CHARS: usize = 120;
+
+/// The longest place a work keeps.
+pub const MAX_PLACE_CHARS: usize = 200;
+
+/// The longest duration an activity may have, in working days: ten years of
+/// five-day weeks, far past any activity a work of this kind has.
+pub const MAX_DURATION_DAYS: i64 = 3650;
+
+/// The longest working day, in hours.
+pub const MAX_HOURS_PER_DAY: f64 = 24.0;
+
+fn invalid(sentence: impl Into<String>) -> Error {
+    Error::InvalidInput(sentence.into())
+}
+
+/// `A` or `An`, for the noun a sentence starts with.
+fn article(noun: &str) -> &'static str {
+    match noun.chars().next() {
+        Some('a' | 'e' | 'i' | 'o' | 'u') => "An",
+        _ => "A",
+    }
+}
+
+/// A name: trimmed, not empty, at most [`MAX_NAME_CHARS`] characters. `what`
+/// is the noun the sentence is about — `work`, `stage`, `activity`, `person`,
+/// `holiday`.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] naming what needs a name, or how long it may be.
+pub fn name(what: &str, value: &str) -> Result<String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(invalid(format!("{} {what} needs a name.", article(what))));
+    }
+    if value.chars().count() > MAX_NAME_CHARS {
+        return Err(invalid(format!(
+            "{} {what}'s name is at most {MAX_NAME_CHARS} characters.",
+            article(what)
+        )));
+    }
+    Ok(value.to_string())
+}
+
+/// A place: trimmed, may be empty, at most [`MAX_PLACE_CHARS`] characters.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is too long.
+pub fn place(value: &str) -> Result<String> {
+    let value = value.trim();
+    if value.chars().count() > MAX_PLACE_CHARS {
+        return Err(invalid(format!(
+            "A work's place is at most {MAX_PLACE_CHARS} characters."
+        )));
+    }
+    Ok(value.to_string())
+}
+
+/// A calendar date written `YYYY-MM-DD`, and a day that exists.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] naming the field.
+pub fn date(what: &str, value: &str) -> Result<String> {
+    let value = value.trim();
+    let parsed = NaiveDate::parse_from_str(value, "%Y-%m-%d").ok();
+    // Formatting it back refuses `2026-1-5`, which chrono reads leniently.
+    match parsed {
+        Some(day) if day.format("%Y-%m-%d").to_string() == value => Ok(value.to_string()),
+        _ => Err(invalid(format!(
+            "{what} is a date written YYYY-MM-DD, on a day that exists."
+        ))),
+    }
+}
+
+/// A currency: three letters, ISO 4217, stored upper-case.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is not three letters.
+pub fn currency(value: &str) -> Result<String> {
+    let value = value.trim().to_ascii_uppercase();
+    if value.len() == 3 && value.bytes().all(|b| b.is_ascii_uppercase()) {
+        Ok(value)
+    } else {
+        Err(invalid(
+            "A currency is three letters, as ISO 4217 writes it — BRL, EUR, USD.",
+        ))
+    }
+}
+
+/// A working week: seven characters, Monday first, `1` working and `0` not,
+/// with at least one working day.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] when it is not seven ones and zeros, or has no
+/// working day — nothing could ever be scheduled on such a calendar.
+pub fn working_days(value: &str) -> Result<String> {
+    if value.len() != 7 || !value.bytes().all(|b| b == b'0' || b == b'1') {
+        return Err(invalid(
+            "A working week is seven days, Monday first, each working or not.",
+        ));
+    }
+    if !value.contains('1') {
+        return Err(invalid("A working week needs at least one working day."));
+    }
+    Ok(value.to_string())
+}
+
+/// Hours in a working day: more than 0, at most 24.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] outside that range, or for a number that is not one.
+pub fn hours_per_day(value: f64) -> Result<f64> {
+    if value.is_finite() && value > 0.0 && value <= MAX_HOURS_PER_DAY {
+        Ok(value)
+    } else {
+        Err(invalid(
+            "A working day is more than 0 and at most 24 hours.",
+        ))
+    }
+}
+
+/// A duration: a whole number of working days, from 1 to [`MAX_DURATION_DAYS`].
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for 0, a fraction, or a number past the bound.
+pub fn duration_days(value: f64) -> Result<i64> {
+    if value.is_finite()
+        && value.fract() == 0.0
+        && (1.0..=MAX_DURATION_DAYS as f64).contains(&value)
+    {
+        Ok(value as i64)
+    } else {
+        Err(invalid(format!(
+            "A duration is a whole number of working days, from 1 to {MAX_DURATION_DAYS}."
+        )))
+    }
+}
+
+/// The sentence for a range sent with one end and not the other (D1).
+pub const RANGE_BOTH_OR_NEITHER: &str =
+    "A range needs both of its ends, the optimistic and the pessimistic duration, or neither.";
+
+/// The sentence for an end of a range that is not a duration (D1).
+pub const RANGE_END_NOT_A_DURATION: &str =
+    "An optimistic or a pessimistic duration is a whole number of working days, from 1 to 3650.";
+
+/// An activity's range as a patch sends it (D1): `durationMinDays` and
+/// `durationMaxDays`, each absent, `null` or a number. Both absent leaves the
+/// range alone (`None`); both `null` clears it (`Some(None)`); two numbers
+/// set it (`Some(Some((min, max)))`) — each a duration, the optimistic not
+/// above the pessimistic. A point (`min == max`) is a range.
+///
+/// Whether the duration lies inside the range is not asked here: that needs
+/// the duration the activity holds, which only the file knows
+/// (`db::work::update_activity`).
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] with [`RANGE_BOTH_OR_NEITHER`] for one end without
+/// the other (left out, or `null` beside a number); with
+/// [`RANGE_END_NOT_A_DURATION`] for an end that is 0, a fraction or past the
+/// bound; and a sentence naming both ends when the optimistic is above the
+/// pessimistic.
+pub fn duration_range(
+    min: Option<Option<f64>>,
+    max: Option<Option<f64>>,
+) -> Result<Option<Option<(i64, i64)>>> {
+    match (min, max) {
+        (None, None) => Ok(None),
+        (Some(None), Some(None)) => Ok(Some(None)),
+        (Some(Some(min)), Some(Some(max))) => {
+            let end =
+                |value: f64| duration_days(value).map_err(|_| invalid(RANGE_END_NOT_A_DURATION));
+            let (min, max) = (end(min)?, end(max)?);
+            if min > max {
+                return Err(invalid(format!(
+                    "The range runs from the optimistic duration to the pessimistic one: {min} is above {max}."
+                )));
+            }
+            Ok(Some(Some((min, max))))
+        }
+        _ => Err(invalid(RANGE_BOTH_OR_NEITHER)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_name_is_trimmed_and_an_empty_or_long_one_is_refused_with_a_sentence() {
+        assert_eq!(name("stage", "  Bathroom ").unwrap(), "Bathroom");
+        assert_eq!(
+            name("stage", "   ").unwrap_err().to_string(),
+            "A stage needs a name."
+        );
+        assert_eq!(
+            name("activity", &"x".repeat(121)).unwrap_err().to_string(),
+            "An activity's name is at most 120 characters."
+        );
+        name("person", &"é".repeat(120)).expect("120 characters, whatever their bytes");
+    }
+
+    #[test]
+    fn a_date_must_be_written_in_full_and_exist() {
+        assert_eq!(date("The start", "2026-10-05").unwrap(), "2026-10-05");
+        date("The start", "2028-02-29").expect("a leap day that exists");
+        for refused in [
+            "2026-02-30",
+            "2026-1-5",
+            "05/10/2026",
+            "",
+            "2026-10-05T00:00",
+        ] {
+            assert_eq!(
+                date("The start", refused).unwrap_err().kind(),
+                "invalid_input",
+                "`{refused}`"
+            );
+        }
+    }
+
+    #[test]
+    fn a_currency_is_three_letters_and_is_stored_upper_case() {
+        assert_eq!(currency(" brl ").unwrap(), "BRL");
+        for refused in ["", "RE", "EURO", "R$1", "12A", "ÉUR"] {
+            assert!(currency(refused).is_err(), "`{refused}`");
+        }
+    }
+
+    #[test]
+    fn a_working_week_with_no_working_day_is_refused() {
+        assert_eq!(working_days("1111100").unwrap(), "1111100");
+        assert_eq!(
+            working_days("0000000").unwrap_err().to_string(),
+            "A working week needs at least one working day."
+        );
+        for refused in ["111110", "11111000", "1111102", "", "1111l00"] {
+            assert!(working_days(refused).is_err(), "`{refused}`");
+        }
+    }
+
+    #[test]
+    fn a_working_day_of_zero_hours_or_more_than_a_day_is_refused() {
+        assert_eq!(hours_per_day(8.0).unwrap(), 8.0);
+        hours_per_day(24.0).expect("a day is at most 24 hours");
+        for refused in [0.0, -1.0, 24.5, f64::NAN, f64::INFINITY] {
+            assert!(hours_per_day(refused).is_err(), "`{refused}`");
+        }
+    }
+
+    #[test]
+    fn a_duration_of_zero_or_a_fraction_is_refused() {
+        assert_eq!(duration_days(3.0).unwrap(), 3);
+        assert_eq!(duration_days(3650.0).unwrap(), 3650);
+        for refused in [0.0, -2.0, 2.5, 3651.0, f64::NAN] {
+            assert_eq!(
+                duration_days(refused).unwrap_err().kind(),
+                "invalid_input",
+                "`{refused}`"
+            );
+        }
+    }
+
+    #[test]
+    fn a_range_is_both_ends_or_neither_each_a_duration_the_optimistic_not_above() {
+        assert_eq!(duration_range(None, None).unwrap(), None, "left alone");
+        assert_eq!(
+            duration_range(Some(None), Some(None)).unwrap(),
+            Some(None),
+            "cleared"
+        );
+        assert_eq!(
+            duration_range(Some(Some(2.0)), Some(Some(4.0))).unwrap(),
+            Some(Some((2, 4)))
+        );
+        assert_eq!(
+            duration_range(Some(Some(3.0)), Some(Some(3.0))).unwrap(),
+            Some(Some((3, 3))),
+            "a point is a range"
+        );
+        assert_eq!(
+            duration_range(Some(Some(1.0)), Some(Some(3650.0))).unwrap(),
+            Some(Some((1, 3650)))
+        );
+
+        for (min, max) in [
+            (Some(Some(2.0)), None),
+            (None, Some(Some(4.0))),
+            (Some(None), None),
+            (None, Some(None)),
+            (Some(Some(2.0)), Some(None)),
+            (Some(None), Some(Some(4.0))),
+        ] {
+            assert_eq!(
+                duration_range(min, max).unwrap_err().to_string(),
+                RANGE_BOTH_OR_NEITHER,
+                "{min:?} {max:?}"
+            );
+        }
+        for (min, max) in [
+            (0.0, 4.0),
+            (2.0, 3651.0),
+            (1.5, 4.0),
+            (2.0, 4.5),
+            (-1.0, 4.0),
+            (f64::NAN, 4.0),
+        ] {
+            let refused = duration_range(Some(Some(min)), Some(Some(max))).unwrap_err();
+            assert_eq!(refused.kind(), "invalid_input");
+            assert_eq!(refused.to_string(), RANGE_END_NOT_A_DURATION, "{min} {max}");
+        }
+        assert!(
+            RANGE_END_NOT_A_DURATION.contains(&format!("from 1 to {MAX_DURATION_DAYS}")),
+            "the sentence names the bound the code keeps"
+        );
+        assert_eq!(
+            duration_range(Some(Some(6.0)), Some(Some(4.0)))
+                .unwrap_err()
+                .to_string(),
+            "The range runs from the optimistic duration to the pessimistic one: 6 is above 4."
+        );
+    }
+
+    #[test]
+    fn a_negative_quantity_is_refused_and_zero_is_a_quantity() {
+        assert_eq!(quantity(12.5).unwrap(), 12.5);
+        assert_eq!(quantity(0.0).unwrap(), 0.0);
+        for refused in [-0.5, -12.0, f64::NAN, f64::INFINITY] {
+            assert_eq!(
+                quantity(refused).unwrap_err().kind(),
+                "invalid_input",
+                "`{refused}`"
+            );
+        }
+    }
+
+    #[test]
+    fn a_unit_is_trimmed_an_empty_one_is_none_and_a_long_one_is_refused() {
+        assert_eq!(unit(Some(" m² ")).unwrap().as_deref(), Some("m²"));
+        assert_eq!(unit(Some("   ")).unwrap(), None);
+        assert_eq!(unit(Some("")).unwrap(), None);
+        assert_eq!(unit(None).unwrap(), None);
+        unit(Some(&"²".repeat(16))).expect("16 characters, whatever their bytes");
+        assert_eq!(
+            unit(Some(&"u".repeat(17))).unwrap_err().kind(),
+            "invalid_input"
+        );
+    }
+
+    #[test]
+    fn a_lead_time_is_whole_working_days_from_zero_and_zero_is_allowed() {
+        assert_eq!(lead_time_days(0.0).unwrap(), 0);
+        assert_eq!(lead_time_days(10.0).unwrap(), 10);
+        assert_eq!(lead_time_days(3650.0).unwrap(), 3650);
+        for refused in [-1.0, 2.5, 3651.0, f64::NAN, f64::INFINITY] {
+            assert_eq!(
+                lead_time_days(refused).unwrap_err().kind(),
+                "invalid_input",
+                "`{refused}`"
+            );
+        }
+    }
+
+    #[test]
+    fn an_answer_is_trimmed_an_empty_one_is_none_and_a_long_one_is_refused() {
+        assert_eq!(
+            answer(Some("  Porcelain, grey ")).unwrap().as_deref(),
+            Some("Porcelain, grey")
+        );
+        assert_eq!(answer(Some("   ")).unwrap(), None);
+        assert_eq!(answer(None).unwrap(), None);
+        answer(Some(&"é".repeat(500))).expect("500 characters, whatever their bytes");
+        assert_eq!(
+            answer(Some(&"a".repeat(501))).unwrap_err().to_string(),
+            "An answer is at most 500 characters."
+        );
+    }
+
+    #[test]
+    fn a_direction_is_up_or_down_exactly() {
+        assert_eq!(direction("up").unwrap(), Direction::Up);
+        assert_eq!(direction("down").unwrap(), Direction::Down);
+        for refused in ["Up", "left", "", " down"] {
+            assert_eq!(
+                direction(refused).unwrap_err().to_string(),
+                "A move is up or down."
+            );
+        }
+    }
+}

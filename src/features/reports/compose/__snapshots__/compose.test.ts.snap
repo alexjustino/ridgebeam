@@ -1,0 +1,953 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the documents, in en > composes the diary document the same way every time 1`] = `
+{
+  "blocks": [
+    {
+      "text": "3 entries, about the days from September 28, 2026 to September 29, 2026. 1 of them corrects an earlier one; what it corrected is printed as it was written, and marked.",
+      "type": "paragraph",
+    },
+    {
+      "text": "In the order they were written. An entry is never edited: a correction is a new entry, and the one it corrects stays.",
+      "tone": "muted",
+      "type": "paragraph",
+    },
+    {
+      "label": "Entry #1 · September 28, 2026",
+      "rows": [
+        "Written by Sample author, 2026-09-28T18:00 · Weather: Sun",
+        "1.1 Quebrar o piso — worked on",
+        "On site: Maria Pedreira",
+        "Piso quebrado na metade — “sem surpresas”.",
+        "1 photo, kept in the work’s folder",
+      ],
+      "type": "figure",
+      "value": "Corrected by #3 · no longer counts",
+    },
+    {
+      "label": "Entry #2 · September 29, 2026",
+      "rows": [
+        "Written by Sample author, 2026-09-29T18:00 · Weather: Rain",
+        "Chuva o dia todo.",
+      ],
+      "type": "figure",
+      "value": "counts for its day",
+    },
+    {
+      "label": "Entry #3 · September 28, 2026",
+      "rows": [
+        "Written by Sample author, 2026-09-28T18:00 · Weather: Sun",
+        "1.1 Quebrar o piso — finished · 12",
+        "On site: Maria Pedreira, someone no longer in the plan",
+        "Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada.",
+        "Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Fim.",
+      ],
+      "type": "figure",
+      "value": "Correction of #1 · counts for its day",
+    },
+    {
+      "text": "Photos are not printed: each is kept in the work’s folder, named by its hash.",
+      "tone": "muted",
+      "type": "paragraph",
+    },
+  ],
+  "kind": "diary",
+  "language": "en",
+  "pageSize": "a4",
+  "subtitle": "Reforma da cozinha — ensaio",
+  "title": "Diary",
+}
+`;
+
+exports[`the documents, in en > composes the schedule document the same way every time 1`] = `
+{
+  "blocks": [
+    {
+      "text": "Finish date: October 1, 2026. Critical path: 2 activities",
+      "type": "paragraph",
+    },
+    {
+      "text": "Critical path: filled bars, and said beside the row in the table. Other activities: outlined bars. Days off are not drawn apart. Beneath each bar, thin: Baseline 1.",
+      "tone": "muted",
+      "type": "paragraph",
+    },
+    {
+      "dayLabels": [
+        "09/01",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "09/07",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "09/14",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "09/21",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "09/28",
+        "",
+        "",
+        "",
+      ],
+      "days": 31,
+      "rows": [
+        {
+          "baselineLength": 28,
+          "baselineStart": 0,
+          "critical": true,
+          "label": "1.1 Quebrar o piso",
+          "length": 28,
+          "start": 0,
+        },
+        {
+          "baselineLength": 3,
+          "baselineStart": 28,
+          "critical": true,
+          "label": "2.1 Assentar azulejo",
+          "length": 3,
+          "start": 28,
+        },
+      ],
+      "type": "gantt",
+    },
+    {
+      "columns": [
+        {
+          "align": "left",
+          "text": "No.",
+          "width": 0.05,
+        },
+        {
+          "align": "left",
+          "text": "Activity",
+          "width": 0.27,
+        },
+        {
+          "align": "left",
+          "text": "Stage",
+          "width": 0.14,
+        },
+        {
+          "align": "left",
+          "text": "Start",
+          "width": 0.11,
+        },
+        {
+          "align": "left",
+          "text": "Finish",
+          "width": 0.11,
+        },
+        {
+          "align": "right",
+          "text": "Days",
+          "width": 0.08,
+        },
+        {
+          "align": "right",
+          "text": "Float",
+          "width": 0.08,
+        },
+        {
+          "align": "left",
+          "text": "Responsible",
+          "width": 0.16,
+        },
+      ],
+      "rows": [
+        [
+          "1.1",
+          "Quebrar o piso · critical path",
+          "Demolição",
+          "Sep 1, 2026",
+          "Sep 28, 2026",
+          "20",
+          "0",
+          "Maria Pedreira",
+        ],
+        [
+          "2.1",
+          "Assentar azulejo · critical path",
+          "Acabamento",
+          "Sep 29, 2026",
+          "Oct 1, 2026",
+          "3",
+          "0",
+          "João Azulejista",
+        ],
+        [
+          "2.2",
+          "Rejunte",
+          "Acabamento",
+          "no duration yet",
+          "",
+          "",
+          "",
+          "nobody yet",
+        ],
+      ],
+      "type": "table",
+    },
+    {
+      "text": "Days and float are working days. Float is how many working days an activity can slip without moving the finish.",
+      "tone": "muted",
+      "type": "paragraph",
+    },
+  ],
+  "kind": "schedule",
+  "language": "en",
+  "pageSize": "a4-landscape",
+  "subtitle": "Reforma da cozinha — ensaio",
+  "title": "Schedule",
+}
+`;
+
+exports[`the documents, in en > composes the weekly document the same way every time 1`] = `
+{
+  "blocks": [
+    {
+      "text": "Rua Exemplo, 100",
+      "tone": "strong",
+      "type": "paragraph",
+    },
+    {
+      "text": "Decisions, money and stages are as they stand on September 30, 2026.",
+      "tone": "muted",
+      "type": "paragraph",
+    },
+    {
+      "level": 2,
+      "text": "On site this week",
+      "type": "heading",
+    },
+    {
+      "columns": [
+        {
+          "align": "left",
+          "text": "Day",
+          "width": 0.4,
+        },
+        {
+          "align": "left",
+          "text": "What the diary says",
+          "width": 0.6,
+        },
+      ],
+      "rows": [
+        [
+          "September 28, 2026",
+          "Written · 1 entry · Sun",
+        ],
+        [
+          "September 29, 2026",
+          "Written · 1 entry · Rain",
+        ],
+        [
+          "September 30, 2026",
+          "Still to come",
+        ],
+        [
+          "October 1, 2026",
+          "Still to come",
+        ],
+        [
+          "October 2, 2026",
+          "Still to come",
+        ],
+        [
+          "October 3, 2026",
+          "Not a working day",
+        ],
+        [
+          "October 4, 2026",
+          "Not a working day",
+        ],
+      ],
+      "type": "table",
+    },
+    {
+      "label": "Entries this week",
+      "rows": [
+        "#3 · September 28, 2026 — Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede no…",
+        "#2 · September 29, 2026 — Chuva o dia todo.",
+      ],
+      "type": "figure",
+      "value": "2 entries",
+    },
+    {
+      "label": "Working days without an entry this week",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Worked on this week",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Finished this week",
+      "rows": [
+        "1.1 Quebrar o piso — Demolição — September 28, 2026 — 12",
+      ],
+      "type": "figure",
+      "value": "1",
+    },
+    {
+      "label": "Who was on site",
+      "rows": [
+        "Maria Pedreira — September 28, 2026",
+        "someone no longer in the plan — September 28, 2026",
+      ],
+      "type": "figure",
+      "value": "2",
+    },
+    {
+      "label": "Weather days lost",
+      "rows": [
+        "September 29, 2026 — Rain",
+      ],
+      "type": "figure",
+      "value": "1",
+    },
+    {
+      "level": 2,
+      "text": "The plan",
+      "type": "heading",
+    },
+    {
+      "label": "How ready the plan is",
+      "rows": [
+        "Rejunte — Acabamento — no duration",
+        "Rejunte — Acabamento — no responsible",
+        "Rejunte — Acabamento — not linked",
+        "And 5 more things — the dashboard lists them all.",
+      ],
+      "type": "figure",
+      "value": "50 %",
+    },
+    {
+      "label": "When it ends",
+      "rows": [
+        "Baseline 1: October 1, 2026",
+      ],
+      "type": "figure",
+      "value": "October 1, 2026",
+    },
+    {
+      "label": "Slip",
+      "rows": [],
+      "type": "figure",
+      "value": "0 days",
+    },
+    {
+      "label": "When will it really finish?",
+      "rows": [
+        "Every activity is counted as certain, so the finish is the plan’s date. Give activities an optimistic and a pessimistic duration to see the chance.",
+      ],
+      "type": "figure",
+      "value": "September 4, 2026",
+    },
+    {
+      "label": "Decisions overdue or due in the next 14 calendar days",
+      "rows": [
+        "Cor do azulejo — Acabamento — August 18, 2026 — Overdue by 31 working days",
+      ],
+      "type": "figure",
+      "value": "1",
+    },
+    {
+      "level": 2,
+      "text": "Money",
+      "type": "heading",
+    },
+    {
+      "label": "Planned",
+      "rows": [
+        "Caçamba — R$450.00",
+        "Azulejo — not priced yet — counted as nothing",
+      ],
+      "type": "figure",
+      "value": "R$450.00",
+    },
+    {
+      "label": "Committed",
+      "rows": [],
+      "type": "figure",
+      "value": "R$0.00",
+    },
+    {
+      "label": "Paid",
+      "rows": [
+        "Sinal da caçamba — September 29, 2026 — R$200.00",
+      ],
+      "type": "figure",
+      "value": "R$200.00",
+    },
+    {
+      "label": "Paid this week",
+      "rows": [
+        "Sinal da caçamba — September 29, 2026 — R$200.00",
+      ],
+      "type": "figure",
+      "value": "R$200.00",
+    },
+    {
+      "label": "Paid ahead of the work",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Earned and not paid",
+      "rows": [],
+      "type": "figure",
+      "value": "R$0.00",
+    },
+    {
+      "level": 2,
+      "text": "Stages",
+      "type": "heading",
+    },
+    {
+      "label": "Planned stages",
+      "rows": [
+        "Acabamento",
+      ],
+      "type": "figure",
+      "value": "1",
+    },
+    {
+      "label": "Stages ready to start",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Started stages",
+      "rows": [
+        "Demolição — September 1, 2026",
+      ],
+      "type": "figure",
+      "value": "1",
+    },
+    {
+      "label": "Closed stages",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Gates held",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "type": "rule",
+    },
+    {
+      "text": "Every number lists what it was counted from. Photos are not printed: they are in the work’s folder.",
+      "tone": "muted",
+      "type": "paragraph",
+    },
+  ],
+  "kind": "weekly",
+  "language": "en",
+  "pageSize": "a4",
+  "subtitle": "Reforma da cozinha — ensaio · September 28, 2026 to October 4, 2026",
+  "title": "Weekly report",
+}
+`;
+
+exports[`the documents, in pt-BR > composes the diary document the same way every time 1`] = `
+{
+  "blocks": [
+    {
+      "text": "3 entradas, sobre os dias de 28 de setembro de 2026 a 29 de setembro de 2026. 1 delas corrige uma anterior; o que ela corrigiu está impresso como foi escrito, e marcado.",
+      "type": "paragraph",
+    },
+    {
+      "text": "Na ordem em que foram escritas. Uma entrada nunca é editada: uma correção é uma entrada nova, e a que ela corrige fica.",
+      "tone": "muted",
+      "type": "paragraph",
+    },
+    {
+      "label": "Entrada nº 1 · 28 de setembro de 2026",
+      "rows": [
+        "Escrita por Sample author, 2026-09-28T18:00 · Tempo: Sol",
+        "1.1 Quebrar o piso — trabalhado",
+        "Na obra: Maria Pedreira",
+        "Piso quebrado na metade — “sem surpresas”.",
+        "1 foto, guardada na pasta da obra",
+      ],
+      "type": "figure",
+      "value": "Corrigida pela nº 3 · não vale mais",
+    },
+    {
+      "label": "Entrada nº 2 · 29 de setembro de 2026",
+      "rows": [
+        "Escrita por Sample author, 2026-09-29T18:00 · Tempo: Chuva",
+        "Chuva o dia todo.",
+      ],
+      "type": "figure",
+      "value": "vale para o dia",
+    },
+    {
+      "label": "Entrada nº 3 · 28 de setembro de 2026",
+      "rows": [
+        "Escrita por Sample author, 2026-09-28T18:00 · Tempo: Sol",
+        "1.1 Quebrar o piso — terminado · 12",
+        "Na obra: Maria Pedreira, alguém que não está mais no plano",
+        "Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada.",
+        "Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Fim.",
+      ],
+      "type": "figure",
+      "value": "Correção da nº 1 · vale para o dia",
+    },
+    {
+      "text": "As fotos não são impressas: cada uma fica guardada na pasta da obra, com o nome do seu hash.",
+      "tone": "muted",
+      "type": "paragraph",
+    },
+  ],
+  "kind": "diary",
+  "language": "pt-BR",
+  "pageSize": "a4",
+  "subtitle": "Reforma da cozinha — ensaio",
+  "title": "Diário",
+}
+`;
+
+exports[`the documents, in pt-BR > composes the schedule document the same way every time 1`] = `
+{
+  "blocks": [
+    {
+      "text": "Data de término: 1 de outubro de 2026. Caminho crítico: 2 atividades",
+      "type": "paragraph",
+    },
+    {
+      "text": "Caminho crítico: barras preenchidas, e dito ao lado da linha na tabela. Outras atividades: barras vazadas. As folgas não são desenhadas à parte. Embaixo de cada barra, fina: Linha de base 1.",
+      "tone": "muted",
+      "type": "paragraph",
+    },
+    {
+      "dayLabels": [
+        "01/09",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "07/09",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "14/09",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "21/09",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "28/09",
+        "",
+        "",
+        "",
+      ],
+      "days": 31,
+      "rows": [
+        {
+          "baselineLength": 28,
+          "baselineStart": 0,
+          "critical": true,
+          "label": "1.1 Quebrar o piso",
+          "length": 28,
+          "start": 0,
+        },
+        {
+          "baselineLength": 3,
+          "baselineStart": 28,
+          "critical": true,
+          "label": "2.1 Assentar azulejo",
+          "length": 3,
+          "start": 28,
+        },
+      ],
+      "type": "gantt",
+    },
+    {
+      "columns": [
+        {
+          "align": "left",
+          "text": "Nº",
+          "width": 0.05,
+        },
+        {
+          "align": "left",
+          "text": "Atividade",
+          "width": 0.27,
+        },
+        {
+          "align": "left",
+          "text": "Etapa",
+          "width": 0.14,
+        },
+        {
+          "align": "left",
+          "text": "Início",
+          "width": 0.11,
+        },
+        {
+          "align": "left",
+          "text": "Término",
+          "width": 0.11,
+        },
+        {
+          "align": "right",
+          "text": "Dias",
+          "width": 0.08,
+        },
+        {
+          "align": "right",
+          "text": "Folga",
+          "width": 0.08,
+        },
+        {
+          "align": "left",
+          "text": "Responsável",
+          "width": 0.16,
+        },
+      ],
+      "rows": [
+        [
+          "1.1",
+          "Quebrar o piso · caminho crítico",
+          "Demolição",
+          "1 de set. de 2026",
+          "28 de set. de 2026",
+          "20",
+          "0",
+          "Maria Pedreira",
+        ],
+        [
+          "2.1",
+          "Assentar azulejo · caminho crítico",
+          "Acabamento",
+          "29 de set. de 2026",
+          "1 de out. de 2026",
+          "3",
+          "0",
+          "João Azulejista",
+        ],
+        [
+          "2.2",
+          "Rejunte",
+          "Acabamento",
+          "ainda sem duração",
+          "",
+          "",
+          "",
+          "ninguém ainda",
+        ],
+      ],
+      "type": "table",
+    },
+    {
+      "text": "Dias e folga são dias úteis. Folga é quantos dias úteis uma atividade pode atrasar sem mudar o término.",
+      "tone": "muted",
+      "type": "paragraph",
+    },
+  ],
+  "kind": "schedule",
+  "language": "pt-BR",
+  "pageSize": "a4-landscape",
+  "subtitle": "Reforma da cozinha — ensaio",
+  "title": "Cronograma",
+}
+`;
+
+exports[`the documents, in pt-BR > composes the weekly document the same way every time 1`] = `
+{
+  "blocks": [
+    {
+      "text": "Rua Exemplo, 100",
+      "tone": "strong",
+      "type": "paragraph",
+    },
+    {
+      "text": "Decisões, dinheiro e etapas estão como estão em 30 de setembro de 2026.",
+      "tone": "muted",
+      "type": "paragraph",
+    },
+    {
+      "level": 2,
+      "text": "Na obra nesta semana",
+      "type": "heading",
+    },
+    {
+      "columns": [
+        {
+          "align": "left",
+          "text": "Dia",
+          "width": 0.4,
+        },
+        {
+          "align": "left",
+          "text": "O que o diário diz",
+          "width": 0.6,
+        },
+      ],
+      "rows": [
+        [
+          "28 de setembro de 2026",
+          "Escrito · 1 entrada · Sol",
+        ],
+        [
+          "29 de setembro de 2026",
+          "Escrito · 1 entrada · Chuva",
+        ],
+        [
+          "30 de setembro de 2026",
+          "Ainda por vir",
+        ],
+        [
+          "1 de outubro de 2026",
+          "Ainda por vir",
+        ],
+        [
+          "2 de outubro de 2026",
+          "Ainda por vir",
+        ],
+        [
+          "3 de outubro de 2026",
+          "Não é dia útil",
+        ],
+        [
+          "4 de outubro de 2026",
+          "Não é dia útil",
+        ],
+      ],
+      "type": "table",
+    },
+    {
+      "label": "Entradas nesta semana",
+      "rows": [
+        "nº 3 · 28 de setembro de 2026 — Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede norte descascada. Parede no…",
+        "nº 2 · 29 de setembro de 2026 — Chuva o dia todo.",
+      ],
+      "type": "figure",
+      "value": "2 entradas",
+    },
+    {
+      "label": "Dias úteis sem entrada nesta semana",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Trabalhado nesta semana",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Terminado nesta semana",
+      "rows": [
+        "1.1 Quebrar o piso — Demolição — 28 de setembro de 2026 — 12",
+      ],
+      "type": "figure",
+      "value": "1",
+    },
+    {
+      "label": "Quem esteve na obra",
+      "rows": [
+        "Maria Pedreira — 28 de setembro de 2026",
+        "alguém que não está mais no plano — 28 de setembro de 2026",
+      ],
+      "type": "figure",
+      "value": "2",
+    },
+    {
+      "label": "Dias perdidos por tempo",
+      "rows": [
+        "29 de setembro de 2026 — Chuva",
+      ],
+      "type": "figure",
+      "value": "1",
+    },
+    {
+      "level": 2,
+      "text": "O plano",
+      "type": "heading",
+    },
+    {
+      "label": "Quanto o plano está pronto",
+      "rows": [
+        "Rejunte — Acabamento — sem duração",
+        "Rejunte — Acabamento — sem responsável",
+        "Rejunte — Acabamento — sem ligação",
+        "E mais 5 coisas — o painel lista todas.",
+      ],
+      "type": "figure",
+      "value": "50 %",
+    },
+    {
+      "label": "Quando termina",
+      "rows": [
+        "Linha de base 1: 1 de outubro de 2026",
+      ],
+      "type": "figure",
+      "value": "1 de outubro de 2026",
+    },
+    {
+      "label": "Atraso",
+      "rows": [],
+      "type": "figure",
+      "value": "0 dias",
+    },
+    {
+      "label": "Quando termina de verdade?",
+      "rows": [
+        "Toda atividade é contada como certa, então o término é a data do plano. Dê às atividades uma duração otimista e uma pessimista para ver a chance.",
+      ],
+      "type": "figure",
+      "value": "4 de setembro de 2026",
+    },
+    {
+      "label": "Decisões atrasadas ou com prazo nos próximos 14 dias corridos",
+      "rows": [
+        "Cor do azulejo — Acabamento — 18 de agosto de 2026 — Atrasada há 31 dias úteis",
+      ],
+      "type": "figure",
+      "value": "1",
+    },
+    {
+      "level": 2,
+      "text": "Dinheiro",
+      "type": "heading",
+    },
+    {
+      "label": "Planejado",
+      "rows": [
+        "Caçamba — R$ 450,00",
+        "Azulejo — ainda sem preço — contada como nada",
+      ],
+      "type": "figure",
+      "value": "R$ 450,00",
+    },
+    {
+      "label": "Comprometido",
+      "rows": [],
+      "type": "figure",
+      "value": "R$ 0,00",
+    },
+    {
+      "label": "Pago",
+      "rows": [
+        "Sinal da caçamba — 29 de setembro de 2026 — R$ 200,00",
+      ],
+      "type": "figure",
+      "value": "R$ 200,00",
+    },
+    {
+      "label": "Pago nesta semana",
+      "rows": [
+        "Sinal da caçamba — 29 de setembro de 2026 — R$ 200,00",
+      ],
+      "type": "figure",
+      "value": "R$ 200,00",
+    },
+    {
+      "label": "Pago à frente da obra",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Devido e não pago",
+      "rows": [],
+      "type": "figure",
+      "value": "R$ 0,00",
+    },
+    {
+      "level": 2,
+      "text": "Etapas",
+      "type": "heading",
+    },
+    {
+      "label": "Etapas planejadas",
+      "rows": [
+        "Acabamento",
+      ],
+      "type": "figure",
+      "value": "1",
+    },
+    {
+      "label": "Etapas prontas para começar",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Etapas iniciadas",
+      "rows": [
+        "Demolição — 1 de setembro de 2026",
+      ],
+      "type": "figure",
+      "value": "1",
+    },
+    {
+      "label": "Etapas fechadas",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "label": "Portões retidos",
+      "rows": [],
+      "type": "figure",
+      "value": "0",
+    },
+    {
+      "type": "rule",
+    },
+    {
+      "text": "Cada número lista de onde foi contado. As fotos não são impressas: estão na pasta da obra.",
+      "tone": "muted",
+      "type": "paragraph",
+    },
+  ],
+  "kind": "weekly",
+  "language": "pt-BR",
+  "pageSize": "a4",
+  "subtitle": "Reforma da cozinha — ensaio · 28 de setembro de 2026 a 4 de outubro de 2026",
+  "title": "Relatório semanal",
+}
+`;

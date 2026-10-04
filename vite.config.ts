@@ -1,0 +1,66 @@
+/// <reference types="vitest/config" />
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { execSync } from 'node:child_process';
+import path from 'node:path';
+
+const host = process.env.TAURI_DEV_HOST;
+
+/**
+ * The commit this build came from.
+ *
+ * Baked in at build time so a bug report from an installed binary can be traced
+ * to a line of code. Best-effort: a build from a source archive has no git, and
+ * that is a reason to say "unknown" rather than to fail the build.
+ */
+function commit(): string {
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+
+  define: {
+    __GIT_COMMIT__: JSON.stringify(commit()),
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+  },
+
+  resolve: {
+    alias: {
+      '@': path.resolve(import.meta.dirname, './src'),
+    },
+  },
+
+  // Tauri expects a fixed port and must not have Rust errors hidden by Vite.
+  clearScreen: false,
+  server: {
+    port: 1420,
+    strictPort: true,
+    host: host || false,
+    hmr: host ? { protocol: 'ws', host, port: 1421 } : undefined,
+    watch: { ignored: ['**/src-tauri/**'] },
+  },
+
+  test: {
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    environment: 'node',
+    // Half the cores, not all of them. With every core busy, Vitest 5 on Windows intermittently
+    // fails to load a test file with "Cannot find module" for a file that is there — reproduced with
+    // suites run side by side, even for a file in node_modules. Fewer workers make it rare; the
+    // cause is still being looked for.
+    maxWorkers: '50%',
+    coverage: {
+      provider: 'v8',
+      include: ['src/domain/**/*.ts'],
+      exclude: ['src/domain/**/*.{test,spec}.ts'],
+      thresholds: { lines: 90, functions: 90, branches: 85, statements: 90 },
+    },
+  },
+});

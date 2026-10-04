@@ -1,0 +1,619 @@
+{
+  "ridgebeamTemplate": 1,
+  "id": "roof-replacement",
+  "version": 1,
+  "title": {
+    "en": "Roof replacement",
+    "pt-BR": "Troca de telhado"
+  },
+  "summary": {
+    "en": "The pitched roof of a small house stripped and laid again: access, the old covering off, the timber repaired, a new underlay and covering, flashings and gutters. A starting point, not a quote: ranges of working days to confirm with the roofer, and cost lines with no prices.",
+    "pt-BR": "O telhado de uma casa pequena retirado e refeito: acesso, retirada das telhas antigas, reparo do madeiramento, nova subcobertura e telhamento, rufos e calhas. Um ponto de partida, não um orçamento: faixas de dias úteis para confirmar com o telhadista, e linhas de custo sem preço."
+  },
+  "rooms": [
+    {
+      "key": "roof",
+      "name": {
+        "en": "Roof",
+        "pt-BR": "Telhado"
+      }
+    }
+  ],
+  "stages": [
+    {
+      "key": "roof-access",
+      "name": {
+        "en": "Access and protection",
+        "pt-BR": "Acesso e proteção"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the ground where the scaffold stands firm and level?",
+            "pt-BR": "O chão onde o andaime vai ficar está firme e nivelado?"
+          },
+          {
+            "en": "Are the rooms below cleared or covered?",
+            "pt-BR": "Os cômodos abaixo estão desocupados ou cobertos?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Is the scaffold braced, with guard rails, and checked before anybody climbs?",
+            "pt-BR": "O andaime está travado, com guarda-corpo, e conferido antes de alguém subir?"
+          },
+          {
+            "en": "Are there anchor points and harnesses for everybody working at height?",
+            "pt-BR": "Há pontos de ancoragem e cintos para todos que trabalham em altura?"
+          },
+          {
+            "en": "Is there a tarpaulin on site big enough to cover the open roof overnight?",
+            "pt-BR": "Há uma lona na obra grande o bastante para cobrir o telhado aberto à noite?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Scaffold hire",
+            "pt-BR": "Locação de andaime"
+          },
+          "activity": "scaffold"
+        },
+        {
+          "label": {
+            "en": "Protection materials",
+            "pt-BR": "Material de proteção"
+          }
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "scaffold",
+          "name": {
+            "en": "Put up the scaffold and the edge protection",
+            "pt-BR": "Montar o andaime e a proteção de borda"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["roof"]
+        },
+        {
+          "key": "protect-below",
+          "name": {
+            "en": "Protect the rooms and the ground below",
+            "pt-BR": "Proteger os cômodos e o quintal abaixo"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      ]
+    },
+    {
+      "key": "roof-strip",
+      "name": {
+        "en": "Strip the old roof",
+        "pt-BR": "Retirada do telhado antigo"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the forecast dry for the days the roof will be open?",
+            "pt-BR": "A previsão é de tempo seco para os dias em que o telhado ficará aberto?"
+          },
+          {
+            "en": "Is there a safe way to lower the debris — a chute, a hoist or a fenced drop zone?",
+            "pt-BR": "Há um jeito seguro de descer o entulho — tubo, guincho ou área isolada?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Was the old timber inspected, and every rotten or broken piece marked?",
+            "pt-BR": "O madeiramento antigo foi inspecionado, e cada peça podre ou quebrada marcada?"
+          },
+          {
+            "en": "Is the open roof covered at the end of each day?",
+            "pt-BR": "O telhado aberto é coberto ao fim de cada dia?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Strip-out labour",
+            "pt-BR": "Mão de obra de retirada"
+          }
+        },
+        {
+          "label": {
+            "en": "Debris removal",
+            "pt-BR": "Retirada de entulho"
+          }
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "remove-covering",
+          "name": {
+            "en": "Take off the old tiles or sheets",
+            "pt-BR": "Retirar as telhas antigas"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 4
+          },
+          "rooms": ["roof"]
+        },
+        {
+          "key": "remove-battens",
+          "name": {
+            "en": "Take off the old battens and underlay",
+            "pt-BR": "Retirar as ripas e a manta antigas"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["roof"]
+        },
+        {
+          "key": "inspect-timber",
+          "name": {
+            "en": "Inspect the timber",
+            "pt-BR": "Inspecionar o madeiramento"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["roof"]
+        }
+      ]
+    },
+    {
+      "key": "roof-structure",
+      "name": {
+        "en": "Roof timber",
+        "pt-BR": "Madeiramento"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the replacement timber on site, treated and dry?",
+            "pt-BR": "A madeira de reposição está na obra, tratada e seca?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Are the rafters straight and in one plane, checked with a line?",
+            "pt-BR": "Os caibros estão retos e no mesmo plano, conferidos com linha?"
+          },
+          {
+            "en": "Did the engineer or the carpenter in charge see the repaired structure?",
+            "pt-BR": "O engenheiro ou o carpinteiro responsável viu a estrutura reparada?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Timber",
+            "pt-BR": "Madeira"
+          }
+        },
+        {
+          "label": {
+            "en": "Timber treatment",
+            "pt-BR": "Tratamento da madeira"
+          },
+          "activity": "treat-timber"
+        },
+        {
+          "label": {
+            "en": "Carpentry labour",
+            "pt-BR": "Mão de obra de carpintaria"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "repair-or-replace",
+          "name": {
+            "en": "Repair the timber or replace it",
+            "pt-BR": "Reparar o madeiramento ou trocá-lo"
+          },
+          "leadDays": {
+            "min": 3,
+            "max": 10
+          },
+          "needs": "repair-timber"
+        }
+      ],
+      "activities": [
+        {
+          "key": "repair-timber",
+          "name": {
+            "en": "Replace or reinforce the damaged pieces",
+            "pt-BR": "Substituir ou reforçar as peças danificadas"
+          },
+          "durationDays": {
+            "min": 2,
+            "max": 5
+          },
+          "rooms": ["roof"]
+        },
+        {
+          "key": "treat-timber",
+          "name": {
+            "en": "Treat the timber against insects and damp",
+            "pt-BR": "Tratar a madeira contra cupim e umidade"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["roof"]
+        }
+      ]
+    },
+    {
+      "key": "roof-covering",
+      "name": {
+        "en": "Underlay and covering",
+        "pt-BR": "Subcobertura e telhamento"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the repaired structure approved?",
+            "pt-BR": "A estrutura reparada foi aprovada?"
+          },
+          {
+            "en": "Are the tiles on site, counted, with some to spare?",
+            "pt-BR": "As telhas estão na obra, contadas, com sobra?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Are the tiles in line and fixed where the wind needs it, with none cracked?",
+            "pt-BR": "As telhas estão alinhadas e fixadas onde o vento exige, sem nenhuma trincada?"
+          },
+          {
+            "en": "Is the ridge bedded and fixed along its whole length?",
+            "pt-BR": "A cumeeira está assentada e fixada em todo o comprimento?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Roof covering",
+            "pt-BR": "Telhas"
+          }
+        },
+        {
+          "label": {
+            "en": "Underlay and battens",
+            "pt-BR": "Manta de subcobertura e ripas"
+          }
+        },
+        {
+          "label": {
+            "en": "Roofing labour",
+            "pt-BR": "Mão de obra de telhamento"
+          }
+        }
+      ],
+      "decisions": [
+        {
+          "key": "covering",
+          "name": {
+            "en": "The roof covering material",
+            "pt-BR": "O material da cobertura"
+          },
+          "leadDays": {
+            "min": 10,
+            "max": 30
+          },
+          "needs": "lay-covering"
+        },
+        {
+          "key": "underlay",
+          "name": {
+            "en": "The underlay and the insulation",
+            "pt-BR": "A manta de subcobertura e o isolamento"
+          },
+          "leadDays": {
+            "min": 3,
+            "max": 10
+          },
+          "needs": "underlay"
+        }
+      ],
+      "activities": [
+        {
+          "key": "underlay",
+          "name": {
+            "en": "Lay the underlay",
+            "pt-BR": "Instalar a manta de subcobertura"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["roof"]
+        },
+        {
+          "key": "battens",
+          "name": {
+            "en": "Fix the battens",
+            "pt-BR": "Fixar as ripas"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["roof"]
+        },
+        {
+          "key": "lay-covering",
+          "name": {
+            "en": "Lay the covering",
+            "pt-BR": "Assentar as telhas"
+          },
+          "durationDays": {
+            "min": 3,
+            "max": 6
+          },
+          "rooms": ["roof"]
+        },
+        {
+          "key": "ridge",
+          "name": {
+            "en": "Bed and fix the ridge",
+            "pt-BR": "Assentar e fixar a cumeeira"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          },
+          "rooms": ["roof"]
+        }
+      ]
+    },
+    {
+      "key": "roof-flashings",
+      "name": {
+        "en": "Flashings and gutters",
+        "pt-BR": "Rufos e calhas"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Is the covering finished up to the walls and the eaves?",
+            "pt-BR": "O telhamento está pronto até as paredes e os beirais?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Did a hose test over the valleys and the flashings leave no water inside?",
+            "pt-BR": "O teste com mangueira nas águas-furtadas e nos rufos terminou sem nenhuma infiltração?"
+          },
+          {
+            "en": "Do the gutters drain, with no water standing in them?",
+            "pt-BR": "As calhas escoam, sem água parada?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Flashings",
+            "pt-BR": "Rufos"
+          },
+          "activity": "flashings"
+        },
+        {
+          "label": {
+            "en": "Gutters and downpipes",
+            "pt-BR": "Calhas e condutores"
+          },
+          "activity": "gutters"
+        }
+      ],
+      "decisions": [
+        {
+          "key": "gutters",
+          "name": {
+            "en": "The gutters: material and colour",
+            "pt-BR": "As calhas: material e cor"
+          },
+          "leadDays": {
+            "min": 5,
+            "max": 15
+          },
+          "needs": "gutters"
+        }
+      ],
+      "activities": [
+        {
+          "key": "flashings",
+          "name": {
+            "en": "Fit the flashings at the walls and the chimney",
+            "pt-BR": "Instalar os rufos junto às paredes e à chaminé"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["roof"]
+        },
+        {
+          "key": "gutters",
+          "name": {
+            "en": "Fit the gutters and the downpipes",
+            "pt-BR": "Instalar as calhas e os condutores"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 3
+          },
+          "rooms": ["roof"]
+        }
+      ]
+    },
+    {
+      "key": "roof-handover",
+      "name": {
+        "en": "Cleaning and handover",
+        "pt-BR": "Limpeza e entrega"
+      },
+      "checks": {
+        "start": [
+          {
+            "en": "Did the owner see the finished roof, from the scaffold or in photos, before it comes down?",
+            "pt-BR": "O proprietário viu o telhado pronto, do andaime ou em fotos, antes da desmontagem?"
+          }
+        ],
+        "close": [
+          {
+            "en": "Are the offcuts gone and the spare tiles left where it was agreed?",
+            "pt-BR": "As sobras foram retiradas e as telhas de reserva deixadas onde foi combinado?"
+          },
+          {
+            "en": "Are the gutters clear of debris from the work?",
+            "pt-BR": "As calhas estão livres dos resíduos da obra?"
+          }
+        ]
+      },
+      "costLines": [
+        {
+          "label": {
+            "en": "Final cleaning",
+            "pt-BR": "Limpeza final"
+          },
+          "activity": "clean"
+        }
+      ],
+      "decisions": [],
+      "activities": [
+        {
+          "key": "take-down",
+          "name": {
+            "en": "Take the scaffold down",
+            "pt-BR": "Desmontar o andaime"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "key": "clean",
+          "name": {
+            "en": "Clean the site and the gutters",
+            "pt-BR": "Limpar a obra e as calhas"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        },
+        {
+          "key": "walk-through",
+          "name": {
+            "en": "Walk-through with the owner",
+            "pt-BR": "Vistoria com o proprietário"
+          },
+          "durationDays": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "blocker": "roof-access",
+      "blocked": "roof-strip",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-strip",
+      "blocked": "roof-structure",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-structure",
+      "blocked": "roof-covering",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-covering",
+      "blocked": "roof-flashings",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-flashings",
+      "blocked": "roof-handover",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-access/scaffold",
+      "blocked": "roof-access/protect-below",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-strip/remove-covering",
+      "blocked": "roof-strip/remove-battens",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-strip/remove-battens",
+      "blocked": "roof-strip/inspect-timber",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-structure/repair-timber",
+      "blocked": "roof-structure/treat-timber",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-covering/underlay",
+      "blocked": "roof-covering/battens",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-covering/battens",
+      "blocked": "roof-covering/lay-covering",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-covering/lay-covering",
+      "blocked": "roof-covering/ridge",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-flashings/flashings",
+      "blocked": "roof-flashings/gutters",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-handover/walk-through",
+      "blocked": "roof-handover/take-down",
+      "lagDays": 0
+    },
+    {
+      "blocker": "roof-handover/take-down",
+      "blocked": "roof-handover/clean",
+      "lagDays": 0
+    }
+  ]
+}

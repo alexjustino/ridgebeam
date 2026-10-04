@@ -23,12 +23,103 @@ to the source code; it does not grant permission to use the project name, logo
 or wordmark to endorse or promote derived products. See Section 6 of the License.
 
 --------------------------------------------------------------------------------
+THE TEMPLATE LIBRARY
+
+The templates in templates/ are original work of this project's contributors,
+distributed under the same License as the code. Each is a starting point for a
+plan, written with ranges and without prices: not a quote, not a design, and not
+the advice of an engineer, an architect or any trade on a particular site. They
+are provided on the same "AS IS" basis as everything else in this product.
+
+--------------------------------------------------------------------------------
 THIRD-PARTY COMPONENTS
 
-This product does not yet bundle any third-party component: the repository holds
-documents only. The stack it is built to — Tauri, React, Vite, TypeScript,
-Tailwind CSS, TanStack Query, rusqlite / SQLite, serde — enters this list as each
-component is adopted, after the dependency audit that slice F0 puts in place, and
-the authoritative list is the one generated from the dependency manifests
-(Cargo.toml, package.json). Full licence texts are retained in the lockfiles and
-reproduced in the distributed package.
+This product bundles or depends on third-party components distributed under
+their own licenses. The list below is what is adopted today, from package.json
+and src-tauri/Cargo.toml; each was chosen for its licence and maintenance and is
+checked by the dependency audit in CI (npm audit, cargo audit). The
+authoritative list is the one generated from the dependency manifests and their
+lockfiles, and a dependency added without a line here is an incomplete one.
+
+That generated list is src/features/about/notices.json, written by
+scripts/notices.mjs from Cargo.lock and package-lock.json: every crate compiled
+into the Windows binary and every npm package of the production tree, each with
+the licence its package declares. The About screen shows it beside this file,
+and a gate fails when it no longer matches the lockfiles.
+
+The interface (package.json):
+
+  Tauri .......................... Apache-2.0 OR MIT
+  Tauri dialog and log plugins ... MIT OR Apache-2.0
+  React, React DOM ............... MIT
+  Vite ........................... MIT
+  TypeScript ..................... Apache-2.0
+  Tailwind CSS ................... MIT
+  TanStack Query ................. MIT
+  Fluent UI System Icons ......... MIT
+
+The host (src-tauri/Cargo.toml):
+
+  tauri, tauri-build ............. Apache-2.0 OR MIT
+  tauri-plugin-dialog ............ Apache-2.0 OR MIT
+  tauri-plugin-log ............... Apache-2.0 OR MIT
+  serde, serde_json .............. MIT OR Apache-2.0
+  thiserror ...................... MIT OR Apache-2.0
+  rusqlite / SQLite .............. MIT / Public Domain
+  log ............................ MIT OR Apache-2.0
+  uuid ........................... Apache-2.0 OR MIT
+  chrono ......................... MIT OR Apache-2.0
+  windows ........................ MIT OR Apache-2.0
+  tauri-plugin-opener ............ Apache-2.0 OR MIT
+  sha2, hex ...................... MIT OR Apache-2.0
+  base64 ......................... MIT OR Apache-2.0
+  image .......................... MIT OR Apache-2.0
+    the decoders its features compile into the binary, one per format a photo
+    may arrive as (BMP needs no crate of its own):
+    zune-jpeg, zune-core ......... MIT OR Apache-2.0 OR Zlib   (JPEG)
+    png, fdeflate, flate2 ........ MIT OR Apache-2.0           (PNG)
+    gif, weezl ................... MIT OR Apache-2.0           (GIF)
+    color_quant .................. MIT                         (GIF)
+    image-webp, quick-error ...... MIT OR Apache-2.0           (WebP)
+  pdf-writer ..................... MIT OR Apache-2.0
+    writes the PDF reports; of its own dependencies, bitflags, itoa and
+    memchr were already in the binary through the crates above, and one
+    arrives with it:
+    ryu .......................... Apache-2.0 OR BSL-1.0
+  flate2 ......................... MIT OR Apache-2.0
+    deflates the reports' page streams; already in the binary through png
+
+SQLite is compiled into the binary from the amalgamation rusqlite bundles; its
+authors have dedicated it to the public domain.
+
+Vite, TypeScript and Tailwind CSS are listed because the distributed interface
+is their output. The test runners, linters, formatters, axe-core, the
+WebDriver harness and lopdf (the second PDF reader that parses every report in
+cargo test) are used only in development, are not distributed, and are not
+listed here.
+
+Full license texts of the above are retained in the dependency lockfiles and
+are reproduced in the distributed package.
+
+--------------------------------------------------------------------------------
+FONT METRICS
+
+The PDF reports are set in the standard PDF fonts Helvetica and Helvetica-Bold,
+which every PDF reader supplies. No font file is embedded in a report, shipped
+in the product or kept in this repository.
+
+To wrap text, the host carries the advance width of each character of the two
+faces (src-tauri/src/report/winansi.rs). Those numbers are the WX values of
+Adobe's Core 14 font metrics files Helvetica.afm and Helvetica-Bold.afm,
+version 002.000, placed at the WinAnsiEncoding codes of PDF 32000-1:2008,
+Annex D.2. The files carry this notice, retained here as their terms require:
+
+  Copyright (c) 1985, 1987, 1989, 1990, 1997 Adobe Systems Incorporated.
+  All Rights Reserved.
+  Helvetica is a trademark of Linotype-Hell AG and/or its subsidiaries.
+
+Adobe's terms for those metrics allow them to be used, copied and distributed
+for any purpose and without charge, with or without modification, provided the
+copyright notices are retained and modifications are noted. The widths are used
+unmodified; only their order was changed, from the files' glyph names to the
+encoding's codes.

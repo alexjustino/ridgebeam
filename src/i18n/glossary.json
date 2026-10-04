@@ -1,0 +1,855 @@
+{
+  "$comment": "The glossary is data: every term the product shows, with its plain sentence, in every language the product speaks. docs/GLOSSARY.md is generated from this file by scripts/glossary.mjs and a gate fails when they disagree. A term shown on a screen that is not here is a defect (SPEC §2.13, §6).",
+  "languages": ["en", "pt-BR"],
+  "terms": [
+    {
+      "key": "work",
+      "en": {
+        "term": "work",
+        "sentence": "One build — a renovation, a house, a roof — with its plan, its diary and its money, kept as one folder on your disk."
+      },
+      "pt-BR": {
+        "term": "obra",
+        "sentence": "Uma construção — uma reforma, uma casa, um telhado — com seu plano, seu diário e seu dinheiro, guardada como uma pasta no seu disco."
+      }
+    },
+    {
+      "key": "plan",
+      "en": {
+        "term": "plan",
+        "sentence": "The stages and activities of a work, in order, with what each one needs. It is intent: what actually happened is the diary’s to say.",
+        "lenses": {
+          "engineer": "work breakdown",
+          "architect": "works by room",
+          "owner": "the plan"
+        }
+      },
+      "pt-BR": {
+        "term": "plano",
+        "sentence": "As etapas e as atividades de uma obra, em ordem, com o que cada uma precisa. É intenção: o que de fato aconteceu é o diário que diz.",
+        "lenses": {
+          "engineer": "estrutura analítica",
+          "architect": "obra por cômodo",
+          "owner": "o plano"
+        }
+      }
+    },
+    {
+      "key": "stage",
+      "en": {
+        "term": "stage",
+        "sentence": "A chapter of the work — demolition, rough-in, plaster, tiling — that holds activities and cannot start or close before its checks are answered.",
+        "lenses": {
+          "engineer": "stage",
+          "architect": "phase",
+          "owner": "stage"
+        }
+      },
+      "pt-BR": {
+        "term": "etapa",
+        "sentence": "Um capítulo da obra — demolição, instalações, reboco, revestimento — que reúne atividades e não começa nem fecha antes de as suas verificações serem respondidas.",
+        "lenses": {
+          "engineer": "etapa",
+          "architect": "fase",
+          "owner": "etapa"
+        }
+      }
+    },
+    {
+      "key": "activity",
+      "en": {
+        "term": "activity",
+        "sentence": "One piece of work inside a stage, with a duration, a person responsible and the rooms it touches.",
+        "lenses": {
+          "engineer": "activity",
+          "architect": "work item",
+          "owner": "job"
+        }
+      },
+      "pt-BR": {
+        "term": "atividade",
+        "sentence": "Um pedaço de trabalho dentro de uma etapa, com duração, um responsável e os cômodos que ela toca.",
+        "lenses": {
+          "engineer": "atividade",
+          "architect": "serviço",
+          "owner": "serviço"
+        }
+      }
+    },
+    {
+      "key": "duration",
+      "en": {
+        "term": "duration",
+        "sentence": "How many working days an activity takes. An activity with no duration cannot be scheduled, and the plan says so.",
+        "lenses": {
+          "engineer": "duration",
+          "architect": "duration",
+          "owner": "how long"
+        }
+      },
+      "pt-BR": {
+        "term": "duração",
+        "sentence": "Quantos dias úteis uma atividade leva. Uma atividade sem duração não entra no cronograma, e o plano avisa.",
+        "lenses": {
+          "engineer": "duração",
+          "architect": "duração",
+          "owner": "quanto tempo"
+        }
+      }
+    },
+    {
+      "key": "responsible",
+      "en": {
+        "term": "responsible",
+        "sentence": "The person who answers for an activity — the tiler, the electrician, you. An activity with no responsible is not ready.",
+        "lenses": {
+          "engineer": "responsible",
+          "architect": "contractor",
+          "owner": "who does it"
+        }
+      },
+      "pt-BR": {
+        "term": "responsável",
+        "sentence": "A pessoa que responde por uma atividade — o azulejista, o eletricista, você. Uma atividade sem responsável não está pronta.",
+        "lenses": {
+          "engineer": "responsável",
+          "architect": "executor",
+          "owner": "quem faz"
+        }
+      }
+    },
+    {
+      "key": "schedule",
+      "en": {
+        "term": "schedule",
+        "sentence": "When each activity happens: the plan laid on the working calendar, with its dependencies and lags, from the start date to the finish date."
+      },
+      "pt-BR": {
+        "term": "cronograma",
+        "sentence": "Quando cada atividade acontece: o plano posto sobre o calendário de trabalho, com suas dependências e esperas, da data de início à data de término."
+      }
+    },
+    {
+      "key": "dependency",
+      "en": {
+        "term": "dependency",
+        "sentence": "\"This cannot start until that has finished.\" The links that turn a list of activities into a schedule."
+      },
+      "pt-BR": {
+        "term": "dependência",
+        "sentence": "\"Isto não começa enquanto aquilo não terminar.\" Os elos que transformam uma lista de atividades num cronograma."
+      }
+    },
+    {
+      "key": "lag",
+      "en": {
+        "term": "lag",
+        "sentence": "Waiting time built into a dependency — the days the concrete needs to cure before the next activity may start."
+      },
+      "pt-BR": {
+        "term": "espera",
+        "sentence": "Tempo de espera embutido numa dependência — os dias que o concreto precisa curar antes de a próxima atividade poder começar."
+      }
+    },
+    {
+      "key": "calendar",
+      "en": {
+        "term": "working calendar",
+        "sentence": "Which days are working days on this site — usually Monday to Friday, minus holidays — and how many hours each has. Durations are counted on it."
+      },
+      "pt-BR": {
+        "term": "calendário de trabalho",
+        "sentence": "Quais dias são dias úteis nesta obra — em geral segunda a sexta, menos feriados — e quantas horas cada um tem. As durações são contadas nele."
+      }
+    },
+    {
+      "key": "workingDay",
+      "en": {
+        "term": "working day",
+        "sentence": "A day on which the site works. Durations, lags and deadlines are counted in working days, never in calendar days."
+      },
+      "pt-BR": {
+        "term": "dia útil",
+        "sentence": "Um dia em que a obra trabalha. Durações, esperas e prazos são contados em dias úteis, nunca em dias corridos."
+      }
+    },
+    {
+      "key": "holiday",
+      "en": {
+        "term": "holiday",
+        "sentence": "A day the calendar takes out of the working days. Nothing is scheduled on it."
+      },
+      "pt-BR": {
+        "term": "feriado",
+        "sentence": "Um dia que o calendário tira dos dias úteis. Nada é agendado nele."
+      }
+    },
+    {
+      "key": "criticalPath",
+      "en": {
+        "term": "critical path",
+        "sentence": "The chain of activities with no slack: a day lost on any of them is a day lost on the finish date."
+      },
+      "pt-BR": {
+        "term": "caminho crítico",
+        "sentence": "A corrente de atividades sem folga: um dia perdido em qualquer uma delas é um dia perdido na data de término."
+      }
+    },
+    {
+      "key": "float",
+      "en": {
+        "term": "float",
+        "sentence": "How many working days an activity can slip before it delays the finish date. Zero float means it is on the critical path."
+      },
+      "pt-BR": {
+        "term": "folga",
+        "sentence": "Quantos dias úteis uma atividade pode atrasar antes de atrasar a data de término. Folga zero significa que ela está no caminho crítico."
+      }
+    },
+    {
+      "key": "finishDate",
+      "en": {
+        "term": "finish date",
+        "sentence": "The day the last activity ends, computed from the schedule — never typed.",
+        "lenses": {
+          "engineer": "finish date",
+          "architect": "finish date",
+          "owner": "when it ends"
+        }
+      },
+      "pt-BR": {
+        "term": "data de término",
+        "sentence": "O dia em que a última atividade termina, calculado a partir do cronograma — nunca digitado.",
+        "lenses": {
+          "engineer": "data de término",
+          "architect": "data de término",
+          "owner": "quando termina"
+        }
+      }
+    },
+    {
+      "key": "baseline",
+      "en": {
+        "term": "baseline",
+        "sentence": "A photograph of the plan, taken when it is approved and again at every replanning. Later changes are compared against it; none is ever overwritten."
+      },
+      "pt-BR": {
+        "term": "linha de base",
+        "sentence": "Uma fotografia do plano, tirada quando ele é aprovado e de novo a cada replanejamento. As mudanças posteriores são comparadas com ela; nenhuma é sobrescrita."
+      }
+    },
+    {
+      "key": "slip",
+      "en": {
+        "term": "slip",
+        "sentence": "How many working days the finish date, or a stage, has moved past the baseline. Shown before anybody asks."
+      },
+      "pt-BR": {
+        "term": "atraso",
+        "sentence": "Quantos dias úteis a data de término, ou uma etapa, passou da linha de base. Mostrado antes que alguém pergunte."
+      }
+    },
+    {
+      "key": "forecast",
+      "en": {
+        "term": "forecast",
+        "sentence": "When the work will finish as things stand: the diary’s dates for what has started or finished, the planned durations from today for the rest. The finish date is the plan’s; the forecast is the record’s — the two are shown apart, never as one number."
+      },
+      "pt-BR": {
+        "term": "previsão",
+        "sentence": "Quando a obra vai terminar do jeito que está: as datas do diário para o que começou ou terminou, as durações planejadas a partir de hoje para o resto. A data de término é a do plano; a previsão é a do registro — as duas são mostradas separadas, nunca como um número só."
+      }
+    },
+    {
+      "key": "decision",
+      "en": {
+        "term": "decision",
+        "sentence": "Something a person has to choose before a stage can go ahead — which tile, where the outlets go, which contractor for the roof."
+      },
+      "pt-BR": {
+        "term": "decisão",
+        "sentence": "Algo que uma pessoa precisa escolher antes de uma etapa poder seguir — qual piso, onde ficam as tomadas, qual empreiteiro para o telhado."
+      }
+    },
+    {
+      "key": "leadTime",
+      "en": {
+        "term": "lead time",
+        "sentence": "How long it takes between deciding and having — the weeks the tile takes to arrive after it is chosen."
+      },
+      "pt-BR": {
+        "term": "prazo de entrega",
+        "sentence": "Quanto tempo passa entre decidir e ter — as semanas que o piso leva para chegar depois de escolhido."
+      }
+    },
+    {
+      "key": "deadline",
+      "en": {
+        "term": "deadline",
+        "sentence": "The last day a decision can still be made without delaying the work: the earliest start of the first activity that needs it, minus the lead time. Computed, never typed."
+      },
+      "pt-BR": {
+        "term": "prazo",
+        "sentence": "O último dia em que uma decisão ainda pode ser tomada sem atrasar a obra: o início mais cedo da primeira atividade que precisa dela, menos o prazo de entrega. Calculado, nunca digitado."
+      }
+    },
+    {
+      "key": "readiness",
+      "en": {
+        "term": "readiness",
+        "sentence": "How much of what the plan must know, it does know — as a number, and as the list of what is still missing.",
+        "lenses": {
+          "engineer": "readiness",
+          "architect": "readiness",
+          "owner": "how ready the plan is"
+        }
+      },
+      "pt-BR": {
+        "term": "prontidão",
+        "sentence": "Quanto do que o plano precisa saber ele já sabe — como um número, e como a lista do que ainda falta.",
+        "lenses": {
+          "engineer": "prontidão",
+          "architect": "prontidão",
+          "owner": "quanto o plano está pronto"
+        }
+      }
+    },
+    {
+      "key": "missing",
+      "en": {
+        "term": "what the plan does not know",
+        "sentence": "The list behind the readiness figure: every activity without a duration or a responsible, every decision overdue, every stage with no checks or no money planned."
+      },
+      "pt-BR": {
+        "term": "o que o plano não sabe",
+        "sentence": "A lista por trás do número de prontidão: cada atividade sem duração ou sem responsável, cada decisão vencida, cada etapa sem verificações ou sem dinheiro planejado."
+      }
+    },
+    {
+      "key": "diary",
+      "en": {
+        "term": "diary",
+        "sentence": "The record of what actually happened on site, one entry per day. It is the only place progress comes from, and an entry can never be edited — only corrected by a new one."
+      },
+      "pt-BR": {
+        "term": "diário",
+        "sentence": "O registro do que de fato aconteceu na obra, uma entrada por dia. É o único lugar de onde o progresso vem, e uma entrada nunca é editada — só corrigida por uma nova."
+      }
+    },
+    {
+      "key": "entry",
+      "en": {
+        "term": "entry",
+        "sentence": "One day in the diary: what was done, who was on site, the weather, deliveries, incidents, photos."
+      },
+      "pt-BR": {
+        "term": "entrada",
+        "sentence": "Um dia no diário: o que foi feito, quem esteve na obra, o tempo, entregas, ocorrências, fotos."
+      }
+    },
+    {
+      "key": "correction",
+      "en": {
+        "term": "correction",
+        "sentence": "A new diary entry that says an earlier one was wrong, and how. The earlier one stays; the record shows both."
+      },
+      "pt-BR": {
+        "term": "correção",
+        "sentence": "Uma nova entrada no diário que diz que uma anterior estava errada, e como. A anterior permanece; o registro mostra as duas."
+      }
+    },
+    {
+      "key": "chain",
+      "en": {
+        "term": "chain",
+        "sentence": "Each diary entry carries a fingerprint of the one before it, so any alteration after the fact shows. It proves the record was not altered — not who wrote it, and not anything in court."
+      },
+      "pt-BR": {
+        "term": "cadeia",
+        "sentence": "Cada entrada do diário carrega uma impressão digital da anterior, de modo que qualquer alteração posterior aparece. Prova que o registro não foi alterado — não quem o escreveu, nem nada em juízo."
+      }
+    },
+    {
+      "key": "progress",
+      "en": {
+        "term": "progress",
+        "sentence": "How much of an activity or a stage is done, worked out from the diary entries that say so. Nobody types it in."
+      },
+      "pt-BR": {
+        "term": "andamento",
+        "sentence": "Quanto de uma atividade ou etapa está feito, apurado a partir das entradas do diário que dizem isso. Ninguém digita."
+      }
+    },
+    {
+      "key": "check",
+      "en": {
+        "term": "check",
+        "sentence": "A yes-or-no question a stage must answer before it starts or before it closes — the wall is closed; the waterproofing was tested; the owner walked it."
+      },
+      "pt-BR": {
+        "term": "verificação",
+        "sentence": "Uma pergunta de sim ou não que uma etapa precisa responder antes de começar ou antes de fechar — a parede foi fechada; a impermeabilização foi testada; o dono vistoriou."
+      }
+    },
+    {
+      "key": "startGate",
+      "en": {
+        "term": "start gate",
+        "sentence": "The checks that must be answered before a stage may start."
+      },
+      "pt-BR": {
+        "term": "portão de início",
+        "sentence": "As verificações que precisam ser respondidas antes de uma etapa poder começar."
+      }
+    },
+    {
+      "key": "closeGate",
+      "en": {
+        "term": "close gate",
+        "sentence": "The checks that must be answered before a stage may close. A stage cannot close with an unanswered item."
+      },
+      "pt-BR": {
+        "term": "portão de fechamento",
+        "sentence": "As verificações que precisam ser respondidas antes de uma etapa poder fechar. Uma etapa não fecha com item sem resposta."
+      }
+    },
+    {
+      "key": "notApplicable",
+      "en": {
+        "term": "not applicable",
+        "sentence": "An answer to a check that says it does not apply here — and why. The reason is required."
+      },
+      "pt-BR": {
+        "term": "não se aplica",
+        "sentence": "Uma resposta a uma verificação que diz que ela não cabe aqui — e por quê. O motivo é obrigatório."
+      }
+    },
+    {
+      "key": "planned",
+      "en": {
+        "term": "planned",
+        "sentence": "The money a stage or activity is expected to cost, before any quote."
+      },
+      "pt-BR": {
+        "term": "planejado",
+        "sentence": "O dinheiro que uma etapa ou atividade deve custar, antes de qualquer orçamento."
+      }
+    },
+    {
+      "key": "committed",
+      "en": {
+        "term": "committed",
+        "sentence": "Money promised to somebody by a quote or a contract that was accepted. Not yet paid."
+      },
+      "pt-BR": {
+        "term": "comprometido",
+        "sentence": "Dinheiro prometido a alguém por um orçamento ou contrato aceito. Ainda não pago."
+      }
+    },
+    {
+      "key": "commitment",
+      "en": {
+        "term": "commitment",
+        "sentence": "A quote or a contract accepted: the money agreed for a stage, with whom, and on which day."
+      },
+      "pt-BR": {
+        "term": "compromisso",
+        "sentence": "Um orçamento ou contrato aceito: o dinheiro combinado para uma etapa, com quem e em que dia."
+      }
+    },
+    {
+      "key": "paid",
+      "en": {
+        "term": "paid",
+        "sentence": "Money that has left your hands, recorded as a payment in the ledger."
+      },
+      "pt-BR": {
+        "term": "pago",
+        "sentence": "Dinheiro que já saiu das suas mãos, registrado como pagamento no livro-razão."
+      }
+    },
+    {
+      "key": "remaining",
+      "en": {
+        "term": "remaining",
+        "sentence": "Planned minus paid: what is still expected to leave your hands."
+      },
+      "pt-BR": {
+        "term": "restante",
+        "sentence": "Planejado menos pago: o que ainda deve sair das suas mãos."
+      }
+    },
+    {
+      "key": "variance",
+      "en": {
+        "term": "variance",
+        "sentence": "How far committed or paid has drifted from planned, in money. Positive means over the plan."
+      },
+      "pt-BR": {
+        "term": "desvio",
+        "sentence": "Quanto o comprometido ou o pago se afastou do planejado, em dinheiro. Positivo significa acima do plano."
+      }
+    },
+    {
+      "key": "payment",
+      "en": {
+        "term": "payment",
+        "sentence": "One amount paid on one day to one person for one thing, with its receipt. Payments are never edited; a mistake is a new payment that says so."
+      },
+      "pt-BR": {
+        "term": "pagamento",
+        "sentence": "Um valor pago num dia a uma pessoa por uma coisa, com o comprovante. Pagamentos nunca são editados; um erro é um novo pagamento que diz isso."
+      }
+    },
+    {
+      "key": "ledger",
+      "en": {
+        "term": "ledger",
+        "sentence": "The list of every payment, in order, that can only grow."
+      },
+      "pt-BR": {
+        "term": "livro-razão",
+        "sentence": "A lista de todos os pagamentos, em ordem, que só pode crescer."
+      }
+    },
+    {
+      "key": "milestone",
+      "en": {
+        "term": "milestone",
+        "sentence": "A share of a commitment’s amount that is earned by a fact of the work — the stage started, an activity finished in the diary, the stage closed — never by a date. Paying more than has been earned is paying ahead of the work."
+      },
+      "pt-BR": {
+        "term": "marco de pagamento",
+        "sentence": "Uma parte do valor de um compromisso que passa a ser devida por um fato da obra — a etapa começou, uma atividade terminou no diário, a etapa fechou — e nunca por uma data. Pagar mais do que já é devido é pagar à frente da obra."
+      }
+    },
+    {
+      "key": "advance",
+      "en": {
+        "term": "advance",
+        "sentence": "A milestone earned the day the commitment was agreed, before any work is done. It is money paid ahead of the work on purpose, and the product says so rather than forbids it."
+      },
+      "pt-BR": {
+        "term": "sinal",
+        "sentence": "Um marco de pagamento devido no dia em que o compromisso foi combinado, antes de qualquer trabalho. É dinheiro pago à frente da obra de propósito, e o produto diz isso em vez de proibir."
+      }
+    },
+    {
+      "key": "retention",
+      "en": {
+        "term": "retention",
+        "sentence": "The last part of a commitment’s payment plan, held back until its stage is closed and every snag on that person is closed with a photo of it fixed. The owner holds it; Ridgebeam holds no money and stops no payment — it shows the money as held, never as due."
+      },
+      "pt-BR": {
+        "term": "retenção",
+        "sentence": "A última parte do plano de pagamento de um compromisso, segurada até a sua etapa fechar e toda pendência dessa pessoa ser fechada com uma foto do conserto. Quem segura é o dono; o Ridgebeam não guarda dinheiro nem impede pagamento — mostra o dinheiro como retido, nunca como devido."
+      }
+    },
+    {
+      "key": "funding",
+      "en": {
+        "term": "funding",
+        "sentence": "Money the work will receive — savings, a loan tranche, a client’s instalment — with where it comes from and the day it is expected. Money received is recorded on the day it arrives; until then it is a plan, and money expected on a day already past and not received is not counted."
+      },
+      "pt-BR": {
+        "term": "recursos",
+        "sentence": "Dinheiro que a obra vai receber — economias, uma parcela de financiamento, uma prestação do cliente — com de onde vem e o dia em que é esperado. Dinheiro recebido é registrado no dia em que chega; até lá é plano, e dinheiro esperado num dia que já passou e não recebido não é contado."
+      }
+    },
+    {
+      "key": "person",
+      "en": {
+        "term": "person",
+        "sentence": "Somebody on the work — a trade, a contact, the architect, the inspector. A row with a name and a phone, not an account."
+      },
+      "pt-BR": {
+        "term": "pessoa",
+        "sentence": "Alguém na obra — um profissional, um contato, o arquiteto, o fiscal. Uma linha com nome e telefone, não uma conta."
+      }
+    },
+    {
+      "key": "trade",
+      "en": {
+        "term": "trade",
+        "sentence": "What a person does on site: mason, electrician, plumber, tiler, painter, roofer."
+      },
+      "pt-BR": {
+        "term": "ofício",
+        "sentence": "O que uma pessoa faz na obra: pedreiro, eletricista, encanador, azulejista, pintor, telhadista."
+      }
+    },
+    {
+      "key": "document",
+      "en": {
+        "term": "document",
+        "sentence": "A file kept with the work — a photo, a quote, a drawing, a permit, a receipt — copied into the work folder so it can never go missing."
+      },
+      "pt-BR": {
+        "term": "documento",
+        "sentence": "Um arquivo guardado com a obra — uma foto, um orçamento, um desenho, um alvará, um comprovante — copiado para a pasta da obra para nunca se perder."
+      }
+    },
+    {
+      "key": "room",
+      "en": {
+        "term": "room",
+        "sentence": "A room or an area of the work — kitchen, bathroom, roof, garden — that activities touch. The architect's and the owner's map of the work.",
+        "lenses": {
+          "engineer": "area",
+          "architect": "room",
+          "owner": "room"
+        }
+      },
+      "pt-BR": {
+        "term": "cômodo",
+        "sentence": "Um cômodo ou uma área da obra — cozinha, banheiro, telhado, quintal — que as atividades tocam. O mapa da obra para o arquiteto e para o dono.",
+        "lenses": {
+          "engineer": "área",
+          "architect": "cômodo",
+          "owner": "cômodo"
+        }
+      }
+    },
+    {
+      "key": "quantity",
+      "en": {
+        "term": "quantity",
+        "sentence": "How much of something an activity covers — square metres of tile, metres of pipe — with its unit.",
+        "lenses": {
+          "engineer": "quantity",
+          "architect": "quantity",
+          "owner": "how much"
+        }
+      },
+      "pt-BR": {
+        "term": "quantidade",
+        "sentence": "Quanto de algo uma atividade abrange — metros quadrados de piso, metros de tubo — com a sua unidade.",
+        "lenses": {
+          "engineer": "quantidade",
+          "architect": "quantidade",
+          "owner": "quanto"
+        }
+      }
+    },
+    {
+      "key": "replanning",
+      "en": {
+        "term": "replanning",
+        "sentence": "Changing an approved plan. It asks for a reason and keeps the old baseline, so the change is never silent."
+      },
+      "pt-BR": {
+        "term": "replanejamento",
+        "sentence": "Mudar um plano aprovado. Pede um motivo e guarda a linha de base antiga, para a mudança nunca ser silenciosa."
+      }
+    },
+    {
+      "key": "whatIf",
+      "en": {
+        "term": "what-if",
+        "sentence": "The schedule worked out again with a duration or a wait changed, to see when the work would finish. It is never saved: to keep it, replan with a reason."
+      },
+      "pt-BR": {
+        "term": "simulação",
+        "sentence": "O cronograma calculado de novo com uma duração ou uma espera trocada, para ver quando a obra terminaria. Nunca é salva: para mantê-la, replaneje com um motivo."
+      }
+    },
+    {
+      "key": "reason",
+      "en": {
+        "term": "reason",
+        "sentence": "The sentence that explains why an approved plan changed. Required, and kept with the baseline it produced."
+      },
+      "pt-BR": {
+        "term": "motivo",
+        "sentence": "A frase que explica por que um plano aprovado mudou. Obrigatória, e guardada com a linha de base que gerou."
+      }
+    },
+    {
+      "key": "changeOrder",
+      "en": {
+        "term": "change order",
+        "sentence": "A change to an approved plan asked for on record: who asked, what changes, what it costs and how many working days it moves the finish — worked out by the schedule, never typed. It is approved, declined or withdrawn once, and never edited."
+      },
+      "pt-BR": {
+        "term": "aditivo",
+        "sentence": "Uma mudança num plano aprovado pedida com registro: quem pediu, o que muda, quanto custa e quantos dias úteis ela move o término — calculado pelo cronograma, nunca digitado. É aprovado, recusado ou retirado uma única vez, e nunca editado."
+      }
+    },
+    {
+      "key": "template",
+      "en": {
+        "term": "template",
+        "sentence": "A plan to start from — stages, typical activities, dependencies, duration ranges, the decisions and checks each stage needs. A starting point, not a promise."
+      },
+      "pt-BR": {
+        "term": "modelo",
+        "sentence": "Um plano para começar — etapas, atividades típicas, dependências, faixas de duração, as decisões e verificações de cada etapa. Um ponto de partida, não uma promessa."
+      }
+    },
+    {
+      "key": "range",
+      "en": {
+        "term": "range",
+        "sentence": "A duration or a lead time given as a low and a high — the optimistic and the pessimistic — instead of a single number. A template brings its durations as ranges because it cannot know your site, and you can give any activity one; the chance of finishing by a date is computed from them. Costs have no ranges in 1.0: a template’s cost line has no amount."
+      },
+      "pt-BR": {
+        "term": "faixa",
+        "sentence": "Uma duração ou um prazo de entrega dado como um mínimo e um máximo — o otimista e o pessimista — em vez de um número só. Um modelo traz as durações como faixas porque não conhece a sua obra, e você pode dar uma faixa a qualquer atividade; a chance de terminar até uma data é calculada a partir delas. Custos não têm faixa na 1.0: a linha de custo de um modelo vem sem valor."
+      }
+    },
+    {
+      "key": "lens",
+      "en": {
+        "term": "lens",
+        "sentence": "A way of looking at the same work in the words of the engineer, the architect or the owner. Switching lenses changes the words and the arrangement, never the data."
+      },
+      "pt-BR": {
+        "term": "lente",
+        "sentence": "Um jeito de olhar a mesma obra nas palavras do engenheiro, do arquiteto ou do dono. Trocar de lente muda as palavras e a disposição, nunca os dados."
+      }
+    },
+    {
+      "key": "lensEngineer",
+      "en": {
+        "term": "engineer's lens",
+        "sentence": "Work breakdown, critical path, float, S-curve, quantities."
+      },
+      "pt-BR": {
+        "term": "lente do engenheiro",
+        "sentence": "Estrutura analítica, caminho crítico, folga, curva S, quantidades."
+      }
+    },
+    {
+      "key": "lensArchitect",
+      "en": {
+        "term": "architect's lens",
+        "sentence": "Rooms, finishes, specifications, decisions."
+      },
+      "pt-BR": {
+        "term": "lente do arquiteto",
+        "sentence": "Cômodos, acabamentos, especificações, decisões."
+      }
+    },
+    {
+      "key": "lensOwner",
+      "en": {
+        "term": "owner's lens",
+        "sentence": "This week, what to decide, what to pay, what is done. The default for a new work."
+      },
+      "pt-BR": {
+        "term": "lente do dono",
+        "sentence": "Esta semana, o que decidir, o que pagar, o que está feito. O padrão para uma obra nova."
+      }
+    },
+    {
+      "key": "dashboard",
+      "en": {
+        "term": "dashboard",
+        "sentence": "The front door of a work: readiness, this week, the finish date against the baseline, decisions due, money, the last diary entries. Every figure opens onto its rows."
+      },
+      "pt-BR": {
+        "term": "painel",
+        "sentence": "A porta de entrada de uma obra: prontidão, esta semana, a data de término contra a linha de base, decisões a tomar, dinheiro, as últimas entradas do diário. Cada número abre nas suas linhas."
+      }
+    },
+    {
+      "key": "figure",
+      "en": {
+        "term": "figure",
+        "sentence": "A number on a screen that always knows which rows it was counted from, and opens onto them when clicked."
+      },
+      "pt-BR": {
+        "term": "número",
+        "sentence": "Um valor na tela que sempre sabe de quais linhas foi contado, e abre nelas ao ser clicado."
+      }
+    },
+    {
+      "key": "report",
+      "en": {
+        "term": "weekly report",
+        "sentence": "A PDF for one week, in the owner's words: what was done, what slipped, what to decide, what to pay — as many pages as the week needs."
+      },
+      "pt-BR": {
+        "term": "relatório semanal",
+        "sentence": "Um PDF de uma semana, nas palavras do dono: o que foi feito, o que atrasou, o que decidir, o que pagar — com quantas páginas a semana pedir."
+      }
+    },
+    {
+      "key": "snag",
+      "en": {
+        "term": "snag",
+        "sentence": "Something found wrong or unfinished near the end — a cracked tile, a door that sticks — written down with where it is, who must fix it, the day it is due and a photo. It is closed only with a photo of it fixed, or withdrawn with a reason; it is never deleted."
+      },
+      "pt-BR": {
+        "term": "pendência",
+        "sentence": "Algo encontrado errado ou inacabado perto do fim — um azulejo trincado, uma porta que agarra — anotado com onde está, quem deve consertar, o dia em que vence e uma foto. Só é fechada com uma foto do conserto, ou retirada com um motivo; nunca é apagada."
+      }
+    },
+    {
+      "key": "handoverBook",
+      "en": {
+        "term": "handover book",
+        "sentence": "One PDF the owner keeps when the work ends: room by room what was done and when, every decision with its answer, the photos of the work hidden behind walls and floors, the documents by name, who did what, and the care notes. It says what it still lacks."
+      },
+      "pt-BR": {
+        "term": "manual de entrega",
+        "sentence": "Um PDF que o dono guarda quando a obra termina: cômodo por cômodo o que foi feito e quando, cada decisão com a sua resposta, as fotos do que ficou escondido atrás das paredes e dos pisos, os documentos pelo nome, quem fez o quê e os cuidados de manutenção. Ele diz o que ainda falta."
+      }
+    },
+    {
+      "key": "careNote",
+      "en": {
+        "term": "care note",
+        "sentence": "A sentence the owner keeps for later about looking after the work — “Reseal the shower grout once a year”, “The stopcock is under the sink”. Written in the person’s own words; it is not advice from the product."
+      },
+      "pt-BR": {
+        "term": "cuidado de manutenção",
+        "sentence": "Uma frase que o dono guarda para depois sobre como cuidar da obra — “Refazer o rejunte do box uma vez por ano”, “O registro geral fica embaixo da pia”. Escrita nas palavras da própria pessoa; não é um conselho do produto."
+      }
+    },
+    {
+      "key": "snapshot",
+      "en": {
+        "term": "owner's snapshot",
+        "sentence": "One web page, written as a file, that shows the work as it stands today: readiness, the finish and its chance, the next two weeks, the last diary entries with their photos, and the money. It opens in any phone's browser, runs nothing, and does not change when the work does. Sending it is your act; Ridgebeam sends nothing."
+      },
+      "pt-BR": {
+        "term": "retrato da obra",
+        "sentence": "Uma página da web, gravada como um arquivo, que mostra a obra como ela está hoje: prontidão, o término e a sua chance, as próximas duas semanas, as últimas entradas do diário com as fotos, e o dinheiro. Abre no navegador de qualquer celular, não executa nada e não muda quando a obra muda. Enviá-lo é um ato seu; o Ridgebeam não envia nada."
+      }
+    },
+    {
+      "key": "export",
+      "en": {
+        "term": "export",
+        "sentence": "A file written from the work for somebody else, or another program, to read — a PDF, a spreadsheet file or JSON. Writing it changes nothing in the work."
+      },
+      "pt-BR": {
+        "term": "exportação",
+        "sentence": "Um arquivo gravado a partir da obra para outra pessoa, ou outro programa, ler — um PDF, uma planilha ou JSON. Gravá-lo não muda nada na obra."
+      }
+    },
+    {
+      "key": "backup",
+      "en": {
+        "term": "backup",
+        "sentence": "The whole work as one file you can copy anywhere and bring back exactly as it was. It is not encrypted: keep it as carefully as the work folder."
+      },
+      "pt-BR": {
+        "term": "cópia de segurança",
+        "sentence": "A obra inteira como um arquivo que você pode copiar para qualquer lugar e trazer de volta exatamente como estava. Não é criptografada: guarde-a com o mesmo cuidado que a pasta da obra."
+      }
+    },
+    {
+      "key": "restore",
+      "en": {
+        "term": "restore",
+        "sentence": "Bringing a backup back as a work in a new, empty folder. Every file is checked against the backup first, and the folder the work was in before is left as it was."
+      },
+      "pt-BR": {
+        "term": "restauração",
+        "sentence": "Trazer uma cópia de segurança de volta como uma obra numa pasta nova e vazia. Cada arquivo é conferido com a cópia antes, e a pasta onde a obra estava é deixada como estava."
+      }
+    }
+  ]
+}
