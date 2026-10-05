@@ -74,6 +74,7 @@ export const TERM_KEYS = [
   'retention',
   'meetingMinutes',
   'action',
+  'orderBy',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];

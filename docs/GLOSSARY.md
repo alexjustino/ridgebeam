@@ -12,7 +12,7 @@ language, a term or a sentence, or names a lens that does not exist.
 
 A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-71 terms.
+72 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
@@ -35,8 +35,9 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `slip` | slip | How many working days the finish date, or a stage, has moved past the baseline. Shown before anybody asks. | atraso | Quantos dias úteis a data de término, ou uma etapa, passou da linha de base. Mostrado antes que alguém pergunte. |
 | `forecast` | forecast | When the work will finish as things stand: the diary’s dates for what has started or finished, the planned durations from today for the rest. The finish date is the plan’s; the forecast is the record’s — the two are shown apart, never as one number. | previsão | Quando a obra vai terminar do jeito que está: as datas do diário para o que começou ou terminou, as durações planejadas a partir de hoje para o resto. A data de término é a do plano; a previsão é a do registro — as duas são mostradas separadas, nunca como um número só. |
 | `decision` | decision | Something a person has to choose before a stage can go ahead — which tile, where the outlets go, which contractor for the roof. | decisão | Algo que uma pessoa precisa escolher antes de uma etapa poder seguir — qual piso, onde ficam as tomadas, qual empreiteiro para o telhado. |
-| `leadTime` | lead time | How long it takes between deciding and having — the weeks the tile takes to arrive after it is chosen. | prazo de entrega | Quanto tempo passa entre decidir e ter — as semanas que o piso leva para chegar depois de escolhido. |
+| `leadTime` | lead time | How long it takes between deciding and having — the weeks the tile takes to arrive after it is chosen. For a decision it is counted in working days; for a purchase, in calendar days, because that is how suppliers quote it. | prazo de entrega | Quanto tempo passa entre decidir e ter — as semanas que o piso leva para chegar depois de escolhido. Numa decisão é contado em dias úteis; numa compra, em dias corridos, porque é assim que os fornecedores informam. |
 | `deadline` | deadline | The last day a decision can still be made without delaying the work: the earliest start of the first activity that needs it, minus the lead time. Computed, never typed. | prazo | O último dia em que uma decisão ainda pode ser tomada sem atrasar a obra: o início mais cedo da primeira atividade que precisa dela, menos o prazo de entrega. Calculado, nunca digitado. |
+| `orderBy` | order by | The last day a purchase can be ordered and still arrive in time: the day the activity that needs it starts as things stand, minus the supplier's lead time in calendar days. It moves when the work slips or gets ahead. Computed, never typed — and Ridgebeam orders nothing; it says when. | encomendar até | O último dia em que uma compra pode ser encomendada e ainda chegar a tempo: o dia em que a atividade que precisa dela começa do jeito que a obra está, menos o prazo de entrega do fornecedor em dias corridos. Ele se move quando a obra atrasa ou adianta. Calculado, nunca digitado — e o Ridgebeam não encomenda nada; ele diz quando. |
 | `readiness` | readiness | How much of what the plan must know, it does know — as a number, and as the list of what is still missing. | prontidão | Quanto do que o plano precisa saber ele já sabe — como um número, e como a lista do que ainda falta. |
 | `missing` | what the plan does not know | The list behind the readiness figure: every activity without a duration or a responsible, every decision overdue, every stage with no checks or no money planned. | o que o plano não sabe | A lista por trás do número de prontidão: cada atividade sem duração ou sem responsável, cada decisão vencida, cada etapa sem verificações ou sem dinheiro planejado. |
 | `diary` | diary | The record of what actually happened on site, one entry per day. It is the only place progress comes from, and an entry can never be edited — only corrected by a new one. | diário | O registro do que de fato aconteceu na obra, uma entrada por dia. É o único lugar de onde o progresso vem, e uma entrada nunca é editada — só corrigida por uma nova. |
@@ -94,7 +95,7 @@ A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a 
 with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
 The sentence never changes with the lens, and nothing about a work is stored per lens.
 
-9 of the 71 terms change with the lens.
+9 of the 72 terms change with the lens.
 
 | Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
 | --- | --- | --- | --- | --- | --- | --- |

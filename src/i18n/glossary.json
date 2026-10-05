@@ -275,11 +275,11 @@
       "key": "leadTime",
       "en": {
         "term": "lead time",
-        "sentence": "How long it takes between deciding and having — the weeks the tile takes to arrive after it is chosen."
+        "sentence": "How long it takes between deciding and having — the weeks the tile takes to arrive after it is chosen. For a decision it is counted in working days; for a purchase, in calendar days, because that is how suppliers quote it."
       },
       "pt-BR": {
         "term": "prazo de entrega",
-        "sentence": "Quanto tempo passa entre decidir e ter — as semanas que o piso leva para chegar depois de escolhido."
+        "sentence": "Quanto tempo passa entre decidir e ter — as semanas que o piso leva para chegar depois de escolhido. Numa decisão é contado em dias úteis; numa compra, em dias corridos, porque é assim que os fornecedores informam."
       }
     },
     {
@@ -291,6 +291,17 @@
       "pt-BR": {
         "term": "prazo",
         "sentence": "O último dia em que uma decisão ainda pode ser tomada sem atrasar a obra: o início mais cedo da primeira atividade que precisa dela, menos o prazo de entrega. Calculado, nunca digitado."
+      }
+    },
+    {
+      "key": "orderBy",
+      "en": {
+        "term": "order by",
+        "sentence": "The last day a purchase can be ordered and still arrive in time: the day the activity that needs it starts as things stand, minus the supplier's lead time in calendar days. It moves when the work slips or gets ahead. Computed, never typed — and Ridgebeam orders nothing; it says when."
+      },
+      "pt-BR": {
+        "term": "encomendar até",
+        "sentence": "O último dia em que uma compra pode ser encomendada e ainda chegar a tempo: o dia em que a atividade que precisa dela começa do jeito que a obra está, menos o prazo de entrega do fornecedor em dias corridos. Ele se move quando a obra atrasa ou adianta. Calculado, nunca digitado — e o Ridgebeam não encomenda nada; ele diz quando."
       }
     },
     {
