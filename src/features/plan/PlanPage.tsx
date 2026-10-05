@@ -33,6 +33,9 @@ export type PlanTab =
   | 'snags'
   | 'purchases';
 
+/** A place inside a tab another page may open the plan on. */
+export type PlanAnchor = 'aftercare-calendar';
+
 /**
  * The arrangement each lens opens on (ADR-014): the engineer's work breakdown, the architect's
  * works by room, the owner's checklist. Only the first one — the person moves between them freely,
@@ -59,7 +62,8 @@ const TAB_FOR_LENS: Record<LensChoice, PlanTab> = {
  *
  * **Handover** (D3, decision 7) holds what the owner keeps when the work ends: the care notes of the
  * work, each room and each stage, and the hidden work — every check that needs its photo, with its
- * state — each leading to its item on the Gates tab.
+ * state — each leading to its item on the Gates tab — and, after the handover (G4), the warranties,
+ * the maintenance and the calendar of what comes due.
  *
  * **Changes** (E1, decision 6) is the record of change orders once the plan is approved: each raised
  * with who asked, its price and its impact on the finish computed before anybody decides, and decided
@@ -81,6 +85,8 @@ export function PlanPage({
   onFocusTaken,
   initialTab = null,
   onTabTaken,
+  initialAnchor = null,
+  onAnchorTaken,
 }: {
   snapshot: WorkSnapshot;
   calendarOpen: boolean;
@@ -91,6 +97,12 @@ export function PlanPage({
   /** A tab to open on — asked for from another page (E1: the dashboard's Changes card). */
   initialTab?: PlanTab | null;
   onTabTaken?: () => void;
+  /**
+   * A place on the tab to open on — asked for from another page (G4: the dashboard's After the
+   * handover card opens the Handover tab on its calendar).
+   */
+  initialAnchor?: PlanAnchor | null;
+  onAnchorTaken?: () => void;
 }) {
   const { t, describeError } = useI18n();
   const term = useTerms();
@@ -101,6 +113,8 @@ export function PlanPage({
   );
   const [focusRow, setFocusRow] = useState<string | null>(initialFocus);
   const [focusCheck, setFocusCheck] = useState<string | null>(null);
+  // Held until the calendar has taken the focus, then let go (as the row and the tab are).
+  const [anchor, setAnchor] = useState<PlanAnchor | null>(initialAnchor);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const panel = useId();
@@ -113,6 +127,9 @@ export function PlanPage({
   useEffect(() => {
     if (initialTab !== null) onTabTaken?.();
   }, [initialTab, onTabTaken]);
+  useEffect(() => {
+    if (initialAnchor !== null) onAnchorTaken?.();
+  }, [initialAnchor, onAnchorTaken]);
 
   const outcome: Outcome = useMemo(
     () => ({
@@ -131,6 +148,7 @@ export function PlanPage({
     setFocusCheck(checkId);
   }, []);
   const checkFocused = useCallback(() => setFocusCheck(null), []);
+  const calendarFocused = useCallback(() => setAnchor(null), []);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
@@ -198,7 +216,14 @@ export function PlanPage({
           <GatesTab snapshot={snapshot} focusCheck={focusCheck} onFocused={checkFocused} />
         )}
         {tab === 'people' && <PeopleTab snapshot={snapshot} />}
-        {tab === 'handover' && <HandoverTab snapshot={snapshot} onGates={gates} />}
+        {tab === 'handover' && (
+          <HandoverTab
+            snapshot={snapshot}
+            onGates={gates}
+            focusCalendar={anchor === 'aftercare-calendar'}
+            onCalendarFocused={calendarFocused}
+          />
+        )}
         {tab === 'changes' && <ChangesTab snapshot={snapshot} />}
         {tab === 'snags' && <SnagsTab snapshot={snapshot} />}
         {tab === 'purchases' && <PurchasesTab snapshot={snapshot} />}

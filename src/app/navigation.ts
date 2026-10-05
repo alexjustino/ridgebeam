@@ -43,6 +43,11 @@ export interface Navigation {
   /** Open the Plan on its Purchases tab (G2: the dashboard's To order this week card leads there). */
   openPurchases: () => void;
   /**
+   * Open the Plan on its Handover tab, scrolled to the calendar of what comes due, with the focus on
+   * it (G4: the dashboard's After the handover card leads there).
+   */
+  openAftercare: () => void;
+  /**
    * Open this week's meeting (G1): a full page reached from the dashboard's card, with the agenda the
    * record wrote. Not a destination of the rail — the meeting is something done on the dashboard's
    * way, and leaving it with a draft asks before the draft is dropped.
@@ -66,6 +71,7 @@ export const NavigationContext = createContext<Navigation>({
   openChanges: () => undefined,
   openSnags: () => undefined,
   openPurchases: () => undefined,
+  openAftercare: () => undefined,
   openMeeting: () => undefined,
   openMinutes: () => undefined,
 });

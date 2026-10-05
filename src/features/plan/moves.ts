@@ -1,6 +1,7 @@
 import { useCallback, type KeyboardEvent } from 'react';
 
 import { useMove, type MoveKind } from '@/data/queries';
+import { maintenanceInOrder, warrantiesInOrder } from '@/domain/aftercare';
 import { breakdown } from '@/domain/arrangements';
 import { checksAt } from '@/domain/checks';
 import { moved, type Direction } from '@/domain/ordering';
@@ -40,6 +41,18 @@ function positionOf(snapshot: WorkSnapshot, kind: MoveKind, id: string): string 
     if (note === undefined) return '';
     return String(
       careNotesOf(snapshot, note.targetKind, note.targetId).findIndex((each) => each.id === id) + 1,
+    );
+  }
+  if (kind === 'warranty' || kind === 'maintenance') {
+    // A warranty's or a task's place is among those of its own target, as a care note's is.
+    const list: ReadonlyArray<{ id: string; targetKind: string; targetId: string }> =
+      kind === 'warranty' ? warrantiesInOrder(snapshot) : maintenanceInOrder(snapshot);
+    const row = list.find((each) => each.id === id);
+    if (row === undefined) return '';
+    return String(
+      list
+        .filter((each) => each.targetKind === row.targetKind && each.targetId === row.targetId)
+        .findIndex((each) => each.id === id) + 1,
     );
   }
   if (kind === 'decision') {

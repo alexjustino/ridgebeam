@@ -96,6 +96,7 @@ const NAVIGATION: Navigation = {
   openChanges: () => undefined,
   openSnags: () => undefined,
   openPurchases: () => undefined,
+  openAftercare: () => undefined,
   openMeeting: vi.fn(),
   openMinutes: vi.fn(),
 };

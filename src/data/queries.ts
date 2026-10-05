@@ -75,6 +75,16 @@ import {
   purchaseEventAdd,
   purchaseRemove,
   purchaseUpdate,
+  warrantyAdd,
+  warrantyMove,
+  warrantyRemove,
+  warrantyUpdate,
+  maintenanceAdd,
+  maintenanceDoneAdd,
+  maintenanceMove,
+  maintenanceRemove,
+  maintenanceUpdate,
+  aftercareIcsWrite,
   careNoteRemove,
   careNoteUpdate,
   checkAdd,
@@ -161,6 +171,9 @@ import {
   type FundingReceiptDraft,
   type PurchaseDraft,
   type PurchaseEventDraft,
+  type WarrantyDraftWire,
+  type MaintenanceDraftWire,
+  type MaintenanceDoneWire,
   type DecisionPatch,
   type EntryDraft,
   type Gate,
@@ -405,7 +418,8 @@ export function useRemoveRoom() {
 }
 
 /** A move names what moves: a stage, an activity inside its stage, or a room. */
-export type MoveKind = 'stage' | 'activity' | 'room' | 'decision' | 'check' | 'careNote';
+export type MoveKind =
+  'stage' | 'activity' | 'room' | 'decision' | 'check' | 'careNote' | 'warranty' | 'maintenance';
 
 const MOVES: Record<MoveKind, (id: string, direction: Direction) => Promise<WorkSnapshot>> = {
   stage: stageMove,
@@ -414,6 +428,8 @@ const MOVES: Record<MoveKind, (id: string, direction: Direction) => Promise<Work
   decision: decisionMove,
   check: checkMove,
   careNote: careNoteMove,
+  warranty: warrantyMove,
+  maintenance: maintenanceMove,
 };
 
 export function useMove() {
@@ -750,6 +766,48 @@ export function useRemovePurchase() {
 /** Ordered, delivered, or the order fell through: one fact, appended. */
 export function useAddPurchaseEvent() {
   return useWorkCommand((event: PurchaseEventDraft) => purchaseEventAdd(event));
+}
+
+// ── After the handover: warranties and maintenance (G4) ──────────────────────
+
+export function useAddWarranty() {
+  return useWorkCommand((draft: WarrantyDraftWire) => warrantyAdd(draft));
+}
+
+export function useUpdateWarranty() {
+  return useWorkCommand((draft: WarrantyDraftWire & { id: string }) => warrantyUpdate(draft));
+}
+
+export function useRemoveWarranty() {
+  return useWorkCommand((id: string) => warrantyRemove(id));
+}
+
+export function useAddMaintenance() {
+  return useWorkCommand((draft: MaintenanceDraftWire) => maintenanceAdd(draft));
+}
+
+export function useUpdateMaintenance() {
+  return useWorkCommand((draft: MaintenanceDraftWire & { id: string }) => maintenanceUpdate(draft));
+}
+
+export function useRemoveMaintenance() {
+  return useWorkCommand((id: string) => maintenanceRemove(id));
+}
+
+/** One time a task was done: a fact, appended. */
+export function useAddMaintenanceDone() {
+  return useWorkCommand((record: MaintenanceDoneWire) => maintenanceDoneAdd(record));
+}
+
+/**
+ * The calendar of what comes due, as an `.ics` file: one file written, nothing in the work changed,
+ * so nothing in the cache either.
+ */
+export function useWriteAftercareIcs() {
+  return useMutation({
+    mutationFn: ({ path, text, overwrite }: { path: string; text: string; overwrite: boolean }) =>
+      aftercareIcsWrite(path, text, overwrite),
+  });
 }
 
 // ── People and money (F6) ────────────────────────────────────────────────────
