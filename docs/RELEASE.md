@@ -314,6 +314,27 @@ release that skipped a step is a release nobody can reason about afterwards.
      extensions from the Microsoft Store, or the iPhone's _Camera → Formats_ set to _Most
      Compatible_ — and nothing of the entry is saved. Nothing here is committed: the photos are the
      tester's own and stay off the repository;
+   - **read the work told in photos** on a real work — one with at least two rooms, weeks of diary
+     entries with photos, a check of hidden work answered with its photo and a snag fixed with both
+     of its photos; a copy of a real work, kept off the repository. On the **Diary**, switch to **In
+     photos**: each room is a section with its name and _From … to … · n photos_, the photos run
+     oldest first, and a month label stands where the month changes. Count one room's photos against
+     the diary's days: every photo is there, none left out, and none twice. The pipe photographed
+     for the check comes before that day's diary photos; the snag's problem is on the day it was
+     raised and its fix on the day it was fixed, each captioned so, in words. An entry that named no
+     activity is in the last section. Open one photo: the system's viewer shows the original.
+     Leave for the Dashboard and come back: the Diary is still on **In photos**; restart the
+     product, and it opens on **Day by day**. On **Reports**, write the handover book: each room's
+     **In photos, first to last** prints its photos three to a row, oldest first, captioned with the
+     day and what it shows, under the line with the first and last day; a room with more than
+     twelve shows its first and its last and says how many more are in the work's folder; the hidden
+     work and the fixed snag are printed once, in their own places, not again among them. Write the
+     owner's snapshot and **open it on a phone**, in its own browser and from inside a messaging
+     app: **The work in photos** comes after _Lately on site_ and before the money, each room a strip
+     of photos three to a row that a thumb can read, captioned with the day, saying how many it left
+     out; the file is still one a messaging app takes. On a new work with no photo, the Diary's **In
+     photos** says where photos come from, and the snapshot has no such part. Do it once in
+     Portuguese, where the view is _Em fotos_ and the part _A obra em fotos_, in the light theme;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and
