@@ -12,6 +12,7 @@ import { announce } from '@/ui/announce';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { InfoBar } from '@/ui/InfoBar';
+import { DateField } from '@/ui/DateField';
 import { Input } from '@/ui/Input';
 import { Select } from '@/ui/Select';
 import { TextArea } from '@/ui/TextArea';
@@ -58,6 +59,7 @@ export function RaiseSnagForm({
   const [activityId, setActivityId] = useState('');
   const [personId, setPersonId] = useState('');
   const [dueOn, setDueOn] = useState('');
+  const [duePending, setDuePending] = useState(false);
   const [path, setPath] = useState<string | null>(null);
   const [photoRefused, setPhotoRefused] = useState<string | null>(null);
   const [problems, setProblems] = useState<readonly string[]>([]);
@@ -87,6 +89,8 @@ export function RaiseSnagForm({
       photoHash: null,
     };
     const found = snagProblemsText(i18n, term, validateSnagDraft(snapshot, draft));
+    // A due day half typed is not "no due day": the field says what is wrong, and nothing is saved.
+    if (duePending) found.unshift(t('snags.problem.dueUnfinished', { snag: term('snag') }));
     setProblems(found);
     if (found.length > 0) return;
 
@@ -238,14 +242,14 @@ export function RaiseSnagForm({
             <label htmlFor={id('due')} className="text-caption font-semibold text-fg-secondary">
               {t('snags.field.due')}
             </label>
-            <Input
+            <DateField
               id={id('due')}
-              type="date"
               data-testid="snag-due"
               min={today}
               aria-describedby={id('due-hint')}
               value={dueOn}
-              onChange={(event) => setDueOn(event.target.value)}
+              onChange={setDueOn}
+              onPendingChange={setDuePending}
             />
             <span id={id('due-hint')} className="text-caption text-fg-tertiary">
               {t('snags.field.due.hint', { snag: term('snag') })}

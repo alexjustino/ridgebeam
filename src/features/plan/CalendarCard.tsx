@@ -23,6 +23,7 @@ import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { Checkbox } from '@/ui/Checkbox';
 import { InfoBar } from '@/ui/InfoBar';
+import { DateField } from '@/ui/DateField';
 import { Input } from '@/ui/Input';
 
 import type { Outcome } from './outcome';
@@ -271,12 +272,12 @@ function CalendarEditor({ snapshot, outcome }: { snapshot: WorkSnapshot; outcome
           noValidate
           className="grid grid-cols-[10rem_minmax(0,1fr)_auto] items-start gap-2"
         >
-          <Input
-            type="date"
+          <DateField
             data-testid="holiday-date"
             aria-label={t('plan.calendar.holidayDay')}
+            hint="hidden"
             value={newDate}
-            onChange={(event) => setNewDate(event.target.value)}
+            onChange={setNewDate}
           />
           <Input
             data-testid="holiday-name"
