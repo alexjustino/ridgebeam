@@ -24,7 +24,9 @@
 //!   the same line that opens onto nothing; a table is `<table>` inside a
 //!   region that scrolls sideways on a phone; `rule` is `<hr>`; `pageBreak` is
 //!   ignored; an image is `<figure><img src="data:image/jpeg;base64,…">` with
-//!   its caption, two half images in a row side by side; a schedule is an
+//!   its caption, a run of half images two to a row and a run of third images
+//!   (G6) three to a row — two on a phone's narrow screen, one on the
+//!   narrowest; a third after a half starts a run of its own; a schedule is an
 //!   inline `<svg>` of bars with each activity's label as text and a `<title>`
 //!   per bar.
 //!
@@ -67,6 +69,12 @@ pub const MAX_FILE_BYTES: u64 = 12 * 1024 * 1024;
 /// The longest edge of a photo in a snapshot, in pixels.
 pub const MAX_SIDE: u32 = 1024;
 
+/// The longest edge of a photo the snapshot places only as a third (G6), in
+/// pixels: on a phone two thirds share a row, about 175 CSS pixels each, and
+/// on a wider screen three do, about 205 each — 640 is three times that
+/// across a lying photo, and more than twice across an upright one.
+pub const THIRD_SIDE: u32 = 640;
+
 /// The JPEG quality a photo in a snapshot is encoded at.
 pub const QUALITY: u8 = 78;
 
@@ -75,11 +83,12 @@ pub const QUALITY: u8 = 78;
 pub const TOO_MUCH_IMAGE_DATA: &str =
     "The photos of this snapshot come to more than 8 MiB; a snapshot holds at most 8 MiB of photos.";
 
-/// How a snapshot's photos are prepared: 1 024 px, quality 78, **always
-/// re-encoded** — not even a stripped original goes into a file meant to be
-/// sent.
+/// How a snapshot's photos are prepared: 1 024 px — 640 for a photo placed
+/// only as a third (G6) —, quality 78, **always re-encoded** — not even a
+/// stripped original goes into a file meant to be sent.
 pub const SENT: Setting = Setting {
     max_side: MAX_SIDE,
+    third_side: THIRD_SIDE,
     quality: QUALITY,
     pass_through: false,
     max_bytes: MAX_IMAGE_BYTES,
@@ -232,8 +241,11 @@ th{color:var(--fg2);font-weight:600;white-space:nowrap;background:var(--tint)}\
 figure{margin:0 0 1rem}\
 img{display:block;max-width:100%;height:auto;border-radius:6px;background:var(--subtle)}\
 figcaption{color:var(--fg3);font-size:.875rem;margin-top:.375rem}\
-.pair{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin:0 0 1rem}\
-.pair figure{margin:0}\
+.pair,.trio{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin:0 0 1rem}\
+.trio{grid-template-columns:repeat(3,1fr)}\
+.pair figure,.trio figure{margin:0}\
+@media (max-width:30rem){.trio{grid-template-columns:1fr 1fr}}\
+@media (max-width:17.5rem){.trio{grid-template-columns:1fr}}\
 .gantt svg{display:block;overflow:visible}\
 .gantt{padding:.5rem;border:1px solid var(--subtle);border-radius:8px;background:var(--card)}\
 .grid{stroke:var(--subtle);stroke-width:1}\
@@ -337,32 +349,36 @@ pub fn render(
             Block::Rule => out.push_str("<hr>\n"),
             Block::PageBreak => {}
             Block::Image {
-                size: ImageSize::Half,
-                ..
+                hash,
+                caption,
+                size: ImageSize::Full,
             } => {
-                // A run of half images, two to a row.
+                photo(&mut out, images, hash, caption, document.language)?;
+            }
+            Block::Image { size, .. } => {
+                // A run of half images, two to a row, or of third images,
+                // three to a row: one grid, which wraps on a narrow screen.
                 let start = index;
                 while index + 1 < blocks.len()
                     && matches!(
-                        blocks[index + 1],
-                        Block::Image {
-                            size: ImageSize::Half,
-                            ..
-                        }
+                        &blocks[index + 1],
+                        Block::Image { size: next, .. } if next == size
                     )
                 {
                     index += 1;
                 }
-                out.push_str("<div class=\"pair\">\n");
+                let class = if *size == ImageSize::Third {
+                    "trio"
+                } else {
+                    "pair"
+                };
+                out.push_str(&format!("<div class=\"{class}\">\n"));
                 for block in &blocks[start..=index] {
                     if let Block::Image { hash, caption, .. } = block {
                         photo(&mut out, images, hash, caption, document.language)?;
                     }
                 }
                 out.push_str("</div>\n");
-            }
-            Block::Image { hash, caption, .. } => {
-                photo(&mut out, images, hash, caption, document.language)?;
             }
         }
         index += 1;

@@ -731,3 +731,88 @@ fn the_verifier_refuses_every_forbidden_pattern_put_into_a_rendered_page() {
     assert!(page.contains("//"), "the base64 does hold //");
     verify(&page).expect("a photo's own bytes are not markup");
 }
+
+/// G6: a run of third images is one grid, three to a row — two on a phone's
+/// narrow screen, one on the narrowest — and a third after a half starts a
+/// run of its own, as a half after a third does.
+#[test]
+fn a_run_of_thirds_is_one_grid_and_each_size_keeps_its_own_run() {
+    let third = |caption: &str| json!({ "type": "image", "hash": PHOTO, "caption": caption, "size": "third" });
+    let half = json!({ "type": "image", "hash": WIDE, "caption": "", "size": "half" });
+    let document: ReportDocument = serde_json::from_value(json!({
+        "kind": "snapshot", "title": "The work today", "subtitle": "", "pageSize": "a4",
+        "language": "en",
+        "blocks": [
+            { "type": "heading", "level": 1, "text": "The work in photos" },
+            { "type": "paragraph", "text": "From 2 March to 30 September", "tone": "muted" },
+            third("2 Mar"), third("9 Mar"), third("16 Mar"), third("<b>30 Sep</b>"),
+            half,
+            third("Alone after a half"),
+            { "type": "paragraph", "text": "Between." },
+            third("A lone third")
+        ]
+    }))
+    .unwrap();
+    let page = page(&document);
+
+    let figure = |caption: &str| {
+        format!(
+            "\" alt=\"{caption}\" width=\"300\" height=\"200\">\n<figcaption>{caption}</figcaption>\n</figure>\n"
+        )
+    };
+    // Four thirds: one grid, the four in order, each with its caption.
+    let run = page
+        .split("<div class=\"trio\">\n")
+        .nth(1)
+        .and_then(|rest| rest.split("</div>\n").next())
+        .unwrap();
+    assert_eq!(run.matches("<figure>").count(), 4);
+    let mut at = 0;
+    for caption in ["2 Mar", "9 Mar", "16 Mar", "&lt;b&gt;30 Sep&lt;&#47;b&gt;"] {
+        let found = run[at..].find(&figure(caption)).expect(caption);
+        at += found + 1;
+    }
+    // Then a half's own run, then a third's, then a lone third's.
+    let order: Vec<&str> = page
+        .match_indices("<div class=\"")
+        .map(|(i, _)| &page[i + 12..i + 16])
+        .collect();
+    assert_eq!(order, vec!["trio", "pair", "trio", "trio"]);
+    assert!(page.contains("<div class=\"trio\">\n<figure>\n<img src=\"data:image/jpeg;base64,"));
+    assert!(page.contains(&figure("A lone third")));
+    assert!(page.contains("<p>Between.</p>\n<div class=\"trio\">\n<figure>"));
+    assert_eq!(page.matches("<img ").count(), 7);
+    assert_eq!(page.matches("</div>").count(), 4);
+
+    // The style: three to a row, two on a phone, one on the narrowest — no
+    // script, nothing loaded.
+    for needle in [
+        ".trio{grid-template-columns:repeat(3,1fr)}",
+        "@media (max-width:30rem){.trio{grid-template-columns:1fr 1fr}}",
+        "@media (max-width:17.5rem){.trio{grid-template-columns:1fr}}",
+        ".pair figure,.trio figure{margin:0}",
+    ] {
+        assert!(STYLE.contains(needle), "{needle:?} in the style");
+    }
+    assert!(!page.to_ascii_lowercase().contains("<script"));
+}
+
+/// The snapshot's cap counts thirds as it counts every image block.
+#[test]
+fn the_cap_on_photos_counts_thirds_as_any_other() {
+    let with = |count: usize| -> ReportDocument {
+        serde_json::from_value(json!({
+            "kind": "snapshot", "title": "The work today", "subtitle": "", "pageSize": "a4",
+            "language": "en",
+            "blocks": (0..count)
+                .map(|n| json!({ "type": "image", "hash": format!("{n:064x}"), "caption": "", "size": "third" }))
+                .collect::<Vec<Value>>()
+        }))
+        .unwrap()
+    };
+    check(&with(MAX_IMAGES)).expect("60 thirds");
+    assert_eq!(
+        check(&with(MAX_IMAGES + 1)).unwrap_err().to_string(),
+        "A snapshot holds at most 60 photos; this one places 61."
+    );
+}

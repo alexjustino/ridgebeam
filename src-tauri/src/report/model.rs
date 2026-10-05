@@ -19,7 +19,8 @@
 //!
 //! An image (D3) is named by the SHA-256 of a file the open work holds, never
 //! by a path: the host finds it in the work's own `documents/`, and embeds it
-//! (`report::images`). Two `half` images in a row sit side by side.
+//! (`report::images`). Two `half` images in a row sit side by side, and up to
+//! three `third` images (G6) share a row.
 //!
 //! On the wire (camelCase, `type` tags):
 //!
@@ -36,7 +37,7 @@
 //!       critical, baselineStart: number | null, baselineLength: number | null }] }
 //!     { type: 'rule' }
 //!     { type: 'pageBreak' }
-//!     { type: 'image', hash, caption, size: 'full' | 'half' } ] }
+//!     { type: 'image', hash, caption, size: 'full' | 'half' | 'third' } ] }
 //! ```
 //!
 //! The same document is the owner's snapshot (D4, kind `snapshot`), rendered
@@ -92,8 +93,10 @@ pub enum ReportKind {
     Minutes,
 }
 
-/// How wide an image is printed: the line, or half of it — two half images in
-/// a row sit side by side.
+/// How wide an image is printed: the line, half of it or a third of it — two
+/// half images in a row sit side by side, and up to three third images (G6).
+/// A run of one size is never mixed with another: a third after a half starts
+/// a row of its own.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ImageSize {
@@ -101,6 +104,19 @@ pub enum ImageSize {
     Full,
     /// Half the line.
     Half,
+    /// A third of the line (G6): a photo story's strip.
+    Third,
+}
+
+impl ImageSize {
+    /// How many photos of this size share a row.
+    pub fn per_row(self) -> usize {
+        match self {
+            ImageSize::Full => 1,
+            ImageSize::Half => 2,
+            ImageSize::Third => 3,
+        }
+    }
 }
 
 /// The paper.
@@ -253,7 +269,7 @@ pub enum Block {
         hash: String,
         /// Printed under it; may be empty.
         caption: String,
-        /// The line's width, or half of it.
+        /// The line's width, half of it or a third of it.
         size: ImageSize,
     },
 }
@@ -708,7 +724,8 @@ pub mod tests {
             "language": "pt-BR",
             "blocks": [
                 { "type": "image", "hash": hash, "caption": "Pipes before the wall", "size": "full" },
-                { "type": "image", "hash": hash, "caption": "", "size": "half" }
+                { "type": "image", "hash": hash, "caption": "", "size": "half" },
+                { "type": "image", "hash": hash, "caption": "Day 3", "size": "third" }
             ]
         }))
         .expect("the wire shape the interface sends");
@@ -728,9 +745,25 @@ pub mod tests {
                 ..
             }
         ));
+        // G6: a third of the line, checked as every image is.
+        assert!(matches!(
+            document.blocks[2],
+            Block::Image {
+                size: ImageSize::Third,
+                ..
+            }
+        ));
+        assert_eq!(
+            [ImageSize::Full, ImageSize::Half, ImageSize::Third].map(ImageSize::per_row),
+            [1, 2, 3]
+        );
         check(&document).expect("inside every limit");
         assert!(serde_json::from_value::<Block>(
             serde_json::json!({ "type": "image", "hash": hash, "caption": "", "size": "quarter" })
+        )
+        .is_err());
+        assert!(serde_json::from_value::<Block>(
+            serde_json::json!({ "type": "image", "hash": hash, "caption": "", "size": "Third" })
         )
         .is_err());
         assert!(serde_json::from_value::<Block>(
@@ -757,18 +790,38 @@ pub mod tests {
                 "{hostile}"
             );
         }
-        let long_caption = Block::Image {
-            hash: hash.clone(),
-            caption: "x".repeat(MAX_TEXT_CHARS + 1),
-            size: ImageSize::Half,
-        };
-        assert!(refused(&with_blocks(vec![long_caption])).starts_with("Block 1 has a text longer"));
+        for size in [ImageSize::Half, ImageSize::Third] {
+            let long_caption = Block::Image {
+                hash: hash.clone(),
+                caption: "x".repeat(MAX_TEXT_CHARS + 1),
+                size,
+            };
+            assert!(
+                refused(&with_blocks(vec![long_caption])).starts_with("Block 1 has a text longer")
+            );
+            let unnamed = Block::Image {
+                hash: "../work.sqlite3".into(),
+                caption: String::new(),
+                size,
+            };
+            assert!(refused(&with_blocks(vec![unnamed])).contains("not named by a hash"));
+        }
 
-        // Distinct photos: 400, not 401.
+        // Distinct photos: 400, not 401 — whatever their size.
         let numbered = |n: usize| image(&format!("{n:064x}"));
         check(&with_blocks((0..MAX_IMAGES).map(numbered).collect())).expect("400 photos");
         assert_eq!(
             refused(&with_blocks((0..=MAX_IMAGES).map(numbered).collect())),
+            "A report holds at most 400 photos; this one has 401."
+        );
+        let third = |n: usize| Block::Image {
+            hash: format!("{n:064x}"),
+            caption: String::new(),
+            size: ImageSize::Third,
+        };
+        check(&with_blocks((0..MAX_IMAGES).map(third).collect())).expect("400 thirds");
+        assert_eq!(
+            refused(&with_blocks((0..=MAX_IMAGES).map(third).collect())),
             "A report holds at most 400 photos; this one has 401."
         );
         // Placements: the same photo placed again counts as a placement, not

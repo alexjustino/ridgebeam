@@ -32,6 +32,9 @@
 //!   re-encoded).
 //! - G1: the `minutes` kind — a meeting's minutes, laid out as any other
 //!   report.
+//! - G6: the `third` image size — up to three to a row, in the PDF and the
+//!   snapshot alike; a photo placed only as a third is prepared smaller
+//!   (`images::THIRD_SIDE`, `html::THIRD_SIDE`).
 
 pub mod csv;
 pub mod html;
