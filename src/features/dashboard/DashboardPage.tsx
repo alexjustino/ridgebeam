@@ -34,6 +34,7 @@ import {
   readinessRowText,
   readinessSentence,
 } from '@/features/reports/compose/words';
+import { workFinishedOn } from '@/features/plan/aftercareWords';
 import { RestoredNote } from '@/features/start/RestoredNote';
 import { TemplateNotes } from '@/features/templates/TemplateNotes';
 import type { MessageKey } from '@/i18n/en';
@@ -44,6 +45,7 @@ import { Card } from '@/ui/Card';
 import { FigureRow } from '@/ui/FigureRow';
 import { InfoBar } from '@/ui/InfoBar';
 
+import { AftercareCard } from './AftercareCard';
 import { BackupReminder } from './BackupReminder';
 import { ChangesCard } from './ChangesCard';
 import { DelayCard } from './DelayCard';
@@ -80,6 +82,10 @@ function ruleGroup(ruleId: MissingId, t: (key: MessageKey) => string) {
  * Every number is computed here from the snapshot by the domain, every time — nothing about
  * readiness is stored — and the figure and the sentence are two readings of the same rows, so
  * they cannot disagree (DESIGN_SYSTEM §2).
+ *
+ * After the handover (G4): once every stage is closed the work is finished, and the After the
+ * handover card — what is overdue, due soon and ending soon — is the first card; until then it sits
+ * after the purchases.
  */
 export function DashboardPage({
   snapshot,
@@ -104,6 +110,8 @@ export function DashboardPage({
   const measure = readiness(snapshot, { schedule: scheduled, today });
   const figure = readinessFigure(measure);
   const sentence = readinessSentence(i18n, measure.missing);
+  // A finished work's front door leads with what comes due after the handover (G4, ADR-048).
+  const finished = workFinishedOn(snapshot) !== null;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-6">
@@ -148,6 +156,8 @@ export function DashboardPage({
 
       <RestoredNote workId={snapshot.work.workId} onDismissed={() => title.current?.focus()} />
       <TemplateNotes workId={snapshot.work.workId} onDismissed={() => title.current?.focus()} />
+
+      {finished && <AftercareCard snapshot={snapshot} today={today} />}
 
       <NextQuestionCard
         snapshot={snapshot}
@@ -195,6 +205,8 @@ export function DashboardPage({
       <DelayCard snapshot={snapshot} scheduled={scheduled} today={today} />
 
       <PurchasesCard snapshot={snapshot} scheduled={scheduled} today={today} />
+
+      {!finished && <AftercareCard snapshot={snapshot} today={today} />}
 
       <StagesCard snapshot={snapshot} />
 
