@@ -807,6 +807,46 @@ breaks one is not merged.
   words what it does — _"This deletes the file {id}.json from your templates folder."_ — because
   removing is deleting a file, and the product keeps no other copy. A learned template applied is a
   template like any other: its ranges are shown as ranges until a person picks (above) (ADR-047).
+- **A day that comes due is said with what it is and how far it is.** The day a warranty ends and
+  the day a maintenance task is next due are never a date alone on a row: a bare date makes the
+  reader do the arithmetic, and the arithmetic is the point. Each says **what the day is** — _ends
+  on 15 Mar 2027_, _next due on 2 Nov_ — and **how far it is, in words, with its unit** — _in 12
+  days_, _3 days overdue_, _ended 40 days ago_ — computed by the domain from today, never typed and
+  never kept on screen (§8, _a deadline is never typed_). **Overdue**, **due soon** and **ending
+  soon** are said in words and with their icon, never by colour alone (§2, _severity is never colour
+  alone_), and **what is overdue comes first**, the most days first. A task's row also says how often
+  and when it was last done — _"Every 12 months · last done on 4 Oct 2026 · next due on 4 Oct
+  2027"_ — because its next due day is read from that record; a task never done says it is first due
+  then. On the Plan's **Handover** tab, the **Warranties** section adds (`warranty-add`) through a
+  dialog with the title (`warranty-title`), what it covers (`warranty-target`), who gives it
+  (`warranty-given-by`), the day it starts (`warranty-starts`, a `DateField`), its length — a number
+  (`warranty-length`) and a unit, months or years (`warranty-unit`), stored as months — and its
+  paper, chosen among the documents of kind warranty (`warranty-document`, optional), saved by
+  `warranty-save`; each row is `[data-warranty-id]`, with `data-state` (`active`, `ending-soon`,
+  `ended`) and `data-ends`. The **Maintenance** section adds (`maintenance-add`) with the title
+  (`maintenance-title`), what it covers (`maintenance-target`), every how many months
+  (`maintenance-every`) and the day first due (`maintenance-first`), saved by `maintenance-save`;
+  each row is `[data-task-id]`, with `data-next` and `data-overdue`. **Mark as done…**
+  (`maintenance-done`) opens a dialog that asks the day (`maintenance-done-day`) and takes a note
+  (`maintenance-done-note`), confirmed by a button that repeats the verb
+  (`maintenance-done-confirm`); it is not destructive and does not take the danger tone, and a
+  record once written offers no Edit and no Delete. A task with a record offers no Remove, and says
+  why. The Dashboard's **After the handover** card (`dashboard-aftercare`) — overdue, due in the next
+  30 days and warranties ending in the next 90 (`aftercare-overdue-value`, `aftercare-soon-value`,
+  `aftercare-ending-value`), each a figure that opens onto its rows (§2, _a number can be opened_),
+  and the way to the calendar — is not shown while the work has no warranty and no task, and is
+  **first on the Dashboard once every stage is closed** (ADR-048).
+- **A calendar month with nothing in it says so.** The calendar of what comes due
+  (`aftercare-calendar`) is a list, not a grid: the next twelve months, each a heading over its
+  items in day order, each item an icon and words for its kind — _task due_, _warranty ends_ — its
+  day, and _overdue_ in words where it is. A task already overdue is listed in the current month,
+  marked so. **A month with nothing due is shown, with a sentence that says nothing comes due in
+  it**, never left out and never a heading over nothing — in a calendar, an empty month is an
+  answer, where an empty agenda section is noise (§8, _an agenda is built from the record, and says
+  when it is empty_). **Add to your calendar…** (`aftercare-ics`) opens the save dialog for an `.ics`
+  file and, done, says where it went (`aftercare-ics-done`), and in a sentence what the file is: the
+  same days, for the person's own calendar to remind them, written again to update it. The product
+  reminds nobody, and no screen says it will (ADR-048).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries

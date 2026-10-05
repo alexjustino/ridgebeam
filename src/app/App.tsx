@@ -14,7 +14,7 @@ import { DiaryPage } from '@/features/diary/DiaryPage';
 import { MeetingPage } from '@/features/meeting/MeetingPage';
 import { MoneyPage } from '@/features/money/MoneyPage';
 import { DocumentsPage } from '@/features/documents/DocumentsPage';
-import { PlanPage, type PlanTab } from '@/features/plan/PlanPage';
+import { PlanPage, type PlanAnchor, type PlanTab } from '@/features/plan/PlanPage';
 import { ReportsPage, type ReportsFocus } from '@/features/reports/ReportsPage';
 import { SchedulePage } from '@/features/schedule/SchedulePage';
 import { SettingsPage, type SettingsFocus } from '@/features/settings/SettingsPage';
@@ -58,6 +58,10 @@ export function App({ settings }: { settings: Settings }) {
   // the plan has taken it, then let go, as the row above is.
   const [planTab, setPlanTab] = useState<PlanTab | null>(null);
   const releasePlanTab = useCallback(() => setPlanTab(null), []);
+  // The place on that tab it asked for (G4: the dashboard's After the handover card opens the
+  // Handover tab on its calendar), let go once the plan has taken it.
+  const [planAnchor, setPlanAnchor] = useState<PlanAnchor | null>(null);
+  const releasePlanAnchor = useCallback(() => setPlanAnchor(null), []);
   // The row a count asked the Documents page to open filtered on (F7): one editing place, and a
   // count elsewhere that links to it already filtered.
   const [documentsFilter, setDocumentsFilter] = useState<string | null>(null);
@@ -123,6 +127,11 @@ export function App({ settings }: { settings: Settings }) {
       },
       openPurchases: () => {
         setPlanTab('purchases');
+        setDestination('plan');
+      },
+      openAftercare: () => {
+        setPlanTab('handover');
+        setPlanAnchor('aftercare-calendar');
         setDestination('plan');
       },
       openMeeting: () => {
@@ -282,6 +291,8 @@ export function App({ settings }: { settings: Settings }) {
                       onFocusTaken={releasePlanFocus}
                       initialTab={planTab}
                       onTabTaken={releasePlanTab}
+                      initialAnchor={planAnchor}
+                      onAnchorTaken={releasePlanAnchor}
                     />
                   )}
                   {!showsStart && destination === 'schedule' && snapshot !== null && (

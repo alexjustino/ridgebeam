@@ -863,6 +863,28 @@
       }
     },
     {
+      "key": "warranty",
+      "en": {
+        "term": "warranty",
+        "sentence": "What the paper a work came with promises — what it covers, who gives it, from when and for how long. Ridgebeam says the day it ends, the same day so many months later, as the paper says it; it does not read the paper or its conditions."
+      },
+      "pt-BR": {
+        "term": "garantia",
+        "sentence": "O que promete o papel que veio com a obra — o que cobre, quem dá, a partir de quando e por quanto tempo. O Ridgebeam diz o dia em que ela termina, o mesmo dia tantos meses depois, como o papel diz; não lê o papel nem as suas condições."
+      }
+    },
+    {
+      "key": "maintenance",
+      "en": {
+        "term": "maintenance",
+        "sentence": "A task the work needs again and again after the handover, every so many months; each time it is done is recorded and never edited."
+      },
+      "pt-BR": {
+        "term": "manutenção",
+        "sentence": "Uma tarefa de que a obra precisa de novo e de novo depois da entrega, a cada tantos meses; cada vez que é feita é registrada e nunca é editada."
+      }
+    },
+    {
       "key": "snapshot",
       "en": {
         "term": "owner's snapshot",

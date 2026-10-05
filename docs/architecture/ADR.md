@@ -71,7 +71,13 @@ its delivery are facts on record ([ADR-046](#adr-046)). The third, slice G3, let
 the next: the Schedule puts what each activity was planned to take beside what the diary says it
 took, and a work exports as a template **learned** from it — each finished activity's range made
 to hold both — saved to the person's own **My templates**, which the next work offers beside the
-library ([ADR-047](#adr-047)).
+library ([ADR-047](#adr-047)). The fourth, slice G4, follows the work past its handover: the
+warranties it came with — what each covers, who gives it, and the day it ends, the same day so many
+months later — and the maintenance it needs, each task's next due day read from the last time it was
+done, which is recorded and never edited; a calendar of the next twelve months of what comes due,
+which goes onto the person's own phone or computer as an `.ics` file, because the product sends no
+reminder itself. A finished work's Dashboard leads with it, and its handover book carries it
+([ADR-048](#adr-048)).
 
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -122,6 +128,7 @@ library ([ADR-047](#adr-047)).
 | [045](#adr-045) | The weekly site meeting: an agenda from the record, minutes that are never edited                                     | Accepted — 2026-10-05          |
 | [046](#adr-046) | What to order this week: lead times against the forecast, orders and deliveries as facts                              | Accepted — 2026-10-05          |
 | [047](#adr-047) | The work teaches the next: planned against actual, and templates learned from it                                      | Accepted — 2026-10-05          |
+| [048](#adr-048) | After the handover: warranties, maintenance, and a calendar of what comes due                                         | Accepted — 2026-10-05          |
 
 ---
 
@@ -2206,7 +2213,9 @@ before it.
 ## ADR-038 — The handover book: the work's record for its owner, photos of hidden work required where it matters {#adr-038}
 
 **Status.** Accepted — 2026-10-01. Amended by [ADR-044](#adr-044): each open snag is a gap of its
-own, and each fixed snag is printed with both photos, before and after.
+own, and each fixed snag is printed with both photos, before and after; and by
+[ADR-048](#adr-048): the book carries the work's warranties and its maintenance, and its gaps
+gain nothing.
 
 **Context.** The third differentiator ([ADR-036](#adr-036)). At the end of a work the owner is left
 with a folder of receipts, a phone full of photos and what the builder remembers to say on the way
@@ -3521,3 +3530,156 @@ finished never teaches, and an activity that did not finish keeps its planned nu
 folder, and copying it is how it travels. **Removing a template deletes its file**, and the product
 keeps no other copy. **Lead times are kept as planned, not learned**: G3 does not measure how long a
 decision or a delivery really took.
+
+## ADR-048 — After the handover: warranties, maintenance, and a calendar of what comes due {#adr-048}
+
+**Status.** Accepted — 2026-10-05.
+
+**Context.** This is G4, the fourth slice of the third wave ([ADR-045](#adr-045)). Every slice
+before it ends where the work ends: the last stage closed, the last snag fixed, the retention earned
+([ADR-044](#adr-044)) and the handover book written ([ADR-038](#adr-038)). The owner does not end
+there. They live with the work for decades, and the questions that come after are about days: is
+the shower valve still under warranty, and until when; when was the boiler last serviced; is it time
+to reseal the shower again. The product held part of each answer and said none of it. A warranty has
+been a kind of document since D3, filed with its bytes ([ADR-025](#adr-025)), and the book lists it
+by name — but what it covers, who gives it and the day it ends are in the paper, and no screen says
+them. A care note can say _"Reseal the shower grout once a year"_, and the book prints it — but a
+sentence counts nothing: it cannot say the seal is due next month, nor that it was last done two
+years ago. And a reminder, the one thing a person needs from such days, is the one thing a product
+with no network and no background process cannot send ([ADR-006](#adr-006)).
+
+**Decision.**
+
+- **Three tables, migration 019** (`019_aftercare.sql`, [`DATA_MODEL.md`](../DATA_MODEL.md)).
+  **A warranty** (`warranty`) carries a title, 1–200 characters — _Shower valve_; **what it
+  covers** — the whole work, a room or a stage, named by kind and id as a care note names it, not
+  by a foreign key, so the host removes a room's or a stage's warranties in the transaction that
+  removes it; **who gives it**, as written, up to 120 characters, optional — _the installer_, a
+  company; **the day it starts** and **how long it lasts, in months**, from 1 to 600 — the screen
+  takes months or years and stores months; optionally **its paper** — a document of the work of kind
+  `warranty`, which the host checks and the schema checks again (`aftercare: document`), and which
+  a document removed, or filed again as another kind, lets go of; and a note, up to
+  1 000 characters. **A warranty is editable and removable**: it is what the paper says, and a
+  correction is an edit. **A maintenance task** (`maintenance_task`) carries a title, 1–200
+  characters — _Reseal the shower_; what it covers, as a warranty does; **how often**, every so many
+  months, from 1 to 120; **the day it is first due**; and a note, up to 1 000 characters. A task is
+  editable, its cycle included — the next due day is computed from the last time it was done, so a
+  changed cycle moves it and rewrites nothing — and **removable only while it has never been
+  done**: a task with a history keeps it, and the host says so in a sentence. The warranties of
+  each target keep an order of their own, 1 … n, as its care notes do, and so do its tasks; the
+  person sets it, and the host closes it up after a removal.
+- **Each time a task is done is a fact** (`maintenance_done`). It carries the task, a number that
+  continues per task, **the day it was done** — never after today, and never before the day of the
+  record before it (`aftercare: out of order`) — a note up to 500 characters, and the name the
+  Windows account gives. **Insert-only**, with the battery of the money received (migration 014)
+  and the purchases' events (migration 018), raising `aftercare: append-only`: triggers refuse
+  `UPDATE` and `DELETE`, a guard before insert refuses a number already there, and the number
+  must be the next — so `INSERT OR REPLACE` removes nothing whether `recursive_triggers` is on or
+  off; the Rust module that writes the records holds no `UPDATE`, `DELETE` or `REPLACE`, which a
+  test reads its source to prove. A record written wrongly is not undone: the next record's note says
+  so. Because a task with records cannot be removed, **no record is ever orphaned** — and for the
+  same reason **a room or a stage that a task with records covers cannot be removed** either: the
+  host refuses with a sentence naming the task, and the schema refuses again
+  (`aftercare: done on record`). A room or a stage removed otherwise takes its
+  warranties and its tasks with it, in the same transaction. The commands are `warranty_add`,
+  `warranty_update`, `warranty_remove`, `warranty_move`, `maintenance_add`, `maintenance_update`,
+  `maintenance_remove`, `maintenance_move` and `maintenance_done_add`, each returning the work's
+  snapshot, which now carries the warranties and the tasks in their order, each task with its records
+  by number — and so the JSON export and every backup carry them.
+- **A warranty ends on the same day so many months later, clamped** (`addMonths` and `endsOn`, in
+  the domain, pure). A paper says _valid for 12 months_ and means until the same day a year on: a
+  12-month warranty from 15 March 2026 ends on 15 March 2027, and the owner is covered through that
+  day. A day the later month does not have becomes that month's last: a one-month warranty from
+  31 January 2026 ends on 28 February 2026, and from 31 January 2028 on 29 February. These are
+  **calendar months**, not working days: the work's calendar has nothing to say about a warranty.
+  Each warranty reads **active**, **ending soon** — it ends within 90 days — or **ended**, with the
+  calendar days left, what it covers by name, and its paper, when one is filed.
+- **A task's next due day is read from the last time it was done** (`maintenanceRows`, pure). While
+  it has never been done, it is the day first due; after that, the last record's day plus the cycle,
+  in calendar months, by the same rule. A task is **overdue** once that day has passed — with how
+  many days — and **due soon** within 30 days; each row says when it was last done and how many
+  times. Four figures carry their rows ([ADR-024](#adr-024)): **overdue**, the most days first;
+  **due in the next 30 days**; **warranties ending in the next 90 days**; and **warranties active**.
+- **A calendar of what comes due** (`aftercareCalendar`, pure). The next twelve calendar months from
+  today's, each with its items in day order: every day a task falls due inside the window — from its
+  next due day, stepping its cycle — and the day each warranty ends. A task already overdue is shown
+  in the current month, marked overdue. **A month with nothing in it says so** rather than being
+  left out, because _nothing comes due in May_ is an answer.
+- **The calendar goes onto the person's own as an `.ics` file** (`aftercareIcs`, pure; RFC 5545).
+  Each task is one all-day event on its next due day, repeating every so many months
+  (`RRULE:FREQ=MONTHLY;INTERVAL=n`); each warranty still in force is one all-day event on the day it
+  ends, with an alarm **30 days before**; a warranty that has ended is left out. **Every event's UID
+  is stable** — its warranty's or its task's id, then `@ridgebeam` — so the file written again, after
+  a task is done or a warranty corrected, updates the events a calendar already holds instead of
+  adding them twice. The words come from the interface, in the language on screen, so the domain
+  keeps no words of its own; the text is escaped as the standard says — backslash, semicolon, comma
+  and line break — every line is folded at 75 octets without splitting a character, and ends in
+  CRLF. The `PRODID` is `-//Ridgebeam//Aftercare//EN`, with no version, so the file says nothing
+  about the machine that wrote it. The host writes it with `aftercare_ics_write` through the same
+  path as every export: a full path ending in `.ics`, at most 1 MiB, written whole or not at all,
+  over an existing file only when the save dialog asked.
+- **Where it lives.** The Plan's **Handover** tab gains two sections, **Warranties** and
+  **Maintenance**, whose rows are added, edited, removed and moved as care notes are. A warranty
+  starts, by default, on the day the work finished when it has, and today when it has not; its paper
+  is chosen among the documents of kind warranty. Each task offers **Mark as done…**, a dialog with
+  the day and a note. Under the two sections, **the calendar**, and **Add to your calendar…**, which
+  opens the save dialog for an `.ics` file and says where it went. The **Dashboard** gains an
+  **After the handover** card — overdue, due soon and ending soon, each a figure that opens onto its
+  rows, and the way to the calendar — shown when the work has any warranty or task, and **first on
+  the Dashboard once every stage is closed**: a finished work's first question is no longer how the
+  work is going.
+- **The handover book carries it.** It gains a **Warranties** section — each with what it is, what
+  it covers, who gives it, the day it starts and the day it ends, and its paper by name — and a
+  **Maintenance** section — each task with how often, when it is next due, and every time it was
+  done, by day. The book's gaps gain nothing: a work may have no warranty to record, and a task
+  nobody wrote down is not something the book can know it lacks.
+- **Not plan, not readiness, not the meeting.** No baseline records a warranty or a task, so the
+  approved plan's lock does not cover them, and readiness learns no rule: what the owner keeps after
+  the work is not what the plan must know ([ADR-008](#adr-008)). The meeting's agenda gains nothing
+  ([ADR-045](#adr-045)): meetings are held while the work is being done.
+- **Words.** The glossary gains _warranty_ (_garantia_) — until now a kind of document with no
+  sentence of its own — and _maintenance_ (_manutenção_).
+- **ADR-038 is amended, not replaced.** The book gains two sections; its gaps, its first page and
+  everything else stay as they were, and its Status line points here.
+
+**Why beside the record.** The owner lives with the work for decades, and the product is already
+where its record is kept: the papers are among its documents, the rooms and the stages are its rows,
+and the book is what the owner was told to keep. A warranty's days and a task's cycle belong beside
+them — where the shower valve's paper and the photos of the shower already are — and not in a
+notebook or a spreadsheet that does not know the bathroom exists. A care note stays what it is, a
+sentence; a task is the same intention with a cycle the product can count.
+
+**Why the same day, clamped.** It is how the paper says it and how the person will read it: _valid
+until 15 March 2027_. Counting days — 365 for a year — would end a warranty a day early across a
+leap year, and counting to the end of the month would promise cover the paper does not give.
+Clamping is the one case the rule has to decide, and it decides it as a person would: there is no
+31 February, so the month's last day.
+
+**Why from the last time it was done.** A boiler serviced late is serviced, and its next service is
+a year from the day it happened, not from the day it should have. Counting from the day first due
+would leave a task done late forever close to overdue, and one done early with a gap that is not
+there. When it was done is the fact; the next due day is read from it.
+
+**Why the person's own calendar.** Ridgebeam has no network ([ADR-006](#adr-006)) and runs nothing
+while it is closed: it cannot send a reminder, and a reminder that appears only when somebody opens
+the product a year later is not one. Every phone and every computer already has a calendar that
+reminds, and `.ics` is the format they all read, with no account and no connection. The stable UIDs
+make writing the file again the way to bring it up to date.
+
+**Why records are facts, and a warranty is not.** _It was serviced in March_ is what a warranty
+claim or the sale of a house turns on, and a record that could be quietly moved is a record nobody
+can point to — the reason behind every ledger here. A warranty is a copy of a paper, and a copy with
+a typo is corrected.
+
+**Cost accepted.** **The end of a warranty is what the paper says, typed by the person**: Ridgebeam
+does not read the document, and a warranty with conditions — a registration, a yearly service — is
+a note, not a rule the product checks. **Months are calendar months**: a paper that counts its
+length in days is rounded by the person. **A task's next due day is computed from the day it was
+last recorded done**: doing it late moves the cycle, and that is the intended reading; a task done
+and not recorded reads overdue. **The `.ics` file is a snapshot**, written again to update: the
+stable UIDs make a calendar update rather than duplicate, but a warranty or a task removed in
+Ridgebeam stays in the calendar until the person removes it there. **The product sends no reminder
+itself**: no network, no background process — the calendar of the person's phone does the
+reminding, and a person who never adds the file is reminded only by opening the product.
+**Aftercare lives in the work's folder**: whoever has the folder has it, and a backup is how it
+outlives the computer it was written on.

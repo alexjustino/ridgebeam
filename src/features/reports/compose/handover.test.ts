@@ -6,9 +6,12 @@ import {
   decision,
   entry,
   finished,
+  maintenanceDone,
+  maintenanceTask,
   person,
   snapshot,
   stage,
+  warranty,
   worked,
 } from '@/domain/__fixtures__/plan';
 import type { DiaryEntry, Photo } from '@/domain/diary';
@@ -323,5 +326,69 @@ describe('in a room, a stage’s note says which stage', () => {
     const all = text(compose(ROOMED, 'en'));
     expect(all).toContain('Instalações: Não furar a parede atrás do vaso: há canos.');
     expect(all).not.toContain('Banheiro social: Refazer');
+  });
+});
+
+describe.each(LANGUAGES)('after the handover, in the book (G4), in %s', (language) => {
+  const plan: WorkSnapshot = {
+    ...ROOMED,
+    warranties: [
+      warranty('w-valve', 1, '2026-03-15', 24, {
+        title: 'Válvula do chuveiro',
+        targetKind: 'room',
+        targetId: 'r1',
+        givenBy: 'Instalador Exemplo',
+        documentId: 'doc-w',
+        note: 'Vale com a revisão anual.',
+      }),
+    ],
+    maintenance: [
+      maintenanceTask('t-seal', 1, 12, '2026-09-01', {
+        title: 'Refazer a vedação do box',
+        targetKind: 'room',
+        targetId: 'r1',
+        done: [maintenanceDone(1, '2026-09-20', 'Silicone novo')],
+      }),
+      maintenanceTask('t-gutter', 2, 6, '2027-01-10', { title: 'Limpar as calhas' }),
+    ],
+  };
+  const document = compose(plan, language);
+  const all = text(document);
+  const i18n = i18nOf(language);
+
+  it('prints the warranties: what, what it covers, who gives it, from–to and its paper', () => {
+    expect(headings(document, 1)).toContain(i18n.t('reports.handover.warranties.title'));
+    const line = stringsOf(document).find((each) => each.startsWith('Válvula do chuveiro'));
+    expect(line).toBeDefined();
+    expect(line).toContain('Banheiro social');
+    expect(line).toContain('Instalador Exemplo');
+    expect(line).toContain(i18n.day('2026-03-15'));
+    expect(line).toContain(i18n.day('2028-03-15'));
+    expect(line).toContain('Garantia do misturador');
+    expect(all).toContain('Vale com a revisão anual.');
+  });
+
+  it('prints the maintenance: what, how often, next due, and each time it was done', () => {
+    expect(headings(document, 1)).toContain(i18n.t('reports.handover.maintenance.title'));
+    const seal = stringsOf(document).find((each) => each.startsWith('Refazer a vedação do box'));
+    expect(seal).toContain(i18n.tp('aftercare.every', 12));
+    expect(seal).toContain(i18n.t('aftercare.task.next', { day: i18n.day('2027-09-20') }));
+    const gutter = stringsOf(document).find((each) => each.startsWith('Limpar as calhas'));
+    expect(gutter).toContain(i18n.t('aftercare.task.first', { day: i18n.day('2027-01-10') }));
+    expect(all).toContain(
+      i18n.t('aftercare.task.record', { day: i18n.day('2026-09-20'), author: 'Sample author' }),
+    );
+    expect(all).toContain('Silicone novo');
+    expect(all).toContain(i18n.t('aftercare.task.neverDone'));
+  });
+
+  it('prints every string as itself, or with one of the three stand-ins', () => {
+    for (const each of stringsOf(document)) expect(unprintable(each), each).toEqual([]);
+  });
+
+  it('says so when the work has neither', () => {
+    const none = text(compose(ROOMED, language));
+    expect(none).toContain(i18n.t('reports.handover.warranties.none'));
+    expect(none).toContain(i18n.t('reports.handover.maintenance.none'));
   });
 });

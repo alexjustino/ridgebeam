@@ -22,6 +22,10 @@
  *   work's folder, never embedded (a PDF among them is listed, not printed);
  * - **who did what**: name, trade, contact, the stages they worked and their days on site;
  * - **the care notes for the whole work**, and any whose room or stage is gone, said so;
+ * - **the warranties** (G4): each with what it is, what it covers, who gives it, from when to when,
+ *   and its paper — every one, an ended one too: the book is not as of a day;
+ * - **the maintenance** (G4): each task with what it is, what it covers, how often, the day it is
+ *   next due, and every time it was done, in order;
  * - **the record**: one sentence on the diary and the day the book was written. The chain's own
  *   verification block is the diary PDF's, and is not repeated here.
  *
@@ -38,7 +42,9 @@ import type {
   Handover,
   HandoverCareNote,
   HandoverGapRow,
+  HandoverMaintenanceRow,
   HandoverSection,
+  HandoverWarrantyRow,
 } from '@/domain/reports/handover';
 import { HANDOVER_LABEL_KEYS } from '@/domain/reports/handover';
 import type { WorkSnapshot } from '@/domain/plan';
@@ -286,6 +292,131 @@ function sectionBlocks(
   return blocks;
 }
 
+/** What a warranty or a task covers, in the owner's words: the whole work, or the row's name. */
+function coversText(
+  i18n: Pick<I18n, 't'>,
+  row: { targetKind: string; targetName: string | null; detached: boolean },
+): string {
+  const target =
+    row.detached || row.targetName === null
+      ? i18n.t('documents.target.detached')
+      : row.targetKind === 'work'
+        ? i18n.t('aftercare.target.work')
+        : row.targetName;
+  return i18n.t('aftercare.covers', { target });
+}
+
+/** The paper a warranty names, by its name and file. */
+function paperText(i18n: Pick<I18n, 't'>, row: HandoverWarrantyRow): string {
+  const document = row.document;
+  if (document === null) return i18n.t('aftercare.warranty.noDocument');
+  return i18n.t('aftercare.warranty.document', {
+    title:
+      document.title === document.fileName
+        ? document.title
+        : i18n.t('reports.handover.documents.file', {
+            title: document.title,
+            file: document.fileName,
+          }),
+  });
+}
+
+/** The warranties: each its own paragraph — what, covers, who gives it, from–to, its paper — and its note. */
+function warrantyBlocks(i18n: I18n, warranties: readonly HandoverWarrantyRow[]): ReportBlock[] {
+  const { t, tp, day } = i18n;
+  const blocks: ReportBlock[] = [
+    { type: 'heading', level: 1, text: t('reports.handover.warranties.title') },
+  ];
+  if (warranties.length === 0) {
+    blocks.push({ type: 'paragraph', tone: 'muted', text: t('reports.handover.warranties.none') });
+    return blocks;
+  }
+  for (const warranty of warranties) {
+    blocks.push({
+      type: 'paragraph',
+      text: row(
+        warranty.title,
+        coversText(i18n, warranty),
+        warranty.givenBy === null
+          ? null
+          : t('aftercare.warranty.givenBy', { name: warranty.givenBy }),
+        warranty.endsOn === null
+          ? t('reports.handover.warranty.since', {
+              from: day(warranty.startsOn),
+              length: tp('aftercare.months', warranty.months),
+            })
+          : t('reports.handover.warranty.fromTo', {
+              from: day(warranty.startsOn),
+              to: day(warranty.endsOn),
+              length: tp('aftercare.months', warranty.months),
+            }),
+        paperText(i18n, warranty),
+      ),
+    });
+    if (warranty.note !== null) {
+      blocks.push(
+        ...pieces(warranty.note).map((piece): ReportBlock => ({
+          type: 'paragraph',
+          tone: 'muted',
+          text: piece,
+        })),
+      );
+    }
+  }
+  return blocks;
+}
+
+/** The maintenance: each task — what, covers, how often, next due — then each time it was done. */
+function maintenanceBlocks(i18n: I18n, tasks: readonly HandoverMaintenanceRow[]): ReportBlock[] {
+  const { t, tp, day } = i18n;
+  const blocks: ReportBlock[] = [
+    { type: 'heading', level: 1, text: t('reports.handover.maintenance.title') },
+  ];
+  if (tasks.length === 0) {
+    blocks.push({ type: 'paragraph', tone: 'muted', text: t('reports.handover.maintenance.none') });
+    return blocks;
+  }
+  for (const task of tasks) {
+    blocks.push({
+      type: 'paragraph',
+      text: row(
+        task.title,
+        coversText(i18n, task),
+        tp('aftercare.every', task.everyMonths),
+        task.nextDueOn === null
+          ? null
+          : t(task.done.length === 0 ? 'aftercare.task.first' : 'aftercare.task.next', {
+              day: day(task.nextDueOn),
+            }),
+      ),
+    });
+    if (task.note !== null) {
+      blocks.push(
+        ...pieces(task.note).map((piece): ReportBlock => ({
+          type: 'paragraph',
+          tone: 'muted',
+          text: piece,
+        })),
+      );
+    }
+    blocks.push({
+      type: 'figure',
+      label: t('reports.handover.maintenance.done.label'),
+      value:
+        task.done.length === 0
+          ? t('aftercare.task.neverDone')
+          : tp('aftercare.task.timesDone', task.done.length),
+      rows: task.done.map((record) =>
+        row(
+          t('aftercare.task.record', { day: day(record.doneOn), author: record.authorName }),
+          record.note,
+        ),
+      ),
+    });
+  }
+  return blocks;
+}
+
 /**
  * The handover book in `i18n`'s language and the owner's words. `today` is the day it is written,
  * said in its last sentence.
@@ -462,6 +593,10 @@ export function composeHandover(
       note.detached ? t('documents.target.detached') : null,
     ),
   );
+
+  // ── After the handover (G4) ──
+  blocks.push(...warrantyBlocks(i18n, book.warranties));
+  blocks.push(...maintenanceBlocks(i18n, book.maintenance));
 
   // ── The record ──
   blocks.push({ type: 'heading', level: 1, text: t('reports.handover.record.title') });

@@ -16,6 +16,8 @@ import type {
   Endpoint,
   Meeting,
   MeetingAction,
+  MaintenanceDone,
+  MaintenanceTask,
   MeetingActionClosure,
   Person,
   Purchase,
@@ -23,6 +25,7 @@ import type {
   Snag,
   SnagClosure,
   Stage,
+  Warranty,
   WorkSnapshot,
 } from '../plan';
 import { baselineDraft, schedule } from '../schedule';
@@ -65,6 +68,8 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     snags: [],
     meetings: [],
     purchases: [],
+    warranties: [],
+    maintenance: [],
     ...parts,
   };
 }
@@ -481,5 +486,78 @@ export function purchaseEvent(
     note,
     authorName: 'Sample author',
     createdAt: `${day}T18:00:00.000Z`,
+  };
+}
+
+/**
+ * A warranty on the whole work (`work-1`) unless `parts` name a target: `months` calendar months
+ * from `startsOn`, nobody named as giving it, no document filed (slice G4).
+ */
+export function warranty(
+  id: string,
+  position: number,
+  startsOn: string,
+  months: number,
+  parts: Partial<Warranty> = {},
+): Warranty {
+  return {
+    id,
+    position,
+    title: `Warranty ${id}`,
+    targetKind: 'work',
+    targetId: 'work-1',
+    givenBy: null,
+    startsOn,
+    months,
+    documentId: null,
+    note: null,
+    createdAt: '2026-08-25T12:00:00.000Z',
+    ...parts,
+  };
+}
+
+/**
+ * A maintenance task on the whole work (`work-1`) unless `parts` name a target: every `everyMonths`
+ * calendar months, first due on `firstDueOn`, nothing recorded done unless `parts` say (slice G4).
+ */
+export function maintenanceTask(
+  id: string,
+  position: number,
+  everyMonths: number,
+  firstDueOn: string,
+  parts: Partial<MaintenanceTask> = {},
+): MaintenanceTask {
+  return {
+    id,
+    position,
+    title: `Task ${id}`,
+    targetKind: 'work',
+    targetId: 'work-1',
+    everyMonths,
+    firstDueOn,
+    note: null,
+    createdAt: '2026-08-25T12:00:00.000Z',
+    ...parts,
+    // Each record names the task it is nested in, as the host sends it.
+    done: (parts.done ?? []).map((record) => ({ ...record, taskId: id })),
+  };
+}
+
+/**
+ * One time a task was done, on `doneOn`, recorded that day. `maintenanceTask()` fills its `taskId`;
+ * on its own it names a placeholder.
+ */
+export function maintenanceDone(
+  seq: number,
+  doneOn: string,
+  note: string | null = null,
+): MaintenanceDone {
+  return {
+    taskId: 'task',
+    seq,
+    doneOn,
+    note,
+    authorName: 'Sample author',
+    createdAt: `${doneOn}T18:00:00.000Z`,
   };
 }

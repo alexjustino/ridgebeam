@@ -7,9 +7,9 @@ import { useI18n } from '@/i18n/useI18n';
 /**
  * The kinds of file a command writes, each its own extension: the three a report command writes
  * (decision 8), the owner's snapshot as one HTML page (D4), and the backup (F11), which follows the
- * same rule.
+ * same rule, and the calendar of what comes due after the handover (G4), an `.ics` file.
  */
-export type FileKind = 'pdf' | 'csv' | 'json' | 'html' | 'ridgebeam';
+export type FileKind = 'pdf' | 'csv' | 'json' | 'html' | 'ridgebeam' | 'ics';
 
 const FILTER_KEYS: Record<FileKind, MessageKey> = {
   pdf: 'reports.filter.pdf',
@@ -17,6 +17,7 @@ const FILTER_KEYS: Record<FileKind, MessageKey> = {
   json: 'reports.filter.json',
   html: 'reports.filter.html',
   ridgebeam: 'backup.filter',
+  ics: 'aftercare.ics.filter',
 };
 
 export const PATH_KEYS: Record<FileKind, MessageKey> = {
@@ -25,6 +26,7 @@ export const PATH_KEYS: Record<FileKind, MessageKey> = {
   json: 'reports.path.json',
   html: 'reports.path.html',
   ridgebeam: 'backup.path',
+  ics: 'aftercare.ics.path',
 };
 
 /** Characters a file name on Windows cannot hold, folded to a space for a suggested name. */

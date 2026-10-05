@@ -1543,3 +1543,75 @@ drawn from, so the next work's chance of finishing by a date is the person's own
   Schedule, a learned export to My templates, a new work started from it, and a template removed, in
   Portuguese. The glossary gains _actual duration_ (_duração real_) and _my templates_ (_meus
   modelos_).
+
+### Added in G4 — after the handover
+
+The fourth slice of the third wave (ADR-048). A work does not end at the handover: its owner lives
+with it for decades, and the questions that come after are about days — is the shower valve still
+under warranty, when is the boiler due. The owner now records the **warranties** (_garantias_) the
+work came with — what each covers, who gives it, from when and for how long — and the
+**maintenance** (_manutenção_) it needs, each task with how often. Ridgebeam says when each warranty
+ends and when each task is next due, shows a calendar of the next twelve months of what comes due,
+and writes it as an `.ics` file for the person's own phone or computer to remind them. Each time a
+task is done is recorded, never edited, and the next due day moves on from it. A finished work's
+Dashboard leads with it, and the handover book carries it.
+
+- **Warranties** (`warranty`, migration 019). On the Plan's **Handover** tab, a **Warranties**
+  section: the title, what it covers — the whole work, a room or a stage — who gives it, the day it
+  starts — by default the day the work finished, when it has — its length in months or years, stored
+  as months, and its paper, chosen among the documents of kind warranty. Editable and removable: a
+  warranty is what its paper says, and a correction is an edit. Commands `warranty_add`,
+  `warranty_update`, `warranty_remove` and `warranty_move`.
+- **Maintenance** (`maintenance_task`, `maintenance_done`). A **Maintenance** section: the title,
+  what it covers, every how many months, and the day it is first due. **Mark as done…** records the
+  day and a note; a record is never edited, never dated after today or before the record before it.
+  A task is editable, its cycle included, and removable only while it has never been done; a room
+  or a stage a task with records covers cannot be removed either, and otherwise takes its warranties
+  and tasks with it. Commands `maintenance_add`, `maintenance_update`, `maintenance_remove`,
+  `maintenance_move` and `maintenance_done_add`; the work's snapshot carries the warranties and the
+  tasks, each with its records, and so do the JSON export and every backup.
+- **The days** (`aftercare.ts`, in the domain, pure). A warranty ends on the **same day so many
+  months later** — 12 months from 15 March 2026 ends on 15 March 2027, covered through that day —
+  and a day the later month does not have becomes its last: one month from 31 January ends on the
+  28th of February, or the 29th in a leap year. Calendar months, not working days. A warranty reads
+  active, **ending soon** within 90 days, or ended. A task's next due day is the day first due until
+  it is done, then the last time it was done plus its cycle, by the same rule; it is **overdue**
+  once that day has passed, and **due soon** within 30 days. Figures with their rows: overdue — most
+  days first — due in the next 30 days, warranties ending in the next 90 days, warranties active.
+- **The calendar of what comes due.** Under the two sections, the next twelve months as a list,
+  each month with its items in day order — a task due, a warranty ending, said with an icon and in
+  words — an overdue task in the current month, marked overdue, and a month with nothing in it
+  saying so. **Add to your calendar…** writes an `.ics` file (RFC 5545) to the path chosen in the
+  save dialog: each task an all-day event repeating every so many months, each warranty in force an
+  event on its end day with an alarm 30 days before, stable UIDs so the file written again updates
+  the calendar instead of duplicating it, text escaped and folded at 75 octets, CRLF line ends.
+  Command `aftercare_ics_write`, through the same write path as every export: `.ics` only, at most
+  1 MiB, whole or not at all.
+- **On the Dashboard and in the handover book.** An **After the handover** card — overdue, due soon
+  and warranties ending soon, each a figure that opens onto its rows, and the way to the calendar —
+  shown when the work has a warranty or a task, and **first on the Dashboard once every stage is
+  closed**. The handover book gains a **Warranties** section and a **Maintenance** section, each
+  task with every time it was done; its gaps gain nothing. Readiness, the plan and the meeting's
+  agenda are untouched: aftercare is not plan scope.
+- **Insert-only, behind the host.** `maintenance_done` carries the battery of migrations 014 and
+  018 — triggers refuse `UPDATE`, `DELETE` and `REPLACE`, with `recursive_triggers` on and off,
+  and the module that writes the records holds no such statement, which a test reads its source to
+  prove. **Work migration 019** (`019_aftercare.sql`) adds the three tables and nothing else; a work
+  at schema 18 migrates to 19 keeping every row, its chain still verifying.
+- **Documentation.** ADR-048 (after the handover: warranties, maintenance, and a calendar of what
+  comes due), with why beside the record, why the same day clamped, why from the last time it was
+  done, why the person's own calendar, and its costs: the end of a warranty is what the paper says,
+  typed by the person, and its conditions are a note, not a rule; months are calendar months; doing
+  a task late moves its cycle, which is the intended reading; the `.ics` is a snapshot, written
+  again to update; the product sends no reminder itself — no network, no background process — and
+  the phone's calendar does the reminding; aftercare lives in the work's folder. ADR-038 is amended:
+  the book carries the warranties and the maintenance. [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md):
+  migration 019 and the three tables. [`SECURITY.md`](SECURITY.md): the records are insert-only, a
+  task with a history cannot be removed, nor its room or stage; the `.ics` is written through the
+  one write path and carries the titles, days, what each covers and the notes the person typed — no
+  person's phone or e-mail — and leaves the machine only if the person moves it.
+  [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a day that comes due is said with what it is and
+  how far it is_ and _a calendar month with nothing in it says so_.
+  [`docs/RELEASE.md`](docs/RELEASE.md): add a warranty and a task, mark it done, the Dashboard of a
+  finished work, the calendar, the `.ics` in a phone's or a computer's calendar, the handover book,
+  in Portuguese. The glossary gains _warranty_ (_garantia_) and _maintenance_ (_manutenção_).

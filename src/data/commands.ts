@@ -1116,6 +1116,107 @@ export function purchaseEventAdd(event: PurchaseEventDraft): Promise<WorkSnapsho
   return invoke<WorkSnapshot>('purchase_event_add', { event });
 }
 
+// ── After the handover: warranties and maintenance (G4) ──────────────────────
+//
+// A warranty is what its paper says, typed by the person: editable and removable, a correction is
+// an edit. A maintenance task is what the work needs every so many calendar months: editable, and
+// removable only while nothing is recorded done. Each time a task was done is a fact: appended, and
+// there is no command that edits or removes one. When a warranty ends and when a task is next due
+// are the domain's (`aftercare.ts`), computed every time; nothing here carries them. The calendar
+// file is the domain's text, written whole by the host through its one write path.
+
+/** A warranty as it is written: added, or rewritten whole (`null` clears a field). */
+export interface WarrantyDraftWire {
+  targetKind: CareTargetKind;
+  /** The room's or the stage's id; for the work, its `workId`. */
+  targetId: string;
+  title: string;
+  givenBy: string | null;
+  /** `YYYY-MM-DD`. */
+  startsOn: string;
+  /** Whole calendar months, 1 to 600. */
+  months: number;
+  /** A document filed as a `warranty`; `null` for none. */
+  documentId: string | null;
+  note: string | null;
+}
+
+/** A maintenance task as it is written: added, or rewritten whole. */
+export interface MaintenanceDraftWire {
+  targetKind: CareTargetKind;
+  targetId: string;
+  title: string;
+  /** Whole calendar months, 1 to 120. */
+  everyMonths: number;
+  /** `YYYY-MM-DD`: the day it is first due, while nothing is recorded done. */
+  firstDueOn: string;
+  note: string | null;
+}
+
+/** One time a task was done, as the record will keep it. */
+export interface MaintenanceDoneWire {
+  taskId: string;
+  /** `YYYY-MM-DD`, never after today, nor before the time it follows. */
+  doneOn: string;
+  note: string | null;
+}
+
+export function warrantyAdd(draft: WarrantyDraftWire): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('warranty_add', { draft });
+}
+
+/** The warranty named by `id`, rewritten whole. */
+export function warrantyUpdate(draft: WarrantyDraftWire & { id: string }): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('warranty_update', { draft });
+}
+
+export function warrantyRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('warranty_remove', { id });
+}
+
+/** Within its target. */
+export function warrantyMove(id: string, direction: Direction): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('warranty_move', { id, direction });
+}
+
+export function maintenanceAdd(draft: MaintenanceDraftWire): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('maintenance_add', { draft });
+}
+
+/** The task named by `id`, rewritten whole — its interval too, done or not. */
+export function maintenanceUpdate(
+  draft: MaintenanceDraftWire & { id: string },
+): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('maintenance_update', { draft });
+}
+
+/** Refused once it has been done: a task with a history stays. */
+export function maintenanceRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('maintenance_remove', { id });
+}
+
+/** Within its target. */
+export function maintenanceMove(id: string, direction: Direction): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('maintenance_move', { id, direction });
+}
+
+export function maintenanceDoneAdd(record: MaintenanceDoneWire): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('maintenance_done_add', { record });
+}
+
+/**
+ * The calendar of what comes due, as the domain composed it (an RFC 5545 `.ics`), written whole by
+ * the host: a full path, `.ics` only, at most 1 MiB; an existing file replaced only with
+ * `overwrite`, which the interface sends for a path the save dialog chose. No work needs to be open.
+ */
+export function aftercareIcsWrite(
+  path: string,
+  text: string,
+  overwrite: boolean,
+): Promise<WrittenFile> {
+  return invoke<WrittenFile>('aftercare_ics_write', { path, text, overwrite });
+}
+
 // ── The weekly site meeting (G1) ─────────────────────────────────────────────
 //
 // A meeting is written once, at its close: who was there, each agenda item with what was said and

@@ -63,6 +63,7 @@ const NAVIGATION: Navigation = {
   openChanges: () => undefined,
   openSnags,
   openPurchases: () => undefined,
+  openAftercare: () => undefined,
   openMeeting: () => undefined,
   openMinutes: () => undefined,
 };

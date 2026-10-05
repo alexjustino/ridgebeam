@@ -34,6 +34,14 @@
  *   — with how many days the diary has them on site.
  * - **the care notes for the whole work**, then any note whose room or stage is gone (listed,
  *   never dropped).
+ * - **the warranties** (slice G4), as care notes are ordered — the work's, then each room's in room
+ *   order, then each stage's in stage order, then those whose target is gone, by position inside a
+ *   target (`aftercareOrder`): what each is, what it covers (the work, a room or a stage,
+ *   described as care notes are, a target gone said so), who gives it, from and to (the last day
+ *   it covers, `aftercare.ts`), its filed document and its note. All of them, an ended one too: the
+ *   book is not as of a day.
+ * - **the maintenance** (slice G4), in the same order: what each task is, what it covers, how
+ *   often, the day it is next due, and the record of every time it was done, by seq.
  * - **the record**: how many entries the diary holds and its first and last day. The chain is the
  *   host's to verify, at the moment of writing.
  *
@@ -44,12 +52,23 @@
  * `handoverGaps` is what the book still lacks, counted, with its rows (decision 6): hidden-work
  * checks answered `yes` with no photo the work holds, hidden-work checks never answered, stages not
  * closed, **every snag still open** ("Still to fix", slice E4, by number), rooms with no photo at
- * all, no warranty or manual, no care note. Writing is allowed anyway: the book may be wanted
- * mid-work, and its cover then says so.
+ * all, no warranty or manual, no care note. Aftercare (slice G4) adds no gap: a work may have no
+ * warranty to record. Writing is allowed anyway: the book may be wanted mid-work, and its cover then
+ * says so.
  *
  * What this module is not: text, layout or I/O.
  */
 
+import {
+  aftercareDocumentOf,
+  describeAftercareTarget,
+  maintenanceInOrder,
+  maintenanceStory,
+  warrantiesInOrder,
+  warrantyEndsOn,
+  type AftercareDocument,
+  type AftercareTarget,
+} from '../aftercare';
 import { breakdown, byRoom } from '../arrangements';
 import { latestAnswers, stageState, type StageState } from '../checks';
 import { effectiveEntries, progress, type DiaryEntry } from '../diary';
@@ -306,6 +325,43 @@ export interface HandoverPersonRow {
   readonly lastOnSite: string | null;
 }
 
+/** A warranty as the book prints it (slice G4): what, what it covers, who gives it, from and to. */
+export interface HandoverWarrantyRow extends AftercareTarget {
+  readonly warrantyId: string;
+  readonly title: string;
+  readonly givenBy: string | null;
+  /** `YYYY-MM-DD`. */
+  readonly startsOn: string;
+  readonly months: number;
+  /** The last day it covers; `null` when it cannot be read. */
+  readonly endsOn: string | null;
+  /** Its filed document; `null` when none is filed. */
+  readonly document: AftercareDocument | null;
+  readonly note: string | null;
+}
+
+/** One time a task was done, as the book prints it. */
+export interface HandoverDoneRecord {
+  readonly seq: number;
+  /** `YYYY-MM-DD`. */
+  readonly doneOn: string;
+  readonly note: string | null;
+  readonly authorName: string;
+}
+
+/** A maintenance task as the book prints it (slice G4): what, how often, next due, its record. */
+export interface HandoverMaintenanceRow extends AftercareTarget {
+  readonly taskId: string;
+  readonly title: string;
+  readonly everyMonths: number;
+  readonly firstDueOn: string;
+  /** The day it is next due: the first due day, or months after it was last done. */
+  readonly nextDueOn: string | null;
+  readonly note: string | null;
+  /** Every time it was done, by seq; empty while it never was. */
+  readonly done: readonly HandoverDoneRecord[];
+}
+
 export interface HandoverRecord {
   /** Entries written, corrections included. */
   readonly written: number;
@@ -328,6 +384,10 @@ export interface Handover {
   readonly people: readonly HandoverPersonRow[];
   /** The notes on the whole work, then the notes whose target is gone. */
   readonly careNotes: readonly HandoverCareNote[];
+  /** The warranties, by target then position (slice G4, `aftercareOrder`). */
+  readonly warranties: readonly HandoverWarrantyRow[];
+  /** The maintenance tasks, by target then position, each with its record (slice G4). */
+  readonly maintenance: readonly HandoverMaintenanceRow[];
   readonly record: HandoverRecord;
   readonly gaps: Figure<HandoverGapRow>;
 }
@@ -791,6 +851,43 @@ function workNotes(snapshot: WorkSnapshot): HandoverCareNote[] {
   return [...onWork, ...gone];
 }
 
+/** The warranties, by target then position, each with its end and its document. */
+function warrantiesOfBook(snapshot: WorkSnapshot): HandoverWarrantyRow[] {
+  return warrantiesInOrder(snapshot).map((warranty) => ({
+    ...describeAftercareTarget(snapshot, warranty.targetKind, warranty.targetId),
+    warrantyId: warranty.id,
+    title: warranty.title,
+    givenBy: warranty.givenBy,
+    startsOn: warranty.startsOn,
+    months: warranty.months,
+    endsOn: warrantyEndsOn(warranty),
+    document: aftercareDocumentOf(snapshot, warranty.documentId),
+    note: warranty.note,
+  }));
+}
+
+/** The maintenance tasks, by target then position, each with its next due day and its record. */
+function maintenanceOfBook(snapshot: WorkSnapshot): HandoverMaintenanceRow[] {
+  return maintenanceInOrder(snapshot).map((task) => {
+    const story = maintenanceStory(task);
+    return {
+      ...describeAftercareTarget(snapshot, task.targetKind, task.targetId),
+      taskId: task.id,
+      title: task.title,
+      everyMonths: task.everyMonths,
+      firstDueOn: task.firstDueOn,
+      nextDueOn: story.nextDueOn,
+      note: task.note,
+      done: story.records.map((record) => ({
+        seq: record.seq,
+        doneOn: record.doneOn,
+        note: record.note,
+        authorName: record.authorName,
+      })),
+    };
+  });
+}
+
 // ── Gaps ─────────────────────────────────────────────────────────────────────
 
 function gapsOf(reading: Reading, sections: readonly HandoverSection[]): Figure<HandoverGapRow> {
@@ -890,6 +987,8 @@ export function handover(snapshot: WorkSnapshot, entries: readonly DiaryEntry[])
     documents: documentsOfBook(snapshot, entries),
     people: peopleOfBook(reading, entries),
     careNotes: workNotes(snapshot),
+    warranties: warrantiesOfBook(snapshot),
+    maintenance: maintenanceOfBook(snapshot),
     record: {
       written: diary.written,
       corrections: diary.corrections,

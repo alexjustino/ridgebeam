@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { AFTERCARE_MESSAGE_KEYS } from '@/domain/aftercare';
 import { COMPARISON_LABEL_KEYS, COMPARISON_PROBLEM_KEYS } from '@/domain/baselines';
 import { CHANGE_LABEL_KEYS, CHANGE_PROBLEM_KEYS } from '@/domain/changes';
 import {
@@ -237,6 +238,7 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         ...MEETING_MESSAGE_KEYS,
         ...PURCHASE_MESSAGE_KEYS,
         ...ACTUALS_MESSAGE_KEYS,
+        ...AFTERCARE_MESSAGE_KEYS,
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }
