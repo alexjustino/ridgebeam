@@ -31,6 +31,8 @@ import { IconButton } from '@/ui/IconButton';
 import { InfoBar } from '@/ui/InfoBar';
 import { TextArea } from '@/ui/TextArea';
 
+import { AftercareCalendar } from './AftercareCalendar';
+import { MaintenanceSection, WarrantiesSection } from './AftercareSections';
 import { careTargetKey } from './careNotes';
 import { chordDirection, useMover } from './moves';
 import type { Outcome } from './outcome';
@@ -51,14 +53,26 @@ const NOTE_IN_A_NAME = 48;
  * **Hidden work** — every check that needs a photo of the work before it is closed, with its latest
  * answer and its photo — each leading to its item on the Gates tab, where it is answered. This tab
  * answers nothing: one place answers checks (DESIGN_SYSTEM §8).
+ *
+ * **After the handover** (G4, decision 3) — the **Warranties** the work came with and the
+ * **Maintenance** it needs every so many months, each a section of its own with a one-line lead that
+ * says what it is, kept apart from the care notes (a care note is a sentence; a task has a cycle) —
+ * and under them **What comes due**, the calendar of the next twelve months, with the way to put it
+ * on the person's own calendar. The dashboard's After the handover card opens this tab on the
+ * calendar (`focusCalendar`).
  */
 export function HandoverTab({
   snapshot,
   onGates,
+  focusCalendar = false,
+  onCalendarFocused,
 }: {
   snapshot: WorkSnapshot;
   /** Open the Gates tab on this check's item. */
   onGates: (checkId: string) => void;
+  /** Scroll to the calendar and put the focus on it, once (asked for from the dashboard). */
+  focusCalendar?: boolean;
+  onCalendarFocused?: () => void;
 }) {
   const { t } = useI18n();
   const term = useTerms();
@@ -127,6 +141,10 @@ export function HandoverTab({
       </Card>
 
       <HiddenWorkCard snapshot={snapshot} onGates={onGates} />
+
+      <WarrantiesSection snapshot={snapshot} />
+      <MaintenanceSection snapshot={snapshot} />
+      <AftercareCalendar snapshot={snapshot} focus={focusCalendar} onFocused={onCalendarFocused} />
     </div>
   );
 }
