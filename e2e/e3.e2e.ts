@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, chooseTheme, go, startSession, type Session } from './session';
 
 /**
  * Slice E3's proof of done, against the real binary:
@@ -214,6 +214,8 @@ describe('E3 — why is it late: a forecast from the diary, and the causes of th
 
   it('says it in Portuguese: Por que está atrasada?', async () => {
     await chooseLanguage(session, 'Português (Brasil)');
+    // The light theme too: these screens are captured and looked at in both themes.
+    await chooseTheme(session, 'Português (Brasil)', 'light');
     await go(session, 'dashboard');
     expect(await text(session, t('delay-card'))).toMatch(/Por que está atrasada\?/);
     await session.driver.execute(

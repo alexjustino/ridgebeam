@@ -1330,3 +1330,21 @@ With E4 the second wave is complete (ADR-044).
   fix one without, withdraw one with a reason, watch a retention held and then earned, and read the
   handover book's gaps and its before-and-after photos, in Portuguese. The glossary gains _snag_
   (_pendência_) and _retention_ (_retenção_).
+
+### Changed in H0 — before the acceptance test
+
+- **A day is typed in the product's language.** Every date field is the new `DateField`: Portuguese
+  shows and reads `DD/MM/AAAA`, English shows the product's own short day, `Feb 10, 2026`, with the
+  month as a word; typing is forgiving (any separator or none, the month as a word, the stored form),
+  a year is four digits and never guessed, and a month grid opens beside the field and is driven by
+  the keyboard. The stored value is still `YYYY-MM-DD`. Before, the system's own date control drew the
+  day in the order of the machine's locale — `10/02/2026` month-first on an English Windows, read by a
+  Brazilian as the 10th of February. A snag's due day typed only halfway is now refused rather than
+  saved as no due day.
+- **The unit tests run within the machine's memory.** On a machine short of memory, Windows fails
+  file lookups with "no system resources", and every resolver on the way reads that as a missing file:
+  a test file failed to load with "Cannot find module" for a file that was there. Vitest now runs one
+  worker per 2 GB of memory, never more than its own default; nine runs under the load that failed
+  before passed.
+- **The new screens were looked at in the light theme**, in Portuguese: change orders, the money
+  projection, why it is late, snags and the diary's "same people".

@@ -26,6 +26,7 @@ import { Card } from '@/ui/Card';
 import { EmptyState } from '@/ui/EmptyState';
 import { FigureRow } from '@/ui/FigureRow';
 import { IconButton } from '@/ui/IconButton';
+import { DateField } from '@/ui/DateField';
 import { Input } from '@/ui/Input';
 import { Select } from '@/ui/Select';
 
@@ -453,12 +454,12 @@ function AddCommitment({
           value={amount}
           onChange={(event) => setAmount(event.target.value)}
         />
-        <Input
-          type="date"
+        <DateField
           data-testid="commitment-add-day"
           aria-label={t('money.commitment.day')}
+          hint="hidden"
           value={agreedOn}
-          onChange={(event) => setAgreedOn(event.target.value)}
+          onChange={setAgreedOn}
         />
         <Button
           type="submit"

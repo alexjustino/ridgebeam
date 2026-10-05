@@ -236,6 +236,20 @@ describe.each(['en', 'pt-BR'] as const)('the Snags tab, in %s', (language) => {
     ]);
   });
 
+  it('refuses a due day typed only halfway, rather than saving the snag with no due day', async () => {
+    render(BASE, language);
+    act(() => find('snag-raise').click());
+    set(find('snag-title'), 'Cracked tile');
+    set(find('snag-stage'), 's2');
+    set(find('snag-due'), language === 'en' ? 'Dec 31' : '31/12');
+    act(() => find('snag-save').click());
+    await settle();
+    expect(find('snag-problem').textContent).toMatch(
+      language === 'en' ? /not a whole day yet/ : /ainda não é um dia completo/,
+    );
+    expect(calls('snag_raise')).toEqual([]);
+  });
+
   it('says what the snag lacks before anything is added or sent', async () => {
     render(BASE, language);
     act(() => find('snag-raise').click());

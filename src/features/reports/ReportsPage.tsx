@@ -35,7 +35,7 @@ import { announce } from '@/ui/announce';
 import { Card } from '@/ui/Card';
 import { FigureRow } from '@/ui/FigureRow';
 import { InfoBar } from '@/ui/InfoBar';
-import { Input } from '@/ui/Input';
+import { DateField } from '@/ui/DateField';
 
 import { composeDiary } from './compose/diary';
 import { composeHandover, handoverGapText } from './compose/handover';
@@ -195,15 +195,14 @@ function WeeklyCard({ snapshot, scheduled }: { snapshot: WorkSnapshot; scheduled
           <label htmlFor={`${id}-week`} className="text-caption font-semibold text-fg-secondary">
             {t('reports.week')}
           </label>
-          <Input
+          <DateField
             id={`${id}-week`}
-            type="date"
             data-testid="weekly-week"
             className="max-w-56"
             aria-describedby={`${id}-week-hint`}
             value={day}
-            onChange={(event) => {
-              setDay(event.target.value);
+            onChange={(next) => {
+              setDay(next);
               outcome.clear();
             }}
           />

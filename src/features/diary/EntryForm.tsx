@@ -36,6 +36,7 @@ import { Card } from '@/ui/Card';
 import { Checkbox } from '@/ui/Checkbox';
 import { ChoiceGroup } from '@/ui/ChoiceGroup';
 import { InfoBar } from '@/ui/InfoBar';
+import { DateField } from '@/ui/DateField';
 import { Input } from '@/ui/Input';
 import { Select } from '@/ui/Select';
 import { TextArea } from '@/ui/TextArea';
@@ -303,18 +304,14 @@ export function EntryForm({
       {...(correction ? { description: t('diary.correction.explain') } : {})}
     >
       <form data-testid="entry-today" onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <label className="flex max-w-56 flex-col gap-1">
-          <span className="text-caption font-semibold text-fg-secondary">
-            {t('diary.form.day')}
-          </span>
-          <Input
-            type="date"
-            data-testid="entry-day"
-            max={today}
-            value={day}
-            onChange={(event) => setDay(event.target.value)}
-          />
-        </label>
+        <DateField
+          label={t('diary.form.day')}
+          className="max-w-56"
+          data-testid="entry-day"
+          max={today}
+          value={day}
+          onChange={setDay}
+        />
 
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-caption font-semibold text-fg-secondary">

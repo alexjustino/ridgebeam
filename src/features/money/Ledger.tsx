@@ -26,6 +26,7 @@ import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { EmptyState } from '@/ui/EmptyState';
 import { InfoBar } from '@/ui/InfoBar';
+import { DateField } from '@/ui/DateField';
 import { Input } from '@/ui/Input';
 import { Modal } from '@/ui/Modal';
 import { Select } from '@/ui/Select';
@@ -197,18 +198,13 @@ function PaymentForm({
     <Card title={t('money.payment.title')}>
       <form onSubmit={submit} noValidate className="flex flex-col gap-3">
         <div className="grid gap-3 md:grid-cols-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-caption font-semibold text-fg-secondary">
-              {t('money.payment.day')}
-            </span>
-            <Input
-              type="date"
-              data-testid="payment-day"
-              max={today}
-              value={day}
-              onChange={(event) => setDay(event.target.value)}
-            />
-          </label>
+          <DateField
+            label={t('money.payment.day')}
+            data-testid="payment-day"
+            max={today}
+            value={day}
+            onChange={setDay}
+          />
           <label className="flex flex-col gap-1">
             <span className="text-caption font-semibold text-fg-secondary">
               {term('stage', { capital: true })}

@@ -36,6 +36,7 @@ import { EmptyState } from '@/ui/EmptyState';
 import { FigureRow } from '@/ui/FigureRow';
 import { IconButton } from '@/ui/IconButton';
 import { InfoBar } from '@/ui/InfoBar';
+import { DateField } from '@/ui/DateField';
 import { Input } from '@/ui/Input';
 import { Modal } from '@/ui/Modal';
 import { Select } from '@/ui/Select';
@@ -403,18 +404,13 @@ function FundFieldset({
           onChange={(event) => set({ amount: event.target.value })}
         />
       </label>
-      <label className="flex flex-col gap-1">
-        <span className="text-caption font-semibold text-fg-secondary">
-          {t('money.funding.expected')}
-        </span>
-        <Input
-          type="date"
-          data-testid="funding-expected"
-          aria-describedby={describedBy}
-          value={fields.expectedOn}
-          onChange={(event) => set({ expectedOn: event.target.value })}
-        />
-      </label>
+      <DateField
+        label={t('money.funding.expected')}
+        data-testid="funding-expected"
+        aria-describedby={describedBy}
+        value={fields.expectedOn}
+        onChange={(expectedOn) => set({ expectedOn })}
+      />
       <label
         className={`flex flex-col gap-1 ${layout === 'row' ? 'md:col-span-4' : 'sm:col-span-2'}`}
       >
@@ -685,19 +681,14 @@ function ReceiveDialog({
                 onChange={(event) => setAmount(event.target.value)}
               />
             </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-caption font-semibold text-fg-secondary">
-                {t('money.receipt.day')}
-              </span>
-              <Input
-                type="date"
-                data-testid="receipt-day"
-                max={today}
-                aria-describedby={problems.length > 0 ? `${ids}-problem` : undefined}
-                value={day}
-                onChange={(event) => setDay(event.target.value)}
-              />
-            </label>
+            <DateField
+              label={t('money.receipt.day')}
+              data-testid="receipt-day"
+              max={today}
+              aria-describedby={problems.length > 0 ? `${ids}-problem` : undefined}
+              value={day}
+              onChange={setDay}
+            />
             <label className="flex flex-col gap-1 sm:col-span-2">
               <span className="text-caption font-semibold text-fg-secondary">
                 {t('money.receipt.note')}
@@ -859,13 +850,12 @@ function ReverseReceiptDialog({
           <label htmlFor={field} className="text-caption font-semibold text-fg-secondary">
             {t('money.receipt.reverseDay')}
           </label>
-          <Input
+          <DateField
             id={field}
-            type="date"
             data-testid="receipt-reversal-day"
             max={today}
             value={day}
-            onChange={(event) => setDay(event.target.value)}
+            onChange={setDay}
           />
           {problem !== null && (
             <InfoBar severity="caution" title={t('money.receipt.problem')}>

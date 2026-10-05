@@ -5,7 +5,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { pdfImageCount, pdfText } from './pdf';
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, chooseTheme, go, startSession, type Session } from './session';
 
 /**
  * Slice E4's proof of done, against the real binary:
@@ -276,6 +276,8 @@ describe('E4 — a work that ends well: snags closed with a photo, retention hel
     await go(session, 'dashboard');
     expect(await text(session, t('snags-open-value'))).toMatch(/^0\b/);
     await chooseLanguage(session, 'Português (Brasil)');
+    // The light theme too: these screens are captured and looked at in both themes.
+    await chooseTheme(session, 'Português (Brasil)', 'light');
     await planTab(session, 'snags');
     expect(await text(session, '[data-testid="plan-tabs"] [data-tab="snags"]')).toBe('Pendências');
     await session.screenshot('e4-snags-pt-BR');

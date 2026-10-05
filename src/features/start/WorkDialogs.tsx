@@ -11,6 +11,7 @@ import { useI18n } from '@/i18n/useI18n';
 import { Button } from '@/ui/Button';
 import { Checkbox } from '@/ui/Checkbox';
 import { InfoBar } from '@/ui/InfoBar';
+import { DateField } from '@/ui/DateField';
 import { Input } from '@/ui/Input';
 import { Modal } from '@/ui/Modal';
 import { Select } from '@/ui/Select';
@@ -242,12 +243,11 @@ export function NewWorkDialog({
           </Field>
           <Field label={t('work.field.start')}>
             {(id) => (
-              <Input
+              <DateField
                 id={id}
-                type="date"
                 data-testid="work-start"
                 value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
+                onChange={setStartDate}
               />
             )}
           </Field>
