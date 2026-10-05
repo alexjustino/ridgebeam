@@ -57,6 +57,8 @@ const NAVIGATION: Navigation = {
   openSchedule: () => undefined,
   openChanges: () => undefined,
   openSnags: () => undefined,
+  openMeeting: () => undefined,
+  openMinutes: () => undefined,
 };
 
 /** The host as the reminder asks it: the last backup, and the diary. */

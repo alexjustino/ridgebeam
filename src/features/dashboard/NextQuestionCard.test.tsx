@@ -245,6 +245,8 @@ describe('the optional question of a payment plan (D2)', () => {
               openSchedule: () => undefined,
               openChanges: () => undefined,
               openSnags: () => undefined,
+              openMeeting: () => undefined,
+              openMinutes: () => undefined,
             }}
           >
             <NextQuestionCard

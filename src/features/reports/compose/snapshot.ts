@@ -33,6 +33,8 @@
  *   and working days, with who asked;
  * - **still to fix** (E4), once a snag has been raised: what is open and on whom, in a sentence and
  *   as figures with the snags as rows — who must fix each and its day;
+ * - **last meeting** (G1), once a meeting has been held: its number and day, the actions still open
+ *   and those past their day — figures with the actions as rows, who and by when — and on whom;
  * - **the closing line**: when Ridgebeam wrote it, and that a snapshot does not change when the work
  *   does.
  *
@@ -53,6 +55,7 @@ import type { ReportBlock, ReportDocument } from '@/data/commands';
 import type { ExpectedRow } from '@/domain/dashboard';
 import { changeTally } from '@/domain/changes';
 import { delayLedger } from '@/domain/delay';
+import { MEETING_LABEL_KEYS, meetingSummary } from '@/domain/meetings';
 import type { DiaryEntry } from '@/domain/diary';
 import type { Figure } from '@/domain/figure';
 import { aheadFigure, MILESTONE_LABEL_KEYS, paymentPlans, type PlanRow } from '@/domain/milestones';
@@ -72,6 +75,7 @@ import {
 } from '@/domain/reports/lookahead';
 import type { Schedule } from '@/domain/schedule';
 import type { FinishProbabilityResult } from '@/domain/schedule/probability';
+import { actionGroupLabel, openActionText } from '@/features/meeting/meetingWords';
 import { pendingText, percentText, whenText } from '@/features/money/paymentPlanWords';
 import type { MessageKey } from '@/i18n/en';
 import { formatDayColumn, formatDayWeekday } from '@/i18n/format';
@@ -592,6 +596,36 @@ function changeBlocks(input: SnapshotInput, i18n: I18n): ReportBlock[] {
   ];
 }
 
+// ── Last meeting (G1) ────────────────────────────────────────────────────────
+
+/**
+ * The last site meeting and what it left open, on whom — once a meeting has been held. The figures
+ * are the domain's `meetingSummary`, the same the dashboard's card shows.
+ */
+function meetingBlocks(input: SnapshotInput, i18n: I18n): ReportBlock[] {
+  const { snapshot, today } = input;
+  const { t, number, day } = i18n;
+  const summary = meetingSummary(snapshot, today);
+  if (summary.last === null) return [];
+  const rows = (figureOf: typeof summary.open) =>
+    figureOf.rows.map((each) => shortened(openActionText(i18n, each), REPORT_LIMITS.text));
+  return [
+    { type: 'heading', level: 1, text: t('reports.snapshot.meeting.title') },
+    {
+      type: 'paragraph',
+      text: t('reports.snapshot.meeting.held', {
+        number: summary.last.number,
+        day: day(summary.last.heldOn),
+      }),
+    },
+    figure(t(MEETING_LABEL_KEYS.open), number(summary.open.value), rows(summary.open)),
+    figure(t(MEETING_LABEL_KEYS.overdue), number(summary.overdue.value), rows(summary.overdue)),
+    ...summary.byPerson.map((group) =>
+      figure(actionGroupLabel(i18n, group), number(group.open.value), rows(group.open)),
+    ),
+  ];
+}
+
 // ── The snapshot ─────────────────────────────────────────────────────────────
 
 /** The owner's snapshot of the work as it stands on `input.today`, in `i18n`'s language. */
@@ -611,6 +645,8 @@ export function composeSnapshot(input: SnapshotInput, i18n: I18n): ReportDocumen
     ...changeBlocks(input, i18n),
     // E4: what is still to fix, and on whom — once a snag has been raised.
     ...snagBlocks(i18n, snapshot, today, 1),
+    // G1: the last site meeting, and the actions it left open and on whom.
+    ...meetingBlocks(input, i18n),
     { type: 'rule' },
     { type: 'paragraph', tone: 'muted', text: t('reports.snapshot.closing', { day: day(today) }) },
   ];
