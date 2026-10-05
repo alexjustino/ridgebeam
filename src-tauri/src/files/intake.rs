@@ -14,7 +14,7 @@
 //! | ----------------------------- | --------- | --------- | -------------------- |
 //! | JPEG, PNG, GIF, WebP, BMP     | an image  | yes       | header, then decoded under limits for the thumbnail |
 //! | PDF (`%PDF-`)                 | a document| no — a mark | **never**: not parsed, not rendered; the system opens it |
-//! | HEIC                          | refused   |           | named: this version does not decode it |
+//! | HEIC, HEIF (`ftyp` brands)   | a JPEG    | yes       | **by Windows** (WIC, `files::heic`), under limits, then as a JPEG; refused with a sentence where Windows cannot read it |
 //! | SVG                           | refused   |           | named: an SVG can carry scripts |
 //! | anything else                 | refused   |           | "photos and PDFs, and this is neither" |
 //!
@@ -31,6 +31,22 @@
 //!    between is refused too.
 //! 2. **Identified by its bytes, never its name.** The type table above, by
 //!    magic bytes. A PNG called `.pdf` is kept — as the PNG it is.
+//!    **A HEIC becomes a JPEG here** (G5): its bytes, already under the cap of
+//!    step 1, go to Windows' own decoder ([`heic::to_jpeg`]), which measures
+//!    it against the side cap and 256 MiB of pixels before decoding, turns it
+//!    the way the camera held it, and encodes it as JPEG at quality 90 with
+//!    no metadata. From then on it is a JPEG — measured, hashed, copied as
+//!    `<hash>.jpg`, thumbnailed — and [`Copied::converted_from`] says what it
+//!    was (`HEIC`, or `HEIF` for the general HEIF brands). The person's file
+//!    name is kept as chosen; only the bytes are a JPEG. The JPEG is held to
+//!    the same 25 MiB as everything kept (a backup and a report read every
+//!    copy under that cap): a 48-MP photo at quality 90 comes to roughly 15
+//!    to 25 MB, so the cap is reachable, and a JPEG past it is refused with a
+//!    sentence that says so rather than kept as a file the rest of the
+//!    product would leave out. Where Windows cannot read HEIC (the
+//!    extensions are not installed) the file is refused with a sentence that
+//!    says how to get them; on a system that is not Windows, with the
+//!    sentence it had before G5.
 //! 3. **An image is measured from its header, before any pixel is decoded.**
 //!    Width and height over [`MAX_PHOTO_SIDE`] (12 000) are refused; so is a
 //!    header that cannot be read, or one that says there are no pixels.
@@ -56,6 +72,11 @@
 //! - F7: the general intake. PDFs kept by magic bytes and never parsed; SVG
 //!   named and refused; what a path may bring chosen by the caller
 //!   ([`Accept`]).
+//! - G5: HEIC and HEIF converted to JPEG by Windows' own decoder
+//!   (`files::heic`) and kept as JPEG under the person's file name;
+//!   [`Copied::converted_from`] says it was. A converted JPEG past 25 MiB is
+//!   refused with its own sentence. Where Windows cannot read HEIC, the
+//!   refusal says how to make it able to.
 
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
@@ -65,6 +86,7 @@ use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, Limits};
 use sha2::{Digest, Sha256};
 
 use crate::error::{Error, Result};
+use crate::files::heic;
 
 /// The largest photo copied in: 25 MiB.
 pub const MAX_PHOTO_BYTES: u64 = 25 * 1024 * 1024;
@@ -170,7 +192,8 @@ pub enum Accept {
 pub enum Sniffed {
     /// A type this product keeps.
     Known(Format),
-    /// A HEIC or HEIF photo, which this version does not decode.
+    /// A HEIC or HEIF photo: converted to a JPEG by Windows' own decoder
+    /// where it can read it (`files::heic`), refused where it cannot.
     Heic,
     /// An SVG drawing, which can carry scripts.
     Svg,
@@ -255,6 +278,10 @@ pub struct Copied {
     pub height: i64,
     /// Whether its thumbnail exists; never for a PDF.
     pub thumbnail: bool,
+    /// What it was before it was converted to the JPEG kept: `Some("HEIC")`
+    /// (an HEVC brand, what an iPhone writes) or `Some("HEIF")` (the general
+    /// brands); `None` for a file kept as it came.
+    pub converted_from: Option<&'static str>,
 }
 
 /// A copy-in in progress: the files it wrote, and the folders it created.
@@ -317,6 +344,7 @@ impl CopyIn {
             return Err(refuse("it is larger than 25 MiB"));
         }
 
+        let mut converted_from = None;
         let format = match (sniff(&bytes), accept) {
             (Sniffed::Known(Format::Pdf), Accept::Images) => {
                 return Err(refuse(
@@ -325,9 +353,11 @@ impl CopyIn {
             }
             (Sniffed::Known(format), _) => format,
             (Sniffed::Heic, _) => {
-                return Err(refuse(
-                    "it is a HEIC photo, which this version cannot read — save it as JPEG first",
-                ))
+                // From here on it is the JPEG Windows made of it.
+                let (jpeg, label) = convert_heic(&bytes, &file_name, MAX_PHOTO_BYTES)?;
+                bytes = jpeg;
+                converted_from = Some(label);
+                Format::Jpeg
             }
             (Sniffed::Svg, _) => {
                 return Err(refuse(
@@ -406,6 +436,7 @@ impl CopyIn {
             width: i64::from(width),
             height: i64::from(height),
             thumbnail,
+            converted_from,
         })
     }
 
@@ -446,6 +477,21 @@ impl Drop for CopyIn {
             let _ = std::fs::remove_dir(folder);
         }
     }
+}
+
+/// A HEIC's bytes, as the JPEG Windows makes of them, and what they were
+/// (`HEIC` or `HEIF`) — or the sentence that says why not. The JPEG is held to
+/// `cap`, as every file kept is.
+fn convert_heic(bytes: &[u8], file_name: &str, cap: u64) -> Result<(Vec<u8>, &'static str)> {
+    let kind = heic::Kind::of(bytes);
+    let converted = heic::to_jpeg(bytes)
+        .map_err(|refusal| Error::PhotoRefused(refusal.sentence(file_name, kind)))?;
+    if converted.jpeg.len() as u64 > cap {
+        return Err(Error::PhotoRefused(format!(
+            "“{file_name}” was not added: converted to JPEG it would be larger than 25 MiB, more than Ridgebeam keeps — set the iPhone's Camera → Formats to Most Compatible and add the JPEG it takes."
+        )));
+    }
+    Ok((converted.jpeg, kind.label()))
 }
 
 /// The name a person will recognise, safe to keep in a row: the file's own
@@ -735,7 +781,174 @@ pub mod tests {
             .copy(&path, Accept::Images)
             .unwrap_err();
 
-        assert!(refused.to_string().contains("HEIC"), "{refused}");
+        assert_eq!(refused.kind(), "photo_refused");
+        // What it says depends on the computer: where Windows can read HEIC,
+        // these bytes are garbage after the brand; where it cannot, the
+        // sentence says how to make it able to; elsewhere, as before G5.
+        let expected = if cfg!(not(windows)) {
+            heic::HeicRefusal::NotOnThisSystem
+        } else if heic_decoder_present() {
+            heic::HeicRefusal::Unreadable
+        } else {
+            heic::HeicRefusal::NoDecoder
+        };
+        assert_eq!(
+            refused.to_string(),
+            expected.sentence("IMG_0001.HEIC", heic::Kind::Heic)
+        );
+        assert!(files_under(work.path()).is_empty(), "nothing was written");
+    }
+
+    #[cfg(windows)]
+    fn heic_decoder_present() -> bool {
+        heic::testing::decoder_present()
+    }
+
+    #[cfg(not(windows))]
+    fn heic_decoder_present() -> bool {
+        false
+    }
+
+    /// A real HEIC, made by WIC here; `None` (the reason printed) where this
+    /// computer cannot make and read one, and the test skips.
+    #[cfg(windows)]
+    pub fn heic_or_skip(test: &str, orientation: Option<u16>) -> Option<Vec<u8>> {
+        heic::testing::heic_or_skip(test, 64, 48, orientation)
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_heic_is_kept_as_a_jpeg_under_its_own_name_turned_and_thumbnailed() {
+        let Some(bytes) = heic_or_skip("intake", Some(6)) else {
+            return;
+        };
+        let source = Scratch::create();
+        let work = Scratch::create();
+        let path = source.path().join("IMG_0001.HEIC");
+        std::fs::write(&path, &bytes).unwrap();
+
+        let mut copy = CopyIn::new(work.path());
+        let copied = copy.copy(&path, Accept::Images).unwrap();
+        copy.keep();
+
+        assert_eq!(copied.file_name, "IMG_0001.HEIC", "the name as chosen");
+        assert_eq!(copied.format, Format::Jpeg);
+        assert_eq!(copied.format.media_type(), "image/jpeg");
+        assert_eq!(copied.converted_from, Some("HEIC"));
+        assert_eq!(
+            (copied.width, copied.height),
+            (48, 64),
+            "turned as the camera said"
+        );
+        assert!(copied.thumbnail);
+        let kept = std::fs::read(
+            work.path()
+                .join(DOCUMENTS)
+                .join(format!("{}.jpg", copied.hash)),
+        )
+        .unwrap();
+        assert_eq!(sha256_hex(&kept), copied.hash, "named by the JPEG's hash");
+        assert_eq!(copied.bytes, kept.len() as i64);
+        assert!(
+            !kept.windows(4).any(|w| w == b"Exif"),
+            "no metadata carried"
+        );
+        let image = image::load_from_memory(&kept).unwrap().to_rgb8();
+        assert!(
+            heic::testing::is_red(image.get_pixel(43, 4)),
+            "the camera's top-left is now top right"
+        );
+        assert!(thumbnail_data_url(work.path(), &copied.hash)
+            .unwrap()
+            .starts_with("data:image/jpeg;base64,"));
+        assert_eq!(
+            original(work.path(), &copied.hash),
+            Some(
+                work.path()
+                    .join(DOCUMENTS)
+                    .join(format!("{}.jpg", copied.hash))
+            )
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn the_same_heic_added_twice_is_one_copy() {
+        let Some(bytes) = heic_or_skip("intake twice", None) else {
+            return;
+        };
+        let source = Scratch::create();
+        let work = Scratch::create();
+        for name in ["IMG_0001.HEIC", "IMG_0001 copy.HEIC"] {
+            std::fs::write(source.path().join(name), &bytes).unwrap();
+        }
+
+        let mut copy = CopyIn::new(work.path());
+        let first = copy
+            .copy(&source.path().join("IMG_0001.HEIC"), Accept::Images)
+            .unwrap();
+        let second = copy
+            .copy(&source.path().join("IMG_0001 copy.HEIC"), Accept::Images)
+            .unwrap();
+        copy.keep();
+
+        assert_eq!(first.hash, second.hash, "the conversion is deterministic");
+        assert_eq!(
+            files_under(work.path()).len(),
+            4,
+            "two folders, one copy, one thumbnail"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_heif_of_the_general_brand_is_converted_from_heif() {
+        let Some(mut bytes) = heic_or_skip("intake mif1", None) else {
+            return;
+        };
+        bytes[8..12].copy_from_slice(b"mif1");
+        let source = Scratch::create();
+        let work = Scratch::create();
+        let path = source.path().join("drawing.heif");
+        std::fs::write(&path, &bytes).unwrap();
+
+        let copied = CopyIn::new(work.path())
+            .copy(&path, Accept::Documents)
+            .unwrap();
+
+        assert_eq!(copied.converted_from, Some("HEIF"));
+        assert_eq!(copied.format, Format::Jpeg);
+    }
+
+    /// The converted JPEG is held to the cap every kept file is; a JPEG past
+    /// it is refused with a sentence that says so. (At the product's 25 MiB
+    /// this needs a photo of tens of megapixels; the cap is lowered here.)
+    #[cfg(windows)]
+    #[test]
+    fn a_converted_jpeg_past_the_cap_is_refused_with_its_own_sentence() {
+        let Some(bytes) = heic_or_skip("cap", None) else {
+            return;
+        };
+        let refused = convert_heic(&bytes, "IMG_0001.HEIC", 100).unwrap_err();
+        assert_eq!(refused.kind(), "photo_refused");
+        assert_eq!(
+            refused.to_string(),
+            "“IMG_0001.HEIC” was not added: converted to JPEG it would be larger than 25 MiB, more than Ridgebeam keeps — set the iPhone's Camera → Formats to Most Compatible and add the JPEG it takes."
+        );
+        let (jpeg, label) = convert_heic(&bytes, "IMG_0001.HEIC", MAX_PHOTO_BYTES).unwrap();
+        assert_eq!(label, "HEIC");
+        assert!(jpeg.len() > 100);
+    }
+
+    #[test]
+    fn a_file_kept_as_it_came_was_not_converted() {
+        let source = Scratch::create();
+        let work = Scratch::create();
+        std::fs::write(source.path().join("a.jpg"), jpeg(40, 30)).unwrap();
+        let copied = CopyIn::new(work.path())
+            .copy(&source.path().join("a.jpg"), Accept::Images)
+            .unwrap();
+        assert_eq!(copied.converted_from, None);
     }
 
     #[test]

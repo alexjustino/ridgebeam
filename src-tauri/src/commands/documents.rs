@@ -20,6 +20,8 @@
 //!   `document_unlink`, `document_remove`, `document_open`,
 //!   `document_thumbnail`, `documents_verify`, `folder_health`.
 //! - D3: a document may be filed as a `warranty` or a `manual`.
+//! - G5: `document_add` answers every file it kept (`added`), with what a
+//!   HEIC was before it was converted to the JPEG kept (`convertedFrom`).
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -29,7 +31,7 @@ use tauri::State;
 
 use crate::commands::work::{change_work, with_work};
 use crate::contract::{
-    DocumentPatch, DocumentTarget, DocumentsAdded, DocumentsReport, FolderHealth,
+    AddedFile, DocumentPatch, DocumentTarget, DocumentsAdded, DocumentsReport, FolderHealth,
     MismatchedDocument, MissingDocument, RefusedFile, WorkSnapshot,
 };
 use crate::db::documents::{self as repo, NewDocument, KINDS};
@@ -256,6 +258,7 @@ pub fn document_add_with(
         repo::check_target(&state.conn, &target)?;
 
         let mut refused = Vec::new();
+        let mut added = Vec::new();
         for path in paths {
             let source = PathBuf::from(path);
             if !source.is_absolute() {
@@ -299,10 +302,16 @@ pub fn document_add_with(
                 Some(&target),
             )?;
             copy.keep();
+            added.push(AddedFile {
+                file_name: copied.file_name,
+                file_hash: copied.hash,
+                converted_from: copied.converted_from.map(str::to_string),
+            });
         }
         Ok(DocumentsAdded {
             snapshot: plan::snapshot(&state.conn)?,
             refused,
+            added,
         })
     })
 }
@@ -509,6 +518,13 @@ pub mod tests {
         assert_eq!(added.snapshot.documents.len(), 2);
         let names: Vec<&str> = added.refused.iter().map(|r| r.file_name.as_str()).collect();
         assert_eq!(names, vec!["lie.docx", "drawing.png"]);
+        let kept: Vec<&str> = added.added.iter().map(|a| a.file_name.as_str()).collect();
+        assert_eq!(kept, vec!["plan.png", "permit.pdf"], "every file kept");
+        assert!(added.added.iter().all(|a| a.converted_from.is_none()));
+        assert_eq!(
+            serde_json::to_value(&added).unwrap()["added"][0]["convertedFrom"],
+            serde_json::Value::Null
+        );
         assert_eq!(
             added.refused[0].reason,
             "“lie.docx” was not added: Ridgebeam keeps photos and PDFs, and this is neither."
@@ -847,5 +863,54 @@ pub mod tests {
                 .kind(),
             "no_work_open"
         );
+    }
+
+    /// G5: a HEIC through the Documents page — a photo whose name is kept and
+    /// whose bytes are a JPEG; the answer lists every file kept and says which
+    /// one was converted.
+    #[cfg(windows)]
+    #[test]
+    fn a_heic_is_added_as_a_jpeg_under_its_own_name_and_the_answer_says_it_was_converted() {
+        let Some(heic) = crate::files::intake::tests::heic_or_skip("document_add", None) else {
+            return;
+        };
+        let (_db, open, _scratch) = host_with_a_work();
+        let source = Scratch::create();
+        let paths = vec![
+            write(source.path(), "IMG_0001.HEIC", &heic),
+            write(source.path(), "plan.png", &png(64, 48)),
+        ];
+
+        let added = document_add_with(&open, &paths, "photo", None, today(), AUTHOR).unwrap();
+
+        assert!(added.refused.is_empty(), "{:?}", added.refused);
+        let wire = serde_json::to_value(&added.added).unwrap();
+        assert_eq!(wire[0]["fileName"], "IMG_0001.HEIC");
+        assert_eq!(wire[0]["convertedFrom"], "HEIC");
+        assert_eq!(wire[1]["fileName"], "plan.png");
+        assert_eq!(
+            wire[1].get("convertedFrom"),
+            Some(&serde_json::Value::Null),
+            "null, never absent"
+        );
+        let photo = added
+            .snapshot
+            .documents
+            .iter()
+            .find(|d| d.file_name == "IMG_0001.HEIC")
+            .unwrap();
+        assert_eq!(photo.file_hash, added.added[0].file_hash);
+        assert_eq!(photo.media_type, "image/jpeg");
+        assert_eq!((photo.width, photo.height), (Some(64), Some(48)));
+        assert_eq!(photo.kind, "photo");
+        assert!(folder_of(&open)
+            .join(DOCUMENTS)
+            .join(format!("{}.jpg", photo.file_hash))
+            .is_file());
+        assert!(document_thumbnail_with(&open, &photo.id)
+            .unwrap()
+            .expect("a thumbnail")
+            .starts_with("data:image/jpeg;base64,"));
+        work_close_with(&open);
     }
 }

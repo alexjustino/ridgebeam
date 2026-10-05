@@ -78,6 +78,7 @@ fn photo(hash: &str) -> Photo {
         width: 640,
         height: 480,
         thumbnail: true,
+        converted_from: None,
     }
 }
 

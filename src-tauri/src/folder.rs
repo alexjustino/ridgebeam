@@ -636,6 +636,7 @@ mod tests {
                         width: 64,
                         height: 48,
                         thumbnail: false,
+                        converted_from: None,
                     }],
                 },
             )
@@ -1493,6 +1494,7 @@ mod tests {
                         width: 64,
                         height: 48,
                         thumbnail: false,
+                        converted_from: None,
                     }],
                 },
             )
@@ -2167,6 +2169,7 @@ mod tests {
             width: 640,
             height: 480,
             thumbnail: true,
+            converted_from: None,
         };
         let entry = |day: &str| diary::NewEntry {
             day: day.into(),
