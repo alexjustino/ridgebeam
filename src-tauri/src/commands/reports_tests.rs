@@ -627,6 +627,20 @@ fn the_work_as_json_reads_back_into_the_snapshot_and_the_diary() {
     )
     .unwrap();
 
+    // G1: a meeting's minutes, an action open, travel with the work.
+    crate::commands::meetings::meeting_close_with(
+        &site.open,
+        &serde_json::from_value(serde_json::json!({
+            "heldOn": "2026-10-08", "attendees": [ { "name": "The neighbour" } ],
+            "items": [ { "kind": "other", "title": "The skip" } ],
+            "actions": [ { "text": "Move the skip" } ]
+        }))
+        .unwrap(),
+        today(),
+        "A. Owner (synthetic)",
+    )
+    .unwrap();
+
     let file = work_export_json_with(
         &site.open,
         &written,
@@ -661,6 +675,12 @@ fn the_work_as_json_reads_back_into_the_snapshot_and_the_diary() {
     assert!(
         text.contains("\"closure\": null"),
         "open, and null never absent"
+    );
+    assert_eq!(export.work.meetings[0].actions[0].text, "Move the skip");
+    assert!(text.contains("\"meetings\": ["));
+    assert!(
+        text.contains("\"personId\": null"),
+        "an action on nobody, and null never absent"
     );
     assert_eq!(
         export.diary,

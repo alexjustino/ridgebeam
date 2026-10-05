@@ -32,6 +32,9 @@
 //!   its own bytes before it is written, and a page that fails is a bug,
 //!   refused and not written. `report_open` opens the page just written, as
 //!   any other.
+//! - G1: `report_pdf_write` takes the `minutes` kind — a meeting's minutes, in
+//!   the owner's words, as any other report; the page writer still takes only
+//!   the snapshot.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -85,7 +88,8 @@ pub const NOT_THE_SNAPSHOT: &str =
 pub const NOT_WRITTEN_HERE: &str =
     "Only a file Ridgebeam wrote in this session can be opened here.";
 
-/// The weekly report, the printed schedule or the handover book, as a PDF.
+/// The weekly report, the printed schedule, the handover book or a
+/// meeting's minutes, as a PDF.
 /// The document holds every word; a document with photos needs the work open,
 /// where they are found by hash.
 ///

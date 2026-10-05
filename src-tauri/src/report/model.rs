@@ -24,7 +24,8 @@
 //! On the wire (camelCase, `type` tags):
 //!
 //! ```text
-//! { kind: 'weekly' | 'diary' | 'schedule' | 'handover' | 'snapshot', title, subtitle,
+//! { kind: 'weekly' | 'diary' | 'schedule' | 'handover' | 'snapshot' | 'minutes', title,
+//!   subtitle,
 //!   pageSize: 'a4' | 'a4-landscape', language: 'en' | 'pt-BR',
 //!   blocks: [
 //!     { type: 'heading', level: 1 | 2, text }
@@ -85,6 +86,10 @@ pub enum ReportKind {
     /// The owner's snapshot (D4): the work as it stands, one HTML page meant
     /// to be sent by the person (`report::html`).
     Snapshot,
+    /// The minutes of a site meeting (G1), in the owner's words: who was
+    /// there, each item with what was said and done, the actions. A record,
+    /// not a signature.
+    Minutes,
 }
 
 /// How wide an image is printed: the line, or half of it — two half images in
@@ -518,6 +523,9 @@ pub mod tests {
         assert!(serde_json::from_str::<ReportKind>("\"invoice\"").is_err());
         let snapshot: ReportKind = serde_json::from_str("\"snapshot\"").unwrap();
         assert_eq!(snapshot, ReportKind::Snapshot);
+        let minutes: ReportKind = serde_json::from_str("\"minutes\"").unwrap();
+        assert_eq!(minutes, ReportKind::Minutes);
+        assert!(serde_json::from_str::<ReportKind>("\"Minutes\"").is_err());
     }
 
     fn refused(document: &ReportDocument) -> String {

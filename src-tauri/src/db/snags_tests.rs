@@ -592,6 +592,7 @@ fn no_other_module_writes_a_snag_table() {
         ("checks.rs", include_str!("checks.rs")),
         ("change_orders.rs", include_str!("change_orders.rs")),
         ("templates.rs", include_str!("templates.rs")),
+        ("meetings.rs", include_str!("meetings.rs")),
     ];
     for (file, source) in sources {
         let product = source.split("#[cfg(test)]").next().unwrap_or(source);
