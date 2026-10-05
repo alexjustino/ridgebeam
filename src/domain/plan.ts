@@ -681,6 +681,62 @@ export interface Meeting {
   readonly actions: readonly MeetingAction[];
 }
 
+/**
+ * What happened to a purchase (slice G2): it was ordered, it was delivered, or the order fell
+ * through (`cancelled`, and the purchase is to order again).
+ */
+export type PurchaseEventKind = 'ordered' | 'delivered' | 'cancelled';
+
+/**
+ * One fact of a purchase's story (slice G2): append-only, one sequence per purchase. The host keeps
+ * the order of what can happen — `ordered` first or after a `cancelled`; `delivered` and
+ * `cancelled` only on an open order; nothing after `delivered`; never on a day before the event it
+ * follows, nor after today.
+ */
+export interface PurchaseEvent {
+  /** The purchase it happened to: the host sends it, though the event is nested in its purchase. */
+  readonly purchaseId: string;
+  /** 1, 2, 3 … per purchase: the order it happened in. */
+  readonly seq: number;
+  readonly kind: PurchaseEventKind;
+  /** `YYYY-MM-DD`, never in the future. */
+  readonly day: string;
+  /** At most 500 characters. */
+  readonly note: string | null;
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+}
+
+/**
+ * Something an activity needs that takes time to arrive (slice G2, pt "compra"): a worktop, the
+ * windows, the tiles — with how long the supplier takes. Its day to order by is computed, never
+ * stored (`purchases.ts`). Editable like a commitment, never locked by approval (buying is the work,
+ * not its scope); the host removes one only while no event names it.
+ */
+export interface Purchase {
+  readonly id: string;
+  /** Order among the purchases of the work. */
+  readonly position: number;
+  readonly stageId: string;
+  /** The activity of that stage that needs it; `null`: the stage's first activity. */
+  readonly activityId: string | null;
+  /** 1 to 200 characters, as the person wrote it. */
+  readonly name: string;
+  /** How much, in the person's words ("12 m²"), at most 60 characters; never counted. */
+  readonly quantity: string | null;
+  /** From whom, at most 120 characters. */
+  readonly supplier: string | null;
+  /** How long the supplier takes, in **calendar** days, 0 to 365. */
+  readonly leadDays: number;
+  /** At most 2 000 characters. */
+  readonly note: string | null;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+  /** What happened to it, by seq. */
+  readonly events: readonly PurchaseEvent[];
+}
+
 /** The whole plan of one work, as `work_get` returns it. */
 export interface WorkSnapshot {
   readonly work: Work;
@@ -713,6 +769,8 @@ export interface WorkSnapshot {
   readonly snags: readonly Snag[];
   /** Every meeting of the work, by number, each with its attendees, items and actions (slice G1). */
   readonly meetings: readonly Meeting[];
+  /** Every purchase of the work, by position, each with its events by seq (slice G2). */
+  readonly purchases: readonly Purchase[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────

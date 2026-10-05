@@ -10,6 +10,8 @@ import {
   meeting,
   meetingAction,
   person,
+  purchase,
+  purchaseEvent,
   snag,
   snagClosure,
   snapshot,
@@ -52,6 +54,7 @@ import type { Check, Commitment, MeetingItem, WorkSnapshot } from './plan';
 import { LOOKAHEAD_GATE_KEYS, lookahead } from './reports/lookahead';
 import { runway } from './runway';
 import { schedule } from './schedule';
+import { purchaseRows } from './purchases';
 import { snagRows } from './snags';
 
 // ── Builders. Nothing in them is a real place, person or brand. ──────────────
@@ -159,6 +162,17 @@ const FULL: WorkSnapshot = {
     }),
   ],
   commitments: [contract],
+  purchases: [
+    // Needed by s2's first activity; 7 days from the supplier: late to order.
+    purchase('u1', 1, 's2', 7),
+    // Ordered on 2 September, 30 days: it arrives after a2 needs it.
+    purchase('u2', 2, 's1', 30, {
+      activityId: 'a2',
+      events: [purchaseEvent(1, 'ordered', '2026-09-02')],
+    }),
+    // A day from the supplier, needed by b1: not this week's business.
+    purchase('u3', 3, 's2', 1, { activityId: 'b1' }),
+  ],
   meetings: [
     meeting('mt1', 1, '2026-09-04', {
       attendees: [{ position: 1, personId: 'p1', name: null }],
@@ -169,6 +183,7 @@ const FULL: WorkSnapshot = {
         item('payment', 'k1', 4),
         item('delay', null, 5),
         item('gate', 's2:start', 6),
+        item('other', 'u1', 7),
       ],
       actions: [
         meetingAction('x1', 'mt1', 1, { personId: 'p1', dueOn: '2026-09-08' }),
@@ -504,6 +519,79 @@ describe('the agenda, section by section', () => {
     });
   });
 
+  it('lists the purchases between the snags and the money: to order this week, then arriving late', () => {
+    const ids = agenda.sections.map((each) => each.id);
+    expect(ids.indexOf('purchases')).toBe(ids.indexOf('snags') + 1);
+    expect(ids.indexOf('money')).toBe(ids.indexOf('purchases') + 1);
+    const bought = section(agenda, 'purchases');
+    // u3 is ordered by the 14th: next week's business, not this meeting's.
+    expect(bought.map((each) => [each.detail.type, each.refId])).toEqual([
+      ['purchase-to-order', 'u1'],
+      ['purchase-ordered', 'u2'],
+    ]);
+    // The kind is `other`: the host's list of kinds is closed.
+    expect(bought.every((each) => each.kind === 'other')).toBe(true);
+    const rows = new Map(
+      purchaseRows(FULL, scheduled, LATE, TODAY).map((row) => [row.purchaseId, row]),
+    );
+    expect(bought[0]).toMatchObject({
+      title: 'Purchase u1',
+      due: rows.get('u1')!.orderBy,
+      overdue: true,
+      messageKey: AGENDA_ITEM_KEYS['purchase-to-order'],
+      detail: {
+        type: 'purchase-to-order',
+        stageName: 'Painting',
+        neededActivityId: 'b1',
+        neededOn: '2026-09-15',
+        orderBy: '2026-09-08',
+        lateToOrder: true,
+        daysLate: 1,
+        fellThrough: 0,
+      },
+    });
+    expect(bought[1]).toMatchObject({
+      due: '2026-10-02',
+      overdue: false,
+      messageKey: AGENDA_ITEM_KEYS['purchase-ordered'],
+      detail: {
+        type: 'purchase-ordered',
+        neededActivityId: 'a2',
+        orderedOn: '2026-09-02',
+        expectedOn: '2026-10-02',
+        neededOn: rows.get('u2')!.neededOn,
+        lateToArrive: false,
+        arrivesAfterNeeded: true,
+      },
+    });
+  });
+
+  it('puts what is late to arrive before what only arrives after it is needed', () => {
+    const plan: WorkSnapshot = {
+      ...FULL,
+      purchases: [
+        purchase('v1', 1, 's2', 30, {
+          activityId: 'b1',
+          events: [purchaseEvent(1, 'ordered', '2026-09-01')],
+        }),
+        purchase('v2', 2, 's2', 2, {
+          activityId: 'b1',
+          events: [purchaseEvent(1, 'ordered', '2026-09-03')],
+        }),
+      ],
+    };
+    const bought = section(ask(plan, TODAY, LATE), 'purchases');
+    expect(bought.map((each) => [each.refId, each.overdue, each.due])).toEqual([
+      ['v2', true, '2026-09-05'],
+      ['v1', false, '2026-10-01'],
+    ]);
+  });
+
+  it('leaves the purchases out when there is nothing to say about them', () => {
+    const quiet = ask({ ...FULL, purchases: [purchase('u3', 1, 's2', 1, { activityId: 'b1' })] });
+    expect(quiet.sections.map((each) => each.id)).not.toContain('purchases');
+  });
+
   it('lists the gates coming up, with the lookahead’s sentence', () => {
     const gates = section(agenda, 'gates');
     expect(gates.map((each) => each.refId)).toEqual(['s2:start']);
@@ -548,6 +636,9 @@ describe('new since the last meeting', () => {
       'delay:': false,
       'starting:b1': true,
       'gate:s2:start': false,
+      // A purchase is said under `other`, by its id: u1 was in the last minutes, u2 was not.
+      'purchase-to-order:u1': false,
+      'purchase-ordered:u2': true,
     });
   });
 

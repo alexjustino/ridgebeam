@@ -7,9 +7,12 @@ import {
   finished,
   link,
   person,
+  purchase,
+  purchaseEvent,
   snapshot,
   stage,
 } from '../__fixtures__/plan';
+import { calendarDaysBetween } from '../calendar';
 import type { DiaryEntry } from '../diary';
 import { traceable, type Figure, type ReportRow } from '../figure';
 import { MILESTONE_LABEL_KEYS } from '../milestones';
@@ -22,7 +25,9 @@ import type {
   Payment,
   WorkSnapshot,
 } from '../plan';
+import { purchaseRows } from '../purchases';
 import { schedule } from '../schedule';
+import { forecast } from '../schedule/forecast';
 import {
   LOOKAHEAD_DAYS,
   LOOKAHEAD_GATE_KEYS,
@@ -573,6 +578,69 @@ describe('the payments', () => {
   });
 });
 
+// ── What to order ────────────────────────────────────────────────────────────
+
+describe('what to order', () => {
+  // As things stand: the diary never mentions `early`, so it starts today and `mid` after it.
+  const started = forecast(WORK, schedule(WORK), ENTRIES, TODAY).dates;
+  const midStart = started.get('mid')!.start;
+  const lateStart = started.get('late')!.start;
+  const leadTo = (needed: string, orderBy: string): number => calendarDaysBetween(orderBy, needed);
+  const plan: WorkSnapshot = {
+    ...WORK,
+    purchases: [
+      // Ordered by the window's last day: in, on the edge.
+      purchase('edge', 1, 'paint', leadTo(lateStart, '2026-10-18'), { activityId: 'late' }),
+      // Ordered by three days ago: late, and first.
+      purchase('late', 2, 'paint', leadTo(lateStart, '2026-10-02')),
+      // Ordered by the day after the window: not yet.
+      purchase('after', 3, 'paint', leadTo(lateStart, '2026-10-19'), { activityId: 'late' }),
+      // Already ordered: nothing to order.
+      purchase('ordered', 4, 'tiles', 60, {
+        activityId: 'mid',
+        events: [purchaseEvent(1, 'ordered', '2026-10-01')],
+      }),
+      // A closed stage is done.
+      purchase('roof', 5, 'roof', 60),
+      // Ordered today, the order fell through: to order again, and late.
+      purchase('again', 6, 'tiles', leadTo(midStart, '2026-10-04'), {
+        activityId: 'mid',
+        events: [
+          purchaseEvent(1, 'ordered', '2026-10-01'),
+          purchaseEvent(2, 'cancelled', '2026-10-05', 'Out of stock'),
+        ],
+      }),
+    ],
+  };
+  const report = look(plan);
+
+  it('lists what is to order by the window’s last day or has passed it, the earliest first', () => {
+    expect(ids(report.toOrder)).toEqual(['late', 'again', 'edge']);
+    expect(report.toOrder.label).toBe(LOOKAHEAD_LABEL_KEYS.toOrder);
+    expect(report.toOrder.rows.map((row) => row.orderBy)).toEqual([
+      '2026-10-02',
+      '2026-10-04',
+      '2026-10-18',
+    ]);
+    expect(traceable(report.toOrder)).toBe(true);
+  });
+
+  it('reads the purchases’ own rows: the forecast’s day, never the plan’s', () => {
+    const rows = purchaseRows(plan, schedule(plan), ENTRIES, TODAY);
+    for (const row of report.toOrder.rows) {
+      expect(row).toEqual(rows.find((each) => each.purchaseId === row.purchaseId));
+      expect(row.neededFrom).toBe('forecast');
+    }
+    // The plan has mid on 6 October; as things stand it starts later.
+    expect(schedule(plan).dates.get('mid')!.start).toBe('2026-10-06');
+    expect(midStart > '2026-10-06').toBe(true);
+  });
+
+  it('is empty for a work with no purchase', () => {
+    expect(look().toOrder).toMatchObject({ value: 0, rows: [] });
+  });
+});
+
 // ── Nothing placed ───────────────────────────────────────────────────────────
 
 describe('a schedule that places nothing', () => {
@@ -615,7 +683,7 @@ describe('a schedule that places nothing', () => {
 describe('message keys', () => {
   it('are each once, all under reports.lookahead', () => {
     expect(new Set(LOOKAHEAD_MESSAGE_KEYS).size).toBe(LOOKAHEAD_MESSAGE_KEYS.length);
-    expect(LOOKAHEAD_MESSAGE_KEYS).toHaveLength(8);
+    expect(LOOKAHEAD_MESSAGE_KEYS).toHaveLength(9);
     for (const key of LOOKAHEAD_MESSAGE_KEYS)
       expect(key.startsWith('reports.lookahead.')).toBe(true);
   });

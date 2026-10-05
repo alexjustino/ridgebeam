@@ -8,6 +8,7 @@ import {
   finished,
   link,
   person,
+  purchase,
   snapshot,
   stage,
   takeBaseline,
@@ -16,6 +17,7 @@ import {
 import type { DiaryEntry } from '../diary';
 import { traceable, type Figure, type ReportRow } from '../figure';
 import type { Payment, WorkSnapshot } from '../plan';
+import { purchaseFigures } from '../purchases';
 import { schedule } from '../schedule';
 import {
   WEEKLY_DECISION_WINDOW_DAYS,
@@ -74,6 +76,10 @@ const figuresOf = (report: Weekly): Array<Figure<ReportRow>> => [
   report.stages.started,
   report.stages.held,
   report.stages.closed,
+  report.purchases.toOrderThisWeek,
+  report.purchases.lateToOrder,
+  report.purchases.lateToArrive,
+  report.purchases.arrivesAfterNeeded,
   ...(report.finish.slip === null ? [] : [report.finish.slip]),
 ];
 
@@ -486,5 +492,38 @@ describe('stages', () => {
     expect(ids(report.stages.started)).toEqual(['finish']);
     expect(ids(report.stages.held)).toEqual(['finish']);
     expect(ids(report.stages.closed)).toEqual(['struct']);
+  });
+});
+
+describe('purchases', () => {
+  it('says what to order this week and what is late, as of today, whatever week is asked', () => {
+    // As things stand on Thursday 10 September the frame starts today, so the tiles start on
+    // 8 October: thirty days from the supplier means ordering by 8 September — late.
+    const plan: WorkSnapshot = {
+      ...PLAN,
+      purchases: [
+        purchase('worktop', 1, 'finish', 30),
+        purchase('handles', 2, 'finish', 3, { activityId: 'paint' }),
+      ],
+    };
+    const today = '2026-09-10';
+    const report = made(plan, [], '2026-09-01', today);
+    expect(report.purchases).toEqual(purchaseFigures(plan, schedule(plan), [], today));
+    expect(report.purchases.total).toBe(2);
+    expect(report.purchases.lateToOrder.rows.map((row) => row.purchaseId)).toEqual(['worktop']);
+    expect(report.purchases.lateToOrder.rows[0]).toMatchObject({
+      neededOn: '2026-10-08',
+      orderBy: '2026-09-08',
+      daysLate: 2,
+    });
+    expect(report.purchases.toOrderThisWeek.rows.map((row) => row.purchaseId)).toEqual(['worktop']);
+    expect(report.purchases.lateToArrive.value).toBe(0);
+    for (const figure of figuresOf(report)) expect(traceable(figure)).toBe(true);
+  });
+
+  it('is nothing for a work with no purchase', () => {
+    const report = made(PLAN, [], null, '2026-09-10');
+    expect(report.purchases.total).toBe(0);
+    expect(report.purchases.toOrderThisWeek.rows).toEqual([]);
   });
 });

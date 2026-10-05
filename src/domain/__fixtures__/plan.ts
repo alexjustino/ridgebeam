@@ -18,6 +18,8 @@ import type {
   MeetingAction,
   MeetingActionClosure,
   Person,
+  Purchase,
+  PurchaseEvent,
   Snag,
   SnagClosure,
   Stage,
@@ -62,6 +64,7 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     fundingReceipts: [],
     snags: [],
     meetings: [],
+    purchases: [],
     ...parts,
   };
 }
@@ -429,5 +432,54 @@ export function actionClosure(
     note: null,
     authorName: 'Sample author',
     createdAt: `${closedOn}T18:00:00.000Z`,
+  };
+}
+
+/**
+ * A purchase on `stageId`, needed by its first activity unless `parts` name one, `leadDays` calendar
+ * days from the supplier, nothing happened to it yet (slice G2).
+ */
+export function purchase(
+  id: string,
+  position: number,
+  stageId: string,
+  leadDays: number,
+  parts: Partial<Purchase> = {},
+): Purchase {
+  return {
+    id,
+    position,
+    stageId,
+    activityId: null,
+    name: `Purchase ${id}`,
+    quantity: null,
+    supplier: null,
+    leadDays,
+    note: null,
+    createdAt: '2026-08-25T12:00:00.000Z',
+    ...parts,
+    // Each event names the purchase it is nested in, as the host sends it.
+    events: (parts.events ?? []).map((event) => ({ ...event, purchaseId: id })),
+  };
+}
+
+/**
+ * One event of a purchase's story, on `day`, recorded that day. `purchase()` fills its
+ * `purchaseId`; on its own it names a placeholder.
+ */
+export function purchaseEvent(
+  seq: number,
+  kind: PurchaseEvent['kind'],
+  day: string,
+  note: string | null = null,
+): PurchaseEvent {
+  return {
+    purchaseId: 'purchase',
+    seq,
+    kind,
+    day,
+    note,
+    authorName: 'Sample author',
+    createdAt: `${day}T18:00:00.000Z`,
   };
 }
