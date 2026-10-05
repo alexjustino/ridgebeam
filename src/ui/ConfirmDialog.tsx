@@ -22,6 +22,7 @@ export function ConfirmDialog({
   danger = false,
   pending = false,
   confirmTestId = 'confirm',
+  over = false,
   onConfirm,
   onCancel,
 }: {
@@ -35,12 +36,14 @@ export function ConfirmDialog({
   pending?: boolean;
   /** Names the confirming button for the end-to-end suite where a screen has more than one dialog. */
   confirmTestId?: string;
+  /** Asked over another dialog: drawn on top of it, and Escape closes only this one. */
+  over?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   const { t } = useI18n();
   return (
-    <Modal open={open} label={title} onClose={onCancel}>
+    <Modal open={open} label={title} onClose={onCancel} over={over}>
       <div className="flex flex-col gap-4 p-5">
         <h2 className="text-body-lg font-semibold text-fg">{title}</h2>
         <div className="text-body text-fg-secondary">{children}</div>

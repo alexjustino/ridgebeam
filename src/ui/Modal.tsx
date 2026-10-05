@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useFocusTrap } from './useFocusTrap';
 
@@ -10,7 +11,15 @@ import { useFocusTrap } from './useFocusTrap';
  * click but is not a control, so the keyboard route is Escape or whatever the
  * content offers. Focus moves into the panel on open so a keyboard user is not
  * left on the page underneath.
+ *
+ * A dialog may ask "are you sure" over another (G3: replacing a template of yours from the Export
+ * dialog, removing one from the New work dialog's picker). Escape then closes only the one on top —
+ * the open dialogs are a stack — and `over` draws it on the document's body rather than inside the
+ * dialog under it, whose panel would otherwise clip it.
  */
+/** The dialogs open now, the last on top. */
+const OPEN: symbol[] = [];
+
 export function Modal({
   open,
   label,
@@ -18,6 +27,7 @@ export function Modal({
   children,
   width = 'md',
   height = 'content',
+  over = false,
 }: {
   open: boolean;
   /** The accessible name. A dialog with no name is a dialog nobody can use. */
@@ -32,28 +42,41 @@ export function Modal({
    * between the press and the release (F11: a click on Restore missed its button that way).
    */
   height?: 'content' | 'fixed';
+  /** Drawn over another dialog: on the document's body, so the dialog under it cannot clip it. */
+  over?: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  // The latest `onClose`, so the dialog keeps its place in the stack when its owner re-renders.
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
 
+    const me = Symbol('modal');
+    OPEN.push(me);
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      // Only the dialog on top answers: Escape closes one dialog, never the one under it too.
+      if (event.key === 'Escape' && OPEN[OPEN.length - 1] === me) {
         event.stopPropagation();
-        onClose();
+        close.current();
       }
     };
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      OPEN.splice(OPEN.indexOf(me), 1);
+    };
+  }, [open]);
 
   // Tab stays inside while it is open; focus goes back to where it was after.
   useFocusTrap(panel, open);
 
   if (!open) return null;
 
-  return (
+  const dialog = (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]">
       <div aria-hidden="true" className="absolute inset-0 bg-overlay" onClick={onClose} />
 
@@ -74,4 +97,6 @@ export function Modal({
       </div>
     </div>
   );
+
+  return over ? createPortal(dialog, document.body) : dialog;
 }
