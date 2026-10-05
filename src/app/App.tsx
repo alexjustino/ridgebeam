@@ -121,6 +121,10 @@ export function App({ settings }: { settings: Settings }) {
         setPlanTab('snags');
         setDestination('plan');
       },
+      openPurchases: () => {
+        setPlanTab('purchases');
+        setDestination('plan');
+      },
       openMeeting: () => {
         meetingDirty.current = false;
         setMeeting(true);

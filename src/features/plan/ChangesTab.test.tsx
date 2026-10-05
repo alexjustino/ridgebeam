@@ -80,6 +80,7 @@ const NAVIGATION: Navigation = {
   openSchedule,
   openChanges: () => undefined,
   openSnags: () => undefined,
+  openPurchases: () => undefined,
   openMeeting: () => undefined,
   openMinutes: () => undefined,
 };
