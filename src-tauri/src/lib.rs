@@ -241,6 +241,16 @@
 //!   which carries `purchases`, each with its `events`, and so the JSON export
 //!   and every backup do. The day to order by is the domain's. No new crate,
 //!   no new error kind, no new capability.
+//! - G3: the work teaches the next. No work migration: what an activity
+//!   actually took is the domain's, read from the diary. My templates — the
+//!   person's own templates, kept as `<id>.json` files in the `templates`
+//!   folder of the application data (the folder `RIDGEBEAM_DATA_DIR`
+//!   relocates in a debug build). Four commands (`my_templates_list`,
+//!   `my_template_save`, `my_template_remove`, `my_templates_folder`), none
+//!   needing a work open. The interface names a template by a kebab-case id,
+//!   never by a path: the host builds the path, reads only regular files
+//!   directly in the folder, follows no link, and lists at most 200. No new
+//!   crate, no new error kind, no new capability.
 
 pub mod commands;
 pub mod contract;
@@ -397,6 +407,10 @@ pub fn run() {
             commands::templates::ranges_take,
             commands::templates::template_read,
             commands::templates::template_write,
+            commands::templates::my_templates_list,
+            commands::templates::my_template_save,
+            commands::templates::my_template_remove,
+            commands::templates::my_templates_folder,
             commands::reports::report_pdf_write,
             commands::reports::report_html_write,
             commands::reports::diary_export_pdf,

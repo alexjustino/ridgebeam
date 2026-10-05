@@ -15,22 +15,30 @@
 //!   plan `work_create` may carry is checked here ([`check_plan`]).
 //! - D3: a draft's check may need its photo (`CheckDraft.needsPhoto`, `false`
 //!   when left out); the template file itself is still the domain's.
+//! - G3: my templates — `my_templates_list`, `my_template_save`,
+//!   `my_template_remove`, `my_templates_folder`: the person's own templates,
+//!   kept as files in a folder of the application data, each named by its id.
+//!   The interface sends an id, never a path; the host builds the path.
 
 use std::collections::{BTreeSet, HashMap};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::commands::checks::{check_name, gate};
 use crate::commands::money::label;
 use crate::commands::work::change_work;
-use crate::contract::{EndpointDraft, PlanDraft, Provenance, WorkSnapshot};
+use crate::contract::{
+    EndpointDraft, MyTemplate, MyTemplates, PlanDraft, Provenance, WorkSnapshot, WrittenFile,
+};
+use crate::db;
 use crate::db::replanning::refuse_if_plan_locked;
 use crate::db::templates::{
     self, NewActivity, NewCostLine, NewDecision, NewLink, NewPlan, NewProvenance, NewStage, Place,
     RangeEnd,
 };
 use crate::error::{Error, Result};
+use crate::files::save::has_extension;
 use crate::files::templates as file;
 use crate::folder::OpenWork;
 use crate::validate;
@@ -46,6 +54,29 @@ pub const NOTHING_TO_START: &str = "A template with no stage has no plan to star
 
 /// The sentence for a `which` that is neither end.
 pub const WHICH_END: &str = "A range gives its lower end or its upper end: low or high.";
+
+/// The folder of the application data that holds the person's own templates.
+pub const MY_TEMPLATES_FOLDER: &str = "templates";
+
+/// The longest id a template of the person's own may have, which is also its
+/// file's name. Equal to the domain's `TEMPLATE_LIMITS.idChars`
+/// (`src/domain/templates/format.ts`): an id the domain makes for an export is
+/// always one the host will save, and one the host lists is always one the
+/// domain will accept. Change both together.
+pub const MAX_TEMPLATE_ID_CHARS: usize = 31;
+
+/// The most templates [`my_templates_list`] lists; the rest are counted.
+pub const MAX_MY_TEMPLATES: usize = 200;
+
+/// The sentence for an id a template of the person's own cannot have.
+pub const MY_TEMPLATE_ID: &str = "A template in your templates is named by its id: kebab-case, 1 to 31 characters, such as bathroom-renovation.";
+
+/// The names Windows keeps for its devices, which no file may take on some of
+/// its versions, whatever its extension.
+const RESERVED_NAMES: [&str; 24] = [
+    "con", "prn", "aux", "nul", "com0", "com1", "com2", "com3", "com4", "com5", "com6", "com7",
+    "com8", "com9", "lpt0", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+];
 
 /// Write a template's plan into the open work — a work with no stage, not
 /// approved — in one transaction, and record where it came from.
@@ -102,6 +133,263 @@ pub fn template_read(path: String) -> Result<String> {
 #[tauri::command(rename_all = "snake_case")]
 pub fn template_write(path: String, text: String, overwrite: Option<bool>) -> Result<()> {
     file::write(Path::new(&path), &text, overwrite.unwrap_or(false))
+}
+
+/// The person's own templates: every `.json` file directly in the folder,
+/// sorted by id, each with its text or the sentence that says why it was not
+/// read. A folder that is not there yet is an empty list. No work needs to be
+/// open.
+///
+/// # Errors
+///
+/// [`Error::DataDir`] when the application data folder is not available;
+/// [`Error::Io`] when the folder is there and cannot be read.
+#[tauri::command(rename_all = "snake_case")]
+pub fn my_templates_list(app: AppHandle) -> Result<MyTemplates> {
+    my_templates_list_with(&db::data_dir(&app)?)
+}
+
+/// Save a template among the person's own, as `<id>.json`, whole or not at
+/// all. An existing one is replaced only with `overwrite: true`, which the
+/// interface sends after it asked. No work needs to be open.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for an id that cannot name a file there, text
+/// larger than 1 MiB, or a template of that id already there without
+/// `overwrite`; [`Error::DataDir`] and [`Error::Io`] when the disk refuses.
+#[tauri::command(rename_all = "snake_case")]
+pub fn my_template_save(
+    app: AppHandle,
+    id: String,
+    text: String,
+    overwrite: Option<bool>,
+) -> Result<WrittenFile> {
+    my_template_save_with(&db::data_dir(&app)?, &id, &text, overwrite.unwrap_or(false))
+}
+
+/// Remove a template of the person's own: the file `<id>.json` in the folder,
+/// and nothing else. No work needs to be open.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for an id that cannot name a file there, or one
+/// that is not there or is not a file; [`Error::DataDir`] and [`Error::Io`]
+/// when the disk refuses.
+#[tauri::command(rename_all = "snake_case")]
+pub fn my_template_remove(app: AppHandle, id: String) -> Result<()> {
+    my_template_remove_with(&db::data_dir(&app)?, &id)
+}
+
+/// The folder the person's own templates are kept in, created if it is not
+/// there, so the screen can say where it is and the person can open it.
+///
+/// # Errors
+///
+/// [`Error::DataDir`] when the application data folder is not available;
+/// [`Error::Io`] when the folder cannot be created.
+#[tauri::command(rename_all = "snake_case")]
+pub fn my_templates_folder(app: AppHandle) -> Result<String> {
+    my_templates_folder_with(&db::data_dir(&app)?)
+}
+
+/// What [`my_templates_folder`] does once the application data folder is
+/// known.
+///
+/// # Errors
+///
+/// As [`my_templates_folder`].
+pub fn my_templates_folder_with(data_dir: &Path) -> Result<String> {
+    let folder = my_templates_folder_in(data_dir)?;
+    std::fs::create_dir_all(&folder)?;
+    Ok(folder.to_string_lossy().into_owned())
+}
+
+/// The folder of the person's own templates inside an application data
+/// folder, as a full path — `RIDGEBEAM_DATA_DIR` may name a relative one, and
+/// a template file is read and written by its full path only.
+///
+/// # Errors
+///
+/// [`Error::Io`] when the working folder, needed to make it full, is not
+/// available.
+pub fn my_templates_folder_in(data_dir: &Path) -> Result<PathBuf> {
+    Ok(std::path::absolute(data_dir)?.join(MY_TEMPLATES_FOLDER))
+}
+
+/// Check an id that names a template of the person's own, and its file:
+/// kebab-case — so no separator, no dot, no drive and no `..` can be in it —
+/// of at most [`MAX_TEMPLATE_ID_CHARS`], and not a name Windows keeps.
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] with [`MY_TEMPLATE_ID`], or the sentence for a name
+/// Windows keeps.
+pub fn my_template_id(id: &str) -> Result<&str> {
+    if id.len() > MAX_TEMPLATE_ID_CHARS || !is_kebab(id) {
+        return Err(invalid(MY_TEMPLATE_ID));
+    }
+    if RESERVED_NAMES.contains(&id) {
+        return Err(invalid(format!(
+            "“{id}” is a name Windows keeps for itself; choose another id."
+        )));
+    }
+    Ok(id)
+}
+
+/// What [`my_templates_list`] does once the application data folder is known.
+///
+/// Only regular files are read: a folder or a link named like a template is
+/// listed with its sentence, and a link is never followed. A name that is not
+/// an id is listed with its sentence and never opened. The first
+/// [`MAX_MY_TEMPLATES`] by id are listed; the rest are counted.
+///
+/// # Errors
+///
+/// [`Error::Io`] when the folder is there and cannot be read.
+pub fn my_templates_list_with(data_dir: &Path) -> Result<MyTemplates> {
+    let folder = my_templates_folder_in(data_dir)?;
+    let entries = match std::fs::read_dir(&folder) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(MyTemplates {
+                templates: Vec::new(),
+                not_listed: 0,
+                note: None,
+            })
+        }
+        Err(error) => return Err(Error::Io(error)),
+    };
+
+    // Names first, and nothing opened: which ones are listed must not depend
+    // on the order the disk gives them in.
+    let mut found = Vec::new();
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        if !has_extension(&path, "json") {
+            continue;
+        }
+        let Some(stem) = path.file_stem() else {
+            continue;
+        };
+        let id = stem.to_string_lossy().into_owned();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        found.push((id, name, entry));
+    }
+    found.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+
+    let not_listed = found.len().saturating_sub(MAX_MY_TEMPLATES);
+    let templates = found
+        .into_iter()
+        .take(MAX_MY_TEMPLATES)
+        .map(|(id, name, entry)| my_template_at(id, &name, &entry))
+        .collect();
+
+    let note = match not_listed {
+        0 => None,
+        1 => Some(format!(
+            "1 more template is in the folder and was not listed: only the first {MAX_MY_TEMPLATES} are."
+        )),
+        more => Some(format!(
+            "{more} more templates are in the folder and were not listed: only the first {MAX_MY_TEMPLATES} are."
+        )),
+    };
+    Ok(MyTemplates {
+        templates,
+        not_listed: not_listed as u64,
+        note,
+    })
+}
+
+/// One entry of the folder, read only when it is a regular file named by an
+/// id.
+fn my_template_at(id: String, name: &str, entry: &std::fs::DirEntry) -> MyTemplate {
+    let refused = |id: String, problem: String| MyTemplate {
+        id,
+        text: None,
+        problem: Some(problem),
+    };
+    let not_read = |reason: &str| format!("“{name}” was not read: {reason}.");
+    // `DirEntry::file_type` does not follow a link.
+    match entry.file_type() {
+        Ok(kind) if kind.is_symlink() => {
+            return refused(id, not_read("it is a link, and a link is not followed"))
+        }
+        Ok(kind) if kind.is_dir() => return refused(id, not_read("it is a folder, not a file")),
+        Ok(kind) if kind.is_file() => {}
+        _ => return refused(id, not_read("it is not a file")),
+    }
+    if my_template_id(&id).is_err() {
+        return refused(
+            id,
+            not_read(&format!(
+                "its name is not a template's id — kebab-case, 1 to {MAX_TEMPLATE_ID_CHARS} characters, such as bathroom-renovation"
+            )),
+        );
+    }
+    match file::read(&entry.path()) {
+        Ok(text) => MyTemplate {
+            id,
+            text: Some(text),
+            problem: None,
+        },
+        Err(error) => refused(id, error.to_string()),
+    }
+}
+
+/// What [`my_template_save`] does once the application data folder is known.
+///
+/// # Errors
+///
+/// As [`my_template_save`].
+pub fn my_template_save_with(
+    data_dir: &Path,
+    id: &str,
+    text: &str,
+    overwrite: bool,
+) -> Result<WrittenFile> {
+    let id = my_template_id(id)?;
+    let folder = my_templates_folder_in(data_dir)?;
+    std::fs::create_dir_all(&folder)?;
+    let path = folder.join(format!("{id}.json"));
+    // Asked of the name itself, not of what a link there points to.
+    if !overwrite && std::fs::symlink_metadata(&path).is_ok() {
+        return Err(invalid(format!(
+            "“{id}.json” is already in your templates; replace it to save over it."
+        )));
+    }
+    file::write(&path, text, overwrite)?;
+    Ok(WrittenFile {
+        path: path.to_string_lossy().into_owned(),
+        bytes: text.len() as u64,
+        pages: None,
+    })
+}
+
+/// What [`my_template_remove`] does once the application data folder is
+/// known. Only a regular file is removed: a folder or a link of that name is
+/// refused, and nothing outside the folder can be named.
+///
+/// # Errors
+///
+/// As [`my_template_remove`].
+pub fn my_template_remove_with(data_dir: &Path, id: &str) -> Result<()> {
+    let id = my_template_id(id)?;
+    let path = my_templates_folder_in(data_dir)?.join(format!("{id}.json"));
+    match std::fs::symlink_metadata(&path) {
+        Err(_) => Err(invalid(format!(
+            "“{id}.json” is not in your templates folder; it may have been removed already."
+        ))),
+        Ok(metadata) if !metadata.file_type().is_file() => Err(invalid(format!(
+            "“{id}.json” was not removed: it is not a file."
+        ))),
+        Ok(_) => {
+            std::fs::remove_file(&path)?;
+            log::info!("a template of the person's own was removed");
+            Ok(())
+        }
+    }
 }
 
 /// What [`plan_apply`] does once the state is in hand.

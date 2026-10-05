@@ -36,6 +36,8 @@ pub mod meetings;
 mod meetings_tests;
 pub mod milestones;
 pub mod money;
+#[cfg(test)]
+mod my_templates_tests;
 pub mod plan;
 pub mod purchases;
 #[cfg(test)]

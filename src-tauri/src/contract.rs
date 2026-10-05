@@ -144,6 +144,15 @@
 //!   locked by the approval — but once ordered its `leadDays`, `stageId` and
 //!   `activityId` are fixed; its events are facts. The day to order by and
 //!   what is late are not here: they are the domain's, computed every time.
+//! - G3: my templates — the person's own templates, kept as files in a folder
+//!   of the application data. `MyTemplates`, what `my_templates_list`
+//!   answers: `templates` (`MyTemplate`, by id: `id`, the file's name without
+//!   `.json`; `text`, for the domain to validate, or `null`; `problem`, the
+//!   sentence that says why it was not read, or `null` — exactly one of the
+//!   two), `notListed`, how many past the first 200 were not listed, and
+//!   `note`, the sentence that says so, or `null`. `my_template_save`
+//!   answers `WrittenFile` without `pages`. Commands name a template by its
+//!   id, never by a path. No work shape changes.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -2220,6 +2229,31 @@ pub struct WrittenFile {
     /// How many pages, for a PDF; absent for a CSV, a JSON or an HTML file.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pages: Option<usize>,
+}
+
+/// A template of the person's own, as `my_templates_list` found it (G3).
+/// Exactly one of `text` and `problem` is a value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MyTemplate {
+    /// The file's name without `.json` — the id it is saved and removed by.
+    pub id: String,
+    /// The file's text, for the domain to validate; `null` when not read.
+    pub text: Option<String>,
+    /// Why the file was not read, as a sentence; `null` when it was.
+    pub problem: Option<String>,
+}
+
+/// What `my_templates_list` answers (G3).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MyTemplates {
+    /// The first 200 templates in the folder, by id.
+    pub templates: Vec<MyTemplate>,
+    /// How many more are in the folder and were not listed.
+    pub not_listed: u64,
+    /// The sentence that says so; `null` when every one was listed.
+    pub note: Option<String>,
 }
 
 /// What `backup_write` wrote (F11).
