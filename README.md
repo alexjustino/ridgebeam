@@ -18,15 +18,15 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F11, D1 to D4, U1, E1 to E4, H0 and G1 to G4; a third wave
+> **Status: pre-release — slices F0 to F11, D1 to D4, U1, E1 to E4, H0 and G1 to G5; a third wave
 > in progress, and the release to be cut again after it.** The product was named on 2026-09-24
 > ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 — from the foundation to backup,
 > restore and polish — all four differentiators, D1 to D4, a round of dependency updates and U1 —
 > the friction a first real week meets — are in `develop`, and so is the whole second wave, E1 to
 > E4: change orders, whether the money will last, why the work is late, and a work that ends well. A
 > third wave is in progress: H0, hygiene before the acceptance test, G1, the weekly site meeting,
-> G2, what to order this week, G3, the work teaches the next, and G4, after the handover, with G5
-> and G6 to follow. All of it runs from source. There is no published installer yet: that is F12,
+> G2, what to order this week, G3, the work teaches the next, G4, after the handover, and G5, photos
+> from an iPhone, with G6 to follow. All of it runs from source. There is no published installer yet: that is F12,
 > the release, whose branch is cut again from `develop` once the third wave is in. The
 > [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for every slice;
 > [What exists today](#what-exists-today) says exactly how far the code has got.
@@ -63,8 +63,9 @@ lead time against when its activity starts as things stand, and its order and it
 record; **G3, the work teaches the next** — planned against actual on the Schedule, and a template
 learned from the work, its ranges holding what each activity actually took; **G4, after the
 handover** — the warranties the work came with and the maintenance it needs, a calendar of what
-comes due and an `.ics` file for the person's own calendar to remind them; **G5**, photos from an
-iPhone; and **G6**, the work told in photos.
+comes due and an `.ics` file for the person's own calendar to remind them; **G5, photos from an
+iPhone** — a HEIC from the camera roll converted to a JPEG through Windows' own decoder, and refused
+with a sentence that says how when Windows cannot read it; and **G6**, the work told in photos.
 They land in `develop` one at a time, and the release branch is cut again from it after them.
 
 ## Why
@@ -115,7 +116,7 @@ in Portuguese, "rídj-bim".
 ## What exists today
 
 Slices **F0** to **F11**, the four differentiators, **D1** to **D4**, **U1**, **E1** to **E4**, the
-whole second wave, and from the third, **H0** and **G1** to **G4** — nothing after them:
+whole second wave, and from the third, **H0** and **G1** to **G5** — nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -405,6 +406,16 @@ whole second wave, and from the third, **H0** and **G1** to **G4** — nothing a
   nothing in the background. Once every stage is closed, the Dashboard leads with **After the
   handover**, and the handover book carries both, each task with every time it was done
   ([ADR-048](docs/architecture/ADR.md#adr-048)).
+- **Photos from an iPhone (G5).** A HEIC straight from an iPhone is taken wherever a photo is — a
+  diary entry, a check's answer, a snag, the Documents page, or dropped on any of them. It is
+  converted to a JPEG through **Windows' own decoder**, the one the Photos app uses, read from memory
+  under the same size and pixel limits as every image, turned the way the camera held it, and kept
+  and thumbnailed like any JPEG under the name the person chose; the screen says _Converted from
+  HEIC to JPEG_. The copy carries no metadata — no location — and the original HEIC is not kept.
+  The decoder is Microsoft's _HEIF Image Extensions_ and _HEVC Video Extensions_, which the person
+  installs from the Microsoft Store; where they are not installed, the photo is refused with a
+  sentence that says how to get them, or to set the iPhone to save JPEGs. Nothing migrates
+  ([ADR-049](docs/architecture/ADR.md#adr-049)).
 - **Readiness.** A figure that says how much of what the plan must know it does know, from nine
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -421,19 +432,20 @@ whole second wave, and from the third, **H0** and **G1** to **G4** — nothing a
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-eight binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-nine binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **the rest of the third wave**, G5 and G6; and **the release** (F12) —
+Not yet, and not pretended: **the rest of the third wave**, G6; and **the release** (F12) —
 its branch cut again from `develop` once the third wave is merged, an installer, tried on a clean
 machine, and a real work planned, run for a week and its weekly report read by somebody who is not
 an engineer.
 
 Not in 1.0, by decision rather than by schedule: files other than images and PDFs (no Word,
-spreadsheet, CAD, SVG or HEIC); a PDF shown inside the product; more than one currency in a work; a
+spreadsheet, CAD or SVG); a HEIC kept as HEIC, or decoded without Windows' own extensions; a PDF
+shown inside the product; more than one currency in a work; a
 decision tied to one activity rather than its whole stage; a replanning abandoned without a
 baseline; a what-if applied to the plan with one button; a work that follows its template when the
 library changes; prices in the library; photos inside a PDF report other than the handover book; a

@@ -297,6 +297,23 @@ release that skipped a step is a release nobody can reason about afterwards.
      when it is next due and each time it was done; the book's gaps say nothing about either. Do it
      once in Portuguese, where the card reads _Depois da entrega_, a warranty is a _garantia_ and
      maintenance is _manutenção_, and the calendar file's text is in Portuguese;
+   - **take a photo straight from an iPhone** on a computer with Microsoft's _HEIF Image
+     Extensions_ and _HEVC Video Extensions_ installed. From a real iPhone's camera roll, copy two
+     HEIC photos as they are — one taken in portrait, one in landscape, the phone's _Camera →
+     Formats_ on _High Efficiency_ — and check their names end in `.HEIC`. Add both to a diary
+     entry: before saving, each waiting photo says it was converted from HEIC to JPEG, in words;
+     save, and both thumbnails are upright, the portrait taller than wide. Add the portrait to a new
+     snag, and the landscape on the **Documents** page: each is listed under its own name, ending in
+     `.HEIC`, as a photo, with its thumbnail upright. **Open** one: the system's viewer shows the
+     JPEG, upright. In the work folder, `documents/` holds them as `.jpg` files and nothing ending
+     in `.heic`; Diagnostics' _Folder health_ finds nothing wrong, and **Verify the diary** reads the
+     chain intact. Write the handover book: both photos are printed, upright. Do it once in
+     Portuguese, where the waiting photo's note is in Portuguese. Then, **if a second computer
+     without the extensions is at hand**, add the same HEIC there: it is refused with a sentence that
+     names the file, says Windows on this computer cannot read HEIC yet, and says how — the two
+     extensions from the Microsoft Store, or the iPhone's _Camera → Formats_ set to _Most
+     Compatible_ — and nothing of the entry is saved. Nothing here is committed: the photos are the
+     tester's own and stay off the repository;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and
