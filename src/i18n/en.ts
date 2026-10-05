@@ -395,8 +395,12 @@ export const en = {
   'diary.photos.add': 'Add',
   'diary.photos.remove': 'Remove {name}',
   'diary.photos.hint':
-    'Each photo is copied into the work’s folder when the entry is saved; the file you chose stays where it is. JPEG, PNG, WebP, GIF or BMP, up to 25 MB.',
+    'Each photo is copied into the work’s folder when the entry is saved; the file you chose stays where it is. JPEG, PNG, WebP, GIF, BMP or an iPhone’s HEIC (kept as a JPEG), up to 25 MB.',
   'diary.photos.kept': 'Already in the work',
+  'photos.convert.pending': 'Will be converted to JPEG',
+  'photos.converted.line': '{name} was converted from {from} to JPEG.',
+  'photos.converted.title.one': 'One photo was converted to JPEG',
+  'photos.converted.title.other': '{count} photos were converted to JPEG',
   'diary.photos.dialogUnavailable':
     'The file dialog could not be opened. Type or paste the photo’s path instead.',
   'diary.save.today': 'Save today',
@@ -728,7 +732,7 @@ export const en = {
   'documents.kindOf': 'Kind of the new documents',
   'documents.add': 'Add to the work',
   'documents.hint':
-    'Photos (JPEG, PNG, WebP, GIF, BMP) and PDFs, up to 25 MB each. A file the work already holds is linked, not copied again.',
+    'Photos (JPEG, PNG, WebP, GIF, BMP, and an iPhone’s HEIC, kept as a JPEG) and PDFs, up to 25 MB each. A file the work already holds is linked, not copied again.',
   'documents.dialogUnavailable':
     'The file dialog could not be opened. Type or paste each file’s path instead.',
   'documents.problem': 'Some files were not kept',
@@ -2400,7 +2404,7 @@ export const en = {
   'snags.photo.title': 'Photo of the problem (optional)',
   'snags.photo.choose': 'Choose a photo…',
   'snags.photo.hint':
-    'The photo is added to the work’s documents when the button below is pressed; the file you chose stays where it is. JPEG, PNG, WebP, GIF or BMP.',
+    'The photo is added to the work’s documents when the button below is pressed; the file you chose stays where it is. JPEG, PNG, WebP, GIF, BMP or an iPhone’s HEIC (kept as a JPEG).',
   'snags.photo.chosen': 'Chosen: {name}',
   'snags.photo.onlyOne.one': 'A snag takes one photo: {names} was left out.',
   'snags.photo.onlyOne.other': 'A snag takes one photo: {names} were left out.',
