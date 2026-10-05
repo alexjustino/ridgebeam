@@ -774,6 +774,39 @@ breaks one is not merged.
   `purchases-arriving-late-value`), each a figure that opens onto its rows (§2, _a number can be
   opened_) — is not shown while the work has no purchase. The product orders nothing, and no screen
   says it will (ADR-046).
+- **Planned and actual are two numbers, side by side, with the difference in words and its unit.**
+  What an activity was planned to take and what it took are two facts — the plan's and the diary's —
+  and a screen never shows one in the place of the other, nor the difference alone. The Schedule's
+  **Planned and actual** card (`schedule-actuals`), after the forecast card, gives each activity
+  that started a row (`data-actual-id`, with `data-state`, `data-took`, `data-planned` and
+  `data-difference`) that says all three in a sentence with the unit — _"Planned 3 working days ·
+  took 5 — 2 more"_, and while it runs, _"so far 4 — already 1 more than planned"_ — and, where the
+  activity had a range, whether it fell _inside the range it was given (2 to 6)_ or _outside the
+  range it was given (2 to 4)_. **The difference is a number with its unit and its sign in words** —
+  _more_, _less_ — never a minus sign alone and never colour alone (§2, _severity is never colour
+  alone_). The card's figures — finished, took longer than planned, outside the range it was given
+  (`actuals-finished-value`, `actuals-longer-value`, `actuals-outside-value`) — each open onto their
+  rows (§2, _a number can be opened_). A work where nothing has started says so in a sentence that
+  says where the answer comes from — _"Nothing has started yet: the diary says when an activity
+  starts and finishes."_ — rather than an empty card; a work with no calendar or start date says why
+  it has no days, and invents none (ADR-047).
+- **A template learned from a work says what it learned, and where it goes.** **Export as a
+  template…** offers a third choice in its numbers group (`export-numbers`), **Learned from this
+  work** (`[data-value="learned"]`), whose hint says in words what it does — the durations become
+  ranges that hold what was planned and what it took — and how many activities finished, because
+  only those teach. The dialog asks **Where** (`export-where`): **My templates**
+  (`[data-value="mine"]`), first when the choice is learned, or **A file**
+  (`[data-value="file"]`), the save dialog as before. Saving to My templates proposes the id from
+  the title and saves it (`export-save`); an id already there asks before replacing it
+  (`export-replace-confirm`, `ConfirmDialog`, naming the template), and done, the dialog says where
+  it went (`export-done`). The template picker lists the person's own under **Your templates**,
+  after the library, each by its title; one that does not validate is listed, disabled, and its
+  reason is said under the picker in sentences, as a template from a file's are. With one of yours
+  chosen, the picker says where the folder is (`templates-mine-folder`) and offers **Remove from my
+  templates…** (`template-mine-remove`), whose `ConfirmDialog` takes **the danger tone** and says in
+  words what it does — _"This deletes the file {id}.json from your templates folder."_ — because
+  removing is deleting a file, and the product keeps no other copy. A learned template applied is a
+  template like any other: its ranges are shown as ranges until a person picks (above) (ADR-047).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
