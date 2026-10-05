@@ -51,6 +51,7 @@ import { DocumentsCard } from './DocumentsCard';
 import { MeetingCard } from './MeetingCard';
 import { MoneyCard } from './MoneyCard';
 import { NextQuestionCard } from './NextQuestionCard';
+import { PurchasesCard } from './PurchasesCard';
 import { SiteCard } from './SiteCard';
 import { SnagsCard } from './SnagsCard';
 import { StagesCard } from './StagesCard';
@@ -192,6 +193,8 @@ export function DashboardPage({
       </div>
 
       <DelayCard snapshot={snapshot} scheduled={scheduled} today={today} />
+
+      <PurchasesCard snapshot={snapshot} scheduled={scheduled} today={today} />
 
       <StagesCard snapshot={snapshot} />
 

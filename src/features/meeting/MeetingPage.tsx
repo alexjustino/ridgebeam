@@ -1,6 +1,8 @@
 import {
   ArrowLeft20Regular,
   ArrowUndo20Regular,
+  BoxCheckmark20Regular,
+  Cart20Regular,
   Checkmark20Regular,
   Delete20Regular,
   DocumentAdd20Regular,
@@ -24,12 +26,14 @@ import {
   type Agenda,
   type AgendaItem,
 } from '@/domain/meetings';
-import type { WorkSnapshot } from '@/domain/plan';
+import type { PurchaseEventKind, WorkSnapshot } from '@/domain/plan';
+import { purchaseStory } from '@/domain/purchases';
 import { schedule } from '@/domain/schedule';
 import { MakeDecisionDialog } from '@/features/decisions/MakeDecisionDialog';
 import { changeNameCapital } from '@/features/plan/changeWords';
 import { CloseSnagDialog, type SnagToClose } from '@/features/plan/CloseSnagDialog';
 import { DecideChangeDialog, type ChangeToDecide } from '@/features/plan/DecideChangeDialog';
+import { PurchaseEventDialog, type PurchaseToRecord } from '@/features/plan/PurchaseEventDialog';
 import { RaiseSnagForm } from '@/features/plan/RaiseSnagForm';
 import { snagNameCapital, snagRowTitle } from '@/features/plan/snagWords';
 import type { MessageKey } from '@/i18n/en';
@@ -49,6 +53,20 @@ import { Select } from '@/ui/Select';
 import { TextArea } from '@/ui/TextArea';
 
 import { agendaDetailText, agendaTitle, meetingProblemsText } from './meetingWords';
+
+/** What recording a purchase's event in the meeting writes as the item's outcome (G2). */
+const OUTCOME_KEYS = {
+  ordered: 'meeting.outcome.ordered',
+  delivered: 'meeting.outcome.delivered',
+  cancelled: 'meeting.outcome.cancelled',
+} as const satisfies Record<PurchaseEventKind, MessageKey>;
+
+/** What is announced once it is recorded: the Purchases tab's own sentences. */
+const DONE_KEYS = {
+  ordered: 'purchases.done.ordered',
+  delivered: 'purchases.done.delivered',
+  cancelled: 'purchases.done.cancelled',
+} as const satisfies Record<PurchaseEventKind, MessageKey>;
 
 /** The choice in an action's "who" that means somebody not in the plan, named. */
 const NAMED = '__named__';
@@ -142,6 +160,7 @@ export function MeetingPage({
   const [making, setMaking] = useState<{ id: string; name: string; key: string } | null>(null);
   const [deciding, setDeciding] = useState<(ChangeToDecide & { key: string }) | null>(null);
   const [closingSnag, setClosingSnag] = useState<(SnagToClose & { key: string }) | null>(null);
+  const [recording, setRecording] = useState<(PurchaseToRecord & { key: string }) | null>(null);
   const [problems, setProblems] = useState<readonly string[]>([]);
   const [confirming, setConfirming] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -468,6 +487,7 @@ export function MeetingPage({
                         }
                         onDecide={(decide) => setDeciding({ ...decide, key: item.key })}
                         onCloseSnag={(closing) => setClosingSnag({ ...closing, key: item.key })}
+                        onRecord={(record) => setRecording({ ...record, key: item.key })}
                       />
                     ))}
                   </ul>
@@ -699,6 +719,22 @@ export function MeetingPage({
         }}
       />
 
+      {recording !== null && (
+        <PurchaseEventDialog
+          snapshot={snapshot}
+          recording={recording}
+          onClose={() => setRecording(null)}
+          onRecorded={(recorded) => {
+            done(
+              recording.key,
+              t(OUTCOME_KEYS[recorded.kind], { day: day(recorded.day) }),
+              t(DONE_KEYS[recorded.kind], { name: recorded.purchase.name }),
+            );
+            setRecording(null);
+          }}
+        />
+      )}
+
       {closingSnag !== null && (
         <CloseSnagDialog
           snapshot={snapshot}
@@ -742,6 +778,7 @@ function AgendaLine({
   onMake,
   onDecide,
   onCloseSnag,
+  onRecord,
 }: {
   ref: (element: HTMLLIElement | null) => void;
   snapshot: WorkSnapshot;
@@ -754,6 +791,7 @@ function AgendaLine({
   onMake: (decision: { id: string; name: string }) => void;
   onDecide: (decide: ChangeToDecide) => void;
   onCloseSnag: (closing: SnagToClose) => void;
+  onRecord: (record: PurchaseToRecord) => void;
 }) {
   const i18n = useI18n();
   const { t } = i18n;
@@ -771,6 +809,11 @@ function AgendaLine({
       : undefined;
   const snag =
     item.kind === 'snag' ? snapshot.snags.find((each) => each.id === item.refId) : undefined;
+  const purchase =
+    item.section === 'purchases'
+      ? snapshot.purchases.find((each) => each.id === item.refId)
+      : undefined;
+  const bought = purchase === undefined ? null : purchaseStory(purchase).state;
 
   const shownOutcome =
     closure !== null ? t(MEETING_ACTION_STATE_KEYS[closure] as MessageKey) : outcome;
@@ -888,6 +931,36 @@ function AgendaLine({
               onClick={() => onCloseSnag({ snag, outcome: 'withdrawn' })}
             >
               {t('snags.withdraw')}
+            </Button>
+          </>
+        )}
+        {outcome === null && purchase !== undefined && bought === 'to-order' && (
+          <Button
+            icon={<Cart20Regular />}
+            data-testid="meeting-item-act"
+            data-act="ordered"
+            onClick={() => onRecord({ purchase, kind: 'ordered' })}
+          >
+            {t('purchases.ordered')}
+          </Button>
+        )}
+        {outcome === null && purchase !== undefined && bought === 'ordered' && (
+          <>
+            <Button
+              icon={<BoxCheckmark20Regular />}
+              data-testid="meeting-item-act"
+              data-act="delivered"
+              onClick={() => onRecord({ purchase, kind: 'delivered' })}
+            >
+              {t('purchases.delivered')}
+            </Button>
+            <Button
+              icon={<ArrowUndo20Regular />}
+              data-testid="meeting-item-act"
+              data-act="cancelled"
+              onClick={() => onRecord({ purchase, kind: 'cancelled' })}
+            >
+              {t('purchases.cancel')}
             </Button>
           </>
         )}
