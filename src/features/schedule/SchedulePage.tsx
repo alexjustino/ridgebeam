@@ -17,6 +17,7 @@ import { Checkbox } from '@/ui/Checkbox';
 import { EmptyState } from '@/ui/EmptyState';
 import { InfoBar } from '@/ui/InfoBar';
 
+import { ActualsCard } from './ActualsCard';
 import { BaselineCard } from './BaselineCard';
 import { BaselinesCard } from './BaselinesCard';
 import { FinishProbabilityCard } from './FinishProbabilityCard';
@@ -51,6 +52,9 @@ import { WhatIfCard } from './WhatIfCard';
  * Slice E3 adds **As things stand** beside the slip (`ForecastCard`): when the work finishes from
  * what the diary records, against the baseline and against the plan's own date — the diary against
  * the plan, where the slip is the plan against itself.
+ *
+ * Slice G3 adds **Planned and actual** after it (`ActualsCard`): for every activity the diary says
+ * started, what the plan gave it beside what it took, the difference in words with its unit.
  */
 export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
   const i18n = useI18n();
@@ -170,6 +174,9 @@ export function SchedulePage({ snapshot }: { snapshot: WorkSnapshot }) {
         )}
         <ForecastCard snapshot={snapshot} scheduled={scheduled} today={today} />
       </div>
+
+      {/* What each activity was planned to take, beside what the diary says it took (G3). */}
+      <ActualsCard snapshot={snapshot} today={today} />
 
       {view !== null && hasBars ? (
         <section aria-labelledby="schedule-gantt" className="flex flex-col gap-2">

@@ -509,6 +509,56 @@ export async function templateWrite(path: string, text: string, overwrite: boole
   await invoke<unknown>('template_write', { path, text, overwrite });
 }
 
+// ── My templates (G3) ────────────────────────────────────────────────────────
+//
+// The person's own templates: files in a folder of the application data, each named by its id. The
+// interface names a template by its id, never by a path — the host builds the path itself. The text
+// is the domain's to parse and check, as any template file's is.
+
+/** A template of the person's own, as the host found it: exactly one of `text` and `problem`. */
+export interface MyTemplate {
+  /** The file's name without `.json`: the id it is saved and removed by. */
+  id: string;
+  /** The file's text, for the domain to check; `null` when it was not read. */
+  text: string | null;
+  /** Why it was not read, as the host's sentence; `null` when it was. */
+  problem: string | null;
+}
+
+/** What is in the folder: the first 200 by id, and how many more were not listed. */
+export interface MyTemplates {
+  templates: MyTemplate[];
+  notListed: number;
+  /** The host's sentence saying how many were not listed; `null` when every one was. */
+  note: string | null;
+}
+
+/** Every template in the person's folder. A folder not there yet is an empty list. */
+export async function myTemplatesList(): Promise<MyTemplates> {
+  const answer = await invoke<MyTemplates | MyTemplate[]>('my_templates_list');
+  // The one place the answer's shape is known: a bare list is read as one with nothing left out.
+  return Array.isArray(answer) ? { templates: answer, notListed: 0, note: null } : answer;
+}
+
+/**
+ * Save a template among the person's own, as `<id>.json`, whole or not at all. An existing one is
+ * replaced only with `overwrite`, which the interface sends after it asked; without it the host
+ * refuses with its sentence.
+ */
+export function myTemplateSave(id: string, text: string, overwrite: boolean): Promise<WrittenFile> {
+  return invoke<WrittenFile>('my_template_save', { id, text, overwrite });
+}
+
+/** Delete the file `<id>.json` from the person's templates folder, and nothing else. */
+export async function myTemplateRemove(id: string): Promise<void> {
+  await invoke<unknown>('my_template_remove', { id });
+}
+
+/** The folder the person's templates are kept in, as a full path (the host creates it). */
+export function myTemplatesFolder(): Promise<string> {
+  return invoke<string>('my_templates_folder');
+}
+
 // ── Decisions (F3) ───────────────────────────────────────────────────────────
 
 /** What may change on a decision. Its deadline is not here: it is computed, never stored. */

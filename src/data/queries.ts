@@ -15,7 +15,9 @@
  * files it describes change under it — a work opened, a work closed. The Windows accent ramp sits
  * under `['accent']`, read once per window. The diary is `['diary']` — not in the snapshot — and
  * every entry written invalidates it; a thumbnail is `['photo', hash]`, read once, because a photo
- * stored by its hash never changes.
+ * stored by its hash never changes. The person's own templates are `['my-templates']` (G3), re-read
+ * whenever the picker opens and after every save or removal; their folder's path is
+ * `['my-templates-folder']`.
  */
 
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
@@ -112,6 +114,10 @@ import {
   rangesTake,
   templateRead,
   templateWrite,
+  myTemplateRemove,
+  myTemplateSave,
+  myTemplatesFolder,
+  myTemplatesList,
   roomAdd,
   roomMove,
   roomRemove,
@@ -189,6 +195,8 @@ export const keys = {
   documentThumb: (id: string) => ['document-thumb', id] as const,
   folderHealth: ['folder-health'] as const,
   backupLast: ['backup-last'] as const,
+  myTemplates: ['my-templates'] as const,
+  myTemplatesFolder: ['my-templates-folder'] as const,
 };
 
 // ── The application ──────────────────────────────────────────────────────────
@@ -501,6 +509,45 @@ export function useWriteTemplate() {
 }
 
 export type { Provenance };
+
+// ── My templates (G3) ────────────────────────────────────────────────────────
+
+/**
+ * The person's own templates. Re-read whenever a screen that offers them opens: the folder is the
+ * person's, and a file copied into it from Explorer must be offered without restarting.
+ */
+export function useMyTemplates(enabled = true) {
+  return useQuery({
+    queryKey: keys.myTemplates,
+    queryFn: myTemplatesList,
+    refetchOnMount: 'always',
+    enabled,
+  });
+}
+
+/** Where the person's templates are kept, to say it on screen. Asking creates the folder. */
+export function useMyTemplatesFolder(enabled = true) {
+  return useQuery({ queryKey: keys.myTemplatesFolder, queryFn: myTemplatesFolder, enabled });
+}
+
+/** Save one of the person's templates; the list is read again. */
+export function useSaveMyTemplate() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, text, overwrite }: { id: string; text: string; overwrite: boolean }) =>
+      myTemplateSave(id, text, overwrite),
+    onSettled: () => client.invalidateQueries({ queryKey: keys.myTemplates }),
+  });
+}
+
+/** Delete one of the person's templates (its file); the list is read again. */
+export function useRemoveMyTemplate() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => myTemplateRemove(id),
+    onSettled: () => client.invalidateQueries({ queryKey: keys.myTemplates }),
+  });
+}
 
 // ── The diary (F4) ───────────────────────────────────────────────────────────
 
