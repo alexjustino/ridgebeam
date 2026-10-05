@@ -719,6 +719,35 @@ breaks one is not merged.
   not advice — as the usual split does. Paying a retention before it is earned is paying ahead of
   the work: the Ledger's warning says so before the payment is saved, as for any milestone, and the
   button is never disabled (ADR-044).
+- **An agenda is built from the record, and says when it is empty.** The meeting's agenda
+  (`meeting-agenda`) is not a form to fill in: every item on it is a row another screen already
+  shows — an action still open, a decision due, a change waiting, a snag open, money falling due or
+  held, why it is late, what starts in the next two weeks, a gate coming up — built by the same
+  call, so the agenda and that screen cannot disagree (§2, _two readings of one fact agree_). Each
+  item carries its kind (`data-agenda-item`, `data-kind`), and its sections come in one fixed order,
+  whatever the lens. **A section with nothing in it is left out**, never shown as a heading over
+  nothing; **an agenda with nothing on it says so in a sentence** — the record has nothing for this
+  meeting — rather than showing an empty page that looks like a failure to load. An overdue item is
+  marked in words and with its icon, never by colour alone (§2), and what is new since the last
+  meeting is marked in words. What nobody wrote down is not on the agenda, and the screen does not
+  pretend otherwise. On an item, the meeting offers **the action the product already has for it**,
+  with the very dialog its own screen opens — **Make the decision…**, **Approve…** or **Decline…**,
+  **Fix…** or **Withdraw…**, **Raise a snag…** — never a second, simpler form that could disagree
+  with the first; done, the item shows what was done in a sentence — _"Decision made: White oak"_ —
+  and says that it is already in the record (ADR-045).
+- **Minutes are written once, at the close.** Nothing about a meeting is in the record until
+  **Close the meeting** (`meeting-close`): until then the attendees, the notes, what was said on
+  each item and the actions raised are a draft, and the screen says so. Leaving the meeting with a
+  draft asks before discarding it — `ConfirmDialog`, naming what will be lost. Closing asks once
+  (`meeting-confirm`), saying what will be written and that **the minutes cannot be changed
+  afterwards**: closing is not destructive and does not take the danger tone, and the confirming
+  button repeats the verb. There is **no Edit and no Delete** on a meeting, an attendee, an item or
+  an action, on the row or in a menu; a mistake is said in the next meeting's minutes. An action is
+  written as what, who and by when (`meeting-action-text`, `meeting-action-person`,
+  `meeting-action-due`), each a field with its label; once written it leaves only by **Done** or
+  **Drop** (`action-done`, `action-drop`), each once, and the next agenda opens with the actions
+  still open, oldest first. The minutes printed are in the **owner's** words whatever lens is on,
+  like the weekly report, and end with what they are: a record, not a signature (ADR-045).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
