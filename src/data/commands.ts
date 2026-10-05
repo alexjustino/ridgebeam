@@ -1462,9 +1462,10 @@ export type ReportBlock =
   /**
    * A photo the open work holds (D3), named by the SHA-256 of its file — never a path: the host finds
    * it in the work's own `documents/` and embeds it, its caption printed under it. Two `half` images
-   * in a row sit side by side. A hash the work does not hold is refused, not skipped.
+   * in a row sit side by side, and up to three `third` images (G6: a story of photos). A hash the
+   * work does not hold is refused, not skipped.
    */
-  | { type: 'image'; hash: string; caption: string; size: 'full' | 'half' };
+  | { type: 'image'; hash: string; caption: string; size: 'full' | 'half' | 'third' };
 
 /** One bar of a printed Gantt: offsets in day columns from day 0. */
 export interface ReportGanttRow {

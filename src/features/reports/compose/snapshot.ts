@@ -25,6 +25,13 @@
  * - **lately on site**: the last `SNAPSHOT_ENTRIES` effective diary entries, newest first, each with
  *   its note whole, what was done, who was there, and at most `SNAPSHOT_PHOTOS_PER_ENTRY` of its
  *   photos — half width, captioned with the day and the file — and how many more it has;
+ * - **the work in photos** (G6), once the work holds a photo: each room (or each stage, when the
+ *   work has no rooms) from its first photo to its last — its name, "From {first} to {last} · {n}
+ *   photos", and the photos `storyBudget` gives it of `SNAPSHOT_STORY_PHOTOS` (at most
+ *   `SNAPSHOT_STORY_PER_SECTION` each, the first and the last before any third), three to a row,
+ *   captioned with the day and what each shows — and how many of its photos are not shown, a
+ *   section given none too. With "lately on site" it never asks the host for more than its
+ *   `SNAPSHOT_IMAGE_CAP` image blocks;
  * - **money**: planned, committed, paid, the commitments paid ahead of the work and what is earned
  *   and not paid now (D2), and what those leave out; then **will the money last?** (E2) — the
  *   Money page's sentence, the chance in natural frequencies, the week it runs short with what comes
@@ -69,6 +76,7 @@ import { purchaseFigures, type PurchaseRow } from '@/domain/purchases';
 import { readiness, readinessFigure } from '@/domain/readiness';
 import { runway, runwayChance } from '@/domain/runway';
 import { diaryReport, type DiaryReportRow } from '@/domain/reports/diary';
+import { photoStory, storyBudget } from '@/domain/reports/story';
 import {
   lookahead,
   LOOKAHEAD_LABEL_KEYS,
@@ -80,6 +88,7 @@ import {
 } from '@/domain/reports/lookahead';
 import type { Schedule } from '@/domain/schedule';
 import type { FinishProbabilityResult } from '@/domain/schedule/probability';
+import { storyCaption, storySectionTitle, storySpan } from '@/features/diary/storyWords';
 import { actionGroupLabel, openActionText } from '@/features/meeting/meetingWords';
 import { purchaseRowLine } from '@/features/plan/purchaseWords';
 import { pendingText, percentText, whenText } from '@/features/money/paymentPlanWords';
@@ -110,6 +119,18 @@ export const SNAPSHOT_ENTRIES = 5;
 
 /** How many photos of one entry the page embeds; the rest are counted, in words. */
 export const SNAPSHOT_PHOTOS_PER_ENTRY = 2;
+
+/** How many photos "The work in photos" embeds in all (G6, decision 4). */
+export const SNAPSHOT_STORY_PHOTOS = 30;
+
+/** How many photos of one room (or stage) it embeds at most. */
+export const SNAPSHOT_STORY_PER_SECTION = 9;
+
+/**
+ * The host's cap on the image blocks of one snapshot page. "Lately on site" holds at most
+ * `SNAPSHOT_ENTRIES × SNAPSHOT_PHOTOS_PER_ENTRY` and the story `SNAPSHOT_STORY_PHOTOS`: 40 of 60.
+ */
+export const SNAPSHOT_IMAGE_CAP = 60;
 
 type Term = ReturnType<typeof termsFor>;
 
@@ -501,6 +522,54 @@ function latelyBlocks(input: SnapshotInput, i18n: I18n, term: Term): ReportBlock
   return blocks;
 }
 
+// ── The work in photos (G6) ──────────────────────────────────────────────────
+
+/**
+ * Each section's photos from the first to the last, picked within the page's budget. Nothing when
+ * the work holds no photo: a story with nothing in it is not drawn.
+ */
+function storyBlocks(input: SnapshotInput, i18n: I18n, term: Term, budget: number): ReportBlock[] {
+  const { t, tp } = i18n;
+  const story = photoStory(input.snapshot, input.entries);
+  if (story.sections.length === 0) return [];
+  const blocks: ReportBlock[] = [
+    { type: 'heading', level: 1, text: t('reports.snapshot.story.title') },
+    {
+      type: 'paragraph',
+      tone: 'muted',
+      text:
+        story.by === 'room'
+          ? t('reports.snapshot.story.lead.byRoom', { room: term('room') })
+          : t('reports.snapshot.story.lead.byStage', { stage: term('stage') }),
+    },
+  ];
+  for (const each of storyBudget(story, budget, SNAPSHOT_STORY_PER_SECTION)) {
+    const { section } = each;
+    blocks.push({
+      type: 'heading',
+      level: 2,
+      text: shortened(storySectionTitle(i18n, section), REPORT_LIMITS.text),
+    });
+    blocks.push({ type: 'paragraph', tone: 'muted', text: storySpan(i18n, section) });
+    for (const photo of each.shown) {
+      blocks.push({
+        type: 'image',
+        hash: photo.photoHash,
+        caption: shortened(storyCaption(i18n, photo), REPORT_LIMITS.text),
+        size: 'third',
+      });
+    }
+    if (each.notShown > 0) {
+      blocks.push({
+        type: 'paragraph',
+        tone: 'muted',
+        text: tp('reports.snapshot.story.notShown', each.notShown),
+      });
+    }
+  }
+  return blocks;
+}
+
 // ── Money ────────────────────────────────────────────────────────────────────
 
 function moneyRows(i18n: I18n, figureOf: Figure<MoneyRow>, currency: string): string[] {
@@ -653,13 +722,24 @@ export function composeSnapshot(input: SnapshotInput, i18n: I18n): ReportDocumen
   const { t, day } = i18n;
   const term = termsFor(i18n.language, 'owner');
   const ahead = lookahead(snapshot, scheduled, entries, today);
+  const lately = latelyBlocks(input, i18n, term);
+  // The story takes its 30, or what "lately on site" leaves of the page's cap if ever less.
+  const storyPhotos = Math.max(
+    0,
+    Math.min(
+      SNAPSHOT_STORY_PHOTOS,
+      SNAPSHOT_IMAGE_CAP - lately.filter((block) => block.type === 'image').length,
+    ),
+  );
 
   const blocks: ReportBlock[] = [
     ...todayBlocks(input, i18n, term),
     // E3: when it finishes as things stand, and why it is late — by cause, in the owner's words.
     ...delayBlocks(i18n, snapshot, delayLedger(snapshot, scheduled, entries, today), 1, false),
     ...nextTwoWeeksBlocks(input, ahead, i18n, term),
-    ...latelyBlocks(input, i18n, term),
+    ...lately,
+    // G6: each room's photos, from the first to the last — once the work holds a photo.
+    ...storyBlocks(input, i18n, term, storyPhotos),
     ...moneyBlocks(input, ahead, i18n, term),
     ...changeBlocks(input, i18n),
     // E4: what is still to fix, and on whom — once a snag has been raised.

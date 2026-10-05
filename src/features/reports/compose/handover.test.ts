@@ -9,6 +9,7 @@ import {
   maintenanceDone,
   maintenanceTask,
   person,
+  snag,
   snapshot,
   stage,
   warranty,
@@ -229,16 +230,18 @@ describe('the photos in the book', () => {
     expect(hidden?.caption).toContain('September 12, 2026');
   });
 
-  it('prints the diary’s photos half width, captioned with the activity and the day', () => {
-    const diary = images(document).filter((block) => block.size === 'half');
-    expect(diary).toEqual([
+  it('prints the rest of the room’s story as thirds, captioned with the day and what it shows', () => {
+    // G6: the hidden-work photo is told above, so the story's rest is the diary's one photo.
+    expect(images(document).filter((block) => block.size === 'third')).toEqual([
       {
         type: 'image',
         hash: hash('b'),
-        caption: 'Trocar os canos, September 11, 2026',
-        size: 'half',
+        caption: 'Sep 11, 2026 — Trocar os canos',
+        size: 'third',
       },
     ]);
+    expect(images(document).some((block) => block.size === 'half')).toBe(false);
+    expect(text(document)).toContain('On September 11, 2026: 1 photo.');
   });
 
   it('names only hashes the work holds, never a path', () => {
@@ -266,9 +269,186 @@ describe('the photos in the book', () => {
     };
     const crowded = compose(plan, 'en');
     expect(images(crowded)).toHaveLength(REPORT_LIMITS.images);
+    // G6: hidden work is never cut, and the story takes only what it leaves of the cap — here
+    // nothing, so its one photo is counted by the room and the host's cut is the hidden work's.
     expect(text(crowded)).toContain(
-      'The book prints at most 400 photos: 5 more photos are in the work’s folder.',
+      'The book prints at most 400 photos: 4 more photos are in the work’s folder.',
     );
+    expect(text(crowded)).toContain('1 more photo is not shown.');
+  });
+});
+
+/**
+ * G6: each section's photos told first to last — the room's story less what its hidden work and its
+ * snags fixed already show — as thirds, under its span, a month's name where the month changes,
+ * each captioned with its day and what it shows; how many the pick left out; and the last section
+ * titled for what it holds.
+ */
+describe.each(LANGUAGES)('in photos, first to last (G6), in %s', (language) => {
+  const i18n = i18nOf(language);
+  const plan: WorkSnapshot = {
+    ...ROOMED,
+    // Open: its problem photo is part of the room's story.
+    snags: [
+      snag('n1', 1, 's2', {
+        title: 'Azulejo trincado',
+        activityId: 'a2',
+        raisedOn: '2026-09-25',
+        photoHash: hash('d'),
+      }),
+    ],
+    documents: [
+      ...ROOMED.documents,
+      image('doc-d', hash('d'), 'trinca.jpg'),
+      image('doc-e', hash('e'), 'azulejo.jpg'),
+      image('doc-f', hash('f'), 'rejunte.jpg'),
+      image('doc-9', hash('9'), 'fachada.jpg'),
+    ],
+  };
+  const entries: readonly DiaryEntry[] = [
+    ...ENTRIES,
+    // Written out of day order: the story is told by day all the same.
+    entry(3, '2026-10-02', { done: [worked('a2')], photos: [photo(hash('f'), 'rejunte.jpg')] }),
+    entry(4, '2026-09-20', { done: [worked('a2')], photos: [photo(hash('e'), 'azulejo.jpg')] }),
+    // Naming no activity: told in what touches no room.
+    entry(5, '2026-10-03', { photos: [photo(hash('9'), 'fachada.jpg')] }),
+  ];
+  const document = compose(plan, language, entries);
+  const all = text(document);
+  /** The blocks of the section titled `name`, up to the next page break. */
+  const sectionOf = (name: string) => {
+    const start = document.blocks.findIndex(
+      (block) => block.type === 'heading' && block.level === 1 && block.text === name,
+    );
+    expect(start, name).toBeGreaterThan(-1);
+    const end = document.blocks.findIndex(
+      (block, index) => index > start && block.type === 'pageBreak',
+    );
+    return document.blocks.slice(start, end === -1 ? undefined : end);
+  };
+  const room = sectionOf('Banheiro social');
+  const thirds = room.filter(
+    (block): block is Extract<ReportBlock, { type: 'image' }> =>
+      block.type === 'image' && block.size === 'third',
+  );
+
+  it('runs the room’s photos first to last, as thirds, the hidden work told above left out', () => {
+    expect(thirds.map((block) => block.hash)).toEqual([hash('b'), hash('e'), hash('d'), hash('f')]);
+  });
+
+  it('says the span first: from the first day to the last, and how many', () => {
+    expect(all).toContain(
+      language === 'en'
+        ? 'From September 11, 2026 to October 2, 2026: 4 photos.'
+        : 'De 11 de setembro de 2026 a 2 de outubro de 2026: 4 fotos.',
+    );
+  });
+
+  it('names the month above each month’s photos, where they span more than one', () => {
+    const months = room
+      .filter((block) => block.type === 'paragraph' && block.tone === 'strong')
+      .map((block) => (block.type === 'paragraph' ? block.text : ''));
+    expect(months).toEqual(
+      language === 'en'
+        ? ['September 2026', 'October 2026']
+        : ['Setembro de 2026', 'Outubro de 2026'],
+    );
+    // Each month comes right before its photos: September's three, then October's one.
+    const october = room.findIndex(
+      (block) => block.type === 'paragraph' && block.text === months[1],
+    );
+    expect(room[october + 1]).toMatchObject({ type: 'image', hash: hash('f') });
+  });
+
+  it('captions each photo with its day and what it shows', () => {
+    const caption = (day: string, what: string) =>
+      i18n.t('story.caption', { day: i18n.dayShort(day), what });
+    expect(thirds.map((block) => block.caption)).toEqual([
+      caption('2026-09-11', 'Trocar os canos'),
+      caption('2026-09-20', 'Assentar azulejo'),
+      caption(
+        '2026-09-25',
+        language === 'en' ? 'Snag #1 — the problem' : 'Pendência nº 1 — o problema',
+      ),
+      caption('2026-10-02', 'Assentar azulejo'),
+    ]);
+  });
+
+  it('tells what touches no room in its own last section, from the diary', () => {
+    const other = sectionOf(i18n.t('reports.handover.section.other'));
+    expect(other.find((block) => block.type === 'image' && block.hash === hash('9'))).toEqual({
+      type: 'image',
+      hash: hash('9'),
+      caption: i18n.t('story.caption', {
+        day: i18n.dayShort('2026-10-03'),
+        what: i18n.t('story.kind.diary'),
+      }),
+      size: 'third',
+    });
+    expect(all).toContain(
+      i18n.tp('reports.handover.photos.on', 1, { first: i18n.day('2026-10-03') }),
+    );
+  });
+
+  it('prints every string as itself, or with one of the three stand-ins', () => {
+    for (const each of stringsOf(document)) expect(unprintable(each), each).toEqual([]);
+  });
+});
+
+describe('a room with more photos than the book holds for it', () => {
+  const many = Array.from({ length: 20 }, (_, index) => index);
+  const hashOf = (index: number) => (index + 0x100).toString(16).padStart(64, '0');
+  const plan: WorkSnapshot = {
+    ...ROOMED,
+    documents: [
+      ...ROOMED.documents,
+      ...many.map((index) => image(`many-${index}`, hashOf(index), `obra-${index}.jpg`)),
+    ],
+  };
+  const entries: readonly DiaryEntry[] = many.map((index) =>
+    entry(index + 1, `2026-09-${String(index + 1).padStart(2, '0')}`, {
+      done: [worked('a1')],
+      photos: [photo(hashOf(index), `obra-${index}.jpg`)],
+    }),
+  );
+  const document = compose(plan, 'en', entries);
+  const thirds = images(document).filter((block) => block.size === 'third');
+
+  it('prints twelve, the first and the last always, and says how many it left out', () => {
+    expect(thirds).toHaveLength(12);
+    expect(thirds[0]?.hash).toBe(hashOf(0));
+    expect(thirds.at(-1)?.hash).toBe(hashOf(19));
+    expect(text(document)).toContain('From September 1, 2026 to September 20, 2026: 20 photos.');
+    expect(text(document)).toContain('8 more photos are not shown.');
+  });
+
+  it('keeps them in the story’s order', () => {
+    const order = thirds.map((block) => many.findIndex((index) => hashOf(index) === block.hash));
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+});
+
+describe('a work with no rooms, and a photo no stage takes', () => {
+  const plan: WorkSnapshot = {
+    ...ROOMED,
+    rooms: [],
+    activities: ROOMED.activities.map((each) => ({ ...each, roomIds: [] })),
+    careNotes: ROOMED.careNotes.filter((each) => each.targetKind !== 'room'),
+    documents: [...ROOMED.documents, image('doc-9', hash('9'), 'fachada.jpg')],
+  };
+  const entries: readonly DiaryEntry[] = [
+    ...ENTRIES,
+    entry(3, '2026-10-03', { photos: [photo(hash('9'), 'fachada.jpg')] }),
+  ];
+
+  it.each(LANGUAGES)('ends with the whole work, titled as such, in %s', (language) => {
+    const i18n = i18nOf(language);
+    const titles = headings(compose(plan, language, entries), 1);
+    const work = titles.indexOf(i18n.t('story.section.work'));
+    expect(work).toBeGreaterThan(-1);
+    expect(titles.slice(0, work)).toEqual(['Instalações', 'Revestimento']);
+    expect(titles).not.toContain(i18n.t('reports.handover.section.other'));
+    expect(i18n.t('story.section.work')).toBe(language === 'en' ? 'The whole work' : 'A obra toda');
   });
 });
 

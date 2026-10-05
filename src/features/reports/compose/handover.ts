@@ -14,9 +14,13 @@
  *   something touches no room): its stages and where they are, what was done and when, the decisions
  *   made, **the photos of hidden work** — each full width, captioned with the check, its stage and
  *   the day — then, once the work has had a snag (E4), **the snags fixed** there, each with the photo
- *   of the problem and the photo of the fix side by side, half width — then the diary's photos in
- *   half-width pairs, captioned with the activity and the day, and the care notes. An open snag is a
- *   gap on the cover: "Still to fix: …";
+ *   of the problem and the photo of the fix side by side, half width — then **in photos, first to
+ *   last** (G6): under the line "From {first} to {last}: {n} photos.", the section's story picked by
+ *   the domain, three to a row, a month's name above each month's photos when they span more than
+ *   one, each captioned with its day and what it shows (the activities, the check, "Snag #3 — the
+ *   problem" or "— fixed"), and how many the pick left out — and the care notes. The last section
+ *   is "Elsewhere in the work" when the work has rooms, "The whole work" when it has none. An open
+ *   snag is a gap on the cover: "Still to fix: …";
  * - **the documents** by kind — permits, warranties, manuals, contracts, receipts — each by its name
  *   and file, the day it was added and what it is attached to; the files themselves are in the
  *   work's folder, never embedded (a PDF among them is listed, not printed);
@@ -47,7 +51,9 @@ import type {
   HandoverWarrantyRow,
 } from '@/domain/reports/handover';
 import { HANDOVER_LABEL_KEYS } from '@/domain/reports/handover';
+import { STORY_LABEL_KEYS } from '@/domain/reports/story';
 import type { WorkSnapshot } from '@/domain/plan';
+import { byMonth, storyCaption, storyMonth } from '@/features/diary/storyWords';
 import type { MessageKey } from '@/i18n/en';
 import { termsFor, type TermKey } from '@/i18n/terms';
 import type { I18n } from '@/i18n/useI18n';
@@ -98,7 +104,7 @@ function image(
   budget: ImageBudget,
   hash: string,
   caption: string,
-  size: 'full' | 'half',
+  size: 'full' | 'half' | 'third',
 ): ReportBlock | null {
   if (budget.left <= 0) {
     budget.dropped += 1;
@@ -134,7 +140,11 @@ function sectionBlocks(
   blocks.push({
     type: 'heading',
     level: 1,
-    text: section.name ?? t(HANDOVER_LABEL_KEYS.other as MessageKey),
+    text:
+      section.name ??
+      t(
+        (section.kind === 'work' ? STORY_LABEL_KEYS.work : HANDOVER_LABEL_KEYS.other) as MessageKey,
+      ),
   });
 
   // Its stages, and where each one is.
@@ -253,22 +263,35 @@ function sectionBlocks(
     }
   }
 
-  // Other photos, from the diary: half width, two to a row.
+  // G6: in photos, first to last — the section's story, three to a row, a month's name where the
+  // month changes.
   blocks.push({ type: 'heading', level: 2, text: t('reports.handover.photos.title') });
-  if (section.photos.length === 0) {
+  if (section.storyCount === 0 || section.storyFirst === null || section.storyLast === null) {
     blocks.push({ type: 'paragraph', tone: 'muted', text: t('reports.handover.photos.none') });
+  } else {
+    blocks.push({
+      type: 'paragraph',
+      tone: 'muted',
+      text:
+        section.storyFirst === section.storyLast
+          ? tp('reports.handover.photos.on', section.storyCount, {
+              first: day(section.storyFirst),
+            })
+          : tp('reports.handover.photos.from', section.storyCount, {
+              first: day(section.storyFirst),
+              last: day(section.storyLast),
+            }),
+    });
   }
-  for (const photo of section.photos) {
-    const block = image(
-      budget,
-      photo.photoHash,
-      t('reports.handover.photos.caption', {
-        activity: photo.activityName,
-        day: day(photo.day),
-      }),
-      'half',
-    );
-    if (block !== null) blocks.push(block);
+  const months = byMonth(section.photos);
+  for (const month of months) {
+    if (months.length > 1) {
+      blocks.push({ type: 'paragraph', tone: 'strong', text: storyMonth(i18n, month.month) });
+    }
+    for (const photo of month.photos) {
+      const block = image(budget, photo.photoHash, storyCaption(i18n, photo), 'third');
+      if (block !== null) blocks.push(block);
+    }
   }
   if (section.photosNotShown > 0) {
     blocks.push({
