@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, chooseTheme, go, startSession, type Session } from './session';
 
 /**
  * Slice E2's proof of done, against the real binary:
@@ -190,6 +190,8 @@ describe('E2 — will the money last: funds as plan, receipts as facts, a weekly
 
   it('says it in Portuguese: O dinheiro vai dar?', async () => {
     await chooseLanguage(session, 'Português (Brasil)');
+    // The light theme too: these screens are captured and looked at in both themes.
+    await chooseTheme(session, 'Português (Brasil)', 'light');
     await go(session, 'money');
     expect(await text(session, t('runway-card'))).toMatch(/O dinheiro vai dar\?/);
     expect(await text(session, t('runway-sentence'))).toMatch(/O dinheiro dá até o fim/);

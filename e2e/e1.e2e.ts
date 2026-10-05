@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, chooseTheme, go, startSession, type Session } from './session';
 
 /**
  * Slice E1's proof of done, against the real binary:
@@ -223,6 +223,8 @@ describe('E1 — change orders: nothing changes without a price and a date', () 
 
   it('says it in Portuguese: aditivo', async () => {
     await chooseLanguage(session, 'Português (Brasil)');
+    // The light theme too: these screens are captured and looked at in both themes.
+    await chooseTheme(session, 'Português (Brasil)', 'light');
     await changesTab(session);
     const page = await session.driver.execute<string>(
       `return document.querySelector('main')?.innerText ?? ''`,

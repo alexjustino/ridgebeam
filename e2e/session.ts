@@ -339,6 +339,34 @@ export async function chooseLanguage(session: Session, language: LanguageName): 
   });
 }
 
+/** The theme's name on the Settings control, in the language the window speaks. */
+const THEME_NAMES: Record<LanguageName, Record<'light' | 'dark', string>> = {
+  English: { light: 'Light', dark: 'Dark' },
+  'Português (Brasil)': { light: 'Claro', dark: 'Escuro' },
+};
+
+/**
+ * Choose a theme the way a person does — Settings, then the theme's name in the window's language —
+ * and wait until the document carries it.
+ */
+export async function chooseTheme(
+  session: Session,
+  language: LanguageName,
+  theme: 'light' | 'dark',
+): Promise<void> {
+  const { driver } = session;
+  const radio = `//button[@role="radio" and normalize-space(.)=${xpathLiteral(THEME_NAMES[language][theme])}]`;
+  await go(session, 'settings');
+  await (await driver.findByXPath(radio)).click();
+  await driver.waitFor(`the ${theme} theme`, async () =>
+    (await driver.execute<string>(
+      "return document.documentElement.getAttribute('data-theme') ?? 'system'",
+    )) === theme
+      ? true
+      : null,
+  );
+}
+
 /**
  * Open the most recent work from the Start screen and wait until it is open — the rail on the
  * dashboard, where every opened work lands. Navigating before that is a race: a destination
