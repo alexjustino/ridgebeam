@@ -67,7 +67,11 @@ minutes, with the actions they raise, are written once, at the close, and never 
 ([ADR-045](#adr-045)). The second, slice G2, says what to order this week: each thing an activity
 needs that takes time to arrive carries the lead time its supplier quoted, the day to order it by is
 read from when its activity starts as things stand — not from the plan's dates — and its order and
-its delivery are facts on record ([ADR-046](#adr-046)).
+its delivery are facts on record ([ADR-046](#adr-046)). The third, slice G3, lets the work teach
+the next: the Schedule puts what each activity was planned to take beside what the diary says it
+took, and a work exports as a template **learned** from it — each finished activity's range made
+to hold both — saved to the person's own **My templates**, which the next work offers beside the
+library ([ADR-047](#adr-047)).
 
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -117,6 +121,7 @@ its delivery are facts on record ([ADR-046](#adr-046)).
 | [044](#adr-044) | A work that ends well: snags closed with a photo, and retention held until they are                                   | Accepted — 2026-10-04          |
 | [045](#adr-045) | The weekly site meeting: an agenda from the record, minutes that are never edited                                     | Accepted — 2026-10-05          |
 | [046](#adr-046) | What to order this week: lead times against the forecast, orders and deliveries as facts                              | Accepted — 2026-10-05          |
+| [047](#adr-047) | The work teaches the next: planned against actual, and templates learned from it                                      | Accepted — 2026-10-05          |
 
 ---
 
@@ -1503,7 +1508,8 @@ row, not a brand, a supplier or a real place — a maintainer's review is what c
 
 ## ADR-030 — A work exports as a template with its numbers stripped or kept {#adr-030}
 
-**Status.** Accepted — 2026-09-28.
+**Status.** Accepted — 2026-09-28. Amended by [ADR-047](#adr-047): a third choice, **learned**,
+and a second place to write the export, the person's own **My templates**.
 
 **Context.** A person who has planned a work well has made something worth starting the next one
 from, and something another person could use (SPEC §2.12: "any work exports as a template with its
@@ -3387,3 +3393,131 @@ as two purchases. **What is ordered keeps its expected day**: the product tracks
 date, so a supplier who says the order will be late is said in the purchase's note, and the order
 reads as late to arrive once its day has passed; one that will not come at all is an order that fell
 through, and is placed again.
+
+## ADR-047 — The work teaches the next: planned against actual, and templates learned from it {#adr-047}
+
+**Status.** Accepted — 2026-10-05.
+
+**Context.** This is G3, the third slice of the third wave ([ADR-045](#adr-045)). Every work ends
+knowing something its plan did not: the cabinets that were to take three days took five, the doors
+went in inside the range they were given, the tiler was faster than anybody said. The product held
+both halves of that lesson and never put them side by side. The plan held what each activity was
+planned to take, and the range it was given ([ADR-029](#adr-029), [ADR-035](#adr-035)); the diary
+held when it was first worked on and when it was said finished ([ADR-020](#adr-020)). D1 already
+used the second inside its simulation — a finished activity is certain at the working days it really
+took — and showed it nowhere. And when the work was over, the only way to carry it to the next was
+an export with its numbers stripped, which gives back the library's ranges, or kept, which gives
+back what was **planned** ([ADR-030](#adr-030)) — the very numbers the site had just proved wrong.
+The next kitchen started from the library's three to five days for the cabinets, from a person who
+now knew it was five, and the file, if they kept one, was wherever the save dialog had put it.
+
+**Decision.**
+
+- **The actual duration is elapsed working days, read from the diary** (`activityActuals`, in the
+  domain, pure). For each activity, in plan order, from the diary's progress and the work's
+  calendar: what it was **planned** to take — its duration, if it has one — and the **range** it was
+  given; its state — not started, started or finished — with the day it started and the day it
+  finished; and, once finished, **what it took**: the working days from the first day the diary says
+  it was worked on to the day it was said finished, **both included**, on the work's calendar — the
+  same count D1 already makes for a finished activity ([ADR-035](#adr-035)). Waiting days and lost
+  days in between are included: it is elapsed time, not effort. A finish on the day it started is
+  one day. While it is started and not finished, it has taken **so far** the working days from its
+  start to today, both included, today counted only when it is a working day. Finished and planned,
+  it carries **the difference** — what it took less what was planned — and, finished with a range,
+  whether it fell **inside the range it was given**; started and planned, whether it is
+  **overrunning** — it has already taken longer than planned. Four figures carry their rows
+  ([ADR-024](#adr-024)): **finished**, **took longer than planned** — its rows by the most days over
+  — **took less**, and **outside the range it was given**; and the sum of the days over, carried
+  with the same rows. A work with no calendar or no start date gets no days at all: every row says
+  why, and nothing is invented.
+- **Nothing is stored, and nothing migrates.** What each activity took is computed from the diary
+  and the calendar every time a screen asks, as progress is. G3 adds no table to a work and changes
+  none: the work's schema stays at 018. The application database does not change either.
+- **A third choice: learned from this work.** The export's `numbers` gains `learned`, beside `strip`
+  and `keep`. Learned is **keep** for everything — lags, lead times, amounts — **except a finished
+  activity's duration**, which becomes the **hull** of what the evidence says: the range the
+  activity carried from its template, if any, the duration it was planned with, if any, and what it
+  took — from the lowest of them to the highest. When all of them agree it is a point, and a point
+  from a file is applied as the duration, as it always was ([ADR-029](#adr-029)). **A learned range
+  never narrows**: one work is one sample, and it can only widen the range it started from. An
+  activity that did not finish is exported as `keep` exports it. The export may carry a **summary**,
+  which the interface writes in the work's language — _"Durations learned from {work}: {n} of {m}
+  activities finished."_ — within the template's limit for one; the domain stays without words of
+  its own. A learned export validates as a template from a file by construction, and a test holds
+  the round trip: exported learned, validated as a file and applied, the range is on the new work's
+  activity — for an activity finished faster, slower and inside its range, with and without a range
+  from a template, and with no planned duration at all.
+- **My templates is a folder in the application's data, and the host builds its paths.** The
+  person's own library is `<application data folder>/templates/`, beside `ridgebeam.sqlite3`
+  ([ADR-004](#adr-004)): one `<id>.json` per template, each a template file like any other. Four
+  commands reach it, and **none takes a path from the interface**: `my_templates_list` lists every
+  `.json` directly in the folder — never in a folder inside it — sorted by id, each with its text or
+  the sentence that says why it could not be read; `my_template_save` takes an **id**, the text and
+  whether to replace; `my_template_remove` takes an id; and `my_templates_folder` gives the folder's
+  path, so the screen can say where it is. The id is the file's name without `.json`, in kebab-case
+  and no longer than a template's id: the host checks it and turns it into `<folder>/<id>.json`
+  itself, so no id can carry a separator, a `..`, a drive or a name Windows reserves for a device.
+  A file whose name is not such an id is listed with a problem and never read; a directory or a
+  link named like a template is not followed and not read; a file is read only up to **1 MiB**, as
+  UTF-8, as any template file is. At most 200 files are listed, and the rest are counted and said.
+  A missing folder is an empty list; saving creates it, and writes the file whole or not at all,
+  through the same path as every export. An existing template is replaced only with the flag the
+  interface sets after the person confirmed it, and removing deletes `<folder>/<id>.json` and
+  nothing else. What is read is text: the domain parses it and validates it as a template from a
+  file, and nothing in it is ever run ([ADR-029](#adr-029)). **In debug builds the folder moves with
+  the rest of the application's data** — `RIDGEBEAM_DATA_DIR` relocates the application data folder
+  to an empty temporary one ([ADR-010](#adr-010)) — so the end-to-end suite saves, lists and
+  removes templates of its own and never touches the person's.
+- **Where it lives.** The Schedule gains a **Planned and actual** card, after the forecast: the
+  figures, each opening onto its rows, and a row for every activity that started, which says it in
+  words and with its unit — _"Planned 3 working days · took 5 — 2 more"_, _"so far 4 — already 1
+  more than planned"_, _"inside the range it was given (2 to 6)"_ — and, while nothing has started,
+  says that the diary is what tells it. **Export as a template…** offers **Learned from this work**,
+  with a hint that says what it does and how many activities finished, and asks **Where**: **My
+  templates** — first when the choice is learned — or **A file**, as before. Saving to My templates
+  proposes an id from the title, asks before replacing one that exists, and says where it went. The
+  template picker gains **Your templates**, after the library, each by its title; one that does not
+  validate is listed and cannot be chosen, with its reason under the picker. A template of yours,
+  chosen, can be **removed from my templates**, behind a confirmation in the danger tone that says
+  it deletes the file, and the picker says where the folder is.
+- **Applied, a learned template is a template.** Its ranges are shown as ranges until a person picks
+  ([`DESIGN_SYSTEM.md`](../../DESIGN_SYSTEM.md) §8), and they are what D1 draws the next work's
+  finish from ([ADR-035](#adr-035)). Provenance records it as it records any template
+  ([ADR-029](#adr-029)), and nothing ties the new work back to the file.
+- **Words.** The glossary gains _actual duration_ (_duração real_) and _my templates_ (_meus
+  modelos_).
+- **ADR-030 is amended, not replaced.** It gains a choice and a place to write; strip and keep, the
+  file written whole or not at all, and everything an export never carries, stay as they were, and
+  its Status line points here.
+
+**Why the person's own numbers.** A library's range is somebody else's site: the right width for a
+plan that knows nothing about the crew, the building or the owner, and too wide or too narrow for
+the next work of a person who has just done one. The person's own numbers — what their contractor
+actually took, on their kind of job — are the best evidence they will ever have for the next, and
+the product was holding them already. And the ranges are not decoration: D1's probability is drawn
+from them ([ADR-035](#adr-035)). A learned range makes the next work's chance of finishing by a date
+**the person's own**, from what their last work did, rather than the library's guess.
+
+**Why a hull, and why it never narrows.** One work is one sample. An average of one is that one; a
+range cut down to what one job took would tell the next work that the cabinets take exactly five
+days because they did once. Holding the template's range, the plan and what happened says only what
+the evidence says: these are the numbers this activity has had, and the next work may fall anywhere
+between them. A person who knows better edits the file, or picks a duration.
+
+**Why a folder, and why the host builds the path.** A template is a file, not a row
+([ADR-029](#adr-029)): a folder of them is something the person can see, copy to another computer
+and hand to a colleague, and that outlives the product. It is the application's and not a work's,
+because it is what the person has learned across works. And a command that wrote to a path the
+interface sent, into a folder the person never chose in a dialog, would be a command that writes
+anywhere; one that takes a name and builds the path itself can write only there.
+
+**Cost accepted.** **One work is one sample**: a learned range is evidence from one job, not a
+statistic, and the product does not pretend otherwise. **It widens and never narrows**: an unusually
+slow job stays in the range until somebody edits the file. **The actual duration is elapsed working
+days, not effort**: waiting days and lost days are in it, and an activity worked on in two separate
+stretches counts the gap between them. **It is only as true as the diary**: an activity never said
+finished never teaches, and an activity that did not finish keeps its planned number in the export.
+**My templates is a folder on this computer**: the product does not sync it or share it — it is a
+folder, and copying it is how it travels. **Removing a template deletes its file**, and the product
+keeps no other copy. **Lead times are kept as planned, not learned**: G3 does not measure how long a
+decision or a delivery really took.
