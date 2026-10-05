@@ -11,6 +11,7 @@ import type { PlanToApply } from '@/data/commands';
 import { LIBRARY } from '@/data/library';
 import {
   applyTemplate,
+  draftCarriesNumbers,
   draftCounts,
   type DraftCounts,
   type TemplateNote,
@@ -23,6 +24,8 @@ export interface TemplatePlan {
   readonly plan: PlanToApply;
   readonly notes: readonly TemplateNote[];
   readonly counts: DraftCounts;
+  /** A duration as a point or a priced line came with it: the preview says so (G3). */
+  readonly carriesNumbers: boolean;
   /** The title in the person's language (or the other, when the file has only that). */
   readonly title: string;
   readonly summary: string | null;
@@ -34,6 +37,7 @@ export function planOf(template: Template, language: TemplateLanguage): Template
     plan: { draft, provenance },
     notes,
     counts: draftCounts(draft),
+    carriesNumbers: draftCarriesNumbers(draft),
     title: provenance.templateTitle,
     summary: template.summary === undefined ? null : localise(template.summary, language).text,
   };

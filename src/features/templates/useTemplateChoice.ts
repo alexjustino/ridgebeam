@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { LIBRARY } from '@/data/library';
-import { useReadTemplate } from '@/data/queries';
+import { useMyTemplates, useReadTemplate } from '@/data/queries';
 import { compareText } from '@/domain/plan';
 import type { Template } from '@/domain/templates/format';
 import { localise } from '@/domain/templates/localise';
-import { parseTemplate, type TemplateValidation } from '@/domain/templates/validate';
+import {
+  parseTemplate,
+  type TemplateProblem,
+  type TemplateValidation,
+} from '@/domain/templates/validate';
 import { useI18n } from '@/i18n/useI18n';
 
 import { planOf, type TemplatePlan } from './plan';
@@ -13,6 +17,8 @@ import { planOf, type TemplatePlan } from './plan';
 /** The picker's two values that are not a library id. */
 export const EMPTY_PLAN = 'empty';
 export const FROM_FILE = 'file';
+/** A template of the person's own is chosen as `mine:<id>`: never a library id, never the two above. */
+export const MINE_PREFIX = 'mine:';
 
 /** A file read for the picker: reading, read and judged, or refused by the host. */
 export type FileState =
@@ -33,6 +39,24 @@ export interface LibraryEntry {
   readonly title: string;
 }
 
+/**
+ * A template of the person's own (G3), as the picker lists it: checked by the domain as a `file`,
+ * titled in the person's language when it is valid, by its id when it is not.
+ */
+export interface MineEntry {
+  /** The file's name without `.json`: what it is removed by. */
+  readonly id: string;
+  /** The picker's value: `mine:<id>`. */
+  readonly value: string;
+  readonly title: string;
+  /** The template when it can be used; `null` when the host or the domain refused it. */
+  readonly template: Template | null;
+  /** What the domain found wrong in it, in its order. */
+  readonly problems: readonly TemplateProblem[];
+  /** The host's sentence when the file was not read. */
+  readonly hostProblem: string | null;
+}
+
 /** Wait this long after the last keystroke in the path before reading the file. */
 const READ_AFTER_MS = 300;
 
@@ -46,11 +70,17 @@ const isJsonPath = (path: string) => /\.json$/i.test(path);
  * (ADR-029): read a moment after the path stops changing, for the preview, and again at the moment
  * of confirming when the path read is not the path in the field — so what is written is always what
  * the field names, never an earlier file.
+ *
+ * Slice G3 adds the person's own templates (`mine`), read from their folder whenever the picker
+ * opens and checked the same way, as a **file**: one chosen previews and applies exactly as a
+ * template from a file does, and its provenance is its id, version and title, as any template's.
  */
 export function useTemplateChoice({ allowEmpty }: { allowEmpty: boolean }) {
   const { language } = useI18n();
   const reader = useReadTemplate();
   const readText = reader.mutateAsync;
+
+  const myTemplates = useMyTemplates();
 
   const entries: LibraryEntry[] = useMemo(
     () =>
@@ -59,6 +89,54 @@ export function useTemplateChoice({ allowEmpty }: { allowEmpty: boolean }) {
         .sort((a, b) => compareText(a.title, b.title)),
     [language],
   );
+
+  // The person's own, each checked as any file is (ADR-029): a template of yours is hostile input
+  // like any other, and one that does not pass is listed, disabled, with its reason.
+  const mine: MineEntry[] = useMemo(
+    () =>
+      (myTemplates.data?.templates ?? [])
+        .map((each): MineEntry => {
+          const value = `${MINE_PREFIX}${each.id}`;
+          if (each.text === null) {
+            return {
+              id: each.id,
+              value,
+              title: each.id,
+              template: null,
+              problems: [],
+              hostProblem: each.problem,
+            };
+          }
+          const validation = parseTemplate(each.text, 'file', LIBRARY);
+          return validation.ok
+            ? {
+                id: each.id,
+                value,
+                title: localise(validation.template.title, language).text,
+                template: validation.template,
+                problems: [],
+                hostProblem: null,
+              }
+            : {
+                id: each.id,
+                value,
+                title: each.id,
+                template: null,
+                problems: validation.problems,
+                hostProblem: null,
+              };
+        })
+        // Those that can be used first, by title; then those that cannot, by id.
+        .sort(
+          (a, b) =>
+            Number(a.template === null) - Number(b.template === null) ||
+            compareText(a.title, b.title) ||
+            compareText(a.id, b.id),
+        ),
+    [myTemplates.data, language],
+  );
+
+  const fallback = allowEmpty ? EMPTY_PLAN : (entries[0]?.id ?? FROM_FILE);
 
   const [choice, setChoice] = useState<string>(() =>
     allowEmpty ? EMPTY_PLAN : (entries[0]?.id ?? FROM_FILE),
@@ -97,14 +175,20 @@ export function useTemplateChoice({ allowEmpty }: { allowEmpty: boolean }) {
     return () => window.clearTimeout(timer);
   }, [choice, wanted, current, readFile]);
 
+  const mineChosen = choice.startsWith(MINE_PREFIX)
+    ? (mine.find((entry) => entry.value === choice) ?? null)
+    : null;
+
   const template: Template | null =
     choice === EMPTY_PLAN
       ? null
-      : choice === FROM_FILE
-        ? current?.status === 'read' && current.validation.ok
-          ? current.validation.template
-          : null
-        : (LIBRARY.get(choice) ?? null);
+      : choice.startsWith(MINE_PREFIX)
+        ? (mineChosen?.template ?? null)
+        : choice === FROM_FILE
+          ? current?.status === 'read' && current.validation.ok
+            ? current.validation.template
+            : null
+          : (LIBRARY.get(choice) ?? null);
 
   const preview = useMemo(
     () => (template === null ? null : planOf(template, language)),
@@ -121,6 +205,10 @@ export function useTemplateChoice({ allowEmpty }: { allowEmpty: boolean }) {
       return plan.counts.stages === 0 ? { kind: 'refused' } : { kind: 'plan', plan };
     };
     if (choice === EMPTY_PLAN) return { kind: 'empty' };
+    if (choice.startsWith(MINE_PREFIX)) {
+      const found = mine.find((entry) => entry.value === choice)?.template ?? null;
+      return found === null ? { kind: 'refused' } : planned(found);
+    }
     if (choice !== FROM_FILE) {
       const found = LIBRARY.get(choice);
       return found === undefined ? { kind: 'refused' } : planned(found);
@@ -134,7 +222,7 @@ export function useTemplateChoice({ allowEmpty }: { allowEmpty: boolean }) {
       current !== null && current.status !== 'reading' ? current : await readFile(wanted);
     if (state.status === 'read' && state.validation.ok) return planned(state.validation.template);
     return { kind: 'refused' };
-  }, [choice, wanted, current, readFile, language]);
+  }, [choice, wanted, current, readFile, language, mine]);
 
   return {
     entries,
@@ -153,6 +241,17 @@ export function useTemplateChoice({ allowEmpty }: { allowEmpty: boolean }) {
     /** The file as read for the path in the field, or `null` before it has been. */
     file: choice === FROM_FILE ? current : null,
     pathMissing: choice === FROM_FILE && pathMissing,
+    /** The person's own templates (G3), by title; an invalid one has no `template`. */
+    mine,
+    /** The template of yours that is chosen, or `null`. */
+    mineChosen,
+    /** The host's sentence when more were in the folder than it listed; `null` otherwise. */
+    // How many files the folder holds past the first 200, said on screen in the screen's language.
+    mineNotListed: myTemplates.data?.notListed ?? 0,
+    /** Why the folder could not be read, when it could not; `null` otherwise. */
+    mineError: myTemplates.isError ? myTemplates.error : null,
+    /** What the picker goes back to when the chosen template of yours is removed. */
+    fallback,
     preview,
     resolve,
   };
