@@ -6,11 +6,14 @@ import {
   decision,
   entry,
   finished,
+  maintenanceDone,
+  maintenanceTask,
   person,
   snag,
   snagClosure,
   snapshot,
   stage,
+  warranty,
   worked,
 } from '../__fixtures__/plan';
 import type { Photo } from '../diary';
@@ -861,5 +864,97 @@ describe('snags in the book', () => {
       ['room:hall', ['on-stage']],
       ['other', []],
     ]);
+  });
+});
+
+describe('aftercare in the book', () => {
+  const AFTER: WorkSnapshot = {
+    ...ROOMED,
+    warranties: [
+      warranty('w-gone', 3, '2026-09-01', 12, { targetKind: 'stage', targetId: 'demolished' }),
+      warranty('w-valve', 1, '2026-01-31', 13, {
+        title: 'Shower valve',
+        targetKind: 'room',
+        targetId: 'bath',
+        givenBy: 'The installer',
+        documentId: 'doc-warranty-a',
+        note: 'Register it within 30 days',
+      }),
+      warranty('w-old', 2, '2020-01-01', 12, { title: 'Ended long ago' }),
+    ],
+    maintenance: [
+      maintenanceTask('t-gutters', 2, 6, '2027-03-01', { title: 'Clean the gutters' }),
+      maintenanceTask('t-reseal', 1, 12, '2026-09-15', {
+        title: 'Reseal the shower',
+        targetKind: 'stage',
+        targetId: 'tiling',
+        // Recorded out of seq order on purpose: the book reads them by seq.
+        done: [
+          maintenanceDone(2, '2027-09-20', 'Silicone renewed'),
+          maintenanceDone(1, '2026-09-20'),
+        ],
+      }),
+    ],
+  };
+  const book = handover(AFTER, ROOMED_DIARY);
+
+  it('lists every warranty by target, then position: what, what it covers, who gives it, from, to, its paper', () => {
+    // As care notes: the work's, then the rooms', then the stages', then those whose target is gone.
+    expect(book.warranties.map((row) => row.warrantyId)).toEqual(['w-old', 'w-valve', 'w-gone']);
+    expect(book.warranties[1]).toEqual({
+      targetKind: 'room',
+      targetId: 'bath',
+      targetName: 'Bathroom',
+      detached: false,
+      warrantyId: 'w-valve',
+      title: 'Shower valve',
+      givenBy: 'The installer',
+      startsOn: '2026-01-31',
+      months: 13,
+      endsOn: '2027-02-28',
+      document: {
+        documentId: 'doc-warranty-a',
+        title: 'Title warranty-a',
+        fileName: 'warranty-a.pdf',
+      },
+      note: 'Register it within 30 days',
+    });
+  });
+
+  it('keeps an ended warranty, and says when what it covers is gone', () => {
+    expect(book.warranties[0]).toMatchObject({
+      targetName: 'Sample work',
+      endsOn: '2021-01-01',
+      document: null,
+    });
+    expect(book.warranties[2]).toMatchObject({ targetName: null, detached: true });
+  });
+
+  it('lists every task by target, then position: how often, the next due day, and the record by seq', () => {
+    expect(book.maintenance.map((row) => row.taskId)).toEqual(['t-gutters', 't-reseal']);
+    expect(book.maintenance[1]).toEqual({
+      targetKind: 'stage',
+      targetId: 'tiling',
+      targetName: 'Tiling',
+      detached: false,
+      taskId: 't-reseal',
+      title: 'Reseal the shower',
+      everyMonths: 12,
+      firstDueOn: '2026-09-15',
+      nextDueOn: '2028-09-20',
+      note: null,
+      done: [
+        { seq: 1, doneOn: '2026-09-20', note: null, authorName: 'Sample author' },
+        { seq: 2, doneOn: '2027-09-20', note: 'Silicone renewed', authorName: 'Sample author' },
+      ],
+    });
+    expect(book.maintenance[0]).toMatchObject({ nextDueOn: '2027-03-01', done: [] });
+  });
+
+  it('adds no gap and changes nothing else in the book', () => {
+    const before = handover(ROOMED, ROOMED_DIARY);
+    expect(handoverGaps(AFTER, ROOMED_DIARY)).toEqual(handoverGaps(ROOMED, ROOMED_DIARY));
+    expect({ ...book, warranties: [], maintenance: [] }).toEqual(before);
+    expect([before.warranties, before.maintenance]).toEqual([[], []]);
   });
 });

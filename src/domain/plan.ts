@@ -737,6 +737,88 @@ export interface Purchase {
   readonly events: readonly PurchaseEvent[];
 }
 
+/** What a warranty or a maintenance task covers (slice G4): the whole work, one room, or one stage. */
+export type AftercareTargetKind = CareTargetKind;
+
+/**
+ * A warranty the work came with (slice G4, pt "garantia"): what it covers, who gives it, from when
+ * and for how long — what the paper says, typed by the person. Editable and removable: a correction
+ * is an edit. Its end is computed, never stored (`aftercare.ts`). Removed by the host with the room
+ * or stage it names.
+ */
+export interface Warranty {
+  readonly id: string;
+  /**
+   * Order among the warranties of the same work, room or stage (unique per target, as for care
+   * notes): never an order across targets.
+   */
+  readonly position: number;
+  /** 1 to 200 characters, as the person wrote it. */
+  readonly title: string;
+  readonly targetKind: AftercareTargetKind;
+  /** The room's or the stage's id; for the work, the work's id. Not a tie. */
+  readonly targetId: string;
+  /** Who gives it, as written ("the installer", a company), at most 120 characters. */
+  readonly givenBy: string | null;
+  /** `YYYY-MM-DD`: the day it starts. */
+  readonly startsOn: string;
+  /** How long it lasts, in **calendar** months, 1 to 600. */
+  readonly months: number;
+  /** The filed document of kind `warranty` it is, or `null` when none is filed. */
+  readonly documentId: string | null;
+  /** At most 1 000 characters: its conditions, when it has any. */
+  readonly note: string | null;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+}
+
+/**
+ * One time a maintenance task was done (slice G4): append-only, one sequence per task, a fact. Never
+ * on a day before the record it follows, nor after today.
+ */
+export interface MaintenanceDone {
+  /** The task it was done for: the host sends it, though the record is nested in its task. */
+  readonly taskId: string;
+  /** 1, 2, 3 … per task: the order it was recorded in. */
+  readonly seq: number;
+  /** `YYYY-MM-DD`, never in the future. */
+  readonly doneOn: string;
+  /** At most 500 characters. */
+  readonly note: string | null;
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+}
+
+/**
+ * Something the work needs again and again after the handover (slice G4, pt "manutenção"), every so
+ * many months: reseal the shower every 12, clean the gutters every 6. Its next due day is computed,
+ * never stored (`aftercare.ts`). Editable; removable only while nothing is recorded done.
+ */
+export interface MaintenanceTask {
+  readonly id: string;
+  /**
+   * Order among the tasks of the same work, room or stage (unique per target, as for care notes):
+   * never an order across targets.
+   */
+  readonly position: number;
+  /** 1 to 200 characters, as the person wrote it. */
+  readonly title: string;
+  readonly targetKind: AftercareTargetKind;
+  /** The room's or the stage's id; for the work, the work's id. Not a tie. */
+  readonly targetId: string;
+  /** How often, in **calendar** months, 1 to 120. */
+  readonly everyMonths: number;
+  /** `YYYY-MM-DD`: the day it is first due, while nothing is recorded done. */
+  readonly firstDueOn: string;
+  /** At most 1 000 characters. */
+  readonly note: string | null;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+  /** Each time it was done, by seq. */
+  readonly done: readonly MaintenanceDone[];
+}
+
 /** The whole plan of one work, as `work_get` returns it. */
 export interface WorkSnapshot {
   readonly work: Work;
@@ -771,6 +853,10 @@ export interface WorkSnapshot {
   readonly meetings: readonly Meeting[];
   /** Every purchase of the work, by position, each with its events by seq (slice G2). */
   readonly purchases: readonly Purchase[];
+  /** Every warranty of the work, any target, by target and position (slice G4). */
+  readonly warranties: readonly Warranty[];
+  /** Every maintenance task of the work, any target, each with its records done by seq (slice G4). */
+  readonly maintenance: readonly MaintenanceTask[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────
