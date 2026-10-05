@@ -692,6 +692,12 @@ Removing a document removes its row and its links; the file is removed only when
 names its hash — a diary photo, an answer's photo, a receipt, a commitment's quote, another
 document — and the diary's own rows are never touched.
 
+**A HEIC is a JPEG here** (G5, ADR-049). A photo whose bytes are HEIC is converted at intake, through
+Windows' own decoder, and kept as the JPEG it became: its `file_hash` is the JPEG's, its file is
+`documents/<hash>.jpg`, its `media_type` is `image/jpeg` and its `width` and `height` are the
+upright image's. `file_name` keeps the name it arrived with — `IMG_0001.HEIC` — and nothing else
+records the conversion: no media type was added and no column.
+
 **Where the bytes are checked.** The diary's chain covers each photo's hash in its rows; it does
 not read the files. `documents_verify` does: it reads every file in `documents/`, compares it
 with its row's `file_hash`, and lists mismatches, rows whose file is missing, and orphans.
@@ -1440,6 +1446,9 @@ calendar of what comes due has nothing in it, its handover book's two new sectio
 figure an earlier slice showed moves with the migration. A warranty already filed as a document of
 kind `warranty` stays a document; it becomes a warranty with an end day only when the person writes
 one and chooses that document as its paper.
+
+**G5 adds no migration.** A HEIC is converted before it reaches the database and stored as the JPEG
+it became, so the work's schema stays at 19 and the application's at 3.
 
 The migrations live in `src-tauri/work_migrations/`.
 

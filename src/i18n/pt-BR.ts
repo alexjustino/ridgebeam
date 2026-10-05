@@ -390,8 +390,12 @@ export const ptBR: Dictionary = {
   'diary.photos.add': 'Adicionar',
   'diary.photos.remove': 'Remover {name}',
   'diary.photos.hint':
-    'Cada foto é copiada para a pasta da obra quando a entrada é salva; o arquivo que você escolheu fica onde está. JPEG, PNG, WebP, GIF ou BMP, até 25 MB.',
+    'Cada foto é copiada para a pasta da obra quando a entrada é salva; o arquivo que você escolheu fica onde está. JPEG, PNG, WebP, GIF, BMP ou o HEIC do iPhone (guardado como JPEG), até 25 MB.',
   'diary.photos.kept': 'Já na obra',
+  'photos.convert.pending': 'Será convertida para JPEG',
+  'photos.converted.line': '{name} foi convertida de {from} para JPEG.',
+  'photos.converted.title.one': 'Uma foto foi convertida para JPEG',
+  'photos.converted.title.other': '{count} fotos foram convertidas para JPEG',
   'diary.photos.dialogUnavailable':
     'Não foi possível abrir a janela de arquivos. Digite ou cole o caminho da foto.',
   'diary.save.today': 'Salvar o dia',
@@ -727,7 +731,7 @@ export const ptBR: Dictionary = {
   'documents.kindOf': 'Tipo dos novos documentos',
   'documents.add': 'Adicionar à obra',
   'documents.hint':
-    'Fotos (JPEG, PNG, WebP, GIF, BMP) e PDFs, até 25 MB cada. Um arquivo que a obra já tem é ligado, não copiado de novo.',
+    'Fotos (JPEG, PNG, WebP, GIF, BMP e o HEIC do iPhone, guardado como JPEG) e PDFs, até 25 MB cada. Um arquivo que a obra já tem é ligado, não copiado de novo.',
   'documents.dialogUnavailable':
     'Não foi possível abrir a janela de arquivos. Digite ou cole o caminho de cada arquivo.',
   'documents.problem': 'Alguns arquivos não foram guardados',
@@ -2426,7 +2430,7 @@ export const ptBR: Dictionary = {
   'snags.photo.title': 'Foto do problema (opcional)',
   'snags.photo.choose': 'Escolher uma foto…',
   'snags.photo.hint':
-    'A foto entra nos documentos da obra quando o botão abaixo é pressionado; o arquivo escolhido fica onde está. JPEG, PNG, WebP, GIF ou BMP.',
+    'A foto entra nos documentos da obra quando o botão abaixo é pressionado; o arquivo escolhido fica onde está. JPEG, PNG, WebP, GIF, BMP ou o HEIC do iPhone (guardado como JPEG).',
   'snags.photo.chosen': 'Escolhida: {name}',
   'snags.photo.onlyOne.one': 'Uma pendência leva uma foto só: {names} ficou de fora.',
   'snags.photo.onlyOne.other': 'Uma pendência leva uma foto só: {names} ficaram de fora.',

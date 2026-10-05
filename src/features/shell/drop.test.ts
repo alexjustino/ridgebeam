@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { DESTINATIONS } from './destinations';
-import { baseName, dropPlaceOf, routeDrop } from './drop';
+import {
+  baseName,
+  conversionOf,
+  DOCUMENT_EXTENSIONS,
+  dropPlaceOf,
+  PHOTO_EXTENSIONS,
+  routeDrop,
+} from './drop';
 
 /**
  * What a drop does (U1, decision 1): drop is choose. The screen on show and whether a work is open
@@ -94,5 +101,32 @@ describe('routing a drop', () => {
     expect(baseName('C:\\a\\b.png')).toBe('b.png');
     expect(baseName('/a/b/')).toBe('b');
     expect(baseName('b.png')).toBe('b.png');
+  });
+});
+
+describe('a photo from an iPhone (G5)', () => {
+  const HEIC = 'C:/Users/sample/Pictures/IMG_0001.HEIC';
+  const HEIF = 'C:/Users/sample/Pictures/IMG_0002.heif';
+
+  it('is offered by every photo dialog and the documents dialog: HEIC and HEIF', () => {
+    expect(PHOTO_EXTENSIONS).toEqual(expect.arrayContaining(['heic', 'heif']));
+    expect(DOCUMENT_EXTENSIONS).toEqual(expect.arrayContaining(['heic', 'heif', 'pdf']));
+  });
+
+  it('is taken where a photo is dropped — the Diary, a snag, Documents — in any case', () => {
+    for (const destination of ['diary', 'plan', 'documents'] as const) {
+      const route = routeDrop({ destination, workOpen: true, paths: [HEIC, HEIF] });
+      expect(route).toMatchObject({ kind: 'take', taken: [HEIC, HEIF], refused: [] });
+    }
+  });
+
+  it('is known by its name to be converted, and nothing else is', () => {
+    expect(conversionOf(HEIC)).toBe('HEIC');
+    expect(conversionOf(HEIF)).toBe('HEIF');
+    expect(conversionOf('C:\\a\\photo.Heic')).toBe('HEIC');
+    expect(conversionOf('C:\\a\\photo.jpg')).toBeNull();
+    expect(conversionOf('C:\\a\\heic')).toBeNull();
+    expect(conversionOf('C:\\a\\.heic')).toBeNull();
+    expect(conversionOf('C:\\a\\photo.heic.pdf')).toBeNull();
   });
 });

@@ -17,6 +17,7 @@ import {
   type PaymentProblem,
 } from '@/domain/money';
 import { stagesInOrder, type Payment, type WorkSnapshot } from '@/domain/plan';
+import { WillConvertNote } from '@/features/diary/Conversion';
 import { PhotoThumb } from '@/features/diary/PhotoThumb';
 import type { MessageKey } from '@/i18n/en';
 import { toCents } from '@/i18n/format';
@@ -319,6 +320,7 @@ function PaymentForm({
           {receipt !== null && (
             <div data-pending-photo={receipt} className="flex items-center gap-2 text-caption">
               <span className="min-w-0 flex-1 truncate font-mono">{receipt}</span>
+              <WillConvertNote path={receipt} />
               <button
                 type="button"
                 aria-label={t('diary.photos.remove', { name: receipt })}

@@ -1615,3 +1615,57 @@ Dashboard leads with it, and the handover book carries it.
   [`docs/RELEASE.md`](docs/RELEASE.md): add a warranty and a task, mark it done, the Dashboard of a
   finished work, the calendar, the `.ics` in a phone's or a computer's calendar, the handover book,
   in Portuguese. The glossary gains _warranty_ (_garantia_) and _maintenance_ (_manutenção_).
+
+### Added in G5 — photos from an iPhone
+
+The fifth slice of the third wave (ADR-049). An iPhone saves its photos as HEIC, and until now the
+product refused them with a sentence. A photo straight from an iPhone — `IMG_0001.HEIC` — is now
+taken wherever a photo is taken: a diary entry, a check's answer, a snag, the Documents page, or a
+file dropped on any of them. It is converted to a JPEG through **Windows' own decoder**, turned the
+way the camera held it, and kept and thumbnailed like any JPEG, under the name the person chose.
+Where Windows cannot read HEIC, the photo is refused with a sentence that says how to get the
+extensions. Every other type behaves exactly as before.
+
+- **Converted once, at intake.** After the 25 MiB size cap, the host hands the HEIC's bytes to the
+  Windows Imaging Component (WIC) **from memory** — never from a path, never through a temporary
+  file — on a thread of its own that initialises COM and releases it. The image's size is checked
+  against the limits every image is held to — 12 000 pixels a side, 256 MiB at four bytes a pixel —
+  **before any pixel is copied**; a 48-megapixel iPhone photo passes. The orientation it carries is
+  applied to the pixels, once, so a portrait is upright with no orientation tag. The pixels are
+  encoded as a JPEG at quality 90 and enter the existing intake as a JPEG: measured, hashed, copied
+  as `<hash>.jpg`, thumbnailed, its type `image/jpeg`, its name kept. So the thumbnails, the diary's
+  chain, _Folder health_, the handover book, the owner's snapshot, the reports and the backup see a
+  JPEG and change in nothing.
+- **Said on screen.** The photo waiting to be saved, or the document just added, says _Converted
+  from HEIC to JPEG_ in words. The photo pickers — the Diary, a check's answer, the snags and the
+  Documents — offer `.heic` and `.heif`.
+- **Refused with a sentence when Windows cannot read it.** Without Microsoft's _HEIF Image
+  Extensions_ and _HEVC Video Extensions_, the sentence names the photo, says it is an iPhone photo
+  that Windows on this computer cannot read yet, and says how: install both from the Microsoft Store
+  and add it again — or set the iPhone's _Camera → Formats_ to _Most Compatible_. Any other failure
+  to decode is refused as a photo Windows could not read. The hostile corpus's fake HEIC is still
+  refused, with that sentence wherever the decoder is installed. On a target that is not Windows,
+  HEIC is refused as before.
+- **No metadata.** The converted JPEG is written from pixels and carries no EXIF, no location and no
+  camera data.
+- **No migration.** G5 adds no table and no column: a converted photo is a JPEG document whose name
+  ends in `.HEIC`, and the work's schema stays at 19. No crate is added; the `windows` crate gains
+  the imaging and COM features it needs.
+- **Documentation.** ADR-049 (photos from an iPhone: HEIC converted through Windows' own decoder),
+  with why Windows' decoder and not one bundled — a HEVC decoder carries patent licensing and a size
+  the product will not ship, and Windows' codec is the one the person's Photos app already uses —
+  and why convert once at intake, so that nothing after it ever needs the decoder; and its costs:
+  the original HEIC is not kept, so keep it on the phone if it matters; re-encoding at quality 90
+  loses a little; the extensions are the person's to install, from the Microsoft Store, never
+  downloaded by the product, and without them HEIC is refused; only the main image of a Live Photo
+  or a burst is read; the decoder runs in the product's process, as it does in Photos; the copy
+  carries no metadata, location included. ADR-021 and ADR-025 are amended: HEIC leaves their list of
+  what is refused. [`SECURITY.md`](SECURITY.md): a HEIC reaches Microsoft's decoder from memory,
+  under the size cap and the pixel limits, and is refused with a sentence when Windows cannot read
+  it; the corpus's fake HEIC stays refused. [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md): a HEIC is
+  stored as the JPEG it became, under its own name, and no migration.
+  [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _a photo the product converted says so in words_.
+  [`docs/RELEASE.md`](docs/RELEASE.md): a real iPhone photo in portrait and one in landscape, added
+  to a diary entry, a snag and the Documents page, both upright, their thumbnails right and the
+  handover book showing them; and, on a computer without the extensions, the refusal. The glossary
+  gains nothing: _HEIC_ is a file format, named in sentences, not a term of the work.

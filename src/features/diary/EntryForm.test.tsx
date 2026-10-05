@@ -4,6 +4,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { SavedPhoto } from '@/data/commands';
 import { correction, entry, person, snapshot } from '@/domain/__fixtures__/plan';
 import type { DiaryEntry } from '@/domain/diary';
 import { schedule } from '@/domain/schedule';
@@ -16,13 +17,18 @@ import { EntryForm } from './EntryForm';
 /**
  * The diary's form, for the first real week (U1): "Same people as {day}" ticks the people of the
  * latest entry — adding to what is ticked, never unticking — and says how many are gone from the
- * plan; and photos dropped on the Diary join the entry being written, as if chosen.
+ * plan; and photos dropped on the Diary join the entry being written, as if chosen. A photo from an
+ * iPhone (G5) is offered by the dialog, says while it waits that it will be converted to JPEG, and
+ * once saved the entry names each photo the host converted.
  */
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const invoke = vi.hoisted(() => vi.fn());
 vi.mock('@tauri-apps/api/core', () => ({ invoke }));
+
+const dialog = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock('@tauri-apps/plugin-dialog', () => dialog);
 
 const webview = vi.hoisted(() => ({
   handler: null as null | ((event: { payload: unknown }) => void),
@@ -83,6 +89,7 @@ async function settle() {
 
 beforeEach(() => {
   invoke.mockReset();
+  dialog.open.mockReset();
   webview.handler = null;
   client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   host = document.createElement('div');
@@ -313,5 +320,117 @@ describe('why a day was lost (E3)', () => {
     ]) {
       expect(text).toContain(word);
     }
+  });
+});
+
+describe('a photo from an iPhone (G5)', () => {
+  const HEIC = 'C:/sample/IMG_0001.HEIC';
+  const PHOTO: SavedPhoto = {
+    fileHash: 'a'.repeat(64),
+    fileName: 'IMG_0001.HEIC',
+    bytes: 1200,
+    width: 64,
+    height: 48,
+    thumbnail: true,
+    convertedFrom: 'HEIC',
+  };
+
+  function type(path: string) {
+    const field = find('entry-photo-path') as HTMLInputElement;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(field, path);
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    act(() => find('entry-photo-add')?.click());
+  }
+
+  const pending = (path: string) =>
+    [...host.querySelectorAll<HTMLElement>('[data-pending-photo]')].find(
+      (row) => row.dataset.pendingPhoto === path,
+    );
+  const note = (path: string) =>
+    pending(path)?.querySelector('[data-testid="photo-converted-note"]');
+
+  it('is offered by the photo dialog, HEIC and HEIF with the others', async () => {
+    dialog.open.mockResolvedValue(null);
+    render([]);
+    act(() => find('entry-more')?.click());
+    const button = [...host.querySelectorAll('button')].find(
+      (each) => each.textContent === 'Add photos…',
+    );
+    expect(button, 'the dialog button').toBeDefined();
+    act(() => button?.click());
+    await settle();
+    const [options] = dialog.open.mock.calls[0] as [{ filters: { extensions: string[] }[] }];
+    const extensions = options.filters.flatMap((filter) => filter.extensions);
+    expect(extensions).toEqual(expect.arrayContaining(['heic', 'heif', 'jpg', 'jpeg', 'png']));
+  });
+
+  it('says, while it waits, that it will be converted to JPEG — whatever the case of its name', () => {
+    render([]);
+    act(() => find('entry-more')?.click());
+    type(HEIC);
+    type('C:/sample/IMG_0002.heif');
+    type('C:/sample/tile.jpg');
+    expect(note(HEIC)?.textContent).toBe('Will be converted to JPEG');
+    expect(note('C:/sample/IMG_0002.heif')?.textContent).toBe('Will be converted to JPEG');
+    expect(pending('C:/sample/tile.jpg')).toBeDefined();
+    expect(note('C:/sample/tile.jpg')).toBeNull();
+  });
+
+  it('says so when a HEIC dropped on the Diary waits too', () => {
+    render([]);
+    act(() => webview.handler?.({ payload: { type: 'drop', paths: [HEIC] } }));
+    expect(note(HEIC)?.textContent).toBe('Will be converted to JPEG');
+  });
+
+  it('names, once the entry is saved, each photo the host converted', async () => {
+    const tile: SavedPhoto = {
+      ...PHOTO,
+      fileHash: 'b'.repeat(64),
+      fileName: 'tile.jpg',
+      convertedFrom: null,
+    };
+    invoke.mockResolvedValue({ ...entry(1, TODAY), photos: [PHOTO, tile] });
+    render([]);
+    act(() => find('entry-more')?.click());
+    type(HEIC);
+    type('C:/sample/tile.jpg');
+    act(() => find('entry-save')?.click());
+    await settle();
+    const lines = [...host.querySelectorAll('[data-testid="photo-converted"]')].map(
+      (line) => line.textContent,
+    );
+    expect(lines).toEqual(['IMG_0001.HEIC was converted from HEIC to JPEG.']);
+    expect(find('photos-converted')?.textContent).toContain('Entry #1 saved.');
+    // The photo waiting is gone with the save: it is in the entry now.
+    expect(host.querySelector('[data-pending-photo]')).toBeNull();
+  });
+
+  it('says nothing about converting when the host converted nothing', async () => {
+    invoke.mockResolvedValue({
+      ...entry(1, TODAY),
+      photos: [{ ...PHOTO, fileName: 'tile.jpg', convertedFrom: null }],
+    });
+    render([]);
+    act(() => find('entry-more')?.click());
+    type('C:/sample/tile.jpg');
+    act(() => find('entry-save')?.click());
+    await settle();
+    expect(find('photos-converted')).toBeNull();
+  });
+
+  it('says it in Portuguese', async () => {
+    invoke.mockResolvedValue({ ...entry(1, TODAY), photos: [PHOTO] });
+    render([], { language: 'pt-BR' });
+    act(() => find('entry-more')?.click());
+    type(HEIC);
+    expect(note(HEIC)?.textContent).toBe('Será convertida para JPEG');
+    act(() => find('entry-save')?.click());
+    await settle();
+    expect(find('photo-converted')?.textContent).toBe(
+      'IMG_0001.HEIC foi convertida de HEIC para JPEG.',
+    );
+    expect(find('photos-converted')?.textContent).toContain('Entrada nº 1 salva.');
   });
 });

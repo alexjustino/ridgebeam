@@ -172,6 +172,19 @@
 //!   answers `WrittenFile` without `pages`. When a warranty ends, when a task
 //!   is next due and what is overdue are not here: they are the domain's,
 //!   computed every time.
+//! - G5: HEIC from the iPhone. A HEIC or HEIF photo given to any intake — a
+//!   diary entry, a check's answer, a receipt, `document_add` (and so a
+//!   snag's photo) — is converted by Windows to a JPEG and kept as one:
+//!   `mediaType` `image/jpeg`, `fileName` as chosen (`IMG_0001.HEIC`). No
+//!   work shape records it. Where it was just converted, the answer says so
+//!   in `convertedFrom` — `HEIC`, `HEIF`, or `null` for a file kept as it
+//!   came; never absent: `DocumentsAdded.added` (`AddedFile`: `fileName`,
+//!   `fileHash`, `convertedFrom`, one per file kept, in the order given) and
+//!   `Photo.convertedFrom` in the answer of `diary_entry_add` (`null` in every
+//!   other answer that carries a `Photo`). `check_answer` and the money
+//!   commands answer the snapshot, as before, and do not say it. Where
+//!   Windows cannot read HEIC, the refusal is a host sentence, as every
+//!   intake refusal is.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -1370,6 +1383,22 @@ pub struct DocumentsAdded {
     pub snapshot: WorkSnapshot,
     /// Each file refused, in the order given.
     pub refused: Vec<RefusedFile>,
+    /// Each file kept, in the order given (G5) — a file already in the work
+    /// is listed too, as the document it is.
+    pub added: Vec<AddedFile>,
+}
+
+/// A file `document_add` kept (G5).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddedFile {
+    /// The file's name, as chosen — the document's `fileName` when it is new.
+    pub file_name: String,
+    /// The SHA-256 of the bytes kept: the document's `fileHash`.
+    pub file_hash: String,
+    /// What it was before the host converted it to the JPEG kept: `HEIC` (an
+    /// iPhone photo) or `HEIF`; `null` for a file kept as it came.
+    pub converted_from: Option<String>,
 }
 
 /// A document whose bytes are not the ones recorded.
@@ -2082,6 +2111,12 @@ pub struct Photo {
     /// Whether a thumbnail could be drawn; `false` means the photo was kept
     /// and the screen says it cannot show it small.
     pub thumbnail: bool,
+    /// What the photo was before the host converted it to the JPEG kept (G5):
+    /// `HEIC` (an iPhone photo) or `HEIF` — **only in the answer of the
+    /// `diary_entry_add` that copied it in**. Every other answer — a list, a
+    /// read, a photo re-attached by hash — says `null`: the work does not
+    /// record it, the copy is simply a JPEG.
+    pub converted_from: Option<String>,
 }
 
 /// One diary entry, never edited.

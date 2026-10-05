@@ -518,6 +518,7 @@ fn photo_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Photo> {
         width: row.get(3)?,
         height: row.get(4)?,
         thumbnail: row.get(5)?,
+        converted_from: None,
     })
 }
 
@@ -583,6 +584,7 @@ fn read(
                     width: row.get(4)?,
                     height: row.get(5)?,
                     thumbnail: row.get(6)?,
+                    converted_from: None,
                 },
             ))
         })?

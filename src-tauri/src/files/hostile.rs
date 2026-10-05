@@ -267,6 +267,11 @@ fn lying_webp() -> Vec<u8> {
     webp
 }
 
+/// A fake HEIC: `ftypheic` and zeros. Since G5 it reaches Windows' own HEIF
+/// decoder where the extensions are installed — from memory, under the size
+/// cap — and is refused as a photo Windows could not read; where they are not,
+/// it is refused with the sentence that says how to install them; elsewhere
+/// than Windows, as before. Every sentence names the file and says HEIC.
 fn heic() -> Vec<u8> {
     let mut bytes = vec![0, 0, 0, 24];
     bytes.extend_from_slice(b"ftypheic");

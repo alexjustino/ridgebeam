@@ -68,11 +68,21 @@ lopdf = { version = "0.45", default-features = false }
 # The accent colour the desktop uses, read from the system (`os::accent`).
 # The accent colour (`os::accent`), and the account's display name, which signs
 # a diary entry (`os::account`) — the product has no accounts of its own.
+# G5: a HEIC photo is decoded by Windows' own imaging component (WIC), through
+# whatever HEIF codec the person installed (`files::heic`): `Graphics_Imaging`
+# for WIC itself, `System_Com` to create it and hand it the bytes as a stream,
+# `Com_StructuredStorage` and `System_Variant` for the one metadata value read
+# (the orientation) and, in the tests, for an in-memory stream to encode into.
+# Features of a crate already here: no crate is added.
 windows = { version = "0.62", features = [
     "UI_ViewManagement",
     "Foundation",
     "Win32_Foundation",
     "Win32_Security_Authentication_Identity",
+    "Win32_Graphics_Imaging",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Variant",
 ] }
 
 [profile.release]
@@ -141,6 +151,10 @@ strip = true
 # by hand (`report::html`), its photos re-encoded by `image` and written into it
 # with `base64`, both already here; its SVG is checked in tests by a structural
 # walk, not by an XML crate.
+#
+# G5 (HEIC from the iPhone) adds no crate: four features of `windows`, above.
+# The HEIF and HEVC decoders are Windows' own, installed by the person from the
+# Microsoft Store; nothing of them is compiled in or shipped.
 #
 # The widths of Helvetica and Helvetica-Bold (`report::winansi`) are numbers
 # from Adobe's Core14 AFM files, whose notice is carried in that module and in

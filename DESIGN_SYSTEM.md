@@ -847,6 +847,13 @@ breaks one is not merged.
   file and, done, says where it went (`aftercare-ics-done`), and in a sentence what the file is: the
   same days, for the person's own calendar to remind them, written again to update it. The product
   reminds nobody, and no screen says it will (ADR-048).
+- **A photo the product converted says so in words.** A HEIC taken in is kept as the JPEG Windows
+  converted it to, under the person's own name. Before it is saved, a photo named `.heic` or `.heif`
+  says _Will be converted to JPEG_ beside its name (`photo-converted-note`); once saved, the entry or
+  the document just added says _Converted from HEIC to JPEG_ (`photo-converted`) — in text, never an
+  icon alone — so nobody wonders why the copy is not the file they chose. A HEIC Windows cannot read is refused like any
+  other photo, under the control that chose it, in the host's own sentence, which says how to get
+  the decoder (ADR-049).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries

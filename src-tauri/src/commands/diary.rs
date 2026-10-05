@@ -23,6 +23,9 @@
 //! - E3: `diary_entry_add` takes why a day was lost (`lostCause`) and who it
 //!   is put down to (`lostPartyPersonId`), each refused with a sentence when it
 //!   does not fit; every entry read answers both.
+//! - G5: a HEIC photo is kept as the JPEG Windows converts it to
+//!   (`files::intake`); the answer of `diary_entry_add` says so on each photo
+//!   it converted (`Photo.convertedFrom`), and every read says `null`.
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -193,6 +196,7 @@ pub fn diary_entry_add_with(
                     width: copied.width,
                     height: copied.height,
                     thumbnail: copied.thumbnail,
+                    converted_from: copied.converted_from.map(str::to_string),
                 });
             }
         }
@@ -218,7 +222,17 @@ pub fn diary_entry_add_with(
                 &target,
             );
         }
-        diary::get(&state.conn, seq)?.ok_or(Error::Database(rusqlite::Error::QueryReturnedNoRows))
+        let mut written = diary::get(&state.conn, seq)?
+            .ok_or(Error::Database(rusqlite::Error::QueryReturnedNoRows))?;
+        // The work does not record a conversion; this answer says it (G5).
+        for photo in &mut written.photos {
+            photo.converted_from = brought
+                .iter()
+                .find(|c| c.hash == photo.file_hash)
+                .and_then(|c| c.converted_from)
+                .map(str::to_string);
+        }
+        Ok(written)
     })
 }
 
@@ -986,5 +1000,57 @@ mod tests {
                 .kind(),
             "no_work_open"
         );
+    }
+
+    /// G5: a HEIC from the iPhone, through the diary — kept as a JPEG under
+    /// its own name, turned as the camera held it, filed as a JPEG document;
+    /// the answer says it was converted, every read says `null`.
+    #[cfg(windows)]
+    #[test]
+    fn a_heic_photo_on_an_entry_is_kept_as_a_jpeg_and_the_answer_says_it_was_converted() {
+        let Some(heic) = crate::files::intake::tests::heic_or_skip("diary", Some(6)) else {
+            return;
+        };
+        let (open, _scratch, _, _) = a_work_with_a_site();
+        let source = Scratch::create();
+        let path = source.path().join("IMG_0001.HEIC");
+        std::fs::write(&path, &heic).unwrap();
+
+        let mut with_photo = draft("2026-10-08");
+        with_photo.photo_paths = vec![path.to_string_lossy().into_owned()];
+        let entry = diary_entry_add_with(&open, &with_photo, today(), AUTHOR).unwrap();
+
+        let photo = &entry.photos[0];
+        assert_eq!(photo.file_name, "IMG_0001.HEIC", "the name as chosen");
+        assert_eq!((photo.width, photo.height), (48, 64), "upright");
+        assert!(photo.thumbnail);
+        assert_eq!(photo.converted_from.as_deref(), Some("HEIC"));
+        assert_eq!(
+            serde_json::to_value(photo).unwrap()["convertedFrom"],
+            "HEIC"
+        );
+        assert!(folder_of(&open)
+            .join("documents")
+            .join(format!("{}.jpg", photo.file_hash))
+            .is_file());
+
+        let read = diary_entry_with(&open, entry.seq).unwrap();
+        let wire = serde_json::to_value(&read.photos[0]).unwrap();
+        assert_eq!(read.photos[0].file_hash, photo.file_hash);
+        assert_eq!(
+            wire.get("convertedFrom"),
+            Some(&serde_json::Value::Null),
+            "a read says null, never absent"
+        );
+        let document = with_work(&open, |state| crate::db::work::snapshot(&state.conn))
+            .unwrap()
+            .documents
+            .into_iter()
+            .find(|d| d.file_hash == photo.file_hash)
+            .expect("the photo is a document of the work");
+        assert_eq!(document.media_type, "image/jpeg");
+        assert_eq!(document.file_name, "IMG_0001.HEIC");
+        assert!(diary_verify_with(&open).unwrap().intact);
+        work_close_with(&open);
     }
 }

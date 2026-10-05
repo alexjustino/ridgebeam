@@ -8,7 +8,7 @@ import {
 import { open } from '@tauri-apps/plugin-dialog';
 import { useId, useMemo, useState, type FormEvent } from 'react';
 
-import { LIMITS } from '@/data/commands';
+import { LIMITS, type SavedDiaryEntry } from '@/data/commands';
 import { useAddEntry } from '@/data/queries';
 import {
   lastPresence,
@@ -41,6 +41,7 @@ import { Input } from '@/ui/Input';
 import { Select } from '@/ui/Select';
 import { TextArea } from '@/ui/TextArea';
 
+import { ConvertedNotice, WillConvertNote } from './Conversion';
 import { CAUSES_WITH_PARTY, WEATHER_KEYS } from './weather';
 
 const PROBLEM_KEYS: Record<DraftProblem['code'], MessageKey> = {
@@ -148,6 +149,9 @@ export function EntryForm({
   const [showAll, setShowAll] = useState(false);
   const [missingSaid, setMissingSaid] = useState<number | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
+  // The entry just saved, when the host converted any of its photos (G5): said under the form until
+  // the next save.
+  const [converted, setConverted] = useState<SavedDiaryEntry | null>(null);
 
   const ordered = activitiesInOrder(snapshot);
   const started = useMemo(() => progress(snapshot, entries), [snapshot, entries]);
@@ -265,9 +269,16 @@ export function EntryForm({
       return;
     }
     setProblems([]);
+    setConverted(null);
     add.mutate(draft, {
       onSuccess: (entry) => {
-        announce(t('diary.saved', { seq: entry.seq }));
+        const lines = entry.photos.flatMap((photo) =>
+          photo.convertedFrom === null
+            ? []
+            : [t('photos.converted.line', { name: photo.fileName, from: photo.convertedFrom })],
+        );
+        announce([t('diary.saved', { seq: entry.seq }), ...lines].join(' '));
+        setConverted(lines.length > 0 ? entry : null);
         setMarks(new Map());
         setPresent(new Set());
         setWeather(null);
@@ -628,6 +639,7 @@ export function EntryForm({
                       className="flex items-center gap-2 text-body text-fg"
                     >
                       <span className="min-w-0 flex-1 truncate font-mono text-caption">{path}</span>
+                      <WillConvertNote path={path} />
                       <PendingRemove
                         label={t('diary.photos.remove', { name: baseName(path) })}
                         onRemove={() => setPaths((all) => all.filter((each) => each !== path))}
@@ -650,6 +662,13 @@ export function EntryForm({
               </ul>
             </InfoBar>
           </div>
+        )}
+
+        {converted !== null && (
+          <ConvertedNotice
+            title={t('diary.saved', { seq: converted.seq })}
+            files={converted.photos}
+          />
         )}
 
         <div className="flex gap-2">

@@ -1107,6 +1107,7 @@ fn a_backup_of_a_work_at_an_older_schema_restores_migrated_forward() {
                     width: 64,
                     height: 48,
                     thumbnail: false,
+                    converted_from: None,
                 }],
             },
         )

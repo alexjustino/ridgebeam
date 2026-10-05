@@ -25,6 +25,7 @@ import {
   type GateItem,
 } from '@/domain/checks';
 import { stagesInOrder, type Check, type Stage, type WorkSnapshot } from '@/domain/plan';
+import { WillConvertNote } from '@/features/diary/Conversion';
 import { PhotoThumb } from '@/features/diary/PhotoThumb';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n } from '@/i18n/useI18n';
@@ -550,6 +551,7 @@ function GateItemLine({
               <span className="min-w-0 flex-1 truncate">
                 {t('gates.photo.pending', { name: pending.split(/[\\/]/).pop() ?? pending })}
               </span>
+              <WillConvertNote path={pending} />
               <button
                 type="button"
                 aria-label={t('diary.photos.remove', {

@@ -22,11 +22,15 @@
 //!   into a new folder; `backup_hostile`, the archive corpus it is held to,
 //!   generated in `cargo test`. `save` gains a streamed write for a file too
 //!   large to hold in memory.
+//! - G5: `heic` — a HEIC photo converted to a JPEG by Windows' own decoder
+//!   (WIC), on a COM thread of its own, from memory, under the intake's
+//!   limits; `intake` keeps the JPEG.
 
 pub mod archive;
 pub mod backup;
 #[cfg(test)]
 mod backup_hostile;
+pub mod heic;
 #[cfg(test)]
 pub mod hostile;
 pub mod intake;

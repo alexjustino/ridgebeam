@@ -77,7 +77,11 @@ months later — and the maintenance it needs, each task's next due day read fro
 done, which is recorded and never edited; a calendar of the next twelve months of what comes due,
 which goes onto the person's own phone or computer as an `.ics` file, because the product sends no
 reminder itself. A finished work's Dashboard leads with it, and its handover book carries it
-([ADR-048](#adr-048)).
+([ADR-048](#adr-048)). The fifth, slice G5, takes a photo straight from an iPhone: a HEIC is
+converted once, as it is taken in, through the decoder Windows itself provides, into a JPEG that the
+rest of the product keeps, shows and prints as it does any other — the person's name for it kept,
+its location not — and where Windows cannot read HEIC, it is refused with a sentence that says how
+to get the extensions ([ADR-049](#adr-049)).
 
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -129,6 +133,7 @@ reminder itself. A finished work's Dashboard leads with it, and its handover boo
 | [046](#adr-046) | What to order this week: lead times against the forecast, orders and deliveries as facts                              | Accepted — 2026-10-05          |
 | [047](#adr-047) | The work teaches the next: planned against actual, and templates learned from it                                      | Accepted — 2026-10-05          |
 | [048](#adr-048) | After the handover: warranties, maintenance, and a calendar of what comes due                                         | Accepted — 2026-10-05          |
+| [049](#adr-049) | Photos from an iPhone: HEIC converted through Windows' own decoder                                                    | Accepted — 2026-10-05          |
 
 ---
 
@@ -954,7 +959,8 @@ silence is visible (SPEC R2).
 
 ## ADR-021 — Photos are copied by the host under caps and shown as data URLs {#adr-021}
 
-**Status.** Accepted — 2026-09-25.
+**Status.** Accepted — 2026-09-25. Amended by [ADR-049](#adr-049): a HEIC photo is converted to a JPEG
+through Windows' own decoder, under the same caps, and refused only where Windows cannot read it.
 
 **Context.** Photos are the first files from somebody else that the product keeps: from a phone,
 a messaging app, a download. [`SECURITY.md`](../../SECURITY.md) says every one is hostile until
@@ -1171,7 +1177,8 @@ money at the start, visibly.
 
 ## ADR-025 — A document is a file the work owns, typed by its bytes, deduplicated by its hash, and never parsed {#adr-025}
 
-**Status.** Accepted — 2026-09-27.
+**Status.** Accepted — 2026-09-27. Amended by [ADR-049](#adr-049): HEIC leaves the list of what is refused,
+converted at intake to the JPEG the work keeps; the corpus's fake HEIC is still refused.
 
 **Context.** A build runs on paper: the quote, the drawing, the permit, the receipt, the
 contract, and a phone full of photos (SPEC §2.10). F4 made photos safe to keep ([ADR-021](#adr-021));
@@ -3683,3 +3690,113 @@ itself**: no network, no background process — the calendar of the person's pho
 reminding, and a person who never adds the file is reminded only by opening the product.
 **Aftercare lives in the work's folder**: whoever has the folder has it, and a backup is how it
 outlives the computer it was written on.
+
+## ADR-049 — Photos from an iPhone: HEIC converted through Windows' own decoder {#adr-049}
+
+**Status.** Accepted — 2026-10-05.
+
+**Context.** This is G5, the fifth slice of the third wave ([ADR-045](#adr-045)). An iPhone saves
+its photos as HEIC unless somebody changes a setting most people never open, and the photos of a
+work are taken on the phone in the person's pocket. Since F4 the product has refused them by name
+([ADR-021](#adr-021)) — _1.0 does not decode it_ — and F7 kept the refusal when every document came
+to be typed by its bytes ([ADR-025](#adr-025)): an image the product keeps is one it can measure,
+thumbnail, print in the handover book and place in the owner's snapshot, and nothing in the product
+could read HEIC. So the first photo of a real week — the pipes before the wall is closed, the
+cracked tile — met a sentence telling the person to save it as JPEG first, on a phone or a computer
+that offered no obvious way to. HEIC is a container around images compressed with HEVC, and decoding
+HEVC is the hard part: the codec is covered by patents whose licences a free product cannot simply
+take, and a decoder is large. Windows has one, as an extension: Microsoft's **HEIF Image
+Extensions** and **HEVC Video Extensions**, from the Microsoft Store, which the Photos app uses to
+show the same files.
+
+**Decision.**
+
+- **Converted once, at intake, through Windows' own decoder.** When the bytes of a file are HEIC —
+  recognised from its first bytes, as before, never from its name — the host no longer refuses it on
+  Windows. After the size cap, unchanged at **25 MiB** of HEIC, the bytes are handed to the Windows
+  Imaging Component (WIC) **from memory**, never from a path and never through a temporary file. The
+  decoder reports the image's size first, and the photo is refused **before any pixel is copied**
+  if either side is over **12 000** pixels or the image would need more than **256 MiB** at four
+  bytes a pixel — the limits every other image is held to ([ADR-021](#adr-021)); a 48-megapixel
+  iPhone photo passes. The decode runs on a thread of its own, which initialises COM and releases it
+  before the thread ends, so nothing of it touches the threads the rest of the host runs on.
+- **Turned the way the camera held it.** The orientation the photo carries is applied to the pixels
+  as they are converted, so a portrait is a portrait and the JPEG needs no orientation tag to be read
+  upright. Whether Windows' decoder already turns the pixels itself was found out on a real decoder,
+  not assumed: a HEIC carries its turn in its own `irot` and `imir` boxes, Windows' HEIF decoder
+  applies them to the pixels and then reports the orientation as upright, and it ignores an EXIF
+  orientation tag inside the file. So the conversion turns the pixels once, never twice: it applies
+  whatever orientation the decoder still reports — upright for every file tried — and never reads
+  the EXIF tag. The host's tests encode a synthetic photo with one coloured corner, turned and
+  mirrored each way the format allows, and check where the corner lands.
+- **Kept as the JPEG it became.** The pixels are encoded as a **JPEG at quality 90** by the same
+  image library that writes the thumbnails, and from there the photo enters the existing intake
+  **as a JPEG**, held to the same **25 MiB** cap as any photo — a converted copy over it is refused
+  with a sentence of its own, since a backup leaves out, and a report refuses, a photo that size —:
+  measured from its header, hashed, copied to `documents/<hash>.jpg`, thumbnailed,
+  its `media_type` `image/jpeg`. **The person's own name is kept** — `IMG_0001.HEIC` is still what
+  the photo is called — and only the bytes are a JPEG. So every place a photo is taken — a diary
+  entry, a check's answer, a snag, the Documents page, and a file dropped on any of them
+  ([ADR-040](#adr-040)) — takes a HEIC with no change of its own, and everything that reads a photo
+  afterwards — the thumbnails, the diary's chain, _Folder health_, the handover book, the owner's
+  snapshot, the PDF reports, the backup — sees a JPEG and needs none either.
+- **The screen says it was converted.** A photo waiting to be saved whose name is `.heic` or `.heif`
+  says it _will be converted to JPEG_; the entry just saved and the document just added say, in
+  words, that it _was converted from HEIC to JPEG_ — so nobody wonders why the copy is not the file
+  they chose. The conversion of the same HEIC gives the same bytes every time, so a photo added
+  twice is one copy, as before. A file of the generic HEIF brands (`mif1`, `msf1`) is said to be
+  converted _from HEIF_. The pickers' filters offer `.heic` and `.heif`
+  beside the other photos.
+- **Refused with a sentence when Windows cannot read it.** On a computer without the extensions,
+  the photo is refused with a sentence naming it that says what it is and how to get there: install
+  _HEIF Image Extensions_ and _HEVC Video Extensions_ from the Microsoft Store and add it again — or
+  set the iPhone's _Camera → Formats_ to _Most Compatible_, which makes the phone save JPEGs. The host
+  asks Windows for its HEIF decoder **by name**, so whether the extensions are installed is known
+  from the system, not guessed from the bytes, and no other codec ever reads the file. A file that
+  looks like HEIC and that Windows cannot read is refused as a photo Windows could not read. A
+  refused photo refuses a diary entry whole, and a document alone, exactly as before
+  ([ADR-019](#adr-019), [ADR-025](#adr-025)). On a target that is not Windows, HEIC is refused as it
+  always was.
+- **No metadata is carried over.** The JPEG is written from pixels: it carries no EXIF, no
+  location, no camera data, no colour profile. That is a consequence of converting from pixels, not
+  the reason for it — and it is said here so that nobody expects a converted photo to say where it
+  was taken.
+- **No migration, no new type.** The work's schema stays at 19, the document's `media_type` keeps
+  its list, and nothing records that a photo was converted beyond its name: a document called
+  `….HEIC` whose type is JPEG is one that was. The hostile corpus keeps its fake HEIC — the right
+  first bytes and garbage after them — and it must still be refused, now with the sentence for a
+  photo Windows could not read wherever the decoder is installed.
+- **ADR-021 and ADR-025 are amended, not replaced.** HEIC leaves their list of what is refused; every
+  other type, every cap and every rule of the intake stays as it was, and their Status lines point
+  here.
+
+**Why Windows' decoder, and not one of our own.** A HEVC decoder in the product would carry patent
+licensing that a public, free product cannot settle, and it would weigh on an installer held under
+10 MB. Windows' codec is already licensed, kept up to date through the Microsoft Store, and is the
+one the person's own Photos app opens the same file with: a photo the person can see in Photos is
+one Ridgebeam can take. Reading it through WIC, from memory and under the product's own limits, adds
+no crate and no file to the installer.
+
+**Why convert at intake, and keep the JPEG.** A HEIC kept as HEIC would have to be decoded again by
+everything that shows or prints a photo — the thumbnail, the handover book, the snapshot, each
+report — and each of those would need the extensions on whichever computer it ran, years later,
+perhaps after the folder had moved to one without them. Converting once, when the photo arrives and
+the person is there to read a refusal, puts the dependency in one place and at one moment; from then
+on the work folder holds only formats every part of the product, and every computer, already reads.
+The person's name is kept because it is how they will look for the photo; the extension on disk is
+the type of the bytes, as it has been since F4.
+
+**Cost accepted.** **The original HEIC is not kept**: the work holds the converted JPEG, so a person
+for whom the original matters keeps it on the phone or in the camera roll. **Re-encoding loses a
+little**: quality 90 keeps the difference small, but it is a second compression of a compressed
+image. **The extensions are the person's to install**, from the Microsoft Store: Ridgebeam has no
+network ([ADR-006](#adr-006)) and never downloads them — on a computer without them HEIC is refused,
+with the sentence that says how, and a work moved to such a computer keeps every photo already
+converted. **Only the main image is read**: the video of a Live Photo is a separate file the product
+does not take, and of a burst or a sequence only the first image is kept. **The decoder runs in the
+product's own process**, as it runs in the Photos app: a flaw in Microsoft's HEIF or HEVC decoder
+is reachable through a crafted file — under the size cap, and the pixel limits checked before any
+pixel is copied — and is patched by Microsoft, not by a Ridgebeam release. **A converted photo
+carries no metadata**: no location, no camera, no time the camera recorded — the diary's day and the
+document's day are what date it. **A conversion takes a moment**: it runs while the photo is being
+taken in, as the thumbnail does, and a large photo can take a few seconds.
