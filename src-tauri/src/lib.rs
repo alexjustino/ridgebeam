@@ -206,6 +206,21 @@
 //!   never a path, and a snag's photos keep their files in the folder. A
 //!   closed stage takes a snag. What is held and earned is the domain's. No
 //!   new crate, no new error kind, no new capability.
+//! - G1: the weekly site meeting. Work migration 017 adds `meeting` (numbered
+//!   max + 1, held on a day not after today, with the counts of its
+//!   attendees, items and actions, which seal them), `meeting_attendee` (a
+//!   person of the plan or somebody named, exactly one; a person once, a name
+//!   once whatever its case — `meeting: attendee`), `meeting_item` (nine kinds, the agenda's title frozen,
+//!   what was said and done), `meeting_action` (what, on a person or somebody
+//!   named or nobody, due not before the meeting — `meeting: action`) and
+//!   `meeting_action_closure` (once per action, `done` or `dropped`, at a later
+//!   meeting on its day or between meetings — `meeting: closure`), all
+//!   insert-only by trigger (`meeting: append-only`, with `recursive_triggers`
+//!   on and off). Two commands (`meeting_close`, writing the minutes whole in
+//!   one transaction or nothing; `meeting_action_close`), each returning the
+//!   snapshot, which carries `meetings`. The report kind `minutes` is written
+//!   by `report_pdf_write`. The agenda is the domain's. No new crate, no new
+//!   error kind, no new capability.
 
 pub mod commands;
 pub mod contract;
@@ -342,6 +357,8 @@ pub fn run() {
             commands::funding::funding_receipt_reverse,
             commands::snags::snag_raise,
             commands::snags::snag_close,
+            commands::meetings::meeting_close,
+            commands::meetings::meeting_action_close,
             commands::documents::document_add,
             commands::documents::document_update,
             commands::documents::document_link,

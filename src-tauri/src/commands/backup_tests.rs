@@ -22,6 +22,7 @@ use crate::commands::documents::{document_add_with, documents_verify_with};
 use crate::commands::funding::{
     funding_add_with, funding_receipt_add_with, funding_receipt_reverse_with,
 };
+use crate::commands::meetings::{meeting_action_close_with, meeting_close_with};
 use crate::commands::milestones::milestone_add_with;
 use crate::commands::money::{
     commitment_add_with, cost_line_add_with, payment_add_with, payment_reverse_with,
@@ -437,6 +438,34 @@ pub fn a_full_work() -> FullWork {
         AUTHOR,
     )
     .unwrap();
+    // G1: a meeting's minutes — two attendees, an item, two actions; one
+    // action closed between meetings, one open.
+    let minutes = meeting_close_with(
+        &open,
+        &from(json!({
+            "heldOn": "2026-10-08", "notes": "On site, after the skip.",
+            "attendees": [ { "personId": person }, { "name": "The neighbour" } ],
+            "items": [ { "kind": "snag", "refId": snag, "title": "Wall plug left behind",
+                         "note": "Filled already.", "outcome": "Fixed" } ],
+            "actions": [
+                { "text": "Order the skirting", "personId": person, "dueOn": "2026-10-09" },
+                { "text": "Move the car", "name": "The neighbour" }
+            ]
+        })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap();
+    meeting_action_close_with(
+        &open,
+        &from(json!({
+            "actionId": minutes.meetings[0].actions[0].id, "outcome": "done",
+            "closedOn": "2026-10-09", "note": "Ordered."
+        })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap();
 
     let plan = work_get_with(&open).unwrap();
     assert_eq!(
@@ -449,6 +478,7 @@ pub fn a_full_work() -> FullWork {
     assert_eq!(plan.payments.len(), 3, "two payments and a reversal");
     assert_eq!(plan.documents.len(), 8);
     assert_eq!(plan.snags.len(), 2, "one fixed, one open");
+    assert_eq!(plan.meetings[0].actions.len(), 2, "one closed, one open");
     FullWork {
         db,
         open,

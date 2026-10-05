@@ -2468,7 +2468,6 @@ mod tests {
         let state = open(scratch.path()).expect("an E3 work opens in E4");
         let conn = &state.conn;
 
-        assert_eq!(migrations::WORK.current_version(conn), 16);
         assert_eq!(
             migrations::WORK.current_version(conn),
             migrations::WORK.target_version()
@@ -2604,6 +2603,245 @@ mod tests {
                 .as_deref(),
             Some(mended.as_str())
         );
+        assert!(diary::verify(&again.conn).unwrap().intact);
+        close(again);
+        assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
+    }
+
+    /// The upgrade a person makes from E4: a work folder at schema 16 with an
+    /// approved plan, a change order, two snags — one withdrawn — and a diary.
+    /// Opened by G1, the five meeting tables are there, empty and guarded, and
+    /// every row is as it was. Minutes with an attendee and an action on a
+    /// person are written on the migrated file, the action is closed between
+    /// meetings, the chain verifies, and they are there when it opens again.
+    #[test]
+    fn a_work_folder_at_schema_sixteen_with_snags_and_a_change_order_gains_meetings_and_keeps_every_row(
+    ) {
+        use crate::db::baselines::{self, Placement};
+        use crate::db::change_orders::{self, AskedBy, NewChangeOrder};
+        use crate::db::meetings::{self, Attendee, NewAction, NewActionClosure, NewMinutes};
+        use crate::db::{diary, snags};
+
+        let scratch = Scratch::create();
+        let bathroom = "00000000-0000-7000-8000-00000000000b";
+        let tiling = "00000000-0000-7000-8000-00000000000c";
+        let tiler = "00000000-0000-7000-8000-00000000000a";
+        let kept = [
+            "SELECT * FROM stage ORDER BY id",
+            "SELECT * FROM activity ORDER BY id",
+            "SELECT * FROM person ORDER BY id",
+            "SELECT * FROM baseline ORDER BY number",
+            "SELECT * FROM baseline_activity ORDER BY baseline_id, activity_id",
+            "SELECT * FROM change_order ORDER BY number",
+            "SELECT * FROM snag ORDER BY number",
+            "SELECT * FROM snag_closure ORDER BY snag_id",
+            "SELECT * FROM diary_entry ORDER BY seq",
+            "SELECT * FROM diary_done ORDER BY entry_seq, activity_id",
+            "SELECT approved_at FROM work",
+        ];
+        let snag = |title: &str| snags::NewSnag {
+            raised_on: "2026-10-06".into(),
+            title: title.into(),
+            description: None,
+            stage_id: bathroom.into(),
+            activity_id: Some(tiling.into()),
+            person_id: Some(tiler.into()),
+            due_on: Some("2026-10-08".into()),
+            photo_hash: None,
+            author_name: "Synthetic author".into(),
+        };
+
+        let (rows_before, diary_before);
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 16).unwrap();
+            baselines::take(
+                &conn,
+                &[Placement {
+                    activity_id: tiling.into(),
+                    start: Some("2026-10-05".into()),
+                    finish: Some("2026-10-07".into()),
+                }],
+                Some("2026-10-07"),
+            )
+            .unwrap();
+            change_orders::raise(
+                &conn,
+                &NewChangeOrder {
+                    raised_on: "2026-10-07".into(),
+                    title: "Heated floor".into(),
+                    description: None,
+                    asked_by: AskedBy::Owner,
+                    stage_id: bathroom.into(),
+                    cost_cents: Some(250_000),
+                    effects: Vec::new(),
+                    author_name: "Synthetic author".into(),
+                },
+            )
+            .unwrap();
+            snags::raise(&conn, &snag("Cracked tile by the drain")).unwrap();
+            snags::raise(&conn, &snag("Grout missing")).unwrap();
+            // This build's snapshot reads G1's tables, which a file at schema
+            // 16 does not have yet: the id is read raw.
+            let second: String = conn
+                .query_row("SELECT id FROM snag WHERE number = 2", [], |row| row.get(0))
+                .unwrap();
+            snags::close(
+                &conn,
+                &snags::NewClosure {
+                    snag_id: second,
+                    outcome: snags::Outcome::Withdrawn,
+                    closed_on: "2026-10-07".into(),
+                    photo_hash: None,
+                    note: Some("Raised by mistake.".into()),
+                    author_name: "Synthetic author".into(),
+                },
+            )
+            .unwrap();
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    day: "2026-10-06".into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Tiles laid; one cracked.".into()),
+                    weather: None,
+                    lost_day: false,
+                    lost_cause: None,
+                    lost_party_person_id: None,
+                    hours: None,
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: vec![crate::contract::DoneLine {
+                        activity_id: tiling.into(),
+                        state: "finished".into(),
+                        quantity: None,
+                        note: None,
+                    }],
+                    present: Vec::new(),
+                    photos: Vec::new(),
+                },
+            )
+            .unwrap();
+
+            rows_before = kept.map(|sql| raw_rows(&conn, sql));
+            diary_before = diary::all(&conn).unwrap();
+            assert_eq!(migrations::WORK.current_version(&conn), 16);
+            assert_eq!(
+                raw_rows(
+                    &conn,
+                    "SELECT count(*) FROM sqlite_master WHERE name LIKE 'meeting%'"
+                ),
+                vec!["Integer(0)"]
+            );
+        }
+
+        let state = open(scratch.path()).expect("an E4 work opens in G1");
+        let conn = &state.conn;
+
+        assert_eq!(
+            migrations::WORK.current_version(conn),
+            migrations::WORK.target_version()
+        );
+        assert_eq!(
+            kept.map(|sql| raw_rows(conn, sql)),
+            rows_before,
+            "every row as it was"
+        );
+        assert_eq!(rows_before[6].len(), 2, "two snags");
+        assert_eq!(rows_before[7].len(), 1, "one closed");
+        assert_eq!(rows_before[5].len(), 1, "a change order");
+        assert_eq!(diary::all(conn).unwrap(), diary_before);
+        let report = diary::verify(conn).unwrap();
+        assert_eq!((report.entries, report.intact), (1, true));
+        for (table, triggers) in [
+            ("meeting", 4),
+            ("meeting_attendee", 5),
+            ("meeting_item", 4),
+            ("meeting_action", 5),
+            ("meeting_action_closure", 4),
+        ] {
+            assert_eq!(
+                raw_rows(conn, &format!("SELECT count(*) FROM {table}")),
+                vec!["Integer(0)"],
+                "`{table}` is there, and empty"
+            );
+            assert_eq!(
+                raw_rows(
+                    conn,
+                    &format!(
+                        "SELECT count(*) FROM sqlite_master WHERE type = 'trigger'
+                         AND tbl_name = '{table}'"
+                    )
+                ),
+                vec![format!("Integer({triggers})")],
+                "`{table}` is insert-only"
+            );
+        }
+        assert!(raw_rows(conn, "PRAGMA foreign_key_check").is_empty());
+
+        // Minutes on the migrated file: the tiler there, an action on the
+        // tiler, closed between meetings.
+        meetings::record(
+            conn,
+            &NewMinutes {
+                held_on: "2026-10-08".into(),
+                notes: None,
+                attendees: vec![
+                    Attendee::Person(tiler.into()),
+                    Attendee::Named("The neighbour".into()),
+                ],
+                items: vec![meetings::NewItem {
+                    kind: "snag".into(),
+                    ref_id: None,
+                    title: "Snag #1 — Cracked tile by the drain".into(),
+                    note: Some("A new tile is coming.".into()),
+                    outcome: None,
+                }],
+                actions: vec![NewAction {
+                    text: "Replace the cracked tile".into(),
+                    on: Some(Attendee::Person(tiler.into())),
+                    due_on: Some("2026-10-09".into()),
+                }],
+                closures: Vec::new(),
+                author_name: "Synthetic author".into(),
+            },
+        )
+        .unwrap();
+        let action = db::work::snapshot(conn).unwrap().meetings[0].actions[0]
+            .id
+            .clone();
+        meetings::close_action(
+            conn,
+            &NewActionClosure {
+                action_id: action,
+                outcome: meetings::Outcome::Done,
+                closed_on: "2026-10-09".into(),
+                note: None,
+                author_name: "Synthetic author".into(),
+            },
+        )
+        .unwrap();
+        assert!(conn.execute("DELETE FROM meeting", []).is_err(), "guarded");
+        close(state);
+
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        let plan = db::work::snapshot(&again.conn).unwrap();
+        assert_eq!(plan.meetings.len(), 1);
+        assert_eq!(plan.meetings[0].attendees.len(), 2);
+        assert_eq!(
+            plan.meetings[0].actions[0]
+                .closure
+                .as_ref()
+                .map(|c| (c.outcome.as_str(), c.meeting_id.clone())),
+            Some(("done", None))
+        );
+        assert_eq!(plan.snags.len(), 2);
+        assert_eq!(plan.change_orders.len(), 1);
         assert!(diary::verify(&again.conn).unwrap().intact);
         close(again);
         assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);

@@ -5,6 +5,7 @@ import {
 } from '@fluentui/react-icons';
 import {
   useEffect,
+  useEffectEvent,
   useId,
   useLayoutEffect,
   useRef,
@@ -148,9 +149,13 @@ export function DateField({
   const reading = readDayInput(language, text);
   const problem = judged ? problemOf(reading) : null;
   const pending = text.trim() !== '' && reading.kind !== 'day';
+  // The callback is an effect event and the effect runs on `pending` alone: a caller that passes an
+  // inline function that sets state would otherwise re-run it on every render, for ever (G1 found
+  // it — a test worker grew to 1.6 GB).
+  const tellPending = useEffectEvent((now: boolean) => onPendingChange?.(now));
   useEffect(() => {
-    onPendingChange?.(pending);
-  }, [pending, onPendingChange]);
+    tellPending(pending);
+  }, [pending]);
   const example = formatDayInput(language, EXAMPLE_DAY);
 
   const emit = (next: string) => {

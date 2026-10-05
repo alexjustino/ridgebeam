@@ -57,6 +57,15 @@ a snag, raised with a photo, put on the person who must fix it and closed only w
 fixed — or withdrawn with a reason, never deleted — and a commitment's last part can be held back as
 retention, earned only when its stage is closed and that person's snags are ([ADR-044](#adr-044)).
 
+Asked which of the next list he wanted before his acceptance test, the owner answered: all of them,
+and surprise me. That third wave — a slice of hygiene, H0, and six slices, G1 to G6 — is admitted in
+[ADR-045](#adr-045), which records its first: slice G1 turns the second wave into a weekly ritual.
+The agenda of the site meeting is written from the record — the actions still open, the decisions
+due, the changes waiting, the snags open, the money falling due and held, why it is late, the next
+two weeks — what the meeting decides is done right there through the product's own commands, and
+the minutes, with the actions they raise, are written once, at the close, and never edited
+([ADR-045](#adr-045)).
+
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | [001](#adr-001) | The product is named Ridgebeam                                                                                        | Accepted — 2026-09-24, by Alex |
@@ -103,6 +112,7 @@ retention, earned only when its stage is closed and that person's snags are ([AD
 | [042](#adr-042) | Will the money last? Funding as plan, receipts as facts, a weekly projection                                          | Accepted — 2026-10-02          |
 | [043](#adr-043) | As things stand: a forecast from the diary, and a ledger of why it is late                                            | Accepted — 2026-10-04          |
 | [044](#adr-044) | A work that ends well: snags closed with a photo, and retention held until they are                                   | Accepted — 2026-10-04          |
+| [045](#adr-045) | The weekly site meeting: an agenda from the record, minutes that are never edited                                     | Accepted — 2026-10-05          |
 
 ---
 
@@ -3096,3 +3106,141 @@ its reason is on record, and the product does not judge it. **The snags have to 
 the money goes**: with no snag raised on that person, a retention is earned the day its stage
 closes, and a snag raised after that holds it again — if the retention was already paid, the
 commitment reads as paid ahead of the work until that snag is closed, which, by then, it is.
+
+## ADR-045 — The weekly site meeting: an agenda from the record, minutes that are never edited {#adr-045}
+
+**Status.** Accepted — 2026-10-05.
+
+**Context.** With the second wave in `develop`, the squad put the next list in front of the owner —
+hygiene before the acceptance test and six more things a work would use — and asked which he wanted
+before he tries the product on a work of his own. He answered: all of them, and surprise me. That is
+a third wave, and like the second it sets the specification's closing rule aside by name
+([ADR-036](#adr-036), [ADR-041](#adr-041)). This record admits it, and records its first slice.
+
+The second wave gave each of the four ways a small work fails a record that holds up in the
+conversation it ends in. But on a real work that conversation is not held once, at the end: it is
+held **every week, on site** — the owner, the contractor, sometimes the architect, standing in a
+half-built room going through what is due — and what is agreed there lives in a message thread, in
+somebody's notebook or nowhere. The product already knows nearly everything that meeting should go
+through, and says it on separate screens: the decisions due and overdue ([ADR-017](#adr-017)), the
+change orders waiting ([ADR-041](#adr-041)), the payments falling due and the money held
+([ADR-042](#adr-042), [ADR-044](#adr-044)), why the work is late as things stand
+([ADR-043](#adr-043)), the snags open ([ADR-044](#adr-044)), what starts in the next two weeks and
+who must be there ([ADR-039](#adr-039)), the gates coming up ([ADR-022](#adr-022)). Nothing put them
+in one order for the meeting, and nothing recorded what the meeting did: who was there, what was
+decided, and who promised to do what by when. **G1 turns E1 to E4 into a weekly ritual**: an agenda
+the record writes, the meeting's decisions taken through the product's own commands, and minutes
+kept as a record.
+
+**Decision.**
+
+- **The third wave is admitted.** **H0** — hygiene before the acceptance test: the light-theme
+  captures of the D1 to E4 screens looked at, a day typed and read in the product's language, the
+  root cause of the unit tests' "Cannot find module" flake — and six slices that add: **G1** the
+  weekly site meeting; **G2** purchases with lead times; **G3** the work teaches the next, from what
+  each activity actually took; **G4** after the handover, warranties and maintenance as a calendar;
+  **G5** photos from an iPhone, converted through Windows' own decoder; **G6** the work told in
+  photos. Each is gated as D1 to D4 and E1 to E4 were — gates green, the end-to-end suite on the
+  real binary, both themes and both languages captured, the documentation and the decisions
+  written, one pull request into `develop`, merged before the next begins — and the release is cut
+  again from `develop` after them. H0 changes no decision and records none; G2 to G6 record their
+  own when they are built. Nothing else in the specification changes.
+- **The minutes are a record, written once, when the meeting is closed** (migration 017,
+  [`DATA_MODEL.md`](../DATA_MODEL.md)). A **meeting** carries a **number** — #1, #2, … continuing
+  from the last, never reused; the day it was **held**, never after today and never before the last
+  meeting's; the meeting's general notes, up to 4 000 characters; and the name the Windows account
+  gives. **Who was there** is a list, each attendee a person of the plan — once — or somebody named,
+  exactly one of the two; a list with nobody on it is taken. **Each item** the meeting went through
+  keeps its kind — an action carried, a decision, a change, a snag, a payment, the delay, the next
+  two weeks, a gate, or something else — the record it was about, not as a foreign key; its title
+  **as the agenda said it, frozen**; what was said, up to 2 000 characters; and what was done about
+  it in the meeting, in words, up to 200 — _"Decision made: White oak"_.
+- **An action is a promise on record, closed once.** An action is raised at a meeting — what, in
+  1–200 characters; who, a person of the plan, somebody named or nobody yet; by when, optionally,
+  and never before the meeting — and stays open until it is closed, **once**, as **done** or
+  **dropped**, with an optional note: at a later meeting, on its day, which records it in that
+  meeting's minutes, or between meetings, which records the day, never before the meeting that
+  raised it. An action is never edited: one written wrongly is dropped, with its note, and raised
+  again.
+- **Insert-only.** None of the five tables is ever updated or deleted from. They carry the battery
+  of migrations 003, 007, 009, 013 and 016 — triggers refuse `UPDATE` and `DELETE`, and a guard
+  before insert refuses a key, or a meeting's number, already there, so `INSERT OR REPLACE` removes
+  nothing whether `recursive_triggers` is on or off — and the Rust module that writes them holds no
+  `UPDATE`, `DELETE` or `REPLACE`, which a test reads its source to prove. **The minutes are
+  sealed**: a meeting says how many attendees, items and actions it holds, and the schema takes a
+  row of each only up to that count and only once, so nothing can be added to a meeting's minutes
+  after its close; only an action's closure comes later, and only once.
+- **The agenda is the record's, computed, never typed** (`meetingAgenda`, pure). From the work's
+  snapshot, its schedule, the diary and today it builds the agenda in a fixed order: the actions
+  still open from earlier meetings, oldest first, the overdue marked; the decisions overdue or due
+  within 14 days, overdue first — the one rule the weekly report and the owner's snapshot already
+  share; the change orders waiting, with how long each has waited; the snags open and overdue; the
+  payments falling due in the next 14 days and the money held; why the work is late as things stand,
+  as one item with its total and its leading causes, only while it is late; what starts in the next
+  two weeks and who must be there; and the gates coming up. Each item is built from what the product
+  already computes — `decisionsDueWithin`, `changeOrderRows`, `snagRows`, `runway`, `delayLedger`
+  and D4's `lookahead` — and **never computed a second way**, so the agenda and the screen it came
+  from cannot disagree. A section with nothing in it is left out; **an agenda with nothing on it
+  says so**. What is new since the last meeting's day is marked. The agenda is never stored: only
+  what the minutes froze of it at the close.
+- **What the meeting decides is done right there, through the product's own commands.** On an item,
+  the meeting screen offers what the product already offers for it elsewhere: **Make the
+  decision…** (`decision_make`), **Approve…** and **Decline…** a change order
+  (`change_order_decide`, [ADR-041](#adr-041)), **Fix…** and **Withdraw…** a snag, and **Raise a
+  snag…** (`snag_close`, `snag_raise`, [ADR-044](#adr-044)). Each runs the very command it runs on
+  its own screen, with the same dialog, the same impact shown and **the same refusals**; it is real
+  in the record the moment it is done, as it always is, and an approval opens the replanning as it
+  always does. **The meeting's own commands write only the minutes**: nothing about a meeting
+  writes a decision, a change or a snag, and the minutes say what was done in words, from the
+  command that ran.
+- **An open meeting is the screen's, not the file's.** Until **Close the meeting**, the attendees,
+  the notes, the outcomes and the new actions are a draft the screen holds in memory; leaving the
+  screen with a draft asks before discarding it. Closing writes the meeting, its attendees, its
+  items, its new actions and the closures of the actions it closed **in one transaction**
+  (`meeting_close`): any refusal writes nothing. An action closed between meetings is its own
+  command (`meeting_action_close`).
+- **The minutes print.** The report renderer ([ADR-031](#adr-031)) gains a kind, `minutes`,
+  composed in the owner's words whatever lens is on: the meeting's number and day, who was there,
+  each item with what was said and what was done, the actions raised — who, by when — and the
+  actions closed, and a last line that says what the minutes are: a record, not a signature, as the
+  diary says of itself. **Reports** lists the meetings and writes any one's minutes to a path the
+  save dialog chose, through the same write path as every report. The owner's snapshot gains **the
+  last meeting** — its day, and the actions still open, on whom ([ADR-039](#adr-039)).
+- **Where it lives.** Not a destination: the rail keeps its eleven. The dashboard gains **This
+  week's meeting** — the last meeting's day and the actions still open — with the button that opens
+  the meeting, a full page with the agenda, the attendees, each item's note and what can be done on
+  it, the actions, and **Close the meeting**, behind a confirmation that says the minutes cannot be
+  changed afterwards. Readiness learns no rule: a meeting not held is not something the plan lacks.
+- **Words.** The glossary gains _meeting minutes_ (_ata_) and _action_ (_encaminhamento_). The
+  title is **This week's meeting** (_Reunião da semana_).
+- **Nothing is amended.** [ADR-017](#adr-017), [ADR-041](#adr-041) and [ADR-044](#adr-044) keep
+  their commands and their rules exactly: the meeting is one more place to call them. ADR-031 gains
+  a kind of document, as D3 and D4 gave it one, and nothing else of it changes.
+
+**Why.** A site meeting is where a small work is actually managed, and the record was already
+holding everything it should go through, on five screens nobody opens in that order. An agenda the
+record writes is one nobody has to prepare, and one that cannot leave out the decision somebody
+would rather not mention. Doing the decisions there, through the commands that already guard them,
+keeps one way to make a decision, approve a change or close a snag — a meeting is not a back door
+around a lock or a refusal, and what it decided is in the record the moment it was decided, not
+when somebody writes it up. And the minutes are insert-only for the reason the diary is: the week
+somebody says "that is not what we agreed" is the week a record that could be quietly changed is
+worth nothing. An action carried onto the next agenda until somebody closes it is the one thing a
+meeting in a notebook never does.
+
+**Cost accepted.** **The minutes are never edited**: a name misspelt, a note that says the wrong
+thing or an attendee forgotten is put right by saying so in the next meeting's minutes, and the
+record keeps both. **The agenda is the record's, not the meeting's**: what nobody wrote down — a
+promise made on the phone, a defect nobody raised — is not on it, and a section with nothing on the
+record is not shown at all. **An action is a promise on record, not an obligation the product
+enforces**: it stays on every agenda until somebody closes it, and nothing happens to the person it
+names when it is overdue. **Who attended is what the person ticked**: the product cannot know who
+was in the room, and the list is as true as the person who wrote it. **The minutes are not a
+signature**, as the diary is not: nobody signs them, the product has no accounts, and the author is
+the name the Windows account gives. **An open meeting is lost if the product closes**: the draft is
+held on the screen, and nothing about the meeting is written until it is closed. **What was done is
+done even if the meeting never closes**: a decision made, a change approved or a snag closed in a
+meeting is in the record at once, and a meeting abandoned before its close leaves those facts with
+no minutes that say where they were decided. **What was done is recorded in words**: an item's
+outcome is the sentence the screen wrote from the command that ran, in the language on screen when
+the meeting closed, and the minutes print it as it was written.

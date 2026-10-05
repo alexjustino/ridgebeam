@@ -80,6 +80,8 @@ const NAVIGATION: Navigation = {
   openSchedule,
   openChanges: () => undefined,
   openSnags: () => undefined,
+  openMeeting: () => undefined,
+  openMinutes: () => undefined,
 };
 
 /** What the host answers: `next` for any command that answers with the plan. */

@@ -20,7 +20,8 @@ export function MakeDecisionDialog({
 }: {
   decision: { id: string; name: string } | null;
   onClose: () => void;
-  onMade: () => void;
+  /** Made: with the answer kept, or `null` when none was given (G1 writes it in the minutes). */
+  onMade: (answer: string | null) => void;
 }) {
   const { t, number, describeError } = useI18n();
   const make = useMakeDecision();
@@ -45,12 +46,13 @@ export function MakeDecisionDialog({
           onSubmit={(event) => {
             event.preventDefault();
             const trimmed = answer.trim();
+            const kept = trimmed === '' ? null : trimmed;
             make.mutate(
-              { id: decision.id, answer: trimmed === '' ? null : trimmed },
+              { id: decision.id, answer: kept },
               {
                 onSuccess: () => {
                   setAnswer('');
-                  onMade();
+                  onMade(kept);
                 },
               },
             );

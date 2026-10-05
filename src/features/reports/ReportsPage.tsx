@@ -28,6 +28,8 @@ import { schedule, type Schedule } from '@/domain/schedule';
 import { runway, runwayChance } from '@/domain/runway';
 import { finishProbability } from '@/domain/schedule/probability';
 import { keyFrom } from '@/domain/templates/export';
+import { meetingsInOrder } from '@/domain/meetings';
+import { meetingLabel } from '@/features/meeting/meetingWords';
 import type { MessageKey } from '@/i18n/en';
 import { useI18n, type I18n } from '@/i18n/useI18n';
 import { useTerms } from '@/i18n/useTerm';
@@ -36,9 +38,11 @@ import { Card } from '@/ui/Card';
 import { FigureRow } from '@/ui/FigureRow';
 import { InfoBar } from '@/ui/InfoBar';
 import { DateField } from '@/ui/DateField';
+import { Select } from '@/ui/Select';
 
 import { composeDiary } from './compose/diary';
 import { composeHandover, handoverGapText } from './compose/handover';
+import { composeMinutes } from './compose/minutes';
 import { composeSchedule } from './compose/schedule';
 import { composeSnapshot } from './compose/snapshot';
 import { composeWeekly, weekText } from './compose/weekly';
@@ -58,7 +62,7 @@ import { useSaveTarget } from './useSaveTarget';
  * changes, and nothing leaves the machine.
  */
 /** A card another page may ask Reports to open on, with the focus on its path field. */
-export type ReportsFocus = 'snapshot';
+export type ReportsFocus = 'snapshot' | 'meeting-minutes';
 
 export function ReportsPage({
   snapshot,
@@ -95,6 +99,7 @@ export function ReportsPage({
       </header>
 
       <WeeklyCard snapshot={snapshot} scheduled={scheduled} />
+      <MinutesCard snapshot={snapshot} />
       <DiaryCard snapshot={snapshot} />
       <ScheduleCard snapshot={snapshot} scheduled={scheduled} />
       <JsonCard snapshot={snapshot} />
@@ -241,6 +246,111 @@ function WeeklyCard({ snapshot, scheduled }: { snapshot: WorkSnapshot; scheduled
         )}
       </div>
     </Card>
+  );
+}
+
+/**
+ * The meeting minutes (G1, decision 4): one meeting's minutes as a PDF to hand round — chosen among
+ * the meetings held, the last one first — in the owner's words, composed from the minutes the work
+ * holds and nothing else (`composeMinutes`). Before any meeting has been closed the card says where
+ * minutes come from instead of offering to write nothing.
+ */
+function MinutesCard({ snapshot }: { snapshot: WorkSnapshot }) {
+  const i18n = useI18n();
+  const { t, describeError } = i18n;
+  const write = useWriteReport();
+  const outcome = useOutcome();
+  const id = useId();
+  const meetings = useMemo(() => [...meetingsInOrder(snapshot)].reverse(), [snapshot]);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const meeting = meetings.find((each) => each.id === chosen) ?? meetings[0] ?? null;
+  const suggested = useCallback(
+    () =>
+      t('reports.file.minutes', {
+        work: keyFrom(snapshot.work.name, 'work'),
+        number: meeting?.number ?? '',
+      }),
+    [snapshot.work.name, t, meeting?.number],
+  );
+  const target = useSaveTarget('pdf', suggested);
+
+  const submit = () => {
+    outcome.clear();
+    if (meeting === null) return;
+    const where = target.target();
+    if (!where.ok) {
+      outcome.setProblem(where.problem);
+      return;
+    }
+    write.mutate(
+      {
+        path: where.path,
+        document: composeMinutes(meeting, snapshot, i18n),
+        overwrite: where.overwrite,
+      },
+      {
+        onSuccess: (file) => written(i18n, file, outcome.setDone),
+        onError: (error) => outcome.setProblem(describeError(error)),
+      },
+    );
+  };
+
+  return (
+    <div data-testid="meeting-minutes">
+      <Card title={t('reports.minutes.title')}>
+        <p className="mb-3 text-body text-fg-secondary">{t('reports.minutes.holds')}</p>
+        {meeting === null ? (
+          <p data-testid="meeting-minutes-none" className="text-body text-fg">
+            {t('reports.minutes.none')}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="flex max-w-72 flex-col gap-1">
+              <label
+                htmlFor={`${id}-meeting`}
+                className="text-caption font-semibold text-fg-secondary"
+              >
+                {t('reports.minutes.choose')}
+              </label>
+              <Select
+                id={`${id}-meeting`}
+                data-testid="meeting-minutes-choose"
+                value={meeting.id}
+                onChange={(event) => {
+                  setChosen(event.target.value);
+                  outcome.clear();
+                }}
+              >
+                {meetings.map((each) => (
+                  <option key={each.id} value={each.id}>
+                    {meetingLabel(i18n, each)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <PathForm
+              target={target}
+              testId="meeting-minutes-path"
+              writeTestId="meeting-minutes-write"
+              writeLabel={t('reports.minutes.write')}
+              writing={write.isPending}
+              onEdited={outcome.clear}
+              onWrite={submit}
+            />
+            {outcome.problem !== null && (
+              <ProblemBar testId="meeting-minutes-problem" problem={outcome.problem} />
+            )}
+            {outcome.done !== null && (
+              <WrittenBar
+                testId="meeting-minutes-done"
+                written={outcome.done}
+                onOpenFailed={(error) => outcome.setProblem(describeError(error))}
+              />
+            )}
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }
 

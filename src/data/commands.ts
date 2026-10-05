@@ -26,6 +26,8 @@ import type {
   Endpoint,
   Gate,
   Holiday,
+  MeetingActionOutcome,
+  MeetingItemKind,
   MilestoneTrigger,
   SnagOutcome,
   TargetKind,
@@ -225,6 +227,13 @@ export const LIMITS = {
   snagTitle: 200,
   snagDescription: 2000,
   snagNote: 2000,
+  /** A meeting's notes, an item's note and outcome, an action's text, a named attendee (G1). */
+  meetingNotes: 4000,
+  meetingItemTitle: 200,
+  meetingItemNote: 2000,
+  meetingItemOutcome: 200,
+  meetingActionText: 200,
+  meetingClosureNote: 500,
 } as const;
 
 // ── The application ──────────────────────────────────────────────────────────
@@ -998,6 +1007,75 @@ export function snagClose(closure: SnagClosureDraft): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('snag_close', { closure });
 }
 
+// ── The weekly site meeting (G1) ─────────────────────────────────────────────
+//
+// A meeting is written once, at its close: who was there, each agenda item with what was said and
+// what was done, the actions it raised and the carried actions it closed — in one transaction, all
+// or nothing. Every table is insert-only: there is no command that edits or removes minutes, and
+// there never will be — a mistake is said in the next meeting's minutes. What was done in the meeting
+// through the product's own commands (a decision made, a change approved) went to the record at the
+// moment it was done; the minutes only say that it happened there.
+
+/** Who was at the meeting: a person of the plan, or somebody named — exactly one of the two. */
+export interface MinutesAttendeeDraft {
+  personId: string | null;
+  name: string | null;
+}
+
+/** One item of the minutes: the agenda's words, frozen, with what was said and done. */
+export interface MinutesItemDraft {
+  kind: MeetingItemKind;
+  /** The decision, change, snag or action it is about; `null` when about none. */
+  refId: string | null;
+  title: string;
+  note: string | null;
+  outcome: string | null;
+}
+
+/** An action raised at the meeting: what, who (a person of the plan, a name, or nobody), by when. */
+export interface MinutesActionDraft {
+  text: string;
+  personId: string | null;
+  name: string | null;
+  /** `YYYY-MM-DD`, or `null` when no day was said. */
+  dueOn: string | null;
+}
+
+/** A carried action closed at the meeting. */
+export interface MinutesClosureDraft {
+  actionId: string;
+  outcome: MeetingActionOutcome;
+  note: string | null;
+}
+
+/** The whole of a meeting's minutes, as they are written at its close. */
+export interface MinutesDraft {
+  /** `YYYY-MM-DD`, never after today. */
+  heldOn: string;
+  notes: string | null;
+  attendees: readonly MinutesAttendeeDraft[];
+  items: readonly MinutesItemDraft[];
+  actions: readonly MinutesActionDraft[];
+  closures: readonly MinutesClosureDraft[];
+}
+
+export function meetingClose(minutes: MinutesDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('meeting_close', { minutes });
+}
+
+/** An action closed between meetings: its one closure. */
+export interface ActionClosureDraft {
+  actionId: string;
+  /** `YYYY-MM-DD`, never after today. */
+  closedOn: string;
+  outcome: MeetingActionOutcome;
+  note: string | null;
+}
+
+export function meetingActionClose(closure: ActionClosureDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('meeting_action_close', { closure });
+}
+
 // ── People as contacts, documents and the folder (F7) ────────────────────────
 
 /** The stages a person is expected on — replaced whole. */
@@ -1151,7 +1229,7 @@ export interface ReportGanttRow {
   baselineLength: number | null;
 }
 
-export type ReportKind = 'weekly' | 'diary' | 'schedule' | 'handover' | 'snapshot';
+export type ReportKind = 'weekly' | 'diary' | 'schedule' | 'handover' | 'snapshot' | 'minutes';
 
 /** What the host renders: a title for the page footer and the metadata, and the blocks. */
 export interface ReportDocument {

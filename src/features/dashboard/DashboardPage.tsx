@@ -48,6 +48,7 @@ import { BackupReminder } from './BackupReminder';
 import { ChangesCard } from './ChangesCard';
 import { DelayCard } from './DelayCard';
 import { DocumentsCard } from './DocumentsCard';
+import { MeetingCard } from './MeetingCard';
 import { MoneyCard } from './MoneyCard';
 import { NextQuestionCard } from './NextQuestionCard';
 import { SiteCard } from './SiteCard';
@@ -181,6 +182,8 @@ export function DashboardPage({
         <p className="mt-1 text-caption text-fg-tertiary">{t('readiness.description')}</p>
         <RuleList summaries={readinessByRule(measure)} />
       </Card>
+
+      <MeetingCard snapshot={snapshot} today={today} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <FinishCard snapshot={snapshot} scheduled={scheduled} probability={probability} />

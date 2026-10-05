@@ -75,6 +75,8 @@ const NAVIGATION: Navigation = {
   openSchedule: () => undefined,
   openChanges,
   openSnags: () => undefined,
+  openMeeting: () => undefined,
+  openMinutes: () => undefined,
 };
 
 let host: HTMLDivElement;

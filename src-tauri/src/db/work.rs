@@ -49,6 +49,8 @@
 //! - E2: the snapshot carries the funds and the money received
 //!   (`db::funding`, `db::funding_receipts`).
 //! - E4: the snapshot carries snags, each with its closure (`db::snags`).
+//! - G1: the snapshot carries the meetings' minutes, each action with its
+//!   closure (`db::meetings`).
 
 use std::collections::HashMap;
 
@@ -58,7 +60,7 @@ use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, Wo
 use crate::db::order::{ACTIVITIES, STAGES};
 use crate::db::{
     baselines, care_notes, change_orders, check_answers, checks, decisions, dependencies,
-    documents, funding, funding_receipts, milestones, money, payments, replanning, snags,
+    documents, funding, funding_receipts, meetings, milestones, money, payments, replanning, snags,
 };
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
@@ -305,6 +307,7 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         funding: funding::list(conn)?,
         funding_receipts: funding_receipts::list(conn)?,
         snags: snags::list(conn)?,
+        meetings: meetings::list(conn)?,
     })
 }
 
@@ -885,6 +888,11 @@ pub(crate) mod tests {
             "funding_receipt",
             "snag",
             "snag_closure",
+            "meeting",
+            "meeting_attendee",
+            "meeting_item",
+            "meeting_action",
+            "meeting_action_closure",
         ] {
             let found: i64 = conn
                 .query_row(

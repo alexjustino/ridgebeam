@@ -117,6 +117,21 @@
 //!   (`Milestone.trigger`), naming no activity. Whether a snag is overdue and
 //!   whether a retention is held or earned are not here: they are the
 //!   domain's, computed every time.
+//! - G1: the weekly site meeting. `WorkSnapshot.meetings` (`Meeting`, by
+//!   number), each with its `attendees` (`MeetingAttendee`: `personId` or
+//!   `name`, exactly one), its `items` (`MeetingItem`: `kind`, `refId`,
+//!   `title`, `note`, `outcome`) and its `actions` (`MeetingAction`:
+//!   `meetingId` — the meeting that raised it — `text`, `personId`, `name`,
+//!   `dueOn`), each action with its `closure`
+//!   (`MeetingActionClosure`: `meetingId` — `null` when closed between
+//!   meetings — `outcome` `done` or `dropped`, `closedOn`, `note`) or `null`
+//!   while open: nested, not a separate list. `MinutesDraft` for
+//!   `meeting_close` (`heldOn`, `notes`, `attendees: AttendeeDraft[]`,
+//!   `items: MeetingItemDraft[]`, `actions: MeetingActionDraft[]`,
+//!   `closures: CarriedClosureDraft[]` — the earlier actions closed at this
+//!   meeting, on its day); `ActionClosureDraft` for `meeting_action_close`.
+//!   The minutes are written once and never edited. The agenda is not here:
+//!   it is the domain's, computed every time.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -424,6 +439,10 @@ pub struct WorkSnapshot {
     /// Snags (E4), by number, each with its closure or `null` while it is
     /// open.
     pub snags: Vec<Snag>,
+    /// The minutes of the site meetings (G1), by number, each with its
+    /// attendees, its items and its actions — each action with its closure,
+    /// or `null` while it is open.
+    pub meetings: Vec<Meeting>,
 }
 
 /// A snag (E4, pt "pendência"): a defect or a pending item found near the
@@ -530,6 +549,223 @@ pub struct SnagClosureDraft {
     #[serde(default)]
     pub photo_hash: Option<String>,
     /// Why — required for `withdrawn` — up to 2000 characters.
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+/// The minutes of a site meeting (G1, pt "ata"): written once, when the
+/// meeting is closed, and never edited — a mistake is said in the next
+/// meeting's minutes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct Meeting {
+    /// UUID v7.
+    pub id: String,
+    /// 1, 2, 3 … for the whole work, in the order held.
+    pub number: i64,
+    /// The day it was held, `YYYY-MM-DD`, not after the day it was written.
+    pub held_on: String,
+    /// What was said of the meeting as a whole, up to 4000 characters; `null`
+    /// when none.
+    pub notes: Option<String>,
+    /// Who was there, in the order ticked.
+    pub attendees: Vec<MeetingAttendee>,
+    /// The agenda as it was taken, in its order.
+    pub items: Vec<MeetingItem>,
+    /// The actions raised at this meeting, in their order, each with its
+    /// closure or `null` while it is open.
+    pub actions: Vec<MeetingAction>,
+    /// The Windows account that closed the meeting.
+    pub author_name: String,
+    /// When the minutes were written, UTC.
+    pub created_at: String,
+}
+
+/// Who was at a meeting: a person of the plan or somebody named — exactly one
+/// of the two is given, the other is `null`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct MeetingAttendee {
+    /// 1, 2, 3 … in the order ticked.
+    pub position: i64,
+    /// A person of the plan. Not a tie: a person removed later leaves the
+    /// minutes as they were.
+    pub person_id: Option<String>,
+    /// Somebody who is not a person of the plan, 1 to 120 characters.
+    pub name: Option<String>,
+}
+
+/// An item of a meeting's agenda, as it was taken.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct MeetingItem {
+    /// 1, 2, 3 … in the agenda's order.
+    pub position: i64,
+    /// `action-carried`, `decision`, `change`, `snag`, `payment`, `delay`,
+    /// `lookahead`, `gate` or `other`.
+    pub kind: String,
+    /// The id of what it is about — a decision, a change order, a snag, an
+    /// action — or `null`. Not a tie.
+    pub ref_id: Option<String>,
+    /// As the agenda said it, frozen; 1 to 200 characters.
+    pub title: String,
+    /// What was said, up to 2000 characters; `null` when nothing was written.
+    pub note: Option<String>,
+    /// What was done in the meeting, in words, up to 200 characters; `null`
+    /// when nothing was done.
+    pub outcome: Option<String>,
+}
+
+/// An action raised at a meeting: what is to be done, on whom, by when. A
+/// promise on record, not an obligation the product enforces.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct MeetingAction {
+    /// UUID v7.
+    pub id: String,
+    /// The meeting that raised it — the one it is nested in, said again so
+    /// an action read on its own still names it.
+    pub meeting_id: String,
+    /// 1, 2, 3 … in the order written at its meeting.
+    pub position: i64,
+    /// What is to be done, 1 to 200 characters.
+    pub text: String,
+    /// The person of the plan it is on; `null` when it is on somebody named or
+    /// on nobody. Not a tie.
+    pub person_id: Option<String>,
+    /// Somebody named it is on; `null` when it is on a person or on nobody.
+    pub name: Option<String>,
+    /// The day it is due by, not before the meeting; `null` when none.
+    pub due_on: Option<String>,
+    /// When it was written, UTC.
+    pub created_at: String,
+    /// How it was closed; `null` while it is open.
+    pub closure: Option<MeetingActionClosure>,
+}
+
+/// The one closure of an action: done or dropped, at a later meeting or
+/// between meetings.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct MeetingActionClosure {
+    /// The meeting it was closed at; `null` when it was closed between
+    /// meetings.
+    pub meeting_id: Option<String>,
+    /// `done` or `dropped`.
+    pub outcome: String,
+    /// The day it was closed, `YYYY-MM-DD` — the meeting's day when closed at
+    /// one.
+    pub closed_on: String,
+    /// A note, up to 500 characters; `null` when none.
+    pub note: Option<String>,
+    /// The Windows account that closed it.
+    pub author_name: String,
+    /// When it was closed, UTC.
+    pub created_at: String,
+}
+
+/// The minutes of a meeting as the interface sends them when it is closed:
+/// everything written in one go, or nothing.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MinutesDraft {
+    /// `YYYY-MM-DD`, not after today; not held to the order of the meetings' days.
+    pub held_on: String,
+    /// Up to 4000 characters, or `null`.
+    #[serde(default)]
+    pub notes: Option<String>,
+    /// Who was there; may be empty.
+    #[serde(default)]
+    pub attendees: Vec<AttendeeDraft>,
+    /// The agenda's items, in order; may be empty.
+    #[serde(default)]
+    pub items: Vec<MeetingItemDraft>,
+    /// The actions raised at this meeting; may be empty.
+    #[serde(default)]
+    pub actions: Vec<MeetingActionDraft>,
+    /// The actions of earlier meetings closed at this one, on its day.
+    #[serde(default)]
+    pub closures: Vec<CarriedClosureDraft>,
+}
+
+/// Who was there: a person of the plan or somebody named — exactly one.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttendeeDraft {
+    /// A person of the plan, or `null`.
+    #[serde(default)]
+    pub person_id: Option<String>,
+    /// Somebody named, 1 to 120 characters, or `null`.
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
+/// An agenda item as it was taken.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MeetingItemDraft {
+    /// One of the nine kinds.
+    pub kind: String,
+    /// The id of what it is about, up to 64 characters, or `null`.
+    #[serde(default)]
+    pub ref_id: Option<String>,
+    /// As the agenda said it, 1 to 200 characters, one line.
+    pub title: String,
+    /// What was said, up to 2000 characters.
+    #[serde(default)]
+    pub note: Option<String>,
+    /// What was done, in words, up to 200 characters.
+    #[serde(default)]
+    pub outcome: Option<String>,
+}
+
+/// An action as it is raised at the meeting.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MeetingActionDraft {
+    /// What is to be done, 1 to 200 characters, one line.
+    pub text: String,
+    /// A person of the plan, or `null`.
+    #[serde(default)]
+    pub person_id: Option<String>,
+    /// Somebody named, or `null` — never with a person.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// `YYYY-MM-DD`, not before the meeting, or `null`.
+    #[serde(default)]
+    pub due_on: Option<String>,
+}
+
+/// An action of an earlier meeting closed at this one, on its day.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CarriedClosureDraft {
+    /// The action's id.
+    pub action_id: String,
+    /// `done` or `dropped`.
+    pub outcome: String,
+    /// Up to 500 characters, or `null`.
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+/// An action closed between meetings.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionClosureDraft {
+    /// The action's id.
+    pub action_id: String,
+    /// `done` or `dropped`.
+    pub outcome: String,
+    /// `YYYY-MM-DD`, not after today and not before the meeting that raised
+    /// it.
+    pub closed_on: String,
+    /// Up to 500 characters, or `null`.
     #[serde(default)]
     pub note: Option<String>,
 }

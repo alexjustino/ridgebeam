@@ -922,6 +922,106 @@ long it has waited, and the figures by person and by stage are the domain's (`sn
 milestone `retention` (above, `payment_milestone`) is earned from `stage.closed_at` and these two
 tables every time, and nothing records that it was.
 
+### The meetings — `meeting`, `meeting_attendee`, `meeting_item`, `meeting_action` and `meeting_action_closure` — insert-only (G1)
+
+The weekly site meeting (ADR-045) leaves **minutes**: who was there, each item of the agenda with
+what was said and what was done, and the **actions** it raised. Five tables, all **insert-only**: a
+meeting is written once, when it is closed, with its attendees, its items and its new actions in the
+same transaction, and an action is closed once. No row is ever edited or removed; a mistake in the
+minutes is said in the next meeting's.
+
+| `meeting`        | Type    | Meaning                                                                                                                   |
+| ---------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `id`             | TEXT    | UUID v7                                                                                                                   |
+| `number`         | INTEGER | 1, 2, … — the next after the highest already written; unique, never reused                                                |
+| `held_on`        | TEXT    | the ISO day the meeting was held — **never after today**, which the host refuses, and never before the last meeting's day |
+| `notes`          | TEXT    | the meeting's general notes, up to 4 000 characters, or `NULL`                                                            |
+| `attendee_count` | INTEGER | how many attendees the minutes hold, 0–100 — part of the seal (below)                                                     |
+| `item_count`     | INTEGER | how many items, 0–500 — part of the seal                                                                                  |
+| `action_count`   | INTEGER | how many actions it raised, 0–200 — part of the seal                                                                      |
+| `author_name`    | TEXT    | the display name of the Windows account that closed it                                                                    |
+| `created_at`     | TEXT    | UTC — the moment it was closed and written                                                                                |
+
+| `meeting_attendee` | Type    | Meaning                                                                       |
+| ------------------ | ------- | ----------------------------------------------------------------------------- |
+| `meeting_id`       | TEXT    | `REFERENCES meeting`                                                          |
+| `position`         | INTEGER | 1 … n, in the order ticked                                                    |
+| `person_id`        | TEXT    | a person of the plan, or `NULL`; **not a foreign key**; a person attends once |
+| `name`             | TEXT    | somebody named who is not a person of the plan, 1–120 characters, or `NULL`   |
+
+Exactly one of `person_id` and `name` is set, which a `CHECK` holds. Minutes with nobody ticked are
+taken: who attended is what the person ticked.
+
+| `meeting_item` | Type    | Meaning                                                                                                                                                       |
+| -------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `meeting_id`   | TEXT    | `REFERENCES meeting`                                                                                                                                          |
+| `position`     | INTEGER | 1 … n, in the agenda's order                                                                                                                                  |
+| `kind`         | TEXT    | the agenda's section: `action-carried`, `decision`, `change`, `snag`, `payment`, `delay`, `lookahead`, `gate` or `other`                                      |
+| `ref_id`       | TEXT    | the decision, change order, snag or action the item was about, or `NULL`; **not a foreign key**                                                               |
+| `title`        | TEXT    | 1–200 characters — the item **as the agenda said it**, frozen at the close                                                                                    |
+| `note`         | TEXT    | what was said, up to 2 000 characters, or `NULL`                                                                                                              |
+| `outcome`      | TEXT    | what was done about it in the meeting, up to 200 characters, in the words the screen wrote from the command that ran — _Decision made: White oak_ — or `NULL` |
+
+| `meeting_action` | Type    | Meaning                                                                                                                         |
+| ---------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `id`             | TEXT    | UUID v7                                                                                                                         |
+| `meeting_id`     | TEXT    | `REFERENCES meeting` — the meeting that raised it                                                                               |
+| `position`       | INTEGER | 1 … n within that meeting                                                                                                       |
+| `text`           | TEXT    | what is to be done, 1–200 characters, not blank — _Send the quote for the vanity_                                               |
+| `person_id`      | TEXT    | the person of the plan it is on, or `NULL`; **not a foreign key**                                                               |
+| `name`           | TEXT    | somebody named who is not a person of the plan, 1–120 characters, or `NULL` — never both; an action on nobody named has neither |
+| `due_on`         | TEXT    | the ISO day it is due by, never before the meeting, or `NULL`                                                                   |
+| `created_at`     | TEXT    | UTC                                                                                                                             |
+
+| `meeting_action_closure` | Type | Meaning                                                                                                       |
+| ------------------------ | ---- | ------------------------------------------------------------------------------------------------------------- |
+| `action_id`              | TEXT | primary key — **one closure per action**; `REFERENCES meeting_action`                                         |
+| `meeting_id`             | TEXT | `REFERENCES meeting` — the later meeting it was closed at, or `NULL` for an action closed between meetings    |
+| `closed_on`              | TEXT | the ISO day it was closed — never before the meeting that raised it; the meeting's own day when closed at one |
+| `outcome`                | TEXT | `done` or `dropped`                                                                                           |
+| `note`                   | TEXT | up to 500 characters, or `NULL`                                                                               |
+| `author_name`            | TEXT | the display name of the Windows account that closed it                                                        |
+| `created_at`             | TEXT | UTC                                                                                                           |
+
+**Written once, at the close.** An open meeting is the screen's: nothing about it is in the file
+until the person closes it. `meeting_close` then writes the meeting, its attendees, its items, the
+actions it raised and the closures of the earlier actions it closed **in one transaction**; if any
+row is refused, nothing is written. An action closed between meetings is written by
+`meeting_action_close`, with no meeting. An action is open while it has no closure, and the next
+meeting's agenda starts from the open ones.
+
+**The seal.** A meeting says how many attendees, items and actions its minutes hold, and a row of
+each is taken only at a position from 1 to that count, and each position only once. So the host
+writes them all with the meeting, in the same transaction, and nothing can be added to a meeting's
+minutes afterwards — not an attendee, not an item, not an action. Only an action's closure comes
+later, and only once.
+
+**What was done is not written here.** A decision made, a change order approved or declined, a snag
+raised or closed in a meeting is written by the product's own command — `decision_make`,
+`change_order_decide`, `snag_raise`, `snag_close` — into its own table, the moment it is done, under
+that command's rules. The minutes keep only the item's `outcome`, in words, and `ref_id`, which is
+not a foreign key and is never read to change anything: a decision reopened later, or a person
+removed from the plan, leaves the minutes as they were written.
+
+**Insert-only, behind the host.** Migration 017 gives the five tables the snags' battery (migration
+016): triggers refuse `UPDATE` and `DELETE`, and a guard before insert refuses a key — or, for a
+meeting, a number — that is already there, so `INSERT OR REPLACE` cannot remove a row whether
+`recursive_triggers` is on or off; a meeting whose number is not the next one is refused too. Each
+raises `meeting: append-only`, as does a row past the seal. What the host refuses first with a
+sentence, the schema refuses again, so a file written by something else holds the same rules: a
+meeting held before the last one (`meeting: day`); an attendee with both a person and a name, or
+neither, and a person ticked twice; an action on both a person and a name, or due before its
+meeting (`meeting: action`); a closure dated before the meeting that raised the action, or written
+at a meeting that is not a later one or on another day than that meeting's (`meeting: closure`); a
+second closure; an item of a kind outside the nine; and text past its bound. A meeting held after
+today is the host's to refuse: the schema has no clock it can trust. The Rust module that writes
+them holds no `UPDATE`, `DELETE` or `REPLACE`, and a test reads its source to prove it.
+
+**Every figure is computed.** The agenda is the domain's (`meetingAgenda`), from the snapshot, the
+schedule, the diary and today, every time the meeting screen asks; whether an action is open or
+overdue is read from these rows and today. No table holds an agenda: what the minutes keep of one is
+the title each item had when the meeting closed.
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -1011,8 +1111,8 @@ migration each database has been through, by number and name.
 - Every table that must never lose a row is insert-only: triggers refuse `UPDATE`, `DELETE`
   and `REPLACE`, and the Rust module that writes it contains no `UPDATE` or `DELETE` statement,
   by rule. **Shipped for the baselines (F2) and the diary (F4)**, whose entries also carry the
-  hash of the one before; the payments ledger (F6), the change orders (E1), the money received (E2)
-  and the snags (E4) follow the same pattern.
+  hash of the one before; the payments ledger (F6), the change orders (E1), the money received (E2),
+  the snags (E4) and the meetings' minutes and actions (G1) follow the same pattern.
 - Text columns that a person types are bounded by `CHECK (length(...) <= n)` in the schema.
 
 ## Migrations
@@ -1039,6 +1139,7 @@ covered by a round-trip test that opens a work at version N-1 and migrates it wi
 | `014_funding.sql`                    | E2    | `funding`; `funding_receipt` with its `CHECK`s, the insert-only battery of migration 007 and its reversal trigger                                                                                                     |
 | `015_lost_cause.sql`                 | E3    | `diary_entry.lost_cause` and `.lost_party_person_id`, each with its `CHECK`; the canonical form's conditional `lost` record                                                                                           |
 | `016_snags.sql`                      | E4    | `snag` and `snag_closure`, each with its `CHECK`s and the insert-only battery of migration 013; `payment_milestone` rebuilt with the trigger `retention`, every row and D2's triggers kept                            |
+| `017_meetings.sql`                   | G1    | `meeting`, `meeting_attendee`, `meeting_item`, `meeting_action` and `meeting_action_closure`, each with its `CHECK`s and the snags' insert-only battery; a meeting's counts seal its minutes                          |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its stages
 and activities migrates to schema 2 without loss, a work at schema 2 with rooms and quantities
@@ -1061,7 +1162,8 @@ schema 14 with diary entries, a correction and photos migrates to schema 15 with
 byte for byte what it was, no cause invented and its chain verifying before and after, and a work at
 schema 15 with commitments, payment plans — one locked by a payment — and a diary migrates to schema
 16 with every milestone kept with its id, share and trigger, the paid plan still locked, no snag
-invented and its chain still verifying.
+invented and its chain still verifying, and a work at schema 16 with change orders, snags and a
+diary migrates to schema 17 losing nothing, with no meeting invented and its chain still verifying.
 
 **Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
 where it came from, one row per hash in this order of precedence: a diary photo (kind `photo`,
@@ -1155,6 +1257,10 @@ whole migration back and the file stays at version 15. Every milestone keeps its
 holds a retention until one is written; the two snag tables start empty; and no figure an earlier
 slice showed moves with the migration.
 
+**Migration 017 adds five tables and nothing else.** No existing row changes: a work migrated from
+schema 16 has held no meeting, so its first meeting is #1 and its first agenda carries no action,
+and no figure an earlier slice showed moves with the migration.
+
 The migrations live in `src-tauri/work_migrations/`.
 
 ## A comparison, a what-if and a chance are computed, not stored
@@ -1205,6 +1311,14 @@ holds a forecast date, a day of delay or a cause the domain inferred: the only t
 cause a person gave for a lost day, in the diary, in the chain. The plan's own schedule and the slip
 are untouched by either.
 
+The agenda of a site meeting (G1) is not stored either. The domain builds it from the snapshot,
+the schedule, the diary and today every time the meeting screen asks (`meetingAgenda`,
+[ADR-045](architecture/ADR.md#adr-045)), from the rows the other screens already read — the actions
+still open, the decisions due within 14 days, the change orders waiting, the snags open, the money
+falling due and held, the delay ledger, the next two weeks and the gates coming up — and never
+computes any of them a second way. Only the minutes store what it said, once, at the close: each
+item's title as it stood that day.
+
 ## Not yet in the schema
 
 Nothing that 1.0 needs. A backup is a file the person keeps, not a table: the work records nothing
@@ -1238,12 +1352,12 @@ field means, or removes one, takes the next number.
 }
 ```
 
-| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks — each saying whether it needs a photo — and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, the care notes, the change orders each with its decision or none, and the open replanning |
-| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos, why a lost day was lost (`lostCause` and `lostPartyPersonId`, `null` when none was given) and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                   |
+| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks — each saying whether it needs a photo — and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, the care notes, the change orders each with its decision or none, the funds and the money received, the snags each with its closure or none, the meetings with their attendees, items and actions and each action's closure or none, and the open replanning |
+| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos, why a lost day was lost (`lostCause` and `lostPartyPersonId`, `null` when none was given) and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                                                                                                                                                                                      |
 
 Field names are camelCase, as the interface receives them; money is whole minor units, dates are
 `YYYY-MM-DD` and instants UTC, as everywhere in this model. Nothing is computed: no schedule, no

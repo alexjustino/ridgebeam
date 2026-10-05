@@ -14,6 +14,9 @@ import type {
   Decision,
   Dependency,
   Endpoint,
+  Meeting,
+  MeetingAction,
+  MeetingActionClosure,
   Person,
   Snag,
   SnagClosure,
@@ -58,6 +61,7 @@ export function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     funding: [],
     fundingReceipts: [],
     snags: [],
+    meetings: [],
     ...parts,
   };
 }
@@ -367,5 +371,63 @@ export function snagClosure(
     note: outcome === 'withdrawn' ? 'Raised by mistake' : null,
     authorName: 'Sample author',
     createdAt: `${closedOn}T12:00:00.000Z`,
+  };
+}
+
+/** A meeting's minutes, #`number`, held on `heldOn`, with nothing in them unless `parts` say so. */
+export function meeting(
+  id: string,
+  number: number,
+  heldOn: string,
+  parts: Partial<Meeting> = {},
+): Meeting {
+  return {
+    id,
+    number,
+    heldOn,
+    notes: null,
+    authorName: 'Sample author',
+    createdAt: `${heldOn}T18:00:00.000Z`,
+    attendees: [],
+    items: [],
+    actions: [],
+    ...parts,
+  };
+}
+
+/** An open action raised at `meetingId`, on nobody, with no day, unless `parts` say otherwise. */
+export function meetingAction(
+  id: string,
+  meetingId: string,
+  position: number,
+  parts: Partial<MeetingAction> = {},
+): MeetingAction {
+  return {
+    id,
+    meetingId,
+    position,
+    text: `Action ${id}`,
+    personId: null,
+    name: null,
+    dueOn: null,
+    createdAt: '2026-09-01T18:00:00.000Z',
+    closure: null,
+    ...parts,
+  };
+}
+
+/** An action's closure on `closedOn`, at `meetingId` or between meetings (`null`). */
+export function actionClosure(
+  outcome: MeetingActionClosure['outcome'],
+  closedOn: string,
+  meetingId: string | null = null,
+): MeetingActionClosure {
+  return {
+    meetingId,
+    closedOn,
+    outcome,
+    note: null,
+    authorName: 'Sample author',
+    createdAt: `${closedOn}T18:00:00.000Z`,
   };
 }

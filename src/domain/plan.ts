@@ -574,6 +574,113 @@ export interface Snag {
   readonly closure: SnagClosure | null;
 }
 
+/**
+ * Who was at a meeting (slice G1): a person of the plan, or somebody named — exactly one of the two.
+ * Not a tie: a person removed later leaves the record.
+ */
+export interface MeetingAttendee {
+  /** Order on the list of who was there. */
+  readonly position: number;
+  readonly personId: string | null;
+  /** 1 to 120 characters, as the person wrote it; set exactly when `personId` is `null`. */
+  readonly name: string | null;
+}
+
+/** What an agenda item was about (slice G1): the agenda's sections, and anything else raised. */
+export type MeetingItemKind =
+  | 'action-carried'
+  | 'decision'
+  | 'change'
+  | 'snag'
+  | 'payment'
+  | 'delay'
+  | 'lookahead'
+  | 'gate'
+  | 'other';
+
+/**
+ * One item of a meeting's minutes (slice G1): the agenda's title frozen as it was said, what was
+ * said and what was done about it in the meeting.
+ */
+export interface MeetingItem {
+  /** Order in the minutes. */
+  readonly position: number;
+  readonly kind: MeetingItemKind;
+  /** The decision, change, snag or action it is about; not a tie. `null` when about none. */
+  readonly refId: string | null;
+  /** 1 to 200 characters: the agenda's words, frozen. */
+  readonly title: string;
+  /** What was said, at most 2 000 characters. */
+  readonly note: string | null;
+  /** What was done in the meeting, at most 200 characters, in the words the interface wrote. */
+  readonly outcome: string | null;
+}
+
+/** How an action was closed (slice G1). */
+export type MeetingActionOutcome = 'done' | 'dropped';
+
+/**
+ * The closure of an action: insert-only, one per action, a fact. Closed at a meeting (its id), or
+ * between meetings (`meetingId` `null`).
+ */
+export interface MeetingActionClosure {
+  readonly meetingId: string | null;
+  /** `YYYY-MM-DD`. */
+  readonly closedOn: string;
+  readonly outcome: MeetingActionOutcome;
+  /** At most 500 characters. */
+  readonly note: string | null;
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+}
+
+/**
+ * An action raised at a meeting (slice G1, pt "encaminhamento"): what, who, by when. A promise on
+ * record, not an obligation the product enforces. Insert-only; closed by its closure.
+ */
+export interface MeetingAction {
+  readonly id: string;
+  /** The meeting that raised it. */
+  readonly meetingId: string;
+  /** Order among the meeting's actions. */
+  readonly position: number;
+  /** 1 to 200 characters. */
+  readonly text: string;
+  /** Who: a person of the plan, or somebody named, or nobody (both `null`). */
+  readonly personId: string | null;
+  readonly name: string | null;
+  /** `YYYY-MM-DD`; `null` when no day was said. */
+  readonly dueOn: string | null;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+  /** `null` while it is open. */
+  readonly closure: MeetingActionClosure | null;
+}
+
+/**
+ * A meeting's minutes (slice G1, pt "ata"): written once, at the close, and never edited — a
+ * mistake is said in the next meeting's minutes. Not a signature.
+ */
+export interface Meeting {
+  readonly id: string;
+  /** 1, 2, 3 …: the order meetings were held in. */
+  readonly number: number;
+  /** `YYYY-MM-DD`, never after the day it was written. */
+  readonly heldOn: string;
+  /** At most 4 000 characters. */
+  readonly notes: string | null;
+  readonly authorName: string;
+  /** UTC, milliseconds, trailing `Z`. */
+  readonly createdAt: string;
+  /** By position. */
+  readonly attendees: readonly MeetingAttendee[];
+  /** By position. */
+  readonly items: readonly MeetingItem[];
+  /** The actions it raised, by position, each with its closure or `null`. */
+  readonly actions: readonly MeetingAction[];
+}
+
 /** The whole plan of one work, as `work_get` returns it. */
 export interface WorkSnapshot {
   readonly work: Work;
@@ -604,6 +711,8 @@ export interface WorkSnapshot {
   readonly fundingReceipts: readonly FundingReceipt[];
   /** Every snag of the work, by number, each with its closure or `null` (slice E4). */
   readonly snags: readonly Snag[];
+  /** Every meeting of the work, by number, each with its attendees, items and actions (slice G1). */
+  readonly meetings: readonly Meeting[];
 }
 
 // ── Reading the plan ─────────────────────────────────────────────────────────

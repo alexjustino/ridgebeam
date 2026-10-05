@@ -152,6 +152,36 @@ describe('DateField in Portuguese', () => {
     expect(problem()).toBeNull();
   });
 
+  it('tells an inline pending callback that sets state once per change, never in a loop', () => {
+    // G1 found it: an inline callback that sets state re-ran on every render, for ever.
+    const calls: boolean[] = [];
+    function Caller() {
+      const [value, setValue] = useState('');
+      const [, setPending] = useState(false);
+      return (
+        <I18nContext.Provider value={build('pt-BR', 'pt-BR')}>
+          <DateField
+            label="day"
+            data-testid="entry-day"
+            value={value}
+            onChange={setValue}
+            onPendingChange={(pending) => {
+              calls.push(pending);
+              setPending(pending);
+            }}
+          />
+        </I18nContext.Provider>
+      );
+    }
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => root?.render(<Caller />));
+    setValueLikeE2e(field(), '10/02');
+    setValueLikeE2e(field(), '10/02/2026');
+    expect(calls).toEqual([false, true, false]);
+  });
+
   it('names a day that is not on the calendar', () => {
     mount('pt-BR');
     setValueLikeE2e(field(), '31/02/2026');

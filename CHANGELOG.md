@@ -1348,3 +1348,72 @@ With E4 the second wave is complete (ADR-044).
   before passed.
 - **The new screens were looked at in the light theme**, in Portuguese: change orders, the money
   projection, why it is late, snags and the diary's "same people".
+
+### Added in G1 — the weekly site meeting
+
+The first slice of a third wave, admitted before the owner's acceptance test at his own request —
+all of the next list, and a surprise (ADR-045). The second wave gave each way a small work fails a
+record; G1 turns them into a weekly ritual. **This week's meeting** (_Reunião da semana_) opens
+with its agenda already written from the record — the actions still open from the last meeting,
+the decisions overdue or due within 14 days, the change orders waiting, the snags open, the payments
+falling due and the money held, why the work is late, what starts in the next two weeks and who
+must be there, the gates coming up. What the meeting decides is done right there, through the
+product's own commands, and goes to the record at once. Closing the meeting writes its **minutes**
+(_ata_) — who was there, each item with what was said and done, and the **actions** raised
+(_encaminhamentos_): what, who, by when — once, and never edited. The next meeting starts from the
+actions still open.
+
+- **The agenda** (`meetingAgenda`, in the domain, pure). Built every time from what the product
+  already computes — `decisionsDueWithin`, `changeOrderRows`, `snagRows`, `runway`, `delayLedger`
+  and the lookahead — never a second way, in one fixed order: actions open, oldest first, the
+  overdue marked; decisions, overdue first; change orders waiting, with how long; snags open,
+  overdue first; money falling due and money held; why it is late, as one item, only while it is;
+  the next two weeks; gates coming up. A section with nothing in it is left out, an agenda with
+  nothing on it says so, and what is new since the last meeting is marked.
+- **The meeting** — a full page opened from the dashboard's new **This week's meeting** card, which
+  shows the last meeting's day and the actions still open, on whom. Tick who was there — a person of
+  the plan or somebody named — write what was said on each item, and do what the item asks with the
+  product's own dialogs: **Make the decision…**, **Approve…** or **Decline…** a change order,
+  **Fix…** or **Withdraw…** a snag, **Raise a snag…**. Each runs the same command as on its own
+  screen, with the same refusals, and is in the record the moment it is done; the item then says
+  what was done, in words. Add actions — what, who, by when. Until the meeting is closed nothing of
+  it is written, and leaving the page with a draft asks first.
+- **The minutes** (`meeting`, `meeting_attendee`, `meeting_item`, `meeting_action`, migration 017).
+  **Close the meeting** writes, in one transaction or not at all, the meeting with its number — #1,
+  #2, … — and its day, never after today nor before the last meeting's; who was there; each item
+  as the agenda said it, frozen, with what was said and what was done; the actions raised; and the
+  earlier actions closed at it. Commands `meeting_close` and, for an action closed between meetings,
+  `meeting_action_close`; the work's snapshot carries the meetings, each with its attendees, items
+  and actions, and each action with its closure or none.
+- **Actions** (`meeting_action_closure`). An action is closed once, as **done** or **dropped**, with
+  an optional note — at a later meeting, on its day, or between meetings — and never before the
+  meeting that raised it. It is never edited and never deleted: one written wrongly is dropped and
+  raised again.
+- **The minutes as a PDF.** A new kind of report, written by the same renderer as the weekly report
+  and in the owner's words: the meeting's number and day, who was there, each item with what was
+  said and done, the actions raised — who, by when — and the actions closed, ending with what the
+  minutes are: a record, not a signature. **Reports** lists the meetings and writes any one's
+  minutes to a path chosen in the save dialog. The owner's snapshot gains the last meeting: its day
+  and the actions still open, on whom.
+- **Insert-only, behind the host.** The five tables carry the snags' battery — triggers refuse
+  `UPDATE`, `DELETE` and `REPLACE`, with `recursive_triggers` on and off, and the module that writes
+  them holds no such statement, which a test reads its source to prove — and a meeting **seals** its
+  minutes: it says how many attendees, items and actions it holds, and nothing is taken past that
+  count, so nothing can be added after the close. **Work migration 017** (`017_meetings.sql`) adds
+  the five tables and nothing else; a work at schema 16 migrates to 17 losing nothing, its chain
+  still verifying.
+- **Documentation.** ADR-045 (the weekly site meeting: an agenda from the record, minutes that are
+  never edited), which also admits the third wave — H0 and G1 to G6 — with its costs: the minutes
+  are never edited, a mistake is said in the next meeting's; the agenda is the record's, and what
+  nobody wrote down is not on it; an action is a promise on record, not an obligation the product
+  enforces; who attended is what the person ticked; the minutes are not a signature; an open
+  meeting is lost if the product closes; what was done in a meeting is done even if the meeting is
+  never closed. [`docs/SPEC.md`](docs/SPEC.md) gains the third wave's addendum.
+  [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md): migration 017, the five tables and the seal.
+  [`SECURITY.md`](SECURITY.md): the minutes and the actions are insert-only, and everything a
+  meeting does to the record goes through the product's own commands — nothing bypasses them.
+  [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _an agenda is built from the record, and says when
+  it is empty_ and _minutes are written once, at the close_. [`docs/RELEASE.md`](docs/RELEASE.md):
+  hold a meeting — the agenda, the attendees, a decision made in it, a change approved in it, an
+  action; close it; the next meeting carries the action; the minutes as a PDF, in Portuguese. The
+  glossary gains _meeting minutes_ (_ata_) and _action_ (_encaminhamento_).

@@ -12,7 +12,7 @@ language, a term or a sentence, or names a lens that does not exist.
 
 A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-69 terms.
+71 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
@@ -78,6 +78,8 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `dashboard` | dashboard | The front door of a work: readiness, this week, the finish date against the baseline, decisions due, money, the last diary entries. Every figure opens onto its rows. | painel | A porta de entrada de uma obra: prontidão, esta semana, a data de término contra a linha de base, decisões a tomar, dinheiro, as últimas entradas do diário. Cada número abre nas suas linhas. |
 | `figure` | figure | A number on a screen that always knows which rows it was counted from, and opens onto them when clicked. | número | Um valor na tela que sempre sabe de quais linhas foi contado, e abre nelas ao ser clicado. |
 | `report` | weekly report | A PDF for one week, in the owner's words: what was done, what slipped, what to decide, what to pay — as many pages as the week needs. | relatório semanal | Um PDF de uma semana, nas palavras do dono: o que foi feito, o que atrasou, o que decidir, o que pagar — com quantas páginas a semana pedir. |
+| `meetingMinutes` | meeting minutes | What a site meeting said and did, written once, when the meeting is closed: who was there, each item on the agenda with what was said and what was done, and the actions raised. They are never edited — a mistake is put right in the next meeting's minutes. They are a record, not a signature. | ata | O que uma reunião de obra disse e fez, gravado uma vez, quando a reunião é encerrada: quem estava presente, cada item da pauta com o que foi dito e o que foi feito, e os encaminhamentos. Nunca é editada — um erro é corrigido na ata da reunião seguinte. É um registro, não uma assinatura. |
+| `action` | action | Something a meeting asks somebody to do — what, who, by when — written in the minutes. It stays open, and on the next meeting's agenda, until it is closed as done or dropped. It is a promise on record; Ridgebeam does not enforce it. | encaminhamento | Algo que uma reunião pede a alguém que faça — o quê, quem, até quando — escrito na ata. Fica aberto, e na pauta da reunião seguinte, até ser fechado como feito ou abandonado. É uma promessa registrada; o Ridgebeam não a cobra. |
 | `snag` | snag | Something found wrong or unfinished near the end — a cracked tile, a door that sticks — written down with where it is, who must fix it, the day it is due and a photo. It is closed only with a photo of it fixed, or withdrawn with a reason; it is never deleted. | pendência | Algo encontrado errado ou inacabado perto do fim — um azulejo trincado, uma porta que agarra — anotado com onde está, quem deve consertar, o dia em que vence e uma foto. Só é fechada com uma foto do conserto, ou retirada com um motivo; nunca é apagada. |
 | `handoverBook` | handover book | One PDF the owner keeps when the work ends: room by room what was done and when, every decision with its answer, the photos of the work hidden behind walls and floors, the documents by name, who did what, and the care notes. It says what it still lacks. | manual de entrega | Um PDF que o dono guarda quando a obra termina: cômodo por cômodo o que foi feito e quando, cada decisão com a sua resposta, as fotos do que ficou escondido atrás das paredes e dos pisos, os documentos pelo nome, quem fez o quê e os cuidados de manutenção. Ele diz o que ainda falta. |
 | `careNote` | care note | A sentence the owner keeps for later about looking after the work — “Reseal the shower grout once a year”, “The stopcock is under the sink”. Written in the person’s own words; it is not advice from the product. | cuidado de manutenção | Uma frase que o dono guarda para depois sobre como cuidar da obra — “Refazer o rejunte do box uma vez por ano”, “O registro geral fica embaixo da pia”. Escrita nas palavras da própria pessoa; não é um conselho do produto. |
@@ -92,7 +94,7 @@ A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a 
 with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
 The sentence never changes with the lens, and nothing about a work is stored per lens.
 
-9 of the 69 terms change with the lens.
+9 of the 71 terms change with the lens.
 
 | Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
 | --- | --- | --- | --- | --- | --- | --- |

@@ -775,6 +775,28 @@
       }
     },
     {
+      "key": "meetingMinutes",
+      "en": {
+        "term": "meeting minutes",
+        "sentence": "What a site meeting said and did, written once, when the meeting is closed: who was there, each item on the agenda with what was said and what was done, and the actions raised. They are never edited — a mistake is put right in the next meeting's minutes. They are a record, not a signature."
+      },
+      "pt-BR": {
+        "term": "ata",
+        "sentence": "O que uma reunião de obra disse e fez, gravado uma vez, quando a reunião é encerrada: quem estava presente, cada item da pauta com o que foi dito e o que foi feito, e os encaminhamentos. Nunca é editada — um erro é corrigido na ata da reunião seguinte. É um registro, não uma assinatura."
+      }
+    },
+    {
+      "key": "action",
+      "en": {
+        "term": "action",
+        "sentence": "Something a meeting asks somebody to do — what, who, by when — written in the minutes. It stays open, and on the next meeting's agenda, until it is closed as done or dropped. It is a promise on record; Ridgebeam does not enforce it."
+      },
+      "pt-BR": {
+        "term": "encaminhamento",
+        "sentence": "Algo que uma reunião pede a alguém que faça — o quê, quem, até quando — escrito na ata. Fica aberto, e na pauta da reunião seguinte, até ser fechado como feito ou abandonado. É uma promessa registrada; o Ridgebeam não a cobra."
+      }
+    },
+    {
       "key": "snag",
       "en": {
         "term": "snag",

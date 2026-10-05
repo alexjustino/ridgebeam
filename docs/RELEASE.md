@@ -211,6 +211,28 @@ release that skipped a step is a release nobody can reason about afterwards.
      stage's section with both photos, before and after, side by side. Write the weekly report and
      the owner's snapshot: both say what is still open and on whom. Do it once in Portuguese, where
      the tab reads _Pendências_, a snag is a _pendência_ and the retention a _retenção_;
+   - **hold a site meeting** on an approved plan with a decision past its deadline, a change order
+     waiting and a snag open, and two people in the plan. On the dashboard, **This week's meeting**
+     says no meeting has been held yet; open it: the agenda lists the decision as overdue, the
+     change with how long it has waited and the snag, each in its section, in the fixed order, and
+     no section is shown with nothing in it. Tick the two people as there and add somebody by name;
+     write a note on the decision. **Make the decision…** from its item: the decision's own dialog
+     opens, and once made the item says _"Decision made: …"_ and that it is already in the record.
+     **Approve…** the change from its item: the dialog shows its impact and says that approving
+     opens the replanning, as it does on the Plan. Add an action — what, one of the two people, due
+     on Friday. Try to leave the page: it asks before discarding the draft. **Close the meeting**:
+     the confirmation says the minutes cannot be changed afterwards; confirm, and the dashboard's
+     card reads meeting #1 on today, with one action open on that person. The decision is made and
+     the change approved in the record — the replanning is open — and nothing about the meeting
+     offers an edit or a delete. Open the meeting again: the agenda starts with the action still
+     open, from meeting #1, and no longer lists the decision or the change. Close the action as
+     **Done** and close meeting #2. On **Reports**, choose meeting #1 and write its minutes to a
+     path chosen in the save dialog, then **Open** them: the system viewer shows the number and the
+     day, who was there, the decision with its answer, the change approved, the note, and the action
+     — who, by when — and the last line says the minutes are a record, not a signature; meeting #2's
+     minutes list the action closed as done. Write the owner's snapshot and find the last meeting in
+     it. Do it once in Portuguese, where the card reads _Reunião da semana_, the minutes are the
+     _ata_ and an action an _encaminhamento_;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and

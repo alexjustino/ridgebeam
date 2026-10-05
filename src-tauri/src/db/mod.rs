@@ -62,6 +62,11 @@
 //!   closed once, fixed with a photo or withdrawn with a note (insert-only,
 //!   holding no statement that edits or removes a row); work migration 016,
 //!   which also rebuilds `payment_milestone` for the `retention` trigger.
+//! - G1: `meetings` — the minutes of the site meetings, written once at the
+//!   close in one transaction (the meeting, who was there, its items, the
+//!   actions raised and the earlier actions closed at it), and an action
+//!   closed between meetings (insert-only, holding no statement that edits or
+//!   removes a row); work migration 017.
 
 #[cfg(test)]
 mod append_only_tests;
@@ -82,6 +87,9 @@ mod diary_tests;
 pub mod documents;
 pub mod funding;
 pub mod funding_receipts;
+pub mod meetings;
+#[cfg(test)]
+mod meetings_tests;
 pub mod migrations;
 pub mod milestones;
 pub mod money;

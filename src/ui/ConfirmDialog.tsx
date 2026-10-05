@@ -21,6 +21,7 @@ export function ConfirmDialog({
   confirmLabel,
   danger = false,
   pending = false,
+  confirmTestId = 'confirm',
   onConfirm,
   onCancel,
 }: {
@@ -32,6 +33,8 @@ export function ConfirmDialog({
   danger?: boolean;
   /** True while the action runs; the buttons wait. */
   pending?: boolean;
+  /** Names the confirming button for the end-to-end suite where a screen has more than one dialog. */
+  confirmTestId?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -47,7 +50,7 @@ export function ConfirmDialog({
           </Button>
           <Button
             appearance="accent"
-            data-testid="confirm"
+            data-testid={confirmTestId}
             onClick={onConfirm}
             disabled={pending}
             className={danger ? 'bg-danger hover:bg-danger active:bg-danger' : ''}

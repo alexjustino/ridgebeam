@@ -30,6 +30,8 @@
 //! - D4: [`html`], the `snapshot` kind and [`HTML_FILE`]; `images` takes a
 //!   setting, the snapshot's own (`html::SENT`: 1 024 px, quality 78, always
 //!   re-encoded).
+//! - G1: the `minutes` kind — a meeting's minutes, laid out as any other
+//!   report.
 
 pub mod csv;
 pub mod html;

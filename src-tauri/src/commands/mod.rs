@@ -31,6 +31,9 @@ pub mod funding;
 mod handover_tests;
 #[cfg(test)]
 mod large_work_tests;
+pub mod meetings;
+#[cfg(test)]
+mod meetings_tests;
 pub mod milestones;
 pub mod money;
 pub mod plan;
