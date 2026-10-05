@@ -144,3 +144,14 @@ export function fromCents(cents: number): string {
   const value = Math.abs(cents);
   return `${sign}${Math.floor(value / 100)}.${String(value % 100).padStart(2, '0')}`;
 }
+
+/** The month of a `YYYY-MM-DD` day, with its year: "October 2026", "outubro de 2026". */
+export function formatMonth(language: Language, day: string): string {
+  const moment = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(moment.getTime())) return day.slice(0, 7);
+  return new Intl.DateTimeFormat(language, {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(moment);
+}
