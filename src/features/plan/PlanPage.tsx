@@ -18,11 +18,20 @@ import { Checklist } from './Checklist';
 import { GatesTab } from './GatesTab';
 import { HandoverTab } from './HandoverTab';
 import { PeopleTab } from './PeopleTab';
+import { PurchasesTab } from './PurchasesTab';
 import { SnagsTab } from './SnagsTab';
 import type { Outcome } from './outcome';
 
 export type PlanTab =
-  'breakdown' | 'by-room' | 'checklist' | 'gates' | 'people' | 'handover' | 'changes' | 'snags';
+  | 'breakdown'
+  | 'by-room'
+  | 'checklist'
+  | 'gates'
+  | 'people'
+  | 'handover'
+  | 'changes'
+  | 'snags'
+  | 'purchases';
 
 /**
  * The arrangement each lens opens on (ADR-014): the engineer's work breakdown, the architect's
@@ -59,6 +68,10 @@ const TAB_FOR_LENS: Record<LensChoice, PlanTab> = {
  * **Snags** (E4, decision 5; pt "Pendências") is the list of what was found wrong or unfinished near
  * the end: each raised with where it is, who must fix it, its day and a photo, and closed once — fixed
  * with a photo of it fixed, or withdrawn with a reason.
+ *
+ * **Purchases** (G2, decision 3; pt "Compras") is what the work must buy that takes time to arrive:
+ * each with its lead time in calendar days and the day to order it by, computed from when what needs
+ * it starts as things stand — and what happened to it, ordered and delivered, as facts on the record.
  */
 export function PlanPage({
   snapshot,
@@ -158,6 +171,7 @@ export function PlanPage({
             { id: 'handover', label: t('plan.tab.handover') },
             { id: 'changes', label: t('plan.tab.changes') },
             { id: 'snags', label: t('plan.tab.snags') },
+            { id: 'purchases', label: t('plan.tab.purchases') },
           ]}
         />
       </div>
@@ -187,6 +201,7 @@ export function PlanPage({
         {tab === 'handover' && <HandoverTab snapshot={snapshot} onGates={gates} />}
         {tab === 'changes' && <ChangesTab snapshot={snapshot} />}
         {tab === 'snags' && <SnagsTab snapshot={snapshot} />}
+        {tab === 'purchases' && <PurchasesTab snapshot={snapshot} />}
       </div>
 
       {/* Mounted only while open, so each opening starts from the plan as it is now. */}
