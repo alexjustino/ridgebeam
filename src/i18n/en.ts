@@ -1401,9 +1401,9 @@ export const en = {
   'reports.handover.cover.finished': 'Finished on {day}.',
   'reports.handover.cover.notFinished': 'Not finished yet: the work is in progress.',
   'reports.handover.reading.byRoom':
-    'Each {room} has its own pages: what was done and when, the decisions made, the photos of the hidden work and from the diary, and how to look after it. Then the documents, who did what, and how to look after the whole work. Money and the schedule are not in this book.',
+    'Each {room} has its own pages: what was done and when, the decisions made, the photos of the hidden work, its photos from the first to the last, and how to look after it. Then the documents, who did what, and how to look after the whole work. Money and the schedule are not in this book.',
   'reports.handover.reading.byStage':
-    'Each {stage} has its own pages: what was done and when, the decisions made, the photos of the hidden work and from the diary, and how to look after it. Then the documents, who did what, and how to look after the whole work. Money and the schedule are not in this book.',
+    'Each {stage} has its own pages: what was done and when, the decisions made, the photos of the hidden work, its photos from the first to the last, and how to look after it. Then the documents, who did what, and how to look after the whole work. Money and the schedule are not in this book.',
   'reports.handover.cover.people': 'The people, by {trade}',
   'reports.handover.sections.none': 'Nothing in the plan yet.',
   'reports.handover.done.label': 'What was done',
@@ -1415,13 +1415,14 @@ export const en = {
   'reports.handover.hidden.title': 'Hidden work, photographed before it was closed',
   'reports.handover.hidden.none': 'No photo of hidden work here.',
   'reports.handover.hidden.caption': '{check} — {stage}, {day}',
-  'reports.handover.photos.title': 'Photos from the diary',
-  'reports.handover.photos.none': 'No photo from the diary here.',
-  'reports.handover.photos.caption': '{activity}, {day}',
-  'reports.handover.photos.notShown.one':
-    '{count} more photo is in the diary and in the work’s folder.',
-  'reports.handover.photos.notShown.other':
-    '{count} more photos are in the diary and in the work’s folder.',
+  'reports.handover.photos.title': 'In photos, first to last',
+  'reports.handover.photos.none': 'No other photo here.',
+  'reports.handover.photos.from.one': 'From {first} to {last}: {count} photo.',
+  'reports.handover.photos.from.other': 'From {first} to {last}: {count} photos.',
+  'reports.handover.photos.on.one': 'On {first}: {count} photo.',
+  'reports.handover.photos.on.other': 'On {first}: {count} photos.',
+  'reports.handover.photos.notShown.one': '{count} more photo is not shown.',
+  'reports.handover.photos.notShown.other': '{count} more photos are not shown.',
   'reports.handover.photos.overCap.one':
     'The book prints at most {max} photos: {count} more photo is in the work’s folder.',
   'reports.handover.photos.overCap.other':
@@ -3052,6 +3053,40 @@ export const en = {
   'reports.handover.maintenance.title': 'Maintenance',
   'reports.handover.maintenance.none': 'No maintenance task recorded.',
   'reports.handover.maintenance.done.label': 'Times it was done',
+
+  // ── The work told in photos (G6) ───────────────────────────────────────────
+  'story.kind.diary': 'From the diary',
+  'story.kind.hiddenWork': 'Hidden work: {check}',
+  'story.kind.snagProblem': 'Snag #{number} — the problem',
+  'story.kind.snagFix': 'Snag #{number} — fixed',
+  'story.section.other': 'Elsewhere in the work',
+  'story.section.work': 'The whole work',
+  'story.caption': '{day} — {what}',
+  'story.span.from.one': 'From {first} to {last} · {count} photo',
+  'story.span.from.other': 'From {first} to {last} · {count} photos',
+  'story.span.on.one': 'On {first} · {count} photo',
+  'story.span.on.other': 'On {first} · {count} photos',
+  'diary.view': 'View',
+  'diary.view.days': 'Day by day',
+  'diary.view.story': 'In photos',
+  'diary.story.title': 'In photos',
+  'diary.story.lead.byRoom':
+    'Every photo of the work, {room} by {room}, from the first to the last: from the diary, from the checks of hidden work and from the snags. Nothing is left out here.',
+  'diary.story.lead.byStage':
+    'Every photo of the work, {stage} by {stage}, from the first to the last: from the diary, from the checks of hidden work and from the snags. Nothing is left out here.',
+  'diary.story.empty.title': 'No photos yet',
+  'diary.story.empty.byRoom':
+    'No photos yet: photos added to the diary, to hidden-work checks and to snags are told here, {room} by {room}.',
+  'diary.story.empty.byStage':
+    'No photos yet: photos added to the diary, to hidden-work checks and to snags are told here, {stage} by {stage}.',
+  'diary.story.photos': 'Photos of {name}',
+  'reports.snapshot.story.title': 'The work in photos',
+  'reports.snapshot.story.lead.byRoom':
+    'Each {room} from its first photo to its last. Where there are many, the first and the last are here and the others evenly spaced between them.',
+  'reports.snapshot.story.lead.byStage':
+    'Each {stage} from its first photo to its last. Where there are many, the first and the last are here and the others evenly spaced between them.',
+  'reports.snapshot.story.notShown.one': '{count} photo of it is not shown.',
+  'reports.snapshot.story.notShown.other': '{count} photos of it are not shown.',
 } as const;
 
 /** Every key the interface may ask for. */

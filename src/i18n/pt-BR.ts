@@ -1413,9 +1413,9 @@ export const ptBR: Dictionary = {
   'reports.handover.cover.finished': 'Terminou em {day}.',
   'reports.handover.cover.notFinished': 'Ainda não terminou: a obra está em andamento.',
   'reports.handover.reading.byRoom':
-    'Cada {room} tem as suas páginas: o que foi feito e quando, as decisões tomadas, as fotos do serviço escondido e do diário, e como cuidar dele. Depois os documentos, quem fez o quê e como cuidar da obra toda. Dinheiro e cronograma não estão neste manual.',
+    'Cada {room} tem as suas páginas: o que foi feito e quando, as decisões tomadas, as fotos do serviço escondido, as suas fotos da primeira à última, e como cuidar dele. Depois os documentos, quem fez o quê e como cuidar da obra toda. Dinheiro e cronograma não estão neste manual.',
   'reports.handover.reading.byStage':
-    'Cada {stage} tem as suas páginas: o que foi feito e quando, as decisões tomadas, as fotos do serviço escondido e do diário, e como cuidar dela. Depois os documentos, quem fez o quê e como cuidar da obra toda. Dinheiro e cronograma não estão neste manual.',
+    'Cada {stage} tem as suas páginas: o que foi feito e quando, as decisões tomadas, as fotos do serviço escondido, as suas fotos da primeira à última, e como cuidar dela. Depois os documentos, quem fez o quê e como cuidar da obra toda. Dinheiro e cronograma não estão neste manual.',
   'reports.handover.cover.people': 'As pessoas, por {trade}',
   'reports.handover.sections.none': 'Nada no plano ainda.',
   'reports.handover.done.label': 'O que foi feito',
@@ -1427,12 +1427,14 @@ export const ptBR: Dictionary = {
   'reports.handover.hidden.title': 'Serviço escondido, fotografado antes de ser fechado',
   'reports.handover.hidden.none': 'Nenhuma foto de serviço escondido aqui.',
   'reports.handover.hidden.caption': '{check} — {stage}, {day}',
-  'reports.handover.photos.title': 'Fotos do diário',
-  'reports.handover.photos.none': 'Nenhuma foto do diário aqui.',
-  'reports.handover.photos.caption': '{activity}, {day}',
-  'reports.handover.photos.notShown.one': 'Mais {count} foto está no diário e na pasta da obra.',
-  'reports.handover.photos.notShown.other':
-    'Mais {count} fotos estão no diário e na pasta da obra.',
+  'reports.handover.photos.title': 'Em fotos, da primeira à última',
+  'reports.handover.photos.none': 'Nenhuma outra foto aqui.',
+  'reports.handover.photos.from.one': 'De {first} a {last}: {count} foto.',
+  'reports.handover.photos.from.other': 'De {first} a {last}: {count} fotos.',
+  'reports.handover.photos.on.one': 'Em {first}: {count} foto.',
+  'reports.handover.photos.on.other': 'Em {first}: {count} fotos.',
+  'reports.handover.photos.notShown.one': 'Mais {count} foto não aparece aqui.',
+  'reports.handover.photos.notShown.other': 'Mais {count} fotos não aparecem aqui.',
   'reports.handover.photos.overCap.one':
     'O manual imprime no máximo {max} fotos: mais {count} foto está na pasta da obra.',
   'reports.handover.photos.overCap.other':
@@ -3092,4 +3094,38 @@ export const ptBR: Dictionary = {
   'reports.handover.maintenance.title': 'Manutenção periódica',
   'reports.handover.maintenance.none': 'Nenhuma tarefa de manutenção registrada.',
   'reports.handover.maintenance.done.label': 'Vezes em que foi feita',
+
+  // ── A obra contada em fotos (G6) ───────────────────────────────────────────
+  'story.kind.diary': 'Do diário',
+  'story.kind.hiddenWork': 'Serviço escondido: {check}',
+  'story.kind.snagProblem': 'Pendência nº {number} — o problema',
+  'story.kind.snagFix': 'Pendência nº {number} — resolvida',
+  'story.section.other': 'No resto da obra',
+  'story.section.work': 'A obra toda',
+  'story.caption': '{day} — {what}',
+  'story.span.from.one': 'De {first} a {last} · {count} foto',
+  'story.span.from.other': 'De {first} a {last} · {count} fotos',
+  'story.span.on.one': 'Em {first} · {count} foto',
+  'story.span.on.other': 'Em {first} · {count} fotos',
+  'diary.view': 'Exibir',
+  'diary.view.days': 'Dia a dia',
+  'diary.view.story': 'Em fotos',
+  'diary.story.title': 'Em fotos',
+  'diary.story.lead.byRoom':
+    'Todas as fotos da obra, {room} por {room}, da primeira à última: do diário, das verificações de serviço escondido e das pendências. Nenhuma fica de fora aqui.',
+  'diary.story.lead.byStage':
+    'Todas as fotos da obra, {stage} por {stage}, da primeira à última: do diário, das verificações de serviço escondido e das pendências. Nenhuma fica de fora aqui.',
+  'diary.story.empty.title': 'Nenhuma foto ainda',
+  'diary.story.empty.byRoom':
+    'Nenhuma foto ainda: as fotos do diário, das verificações de serviço escondido e das pendências são contadas aqui, {room} por {room}.',
+  'diary.story.empty.byStage':
+    'Nenhuma foto ainda: as fotos do diário, das verificações de serviço escondido e das pendências são contadas aqui, {stage} por {stage}.',
+  'diary.story.photos': 'Fotos de {name}',
+  'reports.snapshot.story.title': 'A obra em fotos',
+  'reports.snapshot.story.lead.byRoom':
+    'Cada {room} da primeira foto à última. Quando são muitas, a primeira e a última estão aqui, e as outras espaçadas por igual entre elas.',
+  'reports.snapshot.story.lead.byStage':
+    'Cada {stage} da primeira foto à última. Quando são muitas, a primeira e a última estão aqui, e as outras espaçadas por igual entre elas.',
+  'reports.snapshot.story.notShown.one': '{count} foto daqui não aparece.',
+  'reports.snapshot.story.notShown.other': '{count} fotos daqui não aparecem.',
 };
