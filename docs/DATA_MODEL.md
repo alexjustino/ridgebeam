@@ -1102,6 +1102,86 @@ domain's (`purchaseRows`), from these rows, the forecast and today, every time a
 figure with its rows. No column holds one: a purchase whose activity slips is read again, and its
 day to order by moves with it.
 
+### `warranty`, `maintenance_task` and `maintenance_done` — after the handover (G4)
+
+What the owner lives with once the work is over (ADR-048): the **warranties** the work came with, and
+the **maintenance** it needs every so many months, with every time it was done. A warranty is a
+copy of what its paper says and a task is what the owner means to do: both are edited. **Each time
+a task was done is fact**, and insert-only.
+
+| `warranty`    | Type    | Meaning                                                                                                                  |
+| ------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `id`          | TEXT    | UUID v7                                                                                                                  |
+| `position`    | INTEGER | 1 … n among the warranties of one target, as care notes, `UNIQUE (target_kind, target_id, position)`                     |
+| `title`       | TEXT    | 1–200 characters, not blank — _Shower valve_                                                                             |
+| `target_kind` | TEXT    | what it covers: `work`, `room` or `stage`                                                                                |
+| `target_id`   | TEXT    | the room's or the stage's id; for the work, the work's own id — not a foreign key, as a care note's                      |
+| `given_by`    | TEXT    | who gives it, as written — _the installer_, a company — 1–120 characters, or `NULL`                                      |
+| `starts_on`   | TEXT    | the ISO day it starts                                                                                                    |
+| `months`      | INTEGER | how long it lasts, in **calendar months**, 1–600; the screen takes years too and stores months                           |
+| `document_id` | TEXT    | its paper: a document of the work of kind `warranty`, or `NULL`; `REFERENCES document ON DELETE SET NULL`                |
+| `note`        | TEXT    | up to 1 000 characters, or `NULL` — its conditions, when it has any, which the product reads as text and never as a rule |
+| `created_at`  | TEXT    | UTC                                                                                                                      |
+
+| `maintenance_task` | Type    | Meaning                                                                                         |
+| ------------------ | ------- | ----------------------------------------------------------------------------------------------- |
+| `id`               | TEXT    | UUID v7                                                                                         |
+| `position`         | INTEGER | 1 … n among the tasks of one target, as care notes, `UNIQUE (target_kind, target_id, position)` |
+| `title`            | TEXT    | 1–200 characters, not blank — _Reseal the shower_                                               |
+| `target_kind`      | TEXT    | what it covers: `work`, `room` or `stage`                                                       |
+| `target_id`        | TEXT    | as a warranty's — not a foreign key                                                             |
+| `every_months`     | INTEGER | how often, in **calendar months**, 1–120                                                        |
+| `first_due_on`     | TEXT    | the ISO day it is first due — the next due day while nothing is recorded done                   |
+| `note`             | TEXT    | up to 1 000 characters, or `NULL`                                                               |
+| `created_at`       | TEXT    | UTC                                                                                             |
+
+| `maintenance_done` | Type    | Meaning                                                                                                        |
+| ------------------ | ------- | -------------------------------------------------------------------------------------------------------------- |
+| `task_id`          | TEXT    | `REFERENCES maintenance_task`, with no action — a task with a record cannot be removed                         |
+| `seq`              | INTEGER | 1, 2, … per task — the next after the highest already written; with `task_id`, the primary key                 |
+| `done_on`          | TEXT    | the ISO day it was done — **never after today**, which the host refuses, and never before the record before it |
+| `note`             | TEXT    | up to 500 characters, or `NULL`                                                                                |
+| `author_name`      | TEXT    | the display name of the Windows account that recorded it                                                       |
+| `created_at`       | TEXT    | UTC                                                                                                            |
+
+**Not the plan.** No baseline records a warranty or a task, so the approved plan's lock (ADR-027)
+does not cover them, and readiness has no rule about them. `warranty_update` and
+`maintenance_update` write the row whole; a task's `every_months` may change at any time, because
+its next due day is computed from the last record, and nothing stored moves with it. **A target is
+not a foreign key**, as a care note's is not: the host removes the warranties and the tasks that
+name a room or a stage in the same transaction that removes it — **unless a task there has a
+record**, in which case the host refuses the removal of the room or the stage with a sentence naming
+the task, and a trigger on `room` and on `stage` refuses again (`aftercare: done on record`) — so
+nothing is left pointing at a target that is gone, and no history is lost. **The paper is a
+warranty's**: the host refuses a document of another kind, and triggers on insert and on update
+refuse it again (`aftercare: document`), a document that is not there included. A document removed
+sets `document_id` to `NULL`, and one filed again as another kind lets go of the warranty the same
+way, so a warranty never names a paper that is not a warranty's; the warranty stays either way. A
+later migration that rebuilds `document`, as 012 did, must set the warranties' references aside
+first and create that trigger on `document` again. **A task with a record is not
+removed**: the host refuses with a sentence first, and `maintenance_done`'s foreign key, which has
+no action, refuses again; a task never done is removed whole.
+
+**When it was done is a fact, in order.** A record's day is never before the day of the record
+before it on the same task: the host refuses with a sentence first, and the schema refuses again
+(`aftercare: out of order`). A day after today is the host's to refuse: the schema has no clock it
+can trust. A record written wrongly is not undone; the next record's note says so.
+
+**Insert-only, behind the host.** Migration 019 gives `maintenance_done` the battery of the money
+received (migration 014) and the purchases' events (migration 018): triggers refuse `UPDATE` and
+`DELETE`, a guard before insert refuses a `seq` already there, so `INSERT OR REPLACE` cannot remove
+a row whether `recursive_triggers` is on or off, and a `seq` that is not the next one is refused
+too. Each raises `aftercare: append-only`. The Rust module that writes the records holds
+no `UPDATE`, `DELETE` or `REPLACE`, and a test reads its source to prove it. `warranty` and
+`maintenance_task` are not insert-only, by design.
+
+**Every day is computed.** The day a warranty ends — the same day `months` later, the month's last
+day when that month has no such day — whether it is active, ending soon or ended, the days left; a
+task's last done day, its next due day — `first_due_on` while it has no record, else the last
+record's day plus `every_months`, by the same rule — whether it is overdue or due soon; the calendar
+of the next twelve months and the `.ics` text are the domain's (`aftercare.ts`), from these rows and
+today, every time a screen asks — each figure with its rows. No column holds one.
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -1202,26 +1282,27 @@ Numbered SQL files compiled into the binary, forward-only, applied in a transact
 moves `work.schema_version`. A release that adds a migration says so in the changelog and is
 covered by a round-trip test that opens a work at version N-1 and migrates it without loss.
 
-| Migration                            | Slice | Adds                                                                                                                                                                                                                  |
-| ------------------------------------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `001_init.sql`                       | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`                                                                                                                                                          |
-| `002_rooms_and_quantities.sql`       | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit`                                                                                                                                                      |
-| `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers                                                                                                                  |
-| `004_decisions.sql`                  | F3    | `decision`                                                                                                                                                                                                            |
-| `005_diary.sql`                      | F4    | `diary_entry`, `diary_done`, `diary_present`, `diary_photo`, with their insert-only and chain triggers                                                                                                                |
-| `006_checks.sql`                     | F5    | `stage.started_at` and `stage.closed_at`; `stage_check`; `check_answer` with its insert-only triggers                                                                                                                 |
-| `007_money.sql`                      | F6    | `person.trade`; `cost_line`; `commitment`; `payment` with its insert-only and reversal triggers                                                                                                                       |
-| `008_documents.sql`                  | F7    | `person.phone`, `.email`, `.note`, `.availability`; `person_stage`; `document`; `document_link`; the backfill of every file already in the folder                                                                     |
-| `009_replanning.sql`                 | F8    | `replanning` with its written-once triggers; `baseline.planned_cents` and `baseline_activity.planned_cents`; `baseline_stage` with its insert-only triggers; the backfill of every earlier baseline's stages          |
-| `010_templates.sql`                  | F9    | `activity.duration_min_days` and `.duration_max_days`; `decision.lead_min_days` and `.lead_max_days`; `work.template_id`, `.template_version` and `.template_title`; `cost_line` rebuilt with `amount_cents` nullable |
-| `011_payment_milestones.sql`         | D2    | `payment_milestone` with its `CHECK`s and its triggers: an activity of the commitment's stage, at most 100 % per commitment, and locked once a payment names the commitment                                           |
-| `012_handover.sql`                   | D3    | `stage_check.needs_photo` and the trigger that refuses a `yes` without a photo on such a check; `document` rebuilt with the kinds `warranty` and `manual`, its links set aside and restored; `care_note`              |
-| `013_change_orders.sql`              | E1    | `change_order` and `change_order_decision`, each with its `CHECK`s and the insert-only battery of migrations 003, 007 and 009                                                                                         |
-| `014_funding.sql`                    | E2    | `funding`; `funding_receipt` with its `CHECK`s, the insert-only battery of migration 007 and its reversal trigger                                                                                                     |
-| `015_lost_cause.sql`                 | E3    | `diary_entry.lost_cause` and `.lost_party_person_id`, each with its `CHECK`; the canonical form's conditional `lost` record                                                                                           |
-| `016_snags.sql`                      | E4    | `snag` and `snag_closure`, each with its `CHECK`s and the insert-only battery of migration 013; `payment_milestone` rebuilt with the trigger `retention`, every row and D2's triggers kept                            |
-| `017_meetings.sql`                   | G1    | `meeting`, `meeting_attendee`, `meeting_item`, `meeting_action` and `meeting_action_closure`, each with its `CHECK`s and the snags' insert-only battery; a meeting's counts seal its minutes                          |
-| `018_purchases.sql`                  | G2    | `purchase`, with its `CHECK`s and the trigger that keeps its activity in its stage; `purchase_event` with the insert-only battery of migration 014 and the triggers that keep its events in order                     |
+| Migration                            | Slice | Adds                                                                                                                                                                                                                                                                                     |
+| ------------------------------------ | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `001_init.sql`                       | F0    | `work`, `calendar`, `holiday`, `person`, `stage`, `activity`                                                                                                                                                                                                                             |
+| `002_rooms_and_quantities.sql`       | F1    | `room`, `activity_room`; `activity.quantity` and `activity.unit`                                                                                                                                                                                                                         |
+| `003_dependencies_and_baselines.sql` | F2    | `dependency`; `work.approved_at`; `baseline` and `baseline_activity` with their insert-only triggers                                                                                                                                                                                     |
+| `004_decisions.sql`                  | F3    | `decision`                                                                                                                                                                                                                                                                               |
+| `005_diary.sql`                      | F4    | `diary_entry`, `diary_done`, `diary_present`, `diary_photo`, with their insert-only and chain triggers                                                                                                                                                                                   |
+| `006_checks.sql`                     | F5    | `stage.started_at` and `stage.closed_at`; `stage_check`; `check_answer` with its insert-only triggers                                                                                                                                                                                    |
+| `007_money.sql`                      | F6    | `person.trade`; `cost_line`; `commitment`; `payment` with its insert-only and reversal triggers                                                                                                                                                                                          |
+| `008_documents.sql`                  | F7    | `person.phone`, `.email`, `.note`, `.availability`; `person_stage`; `document`; `document_link`; the backfill of every file already in the folder                                                                                                                                        |
+| `009_replanning.sql`                 | F8    | `replanning` with its written-once triggers; `baseline.planned_cents` and `baseline_activity.planned_cents`; `baseline_stage` with its insert-only triggers; the backfill of every earlier baseline's stages                                                                             |
+| `010_templates.sql`                  | F9    | `activity.duration_min_days` and `.duration_max_days`; `decision.lead_min_days` and `.lead_max_days`; `work.template_id`, `.template_version` and `.template_title`; `cost_line` rebuilt with `amount_cents` nullable                                                                    |
+| `011_payment_milestones.sql`         | D2    | `payment_milestone` with its `CHECK`s and its triggers: an activity of the commitment's stage, at most 100 % per commitment, and locked once a payment names the commitment                                                                                                              |
+| `012_handover.sql`                   | D3    | `stage_check.needs_photo` and the trigger that refuses a `yes` without a photo on such a check; `document` rebuilt with the kinds `warranty` and `manual`, its links set aside and restored; `care_note`                                                                                 |
+| `013_change_orders.sql`              | E1    | `change_order` and `change_order_decision`, each with its `CHECK`s and the insert-only battery of migrations 003, 007 and 009                                                                                                                                                            |
+| `014_funding.sql`                    | E2    | `funding`; `funding_receipt` with its `CHECK`s, the insert-only battery of migration 007 and its reversal trigger                                                                                                                                                                        |
+| `015_lost_cause.sql`                 | E3    | `diary_entry.lost_cause` and `.lost_party_person_id`, each with its `CHECK`; the canonical form's conditional `lost` record                                                                                                                                                              |
+| `016_snags.sql`                      | E4    | `snag` and `snag_closure`, each with its `CHECK`s and the insert-only battery of migration 013; `payment_milestone` rebuilt with the trigger `retention`, every row and D2's triggers kept                                                                                               |
+| `017_meetings.sql`                   | G1    | `meeting`, `meeting_attendee`, `meeting_item`, `meeting_action` and `meeting_action_closure`, each with its `CHECK`s and the snags' insert-only battery; a meeting's counts seal its minutes                                                                                             |
+| `018_purchases.sql`                  | G2    | `purchase`, with its `CHECK`s and the trigger that keeps its activity in its stage; `purchase_event` with the insert-only battery of migration 014 and the triggers that keep its events in order                                                                                        |
+| `019_aftercare.sql`                  | G4    | `warranty` and `maintenance_task`, each with its `CHECK`s; `maintenance_done` with the insert-only battery of migrations 014 and 018 and the trigger that keeps its records in order; the triggers that keep a warranty's paper a warranty's, and a room or stage with a task done on it |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its stages
 and activities migrates to schema 2 without loss, a work at schema 2 with rooms and quantities
@@ -1247,7 +1328,8 @@ schema 15 with commitments, payment plans — one locked by a payment — and a 
 invented and its chain still verifying, and a work at schema 16 with change orders, snags and a
 diary migrates to schema 17 losing nothing, with no meeting invented and its chain still verifying,
 and a work at schema 17 with meetings, snags and a diary migrates to schema 18 losing nothing, with
-no purchase invented and its chain still verifying.
+no purchase invented and its chain still verifying, and a work at schema 18 migrates to schema 19
+keeping every row, with no warranty or task invented and its chain still verifying.
 
 **Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
 where it came from, one row per hash in this order of precedence: a diary photo (kind `photo`,
@@ -1351,6 +1433,13 @@ two weeks have nothing to order, and no figure an earlier slice showed moves wit
 
 **G3 adds no migration.** What each activity took is computed from the diary, and My templates are
 files in the application data folder, so the work's schema stays at 18 and the application's at 3.
+
+**Migration 019 adds three tables and nothing else.** No existing row changes: a work migrated from
+schema 18 has no warranty and no task, so its Dashboard shows no **After the handover** card, its
+calendar of what comes due has nothing in it, its handover book's two new sections say so, and no
+figure an earlier slice showed moves with the migration. A warranty already filed as a document of
+kind `warranty` stays a document; it becomes a warranty with an end day only when the person writes
+one and chooses that document as its paper.
 
 The migrations live in `src-tauri/work_migrations/`.
 
@@ -1461,12 +1550,12 @@ field means, or removes one, takes the next number.
 }
 ```
 
-| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks — each saying whether it needs a photo — and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, the care notes, the change orders each with its decision or none, the funds and the money received, the snags each with its closure or none, the meetings with their attendees, items and actions and each action's closure or none, the purchases each with its events, and the open replanning |
-| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos, why a lost day was lost (`lostCause` and `lostPartyPersonId`, `null` when none was given) and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                                                                                                                                                                                                                          |
+| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks — each saying whether it needs a photo — and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, the care notes, the change orders each with its decision or none, the funds and the money received, the snags each with its closure or none, the meetings with their attendees, items and actions and each action's closure or none, the purchases each with its events, the warranties, the maintenance tasks each with every time it was done, and the open replanning |
+| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos, why a lost day was lost (`lostCause` and `lostPartyPersonId`, `null` when none was given) and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 Field names are camelCase, as the interface receives them; money is whole minor units, dates are
 `YYYY-MM-DD` and instants UTC, as everywhere in this model. Nothing is computed: no schedule, no

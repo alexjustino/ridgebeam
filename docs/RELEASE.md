@@ -270,6 +270,33 @@ release that skipped a step is a release nobody can reason about afterwards.
      more **to a file**, as before, and find the file where the save dialog put it. Do it once in
      Portuguese, where the card reads _Planejado e real_, the actual duration is the _duração real_
      and My templates are _meus modelos_;
+   - **look after the work once it is handed over** on a work with a room _Bathroom_, a stage that
+     can be closed, and a PDF filed among its documents as a warranty. On the Plan's **Handover**
+     tab, add a warranty _Shower valve_ on the bathroom, given by _the installer_, starting 23 months
+     ago, for 2 years, with that PDF as its paper: its row says the day it ends, about a month from
+     now, and that it is **ending soon**, in words and with its icon, and how many days are left.
+     Edit it to 3 years: the end day moves a year, and it reads active. Put it back to 2 years. Add a
+     warranty starting on 31 January for 1 month: it ends on the last day of February. Add a task
+     _Reseal the shower_ on the bathroom, every 12 months, first due 13 months ago: it reads
+     **overdue**, by about a month, in words, and it comes first. **Mark as done…** today, with a
+     note: it is no longer overdue, its row says it was last done today and is next due in 12
+     months, and nothing on the record offers an edit or a delete; the task offers no Remove any
+     more, and says why. Try to remove the bathroom: it is refused, with a sentence naming the task.
+     Add a task _Clean the gutters_ every 6 months, never done, and remove it: it goes. Close every
+     stage. On the **Dashboard**, **After the handover** is the first card: 0 overdue, 1 warranty
+     ending soon, and each figure opens onto its rows. Open the calendar from it: twelve months,
+     the shower valve's end in its month, the reseal in its month next year, and every month with
+     nothing in it says so. **Add to your calendar…**, saved to a path chosen in the save dialog:
+     the screen says where it went. **Import the file into a real calendar** — a phone's and a
+     desktop's: the reseal is one all-day event repeating every 12 months, the shower valve one
+     event on its end day with a reminder 30 days before, titles and notes as typed, accents
+     intact. Change the shower valve's note, write the file again over the first and import it
+     again: the calendar updates the events, and none is duplicated. On **Reports**, write the
+     handover book: its **Warranties** section lists the shower valve with what it covers, who gives
+     it, from and to, and its paper by name; its **Maintenance** section lists the reseal, how often,
+     when it is next due and each time it was done; the book's gaps say nothing about either. Do it
+     once in Portuguese, where the card reads _Depois da entrega_, a warranty is a _garantia_ and
+     maintenance is _manutenção_, and the calendar file's text is in Portuguese;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and

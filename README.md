@@ -18,18 +18,18 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F11, D1 to D4, U1, E1 to E4, H0 and G1 to G3; a third wave
+> **Status: pre-release — slices F0 to F11, D1 to D4, U1, E1 to E4, H0 and G1 to G4; a third wave
 > in progress, and the release to be cut again after it.** The product was named on 2026-09-24
 > ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 — from the foundation to backup,
 > restore and polish — all four differentiators, D1 to D4, a round of dependency updates and U1 —
 > the friction a first real week meets — are in `develop`, and so is the whole second wave, E1 to
 > E4: change orders, whether the money will last, why the work is late, and a work that ends well. A
 > third wave is in progress: H0, hygiene before the acceptance test, G1, the weekly site meeting,
-> G2, what to order this week, and G3, the work teaches the next, with G4 to G6 to follow. All of it
-> runs from source. There is no published installer yet: that is F12, the release, whose branch is
-> cut again from `develop` once the third wave is in. The [specification](docs/SPEC.md) says what
-> 1.0.0 will be and what "done" means for every slice; [What exists today](#what-exists-today) says
-> exactly how far the code has got.
+> G2, what to order this week, G3, the work teaches the next, and G4, after the handover, with G5
+> and G6 to follow. All of it runs from source. There is no published installer yet: that is F12,
+> the release, whose branch is cut again from `develop` once the third wave is in. The
+> [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for every slice;
+> [What exists today](#what-exists-today) says exactly how far the code has got.
 
 **Differentiators, before first use.** Before using Ridgebeam on a work of his own, its owner
 widened 1.0 with four things no other small-works tool does offline
@@ -61,8 +61,10 @@ weekly site meeting** — an agenda written from the record, what is decided don
 product's own commands, and minutes never edited; **G2, what to order this week** — each purchase's
 lead time against when its activity starts as things stand, and its order and its delivery on
 record; **G3, the work teaches the next** — planned against actual on the Schedule, and a template
-learned from the work, its ranges holding what each activity actually took; **G4**, warranties and
-maintenance after the handover; **G5**, photos from an iPhone; and **G6**, the work told in photos.
+learned from the work, its ranges holding what each activity actually took; **G4, after the
+handover** — the warranties the work came with and the maintenance it needs, a calendar of what
+comes due and an `.ics` file for the person's own calendar to remind them; **G5**, photos from an
+iPhone; and **G6**, the work told in photos.
 They land in `develop` one at a time, and the release branch is cut again from it after them.
 
 ## Why
@@ -113,7 +115,7 @@ in Portuguese, "rídj-bim".
 ## What exists today
 
 Slices **F0** to **F11**, the four differentiators, **D1** to **D4**, **U1**, **E1** to **E4**, the
-whole second wave, and from the third, **H0** and **G1** to **G3** — nothing after them:
+whole second wave, and from the third, **H0** and **G1** to **G4** — nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -390,6 +392,19 @@ whole second wave, and from the third, **H0** and **G1** to **G3** — nothing a
   next work's probability is drawn from the person's own numbers. A template of yours is removed
   from the picker, behind a confirmation that says it deletes the file. Nothing migrates
   ([ADR-047](docs/architecture/ADR.md#adr-047)).
+- **After the handover (G4).** On the Plan's **Handover** tab, the **warranties** the work came
+  with — what each covers, who gives it, the day it starts and for how long, and its paper among the
+  documents — and the **maintenance** it needs, each task every so many months. Ridgebeam says the
+  day each warranty ends — the same day so many months later, as the paper says it — and the day
+  each task is next due, read from the last time it was done; **Mark as done…** records it, and a
+  record is never edited. Overdue, due soon and ending soon are said in words, with how far, overdue
+  first. **The calendar** lists the next twelve months of what comes due, a month with nothing in it
+  saying so, and **Add to your calendar…** writes it as an `.ics` file that any phone's or
+  computer's calendar imports, each warranty with an alarm 30 days before it ends — written again,
+  it updates rather than duplicates. Ridgebeam itself reminds nobody: it has no network and runs
+  nothing in the background. Once every stage is closed, the Dashboard leads with **After the
+  handover**, and the handover book carries both, each task with every time it was done
+  ([ADR-048](docs/architecture/ADR.md#adr-048)).
 - **Readiness.** A figure that says how much of what the plan must know it does know, from nine
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -406,13 +421,13 @@ whole second wave, and from the third, **H0** and **G1** to **G3** — nothing a
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-seven binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-eight binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **the rest of the third wave**, G4 to G6; and **the release** (F12) —
+Not yet, and not pretended: **the rest of the third wave**, G5 and G6; and **the release** (F12) —
 its branch cut again from `develop` once the third wave is merged, an installer, tried on a clean
 machine, and a real work planned, run for a week and its weekly report read by somebody who is not
 an engineer.
