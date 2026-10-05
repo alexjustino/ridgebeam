@@ -1615,12 +1615,15 @@ mod tests {
             links_before,
             "every link, as it was"
         );
+        // None before; after, only the one a later migration adds to
+        // `document` (019: a document filed again as another kind lets go of
+        // the warranty that named it).
+        assert!(triggers_before.is_empty());
         assert_eq!(
             raw_rows(conn, triggers_sql),
-            triggers_before,
-            "no trigger, before or after"
+            vec!["Text(\"document_kind_lets_go_of_warranty\")"],
+            "no trigger lost by the rebuild, none added but 019's"
         );
-        assert!(triggers_before.is_empty());
         assert_eq!(
             raw_rows(
                 conn,
@@ -3110,5 +3113,277 @@ mod tests {
         assert!(diary::verify(&again.conn).unwrap().intact);
         close(again);
         assert_eq!(files_in(scratch.path()), vec![WORK_FILE]);
+    }
+
+    /// The upgrade a person makes from G3: a work folder at schema 18 with an
+    /// approved plan, a room with a care note, a document filed as a warranty,
+    /// a purchase ordered and a diary. Opened by G4, the three aftercare tables
+    /// are there, empty and guarded, and every row is as it was. A warranty
+    /// naming the filed paper and a task done are added on the migrated file,
+    /// the chain verifies, and they are there when it opens again.
+    #[test]
+    fn a_work_folder_at_schema_eighteen_with_purchases_and_documents_gains_aftercare_and_keeps_every_row(
+    ) {
+        use crate::db::baselines::{self, Placement};
+        use crate::db::maintenance::{self, TaskFields};
+        use crate::db::maintenance_done::{self, NewDone};
+        use crate::db::purchase_events::{self, Kind, NewEvent};
+        use crate::db::purchases::{self, PurchaseFields};
+        use crate::db::warranties::{self, WarrantyFields};
+        use crate::db::{care_notes, diary, documents, rooms};
+        use crate::files::intake::{self, Format};
+
+        let scratch = Scratch::create();
+        let bathroom = "00000000-0000-7000-8000-00000000000b";
+        let tiling = "00000000-0000-7000-8000-00000000000c";
+        let folder_documents = scratch.path().join(intake::DOCUMENTS);
+        std::fs::create_dir(&folder_documents).unwrap();
+        let pdf = crate::commands::documents::tests::minimal_pdf();
+        let hash = intake::sha256_hex(&pdf);
+        std::fs::write(folder_documents.join(format!("{hash}.pdf")), &pdf).unwrap();
+        let kept = [
+            "SELECT * FROM stage ORDER BY id",
+            "SELECT * FROM activity ORDER BY id",
+            "SELECT * FROM room ORDER BY id",
+            "SELECT * FROM care_note ORDER BY id",
+            "SELECT * FROM document ORDER BY id",
+            "SELECT * FROM document_link ORDER BY document_id, target_kind, target_id",
+            "SELECT * FROM baseline ORDER BY number",
+            "SELECT * FROM purchase ORDER BY position",
+            "SELECT * FROM purchase_event ORDER BY purchase_id, seq",
+            "SELECT * FROM diary_entry ORDER BY seq",
+            "SELECT * FROM diary_done ORDER BY entry_seq, activity_id",
+            "SELECT approved_at FROM work",
+        ];
+
+        let (rows_before, diary_before, room, paper);
+        {
+            let conn = Connection::open(scratch.path().join(WORK_FILE)).unwrap();
+            db::configure(&conn).unwrap();
+            db::work::tests::a_work_at_schema_one(&conn);
+            migrations::WORK.apply_up_to(&conn, 18).unwrap();
+            baselines::take(
+                &conn,
+                &[Placement {
+                    activity_id: tiling.into(),
+                    start: Some("2026-10-05".into()),
+                    finish: Some("2026-10-07".into()),
+                }],
+                Some("2026-10-07"),
+            )
+            .unwrap();
+            room = rooms::add_room(&conn, "Bathroom").unwrap();
+            care_notes::add(&conn, "room", &room, "Reseal the grout once a year").unwrap();
+            paper = documents::record(
+                &conn,
+                &documents::NewDocument {
+                    file_hash: &hash,
+                    file_name: "valve-warranty.pdf",
+                    format: Format::Pdf,
+                    bytes: pdf.len() as i64,
+                    size: None,
+                    kind: "warranty",
+                    added_on: "2026-10-07",
+                    author_name: "Synthetic author",
+                },
+                None,
+            )
+            .unwrap();
+            let tiles = purchases::add(
+                &conn,
+                &PurchaseFields {
+                    stage_id: bathroom.into(),
+                    activity_id: Some(tiling.into()),
+                    name: "Wall tiles".into(),
+                    quantity: Some("12 m²".into()),
+                    supplier: None,
+                    lead_days: 14,
+                    note: None,
+                },
+            )
+            .unwrap();
+            purchase_events::append(
+                &conn,
+                &NewEvent {
+                    purchase_id: tiles,
+                    kind: Kind::Ordered,
+                    day: "2026-10-01".into(),
+                    note: None,
+                    author_name: "Synthetic author".into(),
+                },
+            )
+            .unwrap();
+            diary::append(
+                &conn,
+                &diary::NewEntry {
+                    day: "2026-10-06".into(),
+                    kind: "entry".into(),
+                    corrects_seq: None,
+                    note: Some("Tiles laid.".into()),
+                    weather: None,
+                    lost_day: false,
+                    lost_cause: None,
+                    lost_party_person_id: None,
+                    hours: None,
+                    deliveries: None,
+                    incidents: None,
+                    visitors: None,
+                    author_name: "Synthetic author".into(),
+                    done: vec![crate::contract::DoneLine {
+                        activity_id: tiling.into(),
+                        state: "finished".into(),
+                        quantity: None,
+                        note: None,
+                    }],
+                    present: Vec::new(),
+                    photos: Vec::new(),
+                },
+            )
+            .unwrap();
+
+            rows_before = kept.map(|sql| raw_rows(&conn, sql));
+            diary_before = diary::all(&conn).unwrap();
+            assert_eq!(migrations::WORK.current_version(&conn), 18);
+            assert_eq!(
+                raw_rows(
+                    &conn,
+                    "SELECT count(*) FROM sqlite_master
+                     WHERE name IN ('warranty', 'maintenance_task', 'maintenance_done')"
+                ),
+                vec!["Integer(0)"]
+            );
+        }
+
+        let state = open(scratch.path()).expect("a G3 work opens in G4");
+        let conn = &state.conn;
+
+        assert_eq!(
+            migrations::WORK.current_version(conn),
+            migrations::WORK.target_version()
+        );
+        assert_eq!(
+            kept.map(|sql| raw_rows(conn, sql)),
+            rows_before,
+            "every row as it was"
+        );
+        assert_eq!(rows_before[3].len(), 1, "a care note");
+        assert_eq!(rows_before[4].len(), 1, "a document");
+        assert_eq!(rows_before[8].len(), 1, "an order");
+        assert_eq!(diary::all(conn).unwrap(), diary_before);
+        let report = diary::verify(conn).unwrap();
+        assert_eq!((report.entries, report.intact), (1, true));
+        for (table, triggers) in [
+            ("warranty", 2),
+            ("maintenance_task", 0),
+            ("maintenance_done", 5),
+        ] {
+            assert_eq!(
+                raw_rows(conn, &format!("SELECT count(*) FROM {table}")),
+                vec!["Integer(0)"],
+                "`{table}` is there, and empty"
+            );
+            assert_eq!(
+                raw_rows(
+                    conn,
+                    &format!(
+                        "SELECT count(*) FROM sqlite_master WHERE type = 'trigger'
+                         AND tbl_name = '{table}'"
+                    )
+                ),
+                vec![format!("Integer({triggers})")],
+                "`{table}` is guarded"
+            );
+        }
+        assert_eq!(
+            raw_rows(
+                conn,
+                "SELECT name FROM sqlite_master WHERE type = 'trigger'
+                 AND name IN ('document_kind_lets_go_of_warranty', 'room_keeps_maintenance_done',
+                              'stage_keeps_maintenance_done')
+                 ORDER BY name"
+            ),
+            vec![
+                "Text(\"document_kind_lets_go_of_warranty\")",
+                "Text(\"room_keeps_maintenance_done\")",
+                "Text(\"stage_keeps_maintenance_done\")"
+            ]
+        );
+        assert!(raw_rows(conn, "PRAGMA foreign_key_check").is_empty());
+
+        // A warranty naming the filed paper, and a task done, on the migrated
+        // file.
+        warranties::add(
+            conn,
+            &WarrantyFields {
+                target_kind: "stage".into(),
+                target_id: bathroom.into(),
+                title: "Shower valve".into(),
+                given_by: Some("The plumber".into()),
+                starts_on: "2026-10-07".into(),
+                months: 24,
+                document_id: Some(paper.clone()),
+                note: None,
+            },
+        )
+        .unwrap();
+        let reseal = maintenance::add(
+            conn,
+            &TaskFields {
+                target_kind: "room".into(),
+                target_id: room.clone(),
+                title: "Reseal the shower".into(),
+                every_months: 12,
+                first_due_on: "2027-10-07".into(),
+                note: None,
+            },
+        )
+        .unwrap();
+        maintenance_done::append(
+            conn,
+            &NewDone {
+                task_id: reseal,
+                done_on: "2026-10-08".into(),
+                note: None,
+                author_name: "Synthetic author".into(),
+            },
+        )
+        .unwrap();
+        assert!(
+            conn.execute("DELETE FROM maintenance_done", []).is_err(),
+            "guarded"
+        );
+        assert!(
+            conn.execute("DELETE FROM room WHERE id = ?1", [&room])
+                .is_err(),
+            "its room kept"
+        );
+        close(state);
+
+        let again = open(scratch.path()).expect("and opens again, with nothing left to do");
+        let plan = db::work::snapshot(&again.conn).unwrap();
+        assert_eq!(plan.warranties.len(), 1);
+        assert_eq!(
+            plan.warranties[0].document_id.as_deref(),
+            Some(paper.as_str())
+        );
+        assert_eq!(plan.maintenance.len(), 1);
+        assert_eq!(
+            plan.maintenance[0]
+                .done
+                .iter()
+                .map(|d| d.done_on.as_str())
+                .collect::<Vec<_>>(),
+            vec!["2026-10-08"]
+        );
+        assert_eq!(plan.care_notes.len(), 1);
+        assert_eq!(plan.purchases[0].events.len(), 1);
+        assert!(diary::verify(&again.conn).unwrap().intact);
+        close(again);
+        let mut names = files_in(scratch.path());
+        names.sort();
+        assert_eq!(
+            names,
+            vec![intake::DOCUMENTS.to_string(), WORK_FILE.to_string()]
+        );
     }
 }

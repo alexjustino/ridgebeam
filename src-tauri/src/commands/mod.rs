@@ -15,6 +15,9 @@
 //! state as plain references, which is what the tests call: the behaviour is
 //! tested without a window.
 
+pub mod aftercare;
+#[cfg(test)]
+mod aftercare_tests;
 pub mod backup;
 #[cfg(test)]
 pub mod backup_tests;

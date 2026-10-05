@@ -153,6 +153,25 @@
 //!   `note`, the sentence that says so, or `null`. `my_template_save`
 //!   answers `WrittenFile` without `pages`. Commands name a template by its
 //!   id, never by a path. No work shape changes.
+//! - G4: after the handover. `WorkSnapshot.warranties` (`Warranty`: `id`,
+//!   `position`, `targetKind` `work`, `room` or `stage`, `targetId`, `title`,
+//!   `givenBy`, `startsOn`, `months` — whole calendar months, 1 to 600 —
+//!   `documentId`, a document filed as a `warranty` or `null`, `note`,
+//!   `createdAt`) and `WorkSnapshot.maintenance` (`MaintenanceTask`: `id`,
+//!   `position`, `targetKind`, `targetId`, `title`, `everyMonths` — 1 to 120
+//!   — `firstDueOn`, `note`, `createdAt`), each task with its `done`
+//!   (`MaintenanceDone`, by `seq`: `taskId`, `seq`, `doneOn`, `note`,
+//!   `authorName`, `createdAt`): nested, not a separate list. Both are listed
+//!   as the care notes are — the work's first, then each room's in the rooms'
+//!   order, then each stage's in the stages' order; by position within each.
+//!   `WarrantyDraft` for `warranty_add` and `warranty_update`,
+//!   `MaintenanceDraft` for `maintenance_add` and `maintenance_update`
+//!   (written whole: `null` clears `givenBy`, `documentId` and `note`),
+//!   `MaintenanceDoneDraft` for `maintenance_done_add`. A warranty and a task
+//!   are editable; each time a task was done is a fact. `aftercare_ics_write`
+//!   answers `WrittenFile` without `pages`. When a warranty ends, when a task
+//!   is next due and what is overdue are not here: they are the domain's,
+//!   computed every time.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -467,6 +486,162 @@ pub struct WorkSnapshot {
     /// What is to be bought (G2), by position, each with what happened to it
     /// — ordered, delivered, cancelled — by `seq`.
     pub purchases: Vec<Purchase>,
+    /// The warranties the work came with (G4): the work's first, then each
+    /// room's in the rooms' order, then each stage's in the stages' order; by
+    /// position within each.
+    pub warranties: Vec<Warranty>,
+    /// The maintenance the work needs (G4), in the same order as the
+    /// warranties, each task with each time it was done, by `seq`.
+    pub maintenance: Vec<MaintenanceTask>,
+}
+
+/// A warranty the work came with (G4, pt "garantia"): what it is for, who
+/// gives it, from when and for how long — what the paper says, typed by the
+/// person. Editable and removable at any time: a correction is an edit.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct Warranty {
+    /// UUID v7.
+    pub id: String,
+    /// Its order among its target's warranties: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// `work`, `room` or `stage`.
+    pub target_kind: String,
+    /// The room's or the stage's id; for the work, its `workId`.
+    pub target_id: String,
+    /// What it is for, 1 to 200 characters.
+    pub title: String,
+    /// Who gives it, as the person wrote it, up to 120 characters; `null`
+    /// when not said.
+    pub given_by: Option<String>,
+    /// The day it starts, `YYYY-MM-DD`.
+    pub starts_on: String,
+    /// How long it lasts, in whole calendar months, 1 to 600.
+    pub months: i64,
+    /// The filed paper, a document of the kind `warranty`; `null` when none —
+    /// or when the document was removed or filed again as another kind.
+    pub document_id: Option<String>,
+    /// More words — the conditions, if any — up to 1 000 characters; `null`
+    /// when none.
+    pub note: Option<String>,
+    /// When it was written down, UTC.
+    pub created_at: String,
+}
+
+/// Something the work needs again and again after the handover (G4, pt
+/// "manutenção"), every so many calendar months. Editable at any time;
+/// removable only while it has never been done.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct MaintenanceTask {
+    /// UUID v7.
+    pub id: String,
+    /// Its order among its target's tasks: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// `work`, `room` or `stage`.
+    pub target_kind: String,
+    /// The room's or the stage's id; for the work, its `workId`.
+    pub target_id: String,
+    /// What is to be done, 1 to 200 characters.
+    pub title: String,
+    /// How often, in whole calendar months, 1 to 120.
+    pub every_months: i64,
+    /// The day it is first due, `YYYY-MM-DD`.
+    pub first_due_on: String,
+    /// More words, up to 1 000 characters; `null` when none.
+    pub note: Option<String>,
+    /// When it was written down, UTC.
+    pub created_at: String,
+    /// Each time it was done, by `seq`; empty while it never has been.
+    pub done: Vec<MaintenanceDone>,
+}
+
+/// One time a maintenance task was done (G4): one line, never edited.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct MaintenanceDone {
+    /// The task.
+    pub task_id: String,
+    /// 1, 2, 3 … for the task, in the order written.
+    pub seq: i64,
+    /// The day it was done, `YYYY-MM-DD`; never after the day it was
+    /// recorded, nor before the time it follows.
+    pub done_on: String,
+    /// A few words, up to 500 characters; `null` when none.
+    pub note: Option<String>,
+    /// The Windows account that recorded it.
+    pub author_name: String,
+    /// When it was recorded, UTC.
+    pub created_at: String,
+}
+
+/// A warranty as the interface sends it — to add one, or to write one whole.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WarrantyDraft {
+    /// The warranty to change, for `warranty_update`; left out or `null` for
+    /// `warranty_add`.
+    #[serde(default)]
+    pub id: Option<String>,
+    /// `work`, `room` or `stage`.
+    pub target_kind: String,
+    /// The room's or the stage's id; for the work, its `workId`.
+    pub target_id: String,
+    /// What it is for, 1 to 200 characters.
+    pub title: String,
+    /// Who gives it, up to 120 characters; `null` for none.
+    #[serde(default)]
+    pub given_by: Option<String>,
+    /// The day it starts, `YYYY-MM-DD`.
+    pub starts_on: String,
+    /// Whole calendar months, 1 to 600.
+    pub months: f64,
+    /// A document filed as a `warranty`; `null` for none.
+    #[serde(default)]
+    pub document_id: Option<String>,
+    /// More words, up to 1 000 characters; `null` for none.
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+/// A maintenance task as the interface sends it — to add one, or to write one
+/// whole.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MaintenanceDraft {
+    /// The task to change, for `maintenance_update`; left out or `null` for
+    /// `maintenance_add`.
+    #[serde(default)]
+    pub id: Option<String>,
+    /// `work`, `room` or `stage`.
+    pub target_kind: String,
+    /// The room's or the stage's id; for the work, its `workId`.
+    pub target_id: String,
+    /// What is to be done, 1 to 200 characters.
+    pub title: String,
+    /// Whole calendar months, 1 to 120.
+    pub every_months: f64,
+    /// The day it is first due, `YYYY-MM-DD`.
+    pub first_due_on: String,
+    /// More words, up to 1 000 characters; `null` for none.
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+/// One time a maintenance task was done, as the interface sends it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MaintenanceDoneDraft {
+    /// The task.
+    pub task_id: String,
+    /// `YYYY-MM-DD`, not after today.
+    pub done_on: String,
+    /// A few words, up to 500 characters.
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 /// Something an activity needs that takes time to arrive (G2, pt "compra"):

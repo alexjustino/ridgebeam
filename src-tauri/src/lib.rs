@@ -251,6 +251,29 @@
 //!   never by a path: the host builds the path, reads only regular files
 //!   directly in the folder, follows no link, and lists at most 200. No new
 //!   crate, no new error kind, no new capability.
+//! - G4: after the handover. Work migration 019 adds `warranty` (what the work
+//!   came with: a title, on the work, a room or a stage, who gives it, the day
+//!   it starts, 1 to 600 calendar months, a note, and optionally its paper — a
+//!   document filed as a `warranty`, `aftercare: document` otherwise; a
+//!   document removed or filed again as another kind lets go of it), and
+//!   `maintenance_task` (what the work needs every 1 to 120 calendar months,
+//!   from a first due day) — both editable, on a target named by kind and id
+//!   as the care notes are, in order 1..n per target, removed with their room
+//!   or stage — and `maintenance_done` (each time a task was done, `seq`
+//!   continuing per task, append-only — `aftercare: append-only` with
+//!   `recursive_triggers` on and off — never before the time it follows —
+//!   `aftercare: out of order`). A task that has been done is not removed, nor
+//!   the room or the stage it is on (a sentence, and a foreign key or
+//!   `aftercare: done on record`). A day done is never after today, by the
+//!   host's clock. Ten commands (`warranty_add`, `warranty_update`,
+//!   `warranty_move`, `warranty_remove`, `maintenance_add`,
+//!   `maintenance_update`, `maintenance_move`, `maintenance_remove`,
+//!   `maintenance_done_add`, each returning the snapshot, which carries
+//!   `warranties` and `maintenance`, and so the JSON export and every backup
+//!   do; and `aftercare_ics_write`, the domain's calendar text written whole
+//!   through `files::save`, `.ics` only, at most 1 MiB, no work needed). When
+//!   a warranty ends and a task is next due are the domain's. No new crate, no
+//!   new error kind, no new capability.
 
 pub mod commands;
 pub mod contract;
@@ -393,6 +416,16 @@ pub fn run() {
             commands::purchases::purchase_update,
             commands::purchases::purchase_remove,
             commands::purchases::purchase_event_add,
+            commands::aftercare::warranty_add,
+            commands::aftercare::warranty_update,
+            commands::aftercare::warranty_move,
+            commands::aftercare::warranty_remove,
+            commands::aftercare::maintenance_add,
+            commands::aftercare::maintenance_update,
+            commands::aftercare::maintenance_move,
+            commands::aftercare::maintenance_remove,
+            commands::aftercare::maintenance_done_add,
+            commands::aftercare::aftercare_ics_write,
             commands::documents::document_add,
             commands::documents::document_update,
             commands::documents::document_link,

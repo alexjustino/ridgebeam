@@ -56,6 +56,10 @@
 //!   happened to with it and closes their positions up, and is refused while
 //!   a purchase of it has been ordered; so is an activity's removal while a
 //!   purchase it needs has been ordered.
+//! - G4: the snapshot carries warranties and maintenance tasks, each task with
+//!   each time it was done (`db::warranties`, `db::maintenance`); a stage's
+//!   removal takes its warranties and tasks with it, in the same transaction,
+//!   and is refused while a task on it has been done.
 
 use std::collections::HashMap;
 
@@ -65,8 +69,8 @@ use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, Wo
 use crate::db::order::{ACTIVITIES, PURCHASES, STAGES};
 use crate::db::{
     baselines, care_notes, change_orders, check_answers, checks, decisions, dependencies,
-    documents, funding, funding_receipts, meetings, milestones, money, payments, purchases,
-    replanning, snags,
+    documents, funding, funding_receipts, maintenance, meetings, milestones, money, payments,
+    purchases, replanning, snags, warranties,
 };
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
@@ -315,6 +319,8 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         snags: snags::list(conn)?,
         meetings: meetings::list(conn)?,
         purchases: purchases::list(conn)?,
+        warranties: warranties::list(conn)?,
+        maintenance: maintenance::list(conn)?,
     })
 }
 
@@ -522,19 +528,24 @@ pub fn rename_stage(conn: &Connection, id: &str, name: &str) -> Result<()> {
 ///
 /// [`Error::InvalidInput`] when the stage is not in this work, its checks
 /// have been answered (answers are facts), or a purchase of it has been
-/// ordered (G2); [`Error::StageClosed`] when it is closed. Its purchases
-/// nothing has happened to go with it (the schema's `ON DELETE CASCADE`), and
-/// the purchases after them close up.
+/// ordered (G2), or a maintenance task on it has been done (G4);
+/// [`Error::StageClosed`] when it is closed. Its purchases nothing has
+/// happened to go with it (the schema's `ON DELETE CASCADE`), and the
+/// purchases after them close up; so do its care notes, its warranties and its
+/// maintenance tasks.
 pub fn remove_stage(conn: &Connection, id: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     refuse_if_stage_closed(&tx, id)?;
     checks::refuse_if_stage_answered(&tx, id)?;
     money::refuse_if_stage_paid(&tx, id)?;
     purchases::refuse_if_stage_has_purchases_on_record(&tx, id)?;
+    maintenance::refuse_if_done_on(&tx, "stage", id)?;
     dependencies::remove_naming_stage(&tx, id)?;
     let changed = tx.execute("DELETE FROM stage WHERE id = ?1", [id])?;
     found(changed, STAGE_NOT_FOUND)?;
     care_notes::remove_for(&tx, "stage", id)?;
+    warranties::remove_for(&tx, "stage", id)?;
+    maintenance::remove_for(&tx, "stage", id)?;
     STAGES.close_gaps(&tx, None)?;
     PURCHASES.close_gaps(&tx, None)?;
     tx.commit()?;
@@ -908,6 +919,9 @@ pub(crate) mod tests {
             "meeting_action_closure",
             "purchase",
             "purchase_event",
+            "warranty",
+            "maintenance_task",
+            "maintenance_done",
         ] {
             let found: i64 = conn
                 .query_row(

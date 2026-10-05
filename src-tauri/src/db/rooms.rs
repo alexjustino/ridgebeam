@@ -10,16 +10,18 @@
 //!
 //! - F1: rooms added, renamed, removed; an activity's rooms replaced.
 //! - D3: a removed room's care notes go with it, in the same transaction.
+//! - G4: so do its warranties and maintenance tasks; a room a task on it has
+//!   been done on is not removed.
 
 use std::collections::BTreeSet;
 
 use rusqlite::{params, Connection};
 
-use crate::db::care_notes;
 use crate::db::order::ROOMS;
 use crate::db::work::{
     exists, found, refuse_if_activity_closed, ACTIVITY_NOT_FOUND, ROOM_NOT_FOUND,
 };
+use crate::db::{care_notes, maintenance, warranties};
 use crate::db::{new_id, now};
 use crate::error::{Error, Result};
 
@@ -48,17 +50,22 @@ pub fn rename_room(conn: &Connection, id: &str, name: &str) -> Result<()> {
     found(changed, ROOM_NOT_FOUND)
 }
 
-/// Remove a room: its links and its care notes go with it, the activities
-/// stay, and the rooms after it close up.
+/// Remove a room: its links, its care notes, its warranties and its
+/// maintenance tasks go with it, the activities stay, and the rooms after it
+/// close up.
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] when the room is not in this work.
+/// [`Error::InvalidInput`] when the room is not in this work, or a
+/// maintenance task on it has been done (G4).
 pub fn remove_room(conn: &Connection, id: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
+    maintenance::refuse_if_done_on(&tx, "room", id)?;
     let changed = tx.execute("DELETE FROM room WHERE id = ?1", [id])?;
     found(changed, ROOM_NOT_FOUND)?;
     care_notes::remove_for(&tx, "room", id)?;
+    warranties::remove_for(&tx, "room", id)?;
+    maintenance::remove_for(&tx, "room", id)?;
     ROOMS.close_gaps(&tx, None)?;
     tx.commit()?;
     Ok(())

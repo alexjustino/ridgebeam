@@ -73,7 +73,16 @@
 //!   happened to each, ordered, delivered or cancelled, in an order the host
 //!   and the schema both hold (append-only, holding no statement that edits
 //!   or removes a row); work migration 018.
+//! - G4: after the handover — `warranties`, what the work came with, and
+//!   `maintenance`, what it needs every so many months, both on the work, a
+//!   room or a stage, in the care notes' order, edited freely; a task kept
+//!   while it has been done, and its room or stage with it — and
+//!   `maintenance_done`, each time a task was done, never before the time it
+//!   follows (append-only, holding no statement that edits or removes a row);
+//!   work migration 019.
 
+#[cfg(test)]
+mod aftercare_tests;
 #[cfg(test)]
 mod append_only_tests;
 pub mod backups;
@@ -93,6 +102,8 @@ mod diary_tests;
 pub mod documents;
 pub mod funding;
 pub mod funding_receipts;
+pub mod maintenance;
+pub mod maintenance_done;
 pub mod meetings;
 #[cfg(test)]
 mod meetings_tests;
@@ -113,6 +124,7 @@ pub mod snags;
 #[cfg(test)]
 mod snags_tests;
 pub mod templates;
+pub mod warranties;
 pub mod work;
 
 use std::path::{Path, PathBuf};

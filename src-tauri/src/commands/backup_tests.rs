@@ -12,6 +12,9 @@ use rusqlite::types::Value;
 use rusqlite::Connection;
 use serde_json::json;
 
+use crate::commands::aftercare::{
+    maintenance_add_with, maintenance_done_add_with, warranty_add_with,
+};
 use crate::commands::backup::*;
 use crate::commands::change_orders::{change_order_decide_with, change_order_raise_with};
 use crate::commands::checks::{check_answer_with, stage_start_with, AnswerDraft};
@@ -497,8 +500,39 @@ pub fn a_full_work() -> FullWork {
         ),
     )
     .unwrap();
+    // G4: a warranty on the tiling stage, and a task on the work, done once.
+    let work_id = warranty_add_with(
+        &open,
+        &from(json!({
+            "targetKind": "stage", "targetId": tiling, "title": "Shower valve",
+            "givenBy": "The plumber", "startsOn": "2026-10-08", "months": 24
+        })),
+    )
+    .unwrap()
+    .work
+    .work_id;
+    let reseal = maintenance_add_with(
+        &open,
+        &from(json!({
+            "targetKind": "work", "targetId": work_id, "title": "Reseal the shower",
+            "everyMonths": 12, "firstDueOn": "2027-10-08", "note": "Silicone, white."
+        })),
+    )
+    .unwrap()
+    .maintenance[0]
+        .id
+        .clone();
+    maintenance_done_add_with(
+        &open,
+        &from(json!({ "taskId": reseal, "doneOn": "2026-10-09", "note": "Done early." })),
+        today(),
+        AUTHOR,
+    )
+    .unwrap();
 
     let plan = work_get_with(&open).unwrap();
+    assert_eq!(plan.warranties.len(), 1);
+    assert_eq!(plan.maintenance[0].done.len(), 1, "a task done once");
     assert_eq!(
         plan.purchases
             .iter()

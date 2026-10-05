@@ -14,6 +14,8 @@
 //!
 //! - D3: notes listed, added, changed, moved and removed; a removed room's or
 //!   stage's notes removed with it.
+//! - G4: `check_target_as`, the same check with the sentence of whatever is
+//!   on the target — a warranty, a maintenance task.
 
 use rusqlite::{params, Connection};
 
@@ -70,11 +72,23 @@ pub fn list(conn: &Connection) -> Result<Vec<CareNote>> {
 /// [`Error::InvalidInput`] for a kind that is not one, or an id that names
 /// nothing of that kind.
 pub fn check_target(conn: &Connection, kind: &str, id: &str) -> Result<()> {
+    check_target_as(conn, kind, id, CARE_TARGET_KIND)
+}
+
+/// Refuse a target that is not in this work, with `not_a_kind` for a kind that
+/// is not one — the sentence of whatever is on the target (G4: a warranty, a
+/// maintenance task).
+///
+/// # Errors
+///
+/// [`Error::InvalidInput`] for a kind that is not one, or an id that names
+/// nothing of that kind.
+pub fn check_target_as(conn: &Connection, kind: &str, id: &str, not_a_kind: &str) -> Result<()> {
     let (sql, sentence) = match kind {
         "work" => ("SELECT 1 FROM work WHERE work_id = ?1", WORK_NOT_THIS),
         "room" => ("SELECT 1 FROM room WHERE id = ?1", ROOM_NOT_FOUND),
         "stage" => ("SELECT 1 FROM stage WHERE id = ?1", STAGE_NOT_FOUND),
-        _ => return Err(Error::InvalidInput(CARE_TARGET_KIND.into())),
+        _ => return Err(Error::InvalidInput(not_a_kind.into())),
     };
     if exists(conn, sql, id)? {
         Ok(())

@@ -664,6 +664,37 @@ fn the_work_as_json_reads_back_into_the_snapshot_and_the_diary() {
     )
     .unwrap();
 
+    // G4: a warranty and a task done travel with the work.
+    crate::commands::aftercare::warranty_add_with(
+        &site.open,
+        &serde_json::from_value(serde_json::json!({
+            "targetKind": "stage", "targetId": stage, "title": "Worktop",
+            "startsOn": "2026-10-08", "months": 120
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let oil = crate::commands::aftercare::maintenance_add_with(
+        &site.open,
+        &serde_json::from_value(serde_json::json!({
+            "targetKind": "stage", "targetId": stage, "title": "Oil the worktop",
+            "everyMonths": 6, "firstDueOn": "2027-04-08"
+        }))
+        .unwrap(),
+    )
+    .unwrap()
+    .maintenance[0]
+        .id
+        .clone();
+    crate::commands::aftercare::maintenance_done_add_with(
+        &site.open,
+        &serde_json::from_value(serde_json::json!({ "taskId": oil, "doneOn": "2026-10-09" }))
+            .unwrap(),
+        today(),
+        "A. Owner (synthetic)",
+    )
+    .unwrap();
+
     let file = work_export_json_with(
         &site.open,
         &written,
@@ -708,6 +739,15 @@ fn the_work_as_json_reads_back_into_the_snapshot_and_the_diary() {
     assert_eq!(export.work.purchases[0].id, worktop);
     assert_eq!(export.work.purchases[0].events[0].kind, "ordered");
     assert!(text.contains("\"purchases\": ["));
+    assert_eq!(export.work.warranties[0].months, 120);
+    assert_eq!(export.work.maintenance[0].id, oil);
+    assert_eq!(export.work.maintenance[0].done[0].done_on, "2026-10-09");
+    assert!(text.contains("\"warranties\": ["));
+    assert!(text.contains("\"maintenance\": ["));
+    assert!(
+        text.contains("\"documentId\": null"),
+        "a warranty with no paper, and null never absent"
+    );
     assert!(
         text.contains("\"supplier\": null"),
         "a supplier not said, and null never absent"
