@@ -181,6 +181,24 @@ auto-update · AI.
 > every figure with its rows, the diary and the baselines append-only, two languages, three lenses.
 > The reasons and the cost are in [ADR-041](architecture/ADR.md#adr-041), which also records E1.
 
+> **Addendum, 2026-10-05 — a third wave: "all of them, and surprise me".** With the second wave in
+> `develop`, the owner was shown the next list and asked for all of it before his acceptance test,
+> and set the rule aside a third time, by name. **H0** is hygiene, not scope: the D1–E4 screens
+> looked at in the light theme, a day typed and read in the product's language, the root cause of
+> the unit tests' flake. Six slices add, each gated like the first two waves: **G1** the weekly site
+> meeting — an agenda written from the record, what is decided done there through the product's own
+> commands, and minutes, with their actions, written once and never edited; **G2** purchases with
+> lead times — the day each material must be ordered, read from the schedule, and what was ordered
+> and delivered; **G3** the work teaches the next — what each activity actually took against what
+> was planned, and a template whose ranges learn from it; **G4** after the handover — warranties
+> with an end day and maintenance with a period, as a calendar of what comes due; **G5** photos from
+> an iPhone — HEIC converted through Windows' own decoder when it is installed, and refused in a
+> sentence that says how to get it when it is not; **G6** the work told in photos — each room's
+> photos from the diary, first to last. They land in `develop` one at a time, and the release is
+> cut again after them. Nothing else in this specification changes — no network, no account, no AI,
+> one machine, every figure with its rows, the record append-only, two languages, three lenses. The
+> reasons and the cost are in [ADR-045](architecture/ADR.md#adr-045), which also records G1.
+
 ### The release train
 
 | Release   | Theme               | Contents                                                                                                                                                          |
