@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { NavigationContext, type Navigation } from '@/app/navigation';
 import { applyAccent, applyTheme, storeTheme } from '@/app/theme';
@@ -11,6 +11,7 @@ import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { DiagnosticsPage } from '@/features/diagnostics/DiagnosticsPage';
 import { DecisionsPage } from '@/features/decisions/DecisionsPage';
 import { DiaryPage } from '@/features/diary/DiaryPage';
+import { MeetingPage } from '@/features/meeting/MeetingPage';
 import { MoneyPage } from '@/features/money/MoneyPage';
 import { DocumentsPage } from '@/features/documents/DocumentsPage';
 import { PlanPage, type PlanTab } from '@/features/plan/PlanPage';
@@ -23,7 +24,9 @@ import { Sidebar } from '@/features/shell/Sidebar';
 import { TitleBar } from '@/features/shell/TitleBar';
 import { StartPage } from '@/features/start/StartPage';
 import { useI18n } from '@/i18n/useI18n';
+import { useTerms } from '@/i18n/useTerm';
 import { Button } from '@/ui/Button';
+import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { InfoBar } from '@/ui/InfoBar';
 
 /**
@@ -39,6 +42,7 @@ import { InfoBar } from '@/ui/InfoBar';
  */
 export function App({ settings }: { settings: Settings }) {
   const { t, describeError } = useI18n();
+  const term = useTerms();
   const work = useWork();
   const close = useCloseWork();
   const accent = useAccentRamp();
@@ -73,6 +77,15 @@ export function App({ settings }: { settings: Settings }) {
   // put the focus on the backup's path field, then let go, as for Reports above.
   const [settingsFocus, setSettingsFocus] = useState<SettingsFocus | null>(null);
   const releaseSettingsFocus = useCallback(() => setSettingsFocus(null), []);
+  // This week's meeting (G1): a full page over the dashboard, reached from its card. Its draft lives
+  // in the page; whether it holds anything is reported here, so leaving — by the rail or the page's
+  // own button — asks before dropping it, and the one dialog that asks is the shell's.
+  const [meeting, setMeeting] = useState(false);
+  const meetingDirty = useRef(false);
+  const [leaving, setLeaving] = useState<Destination | null>(null);
+  const onMeetingDirty = useCallback((dirty: boolean) => {
+    meetingDirty.current = dirty;
+  }, []);
   const navigation: Navigation = useMemo(
     () => ({
       openDocuments: (target) => {
@@ -108,6 +121,15 @@ export function App({ settings }: { settings: Settings }) {
         setPlanTab('snags');
         setDestination('plan');
       },
+      openMeeting: () => {
+        meetingDirty.current = false;
+        setMeeting(true);
+        setDestination('dashboard');
+      },
+      openMinutes: () => {
+        setReportsFocus('meeting-minutes');
+        setDestination('reports');
+      },
     }),
     [],
   );
@@ -140,9 +162,34 @@ export function App({ settings }: { settings: Settings }) {
   const [hadWork, setHadWork] = useState(hasWork);
   if (hadWork !== hasWork) {
     setHadWork(hasWork);
+    setMeeting(false);
     if (hasWork) setDestination('dashboard');
   }
   const onStart = useCallback(() => setDestination('dashboard'), []);
+  /** Go to `next`, leaving the meeting — straight away, or once the person agrees to drop its draft. */
+  const go = useCallback((next: Destination) => {
+    if (next === 'documents') setDocumentsFilter(null);
+    if (next === 'diary') setDiaryFocus(null);
+    if (next === 'money') setMoneyFocus(null);
+    if (next === 'reports') setReportsFocus(null);
+    if (next === 'settings') setSettingsFocus(null);
+    setMeeting(false);
+    meetingDirty.current = false;
+    setDestination(next);
+  }, []);
+  const navigate = useCallback(
+    (next: Destination) => {
+      if (meeting && meetingDirty.current) setLeaving(next);
+      else go(next);
+    },
+    [meeting, go],
+  );
+  const meetingClosed = useCallback(() => {
+    meetingDirty.current = false;
+    setMeeting(false);
+  }, []);
+  const showsMeeting = meeting && destination === 'dashboard' && hasWork;
+
   const closeWork = useCallback(() => {
     close.mutate(undefined, { onSuccess: () => setDestination('dashboard') });
   }, [close]);
@@ -158,14 +205,7 @@ export function App({ settings }: { settings: Settings }) {
             <Sidebar
               active={showsStart ? null : destination}
               hasWork={hasWork}
-              onNavigate={(next) => {
-                if (next === 'documents') setDocumentsFilter(null);
-                if (next === 'diary') setDiaryFocus(null);
-                if (next === 'money') setMoneyFocus(null);
-                if (next === 'reports') setReportsFocus(null);
-                if (next === 'settings') setSettingsFocus(null);
-                setDestination(next);
-              }}
+              onNavigate={navigate}
             />
             {/* `relative`: the scroll region is the containing block of every absolutely placed
                 element in it — the visually hidden labels most of all. Without it their containing
@@ -173,7 +213,13 @@ export function App({ settings }: { settings: Settings }) {
                 and bringing a card into view lifted the whole window (E2's screenshots). */}
             <main
               tabIndex={0}
-              aria-label={showsStart ? t('start.title') : t(DESTINATION_LABELS[destination])}
+              aria-label={
+                showsStart
+                  ? t('start.title')
+                  : showsMeeting
+                    ? t('meeting.title')
+                    : t(DESTINATION_LABELS[destination])
+              }
               className="relative min-w-0 flex-1 overflow-y-auto bg-layer focus-visible:-outline-offset-2"
             >
               <DropNotice />
@@ -204,14 +250,25 @@ export function App({ settings }: { settings: Settings }) {
               ) : (
                 <>
                   {showsStart && <StartPage onOpened={onStart} />}
-                  {!showsStart && destination === 'dashboard' && snapshot !== null && (
-                    <DashboardPage
+                  {!showsStart && showsMeeting && snapshot !== null && (
+                    <MeetingPage
                       snapshot={snapshot}
-                      onClose={closeWork}
-                      closing={close.isPending}
-                      closeError={close.isError ? describeError(close.error) : null}
+                      onLeave={() => navigate('dashboard')}
+                      onDirty={onMeetingDirty}
+                      onClosed={meetingClosed}
                     />
                   )}
+                  {!showsStart &&
+                    !showsMeeting &&
+                    destination === 'dashboard' &&
+                    snapshot !== null && (
+                      <DashboardPage
+                        snapshot={snapshot}
+                        onClose={closeWork}
+                        closing={close.isPending}
+                        closeError={close.isError ? describeError(close.error) : null}
+                      />
+                    )}
                   {!showsStart && destination === 'plan' && snapshot !== null && (
                     <PlanPage
                       snapshot={snapshot}
@@ -272,6 +329,20 @@ export function App({ settings }: { settings: Settings }) {
           </div>
         </div>
       </DropZone>
+      <ConfirmDialog
+        open={leaving !== null}
+        title={t('meeting.leave.title')}
+        confirmLabel={t('meeting.leave.confirm')}
+        confirmTestId="meeting-leave-confirm"
+        danger
+        onConfirm={() => {
+          if (leaving !== null) go(leaving);
+          setLeaving(null);
+        }}
+        onCancel={() => setLeaving(null)}
+      >
+        {t('meeting.leave.body', { minutes: term('meetingMinutes') })}
+      </ConfirmDialog>
     </NavigationContext.Provider>
   );
 }

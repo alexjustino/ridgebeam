@@ -40,6 +40,17 @@ export interface Navigation {
   openChanges: () => void;
   /** Open the Plan on its Snags tab (E4: the dashboard's Still to fix card leads to the list). */
   openSnags: () => void;
+  /**
+   * Open this week's meeting (G1): a full page reached from the dashboard's card, with the agenda the
+   * record wrote. Not a destination of the rail — the meeting is something done on the dashboard's
+   * way, and leaving it with a draft asks before the draft is dropped.
+   */
+  openMeeting: () => void;
+  /**
+   * Open Reports on the meeting minutes card with the focus on its path field (G1: the dashboard's
+   * "Minutes as a PDF…" goes to the card that writes them, as the snapshot's button does).
+   */
+  openMinutes: () => void;
 }
 
 export const NavigationContext = createContext<Navigation>({
@@ -52,6 +63,8 @@ export const NavigationContext = createContext<Navigation>({
   openSchedule: () => undefined,
   openChanges: () => undefined,
   openSnags: () => undefined,
+  openMeeting: () => undefined,
+  openMinutes: () => undefined,
 });
 
 export function useNavigation(): Navigation {

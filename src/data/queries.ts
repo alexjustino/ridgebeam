@@ -61,6 +61,8 @@ import {
   changeOrderDecide,
   changeOrderRaise,
   snagClose,
+  meetingActionClose,
+  meetingClose,
   snagRaise,
   fundingAdd,
   fundingReceiptAdd,
@@ -142,6 +144,8 @@ import {
   type ChangeOrderDecisionDraft,
   type ChangeOrderDraft,
   type SnagClosureDraft,
+  type ActionClosureDraft,
+  type MinutesDraft,
   type SnagDraft,
   type FundingDraft,
   type FundingReceiptDraft,
@@ -638,6 +642,18 @@ export function useRaiseSnag() {
 
 export function useCloseSnag() {
   return useWorkCommand((closure: SnagClosureDraft) => snagClose(closure));
+}
+
+// ── The weekly site meeting (G1) ─────────────────────────────────────────────
+
+/** Close the meeting: its minutes written whole, in one transaction, or nothing. */
+export function useCloseMeeting() {
+  return useWorkCommand((minutes: MinutesDraft) => meetingClose(minutes));
+}
+
+/** Close an action between meetings: done or dropped, once. */
+export function useCloseAction() {
+  return useWorkCommand((closure: ActionClosureDraft) => meetingActionClose(closure));
 }
 
 // ── Funding and money received (E2) ──────────────────────────────────────────
