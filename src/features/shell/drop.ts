@@ -18,10 +18,33 @@
  * Pure: a screen, a fact about the work and some paths in, a decision out.
  */
 
+import type { ConvertedFrom } from '@/data/commands';
+
 import type { Destination } from './destinations';
 
-/** What the photo dialog offers — the Diary's "Add photos…". */
-export const PHOTO_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'] as const;
+/**
+ * The photos from an iPhone (G5): taken where a photo is taken, and converted by the host to the
+ * JPEG it keeps, through Windows' own decoder (ADR-049).
+ */
+const CONVERTED_EXTENSIONS: Readonly<Record<string, ConvertedFrom>> = {
+  heic: 'HEIC',
+  heif: 'HEIF',
+};
+
+/**
+ * What the photo dialog offers — the Diary's "Add photos…" and a snag's "Choose a photo…". HEIC and
+ * HEIF are offered too: the host converts them to JPEG as it takes them in (G5).
+ */
+export const PHOTO_EXTENSIONS = [
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+  'gif',
+  'bmp',
+  'heic',
+  'heif',
+] as const;
 
 /** What the documents dialog offers — photos and PDFs. */
 export const DOCUMENT_EXTENSIONS = [...PHOTO_EXTENSIONS, 'pdf'] as const;
@@ -71,6 +94,17 @@ function extensionOf(path: string): string | null {
   const name = baseName(path);
   const dot = name.lastIndexOf('.');
   return dot <= 0 || dot === name.length - 1 ? null : name.slice(dot + 1).toLowerCase();
+}
+
+/**
+ * What the host will convert a chosen file from, judged by its name alone — before it is saved the
+ * interface knows nothing else about it (G5): `HEIC` or `HEIF` for a name ending `.heic` or `.heif`,
+ * in any case; `null` for anything else. The host decides from the bytes, and says so when it did.
+ */
+export function conversionOf(path: string): ConvertedFrom | null {
+  const extension = extensionOf(path);
+  if (extension === null || !Object.hasOwn(CONVERTED_EXTENSIONS, extension)) return null;
+  return CONVERTED_EXTENSIONS[extension] ?? null;
 }
 
 /** The place a destination takes dropped files in, or `null` when it takes none. */

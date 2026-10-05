@@ -10,7 +10,7 @@ import {
 import { open } from '@tauri-apps/plugin-dialog';
 import { useId, useMemo, useState, type FormEvent } from 'react';
 
-import type { DocumentKind, RefusedFile } from '@/data/commands';
+import type { AddedFile, DocumentKind, RefusedFile } from '@/data/commands';
 import {
   useAddDocuments,
   useDiary,
@@ -38,6 +38,7 @@ import {
   type DocumentLink,
   type WorkSnapshot,
 } from '@/domain/plan';
+import { ConvertedNotice, WillConvertNote } from '@/features/diary/Conversion';
 import { DOCUMENT_EXTENSIONS } from '@/features/shell/drop';
 import { useDropTarget } from '@/features/shell/dropTarget';
 import type { MessageKey } from '@/i18n/en';
@@ -236,6 +237,8 @@ function AddDocuments({ target }: { target: DocumentLink | null }) {
   const [field, setField] = useState('');
   const [kind, setKind] = useState<DocumentKind>('other');
   const [refused, setRefused] = useState<RefusedFile[]>([]);
+  // What the host kept last time, to say which photos it converted from HEIC (G5).
+  const [added, setAdded] = useState<AddedFile[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
   const [dialogFailed, setDialogFailed] = useState(false);
   const [dropLeft, setDropLeft] = useState<readonly string[]>([]);
@@ -267,9 +270,13 @@ function AddDocuments({ target }: { target: DocumentLink | null }) {
         onSuccess: (result) => {
           setFailure(null);
           setRefused(result.refused);
+          setAdded(result.added);
           setPaths([]);
         },
-        onError: (error) => setFailure(describeError(error)),
+        onError: (error) => {
+          setAdded([]);
+          setFailure(describeError(error));
+        },
       },
     );
   };
@@ -281,6 +288,7 @@ function AddDocuments({ target }: { target: DocumentLink | null }) {
     if (left.length > 0) announce(tp('drop.left', left.length, { names: left.join(', ') }));
     if (taken.length === 0) {
       setRefused([]);
+      setAdded([]);
       setFailure(null);
       return;
     }
@@ -290,9 +298,13 @@ function AddDocuments({ target }: { target: DocumentLink | null }) {
         onSuccess: (result) => {
           setFailure(null);
           setRefused(result.refused);
+          setAdded(result.added);
           announce(tp('drop.taken.documents', taken.length - result.refused.length));
         },
-        onError: (error) => setFailure(describeError(error)),
+        onError: (error) => {
+          setAdded([]);
+          setFailure(describeError(error));
+        },
       },
     );
   });
@@ -337,6 +349,7 @@ function AddDocuments({ target }: { target: DocumentLink | null }) {
                 className="flex items-center gap-2 text-caption text-fg"
               >
                 <span className="min-w-0 flex-1 truncate font-mono">{path}</span>
+                <WillConvertNote path={path} />
                 <button
                   type="button"
                   aria-label={t('diary.photos.remove', { name: path })}
@@ -397,6 +410,7 @@ function AddDocuments({ target }: { target: DocumentLink | null }) {
             </InfoBar>
           </div>
         )}
+        <ConvertedNotice files={added} />
       </form>
     </Card>
   );

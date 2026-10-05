@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { today } from '@/app/today';
-import { BUILT_IN_SETTINGS } from '@/data/commands';
+import { BUILT_IN_SETTINGS, type DocumentsAdded } from '@/data/commands';
 import { keys } from '@/data/queries';
 import { activity, person, snag, snagClosure, snapshot, stage } from '@/domain/__fixtures__/plan';
 import type { Document, WorkSnapshot } from '@/domain/plan';
@@ -89,7 +89,7 @@ let client: QueryClient;
 /** What the host answers to a command that answers with the plan. */
 let next: WorkSnapshot;
 /** What `document_add` answers. */
-let added: { snapshot: WorkSnapshot; refused: { fileName: string; reason: string }[] };
+let added: DocumentsAdded;
 
 function render(of: WorkSnapshot, language: Language = 'en', lens: LensChoice = 'owner') {
   client.setQueryData(keys.settings, { ...BUILT_IN_SETTINGS, language, lens });
@@ -141,7 +141,7 @@ const calls = (command: string) =>
 beforeEach(() => {
   invoke.mockReset();
   next = BASE;
-  added = { snapshot: BASE, refused: [] };
+  added = { snapshot: BASE, refused: [], added: [] };
   invoke.mockImplementation((command: string) => {
     if (command === 'settings_get') return Promise.resolve(null);
     if (command === 'photo_thumbnail') return Promise.resolve('');
@@ -173,6 +173,7 @@ const WORDS = {
     reason: 'Say why it is withdrawn.',
     fixed: /Fixed on .* by Sample author/,
     who: 'To fix it: Sample tiler',
+    converting: 'Will be converted to JPEG',
   },
   'pt-BR': {
     noStage: /é anotada numa etapa: acrescente uma ao plano primeiro/,
@@ -185,6 +186,7 @@ const WORDS = {
     reason: 'Diga por que ela está sendo retirada.',
     fixed: /Resolvida em .* por Sample author/,
     who: 'Quem conserta: Sample tiler',
+    converting: 'Será convertida para JPEG',
   },
 } as const;
 
@@ -216,6 +218,7 @@ describe.each(['en', 'pt-BR'] as const)('the Snags tab, in %s', (language) => {
     added = {
       snapshot: { ...BASE, documents: [photoDocument('d1', HASH, 'crack.jpg')] },
       refused: [],
+      added: [{ fileName: 'crack.jpg', fileHash: HASH, convertedFrom: null }],
     };
     act(() => find('snag-save').click());
     await settle();
@@ -234,6 +237,20 @@ describe.each(['en', 'pt-BR'] as const)('the Snags tab, in %s', (language) => {
         },
       },
     ]);
+  });
+
+  it('says a HEIC chosen for the snag will be converted to JPEG, and a JPEG says nothing (G5)', () => {
+    render(BASE, language);
+    act(() => find('snag-raise').click());
+    set(find('snag-photo-path'), 'C:/sample/IMG_0001.HEIC');
+    act(() => find('snag-photo-add').click());
+    const note = () =>
+      host.querySelector('[data-pending-photo] [data-testid="photo-converted-note"]');
+    expect(note()?.textContent).toBe(words.converting);
+    set(find('snag-photo-path'), PHOTO);
+    act(() => find('snag-photo-add').click());
+    expect(find('[data-pending-photo]').textContent).toContain('crack.jpg');
+    expect(note()).toBeNull();
   });
 
   it('refuses a due day typed only halfway, rather than saving the snag with no due day', async () => {
@@ -270,6 +287,7 @@ describe.each(['en', 'pt-BR'] as const)('the Snags tab, in %s', (language) => {
     added = {
       snapshot: BASE,
       refused: [{ fileName: 'crack.jpg', reason: 'crack.jpg is too big.' }],
+      added: [],
     };
     act(() => find('snag-save').click());
     await settle();
@@ -320,6 +338,7 @@ describe.each(['en', 'pt-BR'] as const)('the Snags tab, in %s', (language) => {
         documents: [...LISTED.documents, photoDocument('d3', 'c'.repeat(64), 'fixed.jpg')],
       },
       refused: [],
+      added: [{ fileName: 'fixed.jpg', fileHash: 'c'.repeat(64), convertedFrom: null }],
     };
     act(() => find('snag-confirm').click());
     await settle();

@@ -2,6 +2,7 @@ import { Add20Regular, Dismiss16Regular, ImageAdd20Regular } from '@fluentui/rea
 import { open } from '@tauri-apps/plugin-dialog';
 import { useId, useRef, useState } from 'react';
 
+import { WillConvertNote } from '@/features/diary/Conversion';
 import { baseName, PHOTO_EXTENSIONS } from '@/features/shell/drop';
 import { useDropTarget } from '@/features/shell/dropTarget';
 import { useI18n } from '@/i18n/useI18n';
@@ -116,6 +117,7 @@ export function SnagPhotoField({
           <span className="min-w-0 flex-1 truncate">
             {t('snags.photo.chosen', { name: baseName(path) })}
           </span>
+          <WillConvertNote path={path} />
           <button
             type="button"
             aria-label={t('diary.photos.remove', { name: baseName(path) })}

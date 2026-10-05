@@ -14,7 +14,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 
-import type { DiaryEntry, EntryDraft } from '@/domain/diary';
+import type { DiaryEntry, EntryDraft, Photo } from '@/domain/diary';
 import type { Direction } from '@/domain/ordering';
 import type {
   Answer,
@@ -623,8 +623,27 @@ export type ChainReport =
       reason: string;
     };
 
-export function diaryEntryAdd(draft: EntryDraft): Promise<DiaryEntry> {
-  return invoke<DiaryEntry>('diary_entry_add', { draft });
+/**
+ * What a HEIC or HEIF photo was before the host converted it to the JPEG it keeps (G5, ADR-049).
+ * Said only in the answer that took the file in; `null` there for a file kept as it came.
+ */
+export type ConvertedFrom = 'HEIC' | 'HEIF';
+
+/** A photo of the entry just written: `convertedFrom` says whether the host converted it (G5). */
+export interface SavedPhoto extends Photo {
+  readonly convertedFrom: ConvertedFrom | null;
+}
+
+/**
+ * The entry `diary_entry_add` answers: the entry as written, whose photos say which were converted
+ * on the way in (G5). Every later read of the diary says `null`, so it is read as `DiaryEntry`.
+ */
+export interface SavedDiaryEntry extends DiaryEntry {
+  readonly photos: readonly SavedPhoto[];
+}
+
+export function diaryEntryAdd(draft: EntryDraft): Promise<SavedDiaryEntry> {
+  return invoke<SavedDiaryEntry>('diary_entry_add', { draft });
 }
 
 export function diaryList(range?: { fromDay?: string; toDay?: string }): Promise<DiaryEntry[]> {
@@ -1309,6 +1328,24 @@ export interface RefusedFile {
 }
 
 /**
+ * A file `document_add` kept (G5): under the person's own name, by the hash of what the work holds,
+ * and — for a HEIC or HEIF the host converted to a JPEG — what it was before.
+ */
+export interface AddedFile {
+  fileName: string;
+  fileHash: string;
+  convertedFrom: ConvertedFrom | null;
+}
+
+/** What `document_add` answers: the plan, and each file refused and each kept, in the order given. */
+export interface DocumentsAdded {
+  snapshot: WorkSnapshot;
+  refused: RefusedFile[];
+  /** Each file kept (G5) — a file the work already held is listed too, as the document it is. */
+  added: AddedFile[];
+}
+
+/**
  * Copy files into the work, each on its own: a batch with one file the product does not keep keeps
  * the others and names the one. A file whose bytes the work already holds is linked, not copied
  * twice. `target` attaches every kept file there; `null` attaches them to the work.
@@ -1317,8 +1354,8 @@ export function documentAdd(
   paths: readonly string[],
   kind: DocumentKind,
   target: DocumentTarget | null,
-): Promise<{ snapshot: WorkSnapshot; refused: RefusedFile[] }> {
-  return invoke<{ snapshot: WorkSnapshot; refused: RefusedFile[] }>('document_add', {
+): Promise<DocumentsAdded> {
+  return invoke<DocumentsAdded>('document_add', {
     paths,
     kind,
     target,
