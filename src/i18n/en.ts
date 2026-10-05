@@ -21,6 +21,20 @@ export const en = {
   'common.off': 'Off',
   'common.hostSilent': 'Ridgebeam could not read this',
 
+  // ── A day typed into a date field (`ui/DateField`) ─────────────────────────
+  'dateField.placeholder': 'MMM D, YYYY',
+  'dateField.hint': 'MMM D, YYYY — the month as a word, for example {example}',
+  'dateField.open': 'Choose the day on a calendar',
+  'dateField.previousMonth': 'Previous month',
+  'dateField.nextMonth': 'Next month',
+  'dateField.keys':
+    'The arrows move a day or a week, Page Up and Page Down a month, Enter chooses the day and Escape closes the calendar.',
+  'dateField.problem.title': 'This is not a day yet',
+  'dateField.problem.partial': 'Type the day, the month and the year, as in {example}.',
+  'dateField.problem.notADay': '“{text}” is not a day on the calendar.',
+  'dateField.problem.monthAsWord':
+    'Write the month as a word, as in {worded}: in figures alone, the day and the month can be read the wrong way round.',
+
   // ── Errors the host names by kind ─────────────────────────────────────────
   'errors.unexpected':
     'Something went wrong talking to Ridgebeam’s own process. Nothing was changed. The details are in the application log.',
@@ -2354,6 +2368,8 @@ export const en = {
   'snags.sentence.onPerson': '{name} ({count})',
   'snags.sentence.none': 'Every snag raised is closed — fixed: {fixed}; withdrawn: {withdrawn}.',
   'snags.problem.titleEmpty': 'Say what is wrong.',
+  'snags.problem.dueUnfinished':
+    'The day the {snag} is due is not a whole day yet: finish it, or clear the field for no due day.',
   'snags.problem.titleTooLong': 'What is wrong is too long: at most 200 characters.',
   'snags.problem.descriptionTooLong': 'The details are too long: at most 2,000 characters.',
   'snags.problem.unknownStage': 'Choose the {stage} it is in.',

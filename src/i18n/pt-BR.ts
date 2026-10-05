@@ -16,6 +16,20 @@ export const ptBR: Dictionary = {
   'common.off': 'Desligado',
   'common.hostSilent': 'O Ridgebeam não conseguiu ler isto',
 
+  // ── Um dia digitado num campo de data (`ui/DateField`) ─────────────────────
+  'dateField.placeholder': 'DD/MM/AAAA',
+  'dateField.hint': 'DD/MM/AAAA — por exemplo, {example}',
+  'dateField.open': 'Escolher o dia no calendário',
+  'dateField.previousMonth': 'Mês anterior',
+  'dateField.nextMonth': 'Próximo mês',
+  'dateField.keys':
+    'As setas andam um dia ou uma semana, Page Up e Page Down um mês, Enter escolhe o dia e Esc fecha o calendário.',
+  'dateField.problem.title': 'Isto ainda não é um dia',
+  'dateField.problem.partial': 'Digite o dia, o mês e o ano, como em {example}.',
+  'dateField.problem.notADay': '“{text}” não é um dia do calendário.',
+  'dateField.problem.monthAsWord':
+    'Escreva o mês por extenso, como em {worded}: só em algarismos, o dia e o mês podem ser lidos trocados.',
+
   // ── Errors the host names by kind ─────────────────────────────────────────
   'errors.unexpected':
     'Algo deu errado na comunicação com o processo do Ridgebeam. Nada foi alterado. Os detalhes estão no log do aplicativo.',
@@ -2381,6 +2395,8 @@ export const ptBR: Dictionary = {
   'snags.sentence.none':
     'Toda pendência anotada está fechada — resolvidas: {fixed}; retiradas: {withdrawn}.',
   'snags.problem.titleEmpty': 'Diga o que está errado.',
+  'snags.problem.dueUnfinished':
+    'O prazo da {snag} ainda não é um dia completo: termine de escrever, ou apague o campo para ficar sem prazo.',
   'snags.problem.titleTooLong': 'O que está errado ficou longo demais: no máximo 200 caracteres.',
   'snags.problem.descriptionTooLong':
     'Os detalhes ficaram longos demais: no máximo 2.000 caracteres.',
