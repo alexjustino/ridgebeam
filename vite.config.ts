@@ -3,9 +3,27 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { execSync } from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
 
 const host = process.env.TAURI_DEV_HOST;
+
+/**
+ * How many test workers this machine can hold in memory.
+ *
+ * Vitest's default is one per core but one, which ignores memory. On a machine that runs out of
+ * RAM, Windows starts failing file lookups with ERROR_NO_SYSTEM_RESOURCES (1450); libuv reports it
+ * as UNKNOWN, and every resolver on the way (Node's, and the native one inside Vite 8) reads a
+ * failed lookup as "no such file" — so a test file fails to load with "Cannot find module" for a
+ * file that is there. Measured on an 8-core, 4 GB machine: three suites side by side failed with
+ * seven or four workers each and passed with two. One worker per 2 GB, never more than the default:
+ * the 16 GB CI runners keep the default, a small machine stops starving itself.
+ */
+function testWorkers(): number {
+  const byMemory = Math.round(os.totalmem() / 2 ** 31);
+  const byCores = os.availableParallelism() - 1;
+  return Math.max(1, Math.min(byMemory, byCores));
+}
 
 /**
  * The commit this build came from.
@@ -51,11 +69,8 @@ export default defineConfig({
   test: {
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     environment: 'node',
-    // Half the cores, not all of them. With every core busy, Vitest 5 on Windows intermittently
-    // fails to load a test file with "Cannot find module" for a file that is there — reproduced with
-    // suites run side by side, even for a file in node_modules. Fewer workers make it rare; the
-    // cause is still being looked for.
-    maxWorkers: '50%',
+    // Bounded by memory, not cores — see testWorkers().
+    maxWorkers: testWorkers(),
     coverage: {
       provider: 'v8',
       include: ['src/domain/**/*.ts'],
