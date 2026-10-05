@@ -43,6 +43,7 @@ import {
 import { FORECAST_LABEL_KEYS, FORECAST_PROBLEM_KEYS } from '@/domain/schedule/forecast';
 import { PROBABILITY_MESSAGE_KEYS } from '@/domain/schedule/probability';
 import { SLIP_LABEL_KEY } from '@/domain/schedule/slip';
+import { MEETING_MESSAGE_KEYS } from '@/domain/meetings';
 import { SNAG_MESSAGE_KEYS } from '@/domain/snags';
 import { WHAT_IF_LABEL_KEY, WHAT_IF_PROBLEM_KEYS } from '@/domain/schedule/whatIf';
 import { LANGUAGES as LANGUAGE_CHOICES } from '@/domain/settings';
@@ -231,6 +232,7 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         ...Object.values(CHANGE_PROBLEM_KEYS),
         ...Object.values(CHANGE_LABEL_KEYS),
         ...SNAG_MESSAGE_KEYS,
+        ...MEETING_MESSAGE_KEYS,
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }

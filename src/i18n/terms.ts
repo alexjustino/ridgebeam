@@ -72,6 +72,8 @@ export const TERM_KEYS = [
   'snapshot',
   'snag',
   'retention',
+  'meetingMinutes',
+  'action',
 ] as const;
 
 export type TermKey = (typeof TERM_KEYS)[number];
