@@ -132,6 +132,18 @@
 //!   meeting, on its day); `ActionClosureDraft` for `meeting_action_close`.
 //!   The minutes are written once and never edited. The agenda is not here:
 //!   it is the domain's, computed every time.
+//! - G2: what to order this week. `WorkSnapshot.purchases` (`Purchase`, by
+//!   position: `stageId`, `activityId` — `null` for the stage's first
+//!   activity — `name`, `quantity`, `supplier`, `leadDays` in calendar days,
+//!   `note`, `createdAt`), each with its `events` (`PurchaseEvent`, by `seq`:
+//!   `purchaseId`, `kind` `ordered`, `delivered` or `cancelled`, `day`,
+//!   `note`, `authorName`, `createdAt`): nested, not a separate list.
+//!   `PurchaseDraft` for `purchase_add` and `purchase_update` (written whole:
+//!   `null` clears `activityId`, `quantity`, `supplier` and `note`),
+//!   `PurchaseEventDraft` for `purchase_event_add`. A purchase is plan, not
+//!   locked by the approval — but once ordered its `leadDays`, `stageId` and
+//!   `activityId` are fixed; its events are facts. The day to order by and
+//!   what is late are not here: they are the domain's, computed every time.
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -443,6 +455,109 @@ pub struct WorkSnapshot {
     /// attendees, its items and its actions — each action with its closure,
     /// or `null` while it is open.
     pub meetings: Vec<Meeting>,
+    /// What is to be bought (G2), by position, each with what happened to it
+    /// — ordered, delivered, cancelled — by `seq`.
+    pub purchases: Vec<Purchase>,
+}
+
+/// Something an activity needs that takes time to arrive (G2, pt "compra"):
+/// what it is, how much, from whom and how long the supplier takes. Plan, not
+/// fact: edited freely, and not locked by the plan's approval. Removable only
+/// while nothing has happened to it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct Purchase {
+    /// UUID v7.
+    pub id: String,
+    /// Its order among the work's purchases: 1, 2, 3 … with no gaps.
+    pub position: i64,
+    /// The stage it is for.
+    pub stage_id: String,
+    /// The activity of that stage that needs it; `null` for the stage's first
+    /// activity. An activity removed later leaves it `null`.
+    pub activity_id: Option<String>,
+    /// What it is, 1 to 200 characters.
+    pub name: String,
+    /// How much, in the person's words ("12 m²"), up to 60 characters; `null`
+    /// when not said.
+    pub quantity: Option<String>,
+    /// From whom, up to 120 characters; `null` when not said.
+    pub supplier: Option<String>,
+    /// How long the supplier takes, in calendar days, 0 to 365.
+    pub lead_days: i64,
+    /// More words, up to 2000 characters; `null` when none.
+    pub note: Option<String>,
+    /// When it was written down, UTC.
+    pub created_at: String,
+    /// What happened to it, by `seq`; empty while nothing has.
+    pub events: Vec<PurchaseEvent>,
+}
+
+/// What happened to a purchase (G2): one line, never edited.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+#[serde(rename_all = "camelCase")]
+pub struct PurchaseEvent {
+    /// The purchase.
+    pub purchase_id: String,
+    /// 1, 2, 3 … for the purchase, in the order written.
+    pub seq: i64,
+    /// `ordered`, `delivered` or `cancelled` (the order fell through: the
+    /// purchase is to order again).
+    pub kind: String,
+    /// The day it happened, `YYYY-MM-DD`; never after the day it was
+    /// recorded, nor before the event it follows.
+    pub day: String,
+    /// A few words, up to 500 characters; `null` when none.
+    pub note: Option<String>,
+    /// The Windows account that recorded it.
+    pub author_name: String,
+    /// When it was recorded, UTC.
+    pub created_at: String,
+}
+
+/// A purchase as the interface sends it — to add one, or to write one whole.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PurchaseDraft {
+    /// The purchase to change, for `purchase_update`; left out or `null` for
+    /// `purchase_add`.
+    #[serde(default)]
+    pub id: Option<String>,
+    /// The stage it is for.
+    pub stage_id: String,
+    /// An activity of that stage, or `null` for the stage's first activity.
+    #[serde(default)]
+    pub activity_id: Option<String>,
+    /// What it is, 1 to 200 characters.
+    pub name: String,
+    /// How much, in words, up to 60 characters; `null` for none.
+    #[serde(default)]
+    pub quantity: Option<String>,
+    /// From whom, up to 120 characters; `null` for none.
+    #[serde(default)]
+    pub supplier: Option<String>,
+    /// Calendar days, whole, 0 to 365.
+    pub lead_days: f64,
+    /// More words, up to 2000 characters; `null` for none.
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+/// What happened to a purchase, as the interface sends it.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PurchaseEventDraft {
+    /// The purchase.
+    pub purchase_id: String,
+    /// `ordered`, `delivered` or `cancelled`.
+    pub kind: String,
+    /// `YYYY-MM-DD`, not after today.
+    pub day: String,
+    /// A few words, up to 500 characters.
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 /// A snag (E4, pt "pendência"): a defect or a pending item found near the

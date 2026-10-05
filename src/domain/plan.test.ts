@@ -56,6 +56,7 @@ function snapshot(parts: Partial<WorkSnapshot> = {}): WorkSnapshot {
     fundingReceipts: [],
     snags: [],
     meetings: [],
+    purchases: [],
     ...parts,
   };
 }

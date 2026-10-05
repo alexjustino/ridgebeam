@@ -67,6 +67,12 @@
 //!   actions raised and the earlier actions closed at it), and an action
 //!   closed between meetings (insert-only, holding no statement that edits or
 //!   removes a row); work migration 017.
+//! - G2: `purchases` — what an activity needs that takes time to arrive,
+//!   with the supplier's lead time: plan, edited freely, kept while something
+//!   has happened to it, and keeping its stage — and `purchase_events`, what
+//!   happened to each, ordered, delivered or cancelled, in an order the host
+//!   and the schema both hold (append-only, holding no statement that edits
+//!   or removes a row); work migration 018.
 
 #[cfg(test)]
 mod append_only_tests;
@@ -95,6 +101,10 @@ pub mod milestones;
 pub mod money;
 pub mod order;
 pub mod payments;
+pub mod purchase_events;
+pub mod purchases;
+#[cfg(test)]
+mod purchases_tests;
 pub mod recent;
 pub mod replanning;
 pub mod rooms;

@@ -51,16 +51,22 @@
 //! - E4: the snapshot carries snags, each with its closure (`db::snags`).
 //! - G1: the snapshot carries the meetings' minutes, each action with its
 //!   closure (`db::meetings`).
+//! - G2: the snapshot carries purchases, each with its events
+//!   (`db::purchases`); a stage's removal takes the purchases nothing has
+//!   happened to with it and closes their positions up, and is refused while
+//!   a purchase of it has been ordered; so is an activity's removal while a
+//!   purchase it needs has been ordered.
 
 use std::collections::HashMap;
 
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::contract::{Activity, Calendar, Holiday, Person, Room, Stage, Work, WorkSnapshot};
-use crate::db::order::{ACTIVITIES, STAGES};
+use crate::db::order::{ACTIVITIES, PURCHASES, STAGES};
 use crate::db::{
     baselines, care_notes, change_orders, check_answers, checks, decisions, dependencies,
-    documents, funding, funding_receipts, meetings, milestones, money, payments, replanning, snags,
+    documents, funding, funding_receipts, meetings, milestones, money, payments, purchases,
+    replanning, snags,
 };
 use crate::db::{migrations, new_id, now};
 use crate::error::{Error, Result};
@@ -308,6 +314,7 @@ pub fn snapshot(conn: &Connection) -> Result<WorkSnapshot> {
         funding_receipts: funding_receipts::list(conn)?,
         snags: snags::list(conn)?,
         meetings: meetings::list(conn)?,
+        purchases: purchases::list(conn)?,
     })
 }
 
@@ -513,19 +520,23 @@ pub fn rename_stage(conn: &Connection, id: &str, name: &str) -> Result<()> {
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] when the stage is not in this work, or its checks
-/// have been answered (answers are facts); [`Error::StageClosed`] when it is
-/// closed.
+/// [`Error::InvalidInput`] when the stage is not in this work, its checks
+/// have been answered (answers are facts), or a purchase of it has been
+/// ordered (G2); [`Error::StageClosed`] when it is closed. Its purchases
+/// nothing has happened to go with it (the schema's `ON DELETE CASCADE`), and
+/// the purchases after them close up.
 pub fn remove_stage(conn: &Connection, id: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     refuse_if_stage_closed(&tx, id)?;
     checks::refuse_if_stage_answered(&tx, id)?;
     money::refuse_if_stage_paid(&tx, id)?;
+    purchases::refuse_if_stage_has_purchases_on_record(&tx, id)?;
     dependencies::remove_naming_stage(&tx, id)?;
     let changed = tx.execute("DELETE FROM stage WHERE id = ?1", [id])?;
     found(changed, STAGE_NOT_FOUND)?;
     care_notes::remove_for(&tx, "stage", id)?;
     STAGES.close_gaps(&tx, None)?;
+    PURCHASES.close_gaps(&tx, None)?;
     tx.commit()?;
     Ok(())
 }
@@ -729,8 +740,9 @@ fn quantity_and_unit(
 ///
 /// # Errors
 ///
-/// [`Error::InvalidInput`] when the activity is not in this work, or a payment
-/// milestone is earned by its finish (D2).
+/// [`Error::InvalidInput`] when the activity is not in this work, a payment
+/// milestone is earned by its finish (D2), or a purchase it needs has been
+/// ordered (G2).
 pub fn remove_activity(conn: &Connection, id: &str) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
     remove_activity_within(&tx, id)?;
@@ -748,6 +760,7 @@ pub fn remove_activity_within(tx: &Connection, id: &str) -> Result<()> {
     let stage = ACTIVITIES.scope_of(tx, id)?;
     refuse_if_activity_closed(tx, id)?;
     milestones::refuse_if_activity_earns(tx, id)?;
+    purchases::refuse_if_activity_has_purchases_on_record(tx, id)?;
     dependencies::remove_naming_activity(tx, id)?;
     tx.execute("DELETE FROM activity WHERE id = ?1", [id])?;
     ACTIVITIES.close_gaps(tx, stage.as_deref())?;
@@ -893,6 +906,8 @@ pub(crate) mod tests {
             "meeting_item",
             "meeting_action",
             "meeting_action_closure",
+            "purchase",
+            "purchase_event",
         ] {
             let found: i64 = conn
                 .query_row(

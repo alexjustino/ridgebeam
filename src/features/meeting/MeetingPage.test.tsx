@@ -15,6 +15,7 @@ import {
   meeting,
   meetingAction,
   person,
+  purchase,
   snag,
   snapshot,
   stage,
@@ -94,6 +95,7 @@ const NAVIGATION: Navigation = {
   openSchedule: () => undefined,
   openChanges: () => undefined,
   openSnags: () => undefined,
+  openPurchases: () => undefined,
   openMeeting: vi.fn(),
   openMinutes: vi.fn(),
 };
@@ -327,6 +329,49 @@ describe.each(LANGUAGES)('this week’s meeting, in %s', (language) => {
     });
     expect(byRef.get('n1')).toMatchObject({ kind: 'snag', note: null, outcome: null });
     expect(onClosed).toHaveBeenCalledTimes(1);
+  });
+
+  it('lists the purchase late to order, and marks it ordered through the Purchases dialog', async () => {
+    // With nothing on the diary, as things stand Walls run from today, the 9th, and Painting starts
+    // on the 21st: 21 days of lead time put its day to order by on 31 August, nine days ago.
+    const withPurchase: WorkSnapshot = {
+      ...WORK,
+      purchases: [purchase('pu1', 1, 's2', 21, { name: 'Worktop' })],
+    };
+    render(withPurchase, language);
+    await settle();
+    const section = find('[data-agenda-section="purchases"]');
+    expect(section.textContent).toContain(t('meetings.agenda.section.purchases'));
+    const item = find('[data-ref-id="pu1"]', section);
+    expect(item.getAttribute('data-kind')).toBe('other');
+    expect(item.getAttribute('data-overdue')).toBe('true');
+    expect(item.textContent).toContain('Worktop');
+    expect(item.textContent).toContain(day('2026-08-31'));
+
+    act(() => find('[data-act="ordered"]', item).click());
+    expect(find('purchase-event').getAttribute('data-kind')).toBe('ordered');
+    act(() => find('purchase-event-confirm').click());
+    await settle();
+    expect(calls('purchase_event_add')).toEqual([
+      { event: { purchaseId: 'pu1', kind: 'ordered', day: TODAY, note: null } },
+    ]);
+    const ordered = t('meeting.outcome.ordered', { day: day(TODAY) });
+    expect(find('meeting-item-outcome', find('[data-ref-id="pu1"]')).textContent).toContain(
+      ordered,
+    );
+    expect(document.body.querySelector('[data-act="ordered"]')).toBeNull();
+
+    act(() => find('meeting-close').click());
+    await settle();
+    act(() => find('meeting-confirm').click());
+    await settle();
+    const sent = calls('meeting_close') as Array<{
+      minutes: { items: Array<{ kind: string; refId: string | null; outcome: string | null }> };
+    }>;
+    expect(sent[0]?.minutes.items.find((each) => each.refId === 'pu1')).toMatchObject({
+      kind: 'other',
+      outcome: ordered,
+    });
   });
 
   it('says what the minutes lack in the page, and asks the host nothing', async () => {

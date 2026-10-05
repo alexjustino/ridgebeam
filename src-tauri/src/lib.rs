@@ -221,6 +221,26 @@
 //!   snapshot, which carries `meetings`. The report kind `minutes` is written
 //!   by `report_pdf_write`. The agenda is the domain's. No new crate, no new
 //!   error kind, no new capability.
+//! - G2: what to order this week. Work migration 018 adds `purchase` (what an
+//!   activity needs that takes time to arrive: a stage, optionally an
+//!   activity of it — `purchase: activity` otherwise — a name, a quantity in
+//!   words, a supplier, a lead time of 0 to 365 calendar days and a note;
+//!   plan, edited freely, not locked by the approval, kept in order 1..n; its
+//!   stage removed takes it, its activity removed lets go of it) and
+//!   `purchase_event` (what happened to it: `ordered`, `delivered` or
+//!   `cancelled`, `seq` continuing per purchase, append-only —
+//!   `purchase: append-only` with `recursive_triggers` on and off — in an
+//!   order the schema holds as the host does: ordered first or after a
+//!   cancellation, delivered or cancelled only on an open order, nothing after
+//!   delivered, never before the event it follows — `purchase: event`). A
+//!   purchase something has happened to is not removed, nor its stage nor
+//!   the activity it needs (a sentence, and a foreign key or a trigger), and
+//!   its lead time, stage and activity are fixed (`purchase: ordered`). An
+//!   event's day is never after today, by the host's clock. Four commands (`purchase_add`, `purchase_update`,
+//!   `purchase_remove`, `purchase_event_add`), each returning the snapshot,
+//!   which carries `purchases`, each with its `events`, and so the JSON export
+//!   and every backup do. The day to order by is the domain's. No new crate,
+//!   no new error kind, no new capability.
 
 pub mod commands;
 pub mod contract;
@@ -359,6 +379,10 @@ pub fn run() {
             commands::snags::snag_close,
             commands::meetings::meeting_close,
             commands::meetings::meeting_action_close,
+            commands::purchases::purchase_add,
+            commands::purchases::purchase_update,
+            commands::purchases::purchase_remove,
+            commands::purchases::purchase_event_add,
             commands::documents::document_add,
             commands::documents::document_update,
             commands::documents::document_link,

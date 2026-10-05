@@ -17,8 +17,9 @@
  *   and against the plan's own date — where the work stands, and, when it is late, the days late and
  *   the causes, each with the days it was made from, and what the record does not explain;
  * - **the next two weeks** (the domain's `lookahead`): the days it covers, a small Gantt of the window
- *   when anything is placed, then what starts, what runs, who must be there, what to decide or order
- *   by its lead time, which gates come up, and what payment falls due — each a figure with its rows.
+ *   when anything is placed, then what starts, what runs, who must be there, what to decide by its
+ *   deadline, what to order by its day to order by (G2), which gates come up, and what payment falls
+ *   due — each a figure with its rows.
  *   With nothing placed it says the schedule has nothing on it yet, so an empty fortnight is never
  *   mistaken for a quiet one;
  * - **lately on site**: the last `SNAPSHOT_ENTRIES` effective diary entries, newest first, each with
@@ -33,6 +34,9 @@
  *   and working days, with who asked;
  * - **still to fix** (E4), once a snag has been raised: what is open and on whom, in a sentence and
  *   as figures with the snags as rows — who must fix each and its day;
+ * - **to order this week** (G2), once the work has a purchase: what to order and what is late, in a
+ *   sentence and as figures with the purchases as rows — what needs each and its day to order by or
+ *   the day it is expected; the next two weeks list what is to order in them too;
  * - **last meeting** (G1), once a meeting has been held: its number and day, the actions still open
  *   and those past their day — figures with the actions as rows, who and by when — and on whom;
  * - **the closing line**: when Ridgebeam wrote it, and that a snapshot does not change when the work
@@ -61,6 +65,7 @@ import type { Figure } from '@/domain/figure';
 import { aheadFigure, MILESTONE_LABEL_KEYS, paymentPlans, type PlanRow } from '@/domain/milestones';
 import { moneyOfWork, NOT_PRICED_KEY, type MoneyRow } from '@/domain/money';
 import type { WorkSnapshot } from '@/domain/plan';
+import { purchaseFigures, type PurchaseRow } from '@/domain/purchases';
 import { readiness, readinessFigure } from '@/domain/readiness';
 import { runway, runwayChance } from '@/domain/runway';
 import { diaryReport, type DiaryReportRow } from '@/domain/reports/diary';
@@ -76,6 +81,7 @@ import {
 import type { Schedule } from '@/domain/schedule';
 import type { FinishProbabilityResult } from '@/domain/schedule/probability';
 import { actionGroupLabel, openActionText } from '@/features/meeting/meetingWords';
+import { purchaseRowLine } from '@/features/plan/purchaseWords';
 import { pendingText, percentText, whenText } from '@/features/money/paymentPlanWords';
 import type { MessageKey } from '@/i18n/en';
 import { formatDayColumn, formatDayWeekday } from '@/i18n/format';
@@ -87,6 +93,7 @@ import {
   changeTallyBlocks,
   delayBlocks,
   probabilityBlocks,
+  purchaseBlocks,
   runwayBlocks,
   snagBlocks,
 } from './weekly';
@@ -278,6 +285,10 @@ function fallingDueRows(i18n: I18n, rows: readonly FallingDueRow[], currency: st
   );
 }
 
+function toOrderRows(i18n: I18n, term: Term, rows: readonly PurchaseRow[]): string[] {
+  return rows.map((each) => row(purchaseRowLine(i18n, term, each)));
+}
+
 function nextTwoWeeksBlocks(
   input: SnapshotInput,
   ahead: Lookahead,
@@ -357,6 +368,14 @@ function nextTwoWeeksBlocks(
       t(LOOKAHEAD_LABEL_KEYS.gates as MessageKey),
       number(ahead.gates.value),
       gateRows(i18n, ahead.gates.rows),
+    ),
+  );
+  // G2: what to order — the day to order by in the window or already past.
+  blocks.push(
+    figure(
+      t(LOOKAHEAD_LABEL_KEYS.toOrder as MessageKey),
+      number(ahead.toOrder.value),
+      toOrderRows(i18n, term, ahead.toOrder.rows),
     ),
   );
   blocks.push(
@@ -645,6 +664,8 @@ export function composeSnapshot(input: SnapshotInput, i18n: I18n): ReportDocumen
     ...changeBlocks(input, i18n),
     // E4: what is still to fix, and on whom — once a snag has been raised.
     ...snagBlocks(i18n, snapshot, today, 1),
+    // G2: what to order this week, and what is late — once the work has a purchase.
+    ...purchaseBlocks(i18n, purchaseFigures(snapshot, scheduled, entries, today), 1),
     // G1: the last site meeting, and the actions it left open and on whom.
     ...meetingBlocks(input, i18n),
     { type: 'rule' },

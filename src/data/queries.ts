@@ -69,6 +69,10 @@ import {
   fundingReceiptReverse,
   fundingRemove,
   fundingUpdate,
+  purchaseAdd,
+  purchaseEventAdd,
+  purchaseRemove,
+  purchaseUpdate,
   careNoteRemove,
   careNoteUpdate,
   checkAdd,
@@ -149,6 +153,8 @@ import {
   type SnagDraft,
   type FundingDraft,
   type FundingReceiptDraft,
+  type PurchaseDraft,
+  type PurchaseEventDraft,
   type DecisionPatch,
   type EntryDraft,
   type Gate,
@@ -678,6 +684,25 @@ export function useReverseReceipt() {
   return useWorkCommand(({ seq, day }: { seq: number; day: string }) =>
     fundingReceiptReverse(seq, day),
   );
+}
+
+// ── Purchases (G2) ───────────────────────────────────────────────────────────
+
+export function useAddPurchase() {
+  return useWorkCommand((draft: PurchaseDraft) => purchaseAdd(draft));
+}
+
+export function useUpdatePurchase() {
+  return useWorkCommand((draft: PurchaseDraft & { id: string }) => purchaseUpdate(draft));
+}
+
+export function useRemovePurchase() {
+  return useWorkCommand((id: string) => purchaseRemove(id));
+}
+
+/** Ordered, delivered, or the order fell through: one fact, appended. */
+export function useAddPurchaseEvent() {
+  return useWorkCommand((event: PurchaseEventDraft) => purchaseEventAdd(event));
 }
 
 // ── People and money (F6) ────────────────────────────────────────────────────

@@ -62,9 +62,12 @@ and surprise me. That third wave — a slice of hygiene, H0, and six slices, G1 
 [ADR-045](#adr-045), which records its first: slice G1 turns the second wave into a weekly ritual.
 The agenda of the site meeting is written from the record — the actions still open, the decisions
 due, the changes waiting, the snags open, the money falling due and held, why it is late, the next
-two weeks — what the meeting decides is done right there through the product's own commands, and
-the minutes, with the actions they raise, are written once, at the close, and never edited
-([ADR-045](#adr-045)).
+two weeks — what the meeting decides is done right there through the product's own commands, and the
+minutes, with the actions they raise, are written once, at the close, and never edited
+([ADR-045](#adr-045)). The second, slice G2, says what to order this week: each thing an activity
+needs that takes time to arrive carries the lead time its supplier quoted, the day to order it by is
+read from when its activity starts as things stand — not from the plan's dates — and its order and
+its delivery are facts on record ([ADR-046](#adr-046)).
 
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -113,6 +116,7 @@ the minutes, with the actions they raise, are written once, at the close, and ne
 | [043](#adr-043) | As things stand: a forecast from the diary, and a ledger of why it is late                                            | Accepted — 2026-10-04          |
 | [044](#adr-044) | A work that ends well: snags closed with a photo, and retention held until they are                                   | Accepted — 2026-10-04          |
 | [045](#adr-045) | The weekly site meeting: an agenda from the record, minutes that are never edited                                     | Accepted — 2026-10-05          |
+| [046](#adr-046) | What to order this week: lead times against the forecast, orders and deliveries as facts                              | Accepted — 2026-10-05          |
 
 ---
 
@@ -2302,7 +2306,8 @@ never reproduced: the book points to it, and the work's folder keeps it.
 ## ADR-039 — The owner's snapshot: one file with no script, rendered by the host, sent by the person {#adr-039}
 
 **Status.** Accepted — 2026-10-02. Two details of its lookahead — gates with no checks, and the
-decisions' window — are amended by [ADR-040](#adr-040).
+decisions' window — are amended by [ADR-040](#adr-040). Its lookahead gains the purchases to order
+in the next two weeks, by [ADR-046](#adr-046).
 
 **Context.** The fourth differentiator ([ADR-036](#adr-036)). The owner of a small work is rarely
 where the product runs: they are at their own job, and at the end of the day they ask, by message,
@@ -3109,7 +3114,8 @@ commitment reads as paid ahead of the work until that snag is closed, which, by 
 
 ## ADR-045 — The weekly site meeting: an agenda from the record, minutes that are never edited {#adr-045}
 
-**Status.** Accepted — 2026-10-05.
+**Status.** Accepted — 2026-10-05. Amended by [ADR-046](#adr-046): the agenda gains a section,
+**Purchases**, between the snags and the money.
 
 **Context.** With the second wave in `develop`, the squad put the next list in front of the owner —
 hygiene before the acceptance test and six more things a work would use — and asked which he wanted
@@ -3244,3 +3250,140 @@ meeting is in the record at once, and a meeting abandoned before its close leave
 no minutes that say where they were decided. **What was done is recorded in words**: an item's
 outcome is the sentence the screen wrote from the command that ran, in the language on screen when
 the meeting closed, and the minutes print it as it was written.
+
+## ADR-046 — What to order this week: lead times against the forecast, orders and deliveries as facts {#adr-046}
+
+**Status.** Accepted — 2026-10-05.
+
+**Context.** This is G2, the second slice of the third wave ([ADR-045](#adr-045)). On a small work
+the most ordinary delay is nobody's decision: the worktop is measured once the cabinets are in, the
+supplier quotes three weeks, and the tiler waits; the windows were in the contract from the first
+day, and nobody ordered them until the openings were ready. The product knew the parts and not the
+answer. A decision carries a lead time and a deadline computed from it ([ADR-017](#adr-017)), but a
+decision is about **which** — the tile, the vanity — and many things that take weeks to arrive need
+no decision at all: the windows already chosen, the boiler named in the quote, the stone for the
+sill. A stage's start gate can ask whether the material is on site ([ADR-022](#adr-022)), which is
+asked on the day the stage would start, when it is too late to do anything but wait. And when it did
+not arrive, the diary can say so after the fact — a day lost to _material that did not arrive_
+([ADR-043](#adr-043)) — which explains the delay and prevents none of it. Nothing said, ahead of
+time, **when each thing must be ordered**, nothing recorded that it was, and nothing noticed that an
+order placed was late to arrive.
+
+**Decision.**
+
+- **A purchase is something an activity needs that takes time to arrive** (`purchase`, migration
+  018, [`DATA_MODEL.md`](../DATA_MODEL.md)). It carries a name (1–200 characters) — _Worktop_; a
+  quantity, as free text up to 60 characters — _12 m²_ — never computed with; a supplier, up to 120
+  characters, optional; **the lead time**, a whole number of **calendar days** from 0 to 365,
+  because that is how a supplier quotes it — _three weeks_, not fifteen working days; a note, up to
+  2 000 characters; and **where it is needed**: a stage, required, and an activity of that stage,
+  optional — with none, it is needed when the stage's first activity starts. **A purchase is
+  editable**, as a commitment is: buying is the work, not its scope, so it is not locked by the
+  plan's approval and no baseline records it. The purchases keep an order of their own, 1 … n,
+  closed up after a removal. The activity must be one of the stage's; an activity removed later lets
+  go of the purchase, which is then needed when its stage's first activity starts, and a stage
+  removed takes its purchases with it. **A purchase something has happened to cannot be removed**,
+  nor the stage it is on: the host refuses with a sentence, and the event's foreign key refuses
+  again.
+- **Ordered, delivered and an order that fell through are facts** (`purchase_event`). Each event
+  carries its kind — **ordered**, **delivered** or **cancelled** — the day it happened, never after
+  today, a note up to 500 characters, the name the Windows account gives, and a number that
+  continues per purchase. They follow one order, which the host refuses with a sentence and the
+  schema refuses again: **delivered** only after an order that was not cancelled; **cancelled** only
+  after an order not yet delivered — the order fell through, and the purchase is to order again;
+  never two orders in a row; nothing after **delivered**; and never on a day before the event it
+  follows. **Insert-only.** The events carry the battery of the money received (migration 014) —
+  triggers refuse `UPDATE` and `DELETE`, a guard before insert refuses an event's number already
+  there, and the number must be the next — so `INSERT OR REPLACE` removes nothing whether
+  `recursive_triggers` is on or off, and each raises `purchase: append-only`; the Rust module that
+  writes it holds no `UPDATE`, `DELETE` or `REPLACE`, which a test reads its source to prove. A
+  mistake is not undone: an order recorded wrongly is cancelled, with its note, and ordered again.
+  The commands are `purchase_add`, `purchase_update`, `purchase_remove` and `purchase_event_add`,
+  each returning the work's snapshot, which now carries the purchases in their order, each with its
+  events — and so the JSON export and every backup carry them.
+- **The order-by day is the domain's, computed, never stored** (`purchaseRows`, pure). From the
+  snapshot, the schedule, the forecast and today, each purchase gets **its state**, read from its
+  events — **to order**, **ordered** or **delivered**, and an order cancelled returns it to **to
+  order**; **the day it is needed** — the start of its activity, or of its stage's first activity,
+  **as things stand**: the forecast's start ([ADR-043](#adr-043)), and the schedule's where the
+  forecast has none; **the day to order by** — the day it is needed less the lead time, in calendar
+  days; and, once ordered, **the day it is expected** — the day it was ordered plus the lead time.
+  Four flags: **late to order** — to order, and the day to order by has passed; **to order this
+  week** — to order, and the day to order by falls in the current week, Monday to Sunday, or has
+  already passed; **late to arrive** — ordered, and the day it was expected has passed; **arrives
+  after it is needed** — ordered, and the day it is expected is after the day it is needed: the
+  order will make the activity wait. **What is done is not flagged**: a purchase whose activity the
+  diary says is finished, or whose stage is closed, carries no flag — the work went on without it. A
+  purchase whose activity is not scheduled has no day to order by yet, and says why. Three figures
+  carry their rows ([ADR-024](#adr-024)): **to order this week**, **late to order** and **late to
+  arrive**.
+- **Where it lives.** The Plan gains a **Purchases** tab: add a purchase on a stage, an activity
+  optional, with its quantity, supplier and lead time; the list by state, each row with the day to
+  order by — and what it was computed from — and its flags in words and with their icon; and on each
+  row **Mark as ordered…** and **Mark as delivered…**, each with its day, and **The order fell
+  through…**, with its day and a note. The Dashboard gains **To order this week** — the three
+  figures — not shown while the work has no purchase. The next two weeks ([ADR-039](#adr-039)) gain
+  what is to order in them; the meeting's agenda ([ADR-045](#adr-045)) gains a **Purchases** section
+  — what is to order this week or late to order, and what is ordered and late to arrive or will
+  arrive after it is needed — between the snags and the money, from the same call; the weekly report
+  and the owner's snapshot say the same, in the owner's words.
+- **Readiness learns no rule.** A purchase late to order is not something the plan does not know:
+  the plan can be complete, every activity with its duration and its responsible, and the worktop
+  still not ordered. It is a fact of the work's execution, as a snag is ([ADR-044](#adr-044)) and a
+  meeting not held is ([ADR-045](#adr-045)), and it is said where execution is said — the Dashboard,
+  the lookahead, the agenda — not in the measure of what the plan knows ([ADR-008](#adr-008),
+  [ADR-018](#adr-018)).
+- **Words.** The glossary gains _order by_ (_encomendar até_): the last day a purchase can be
+  ordered and still arrive in time, computed, never typed. _Lead time_ (_prazo de entrega_) was
+  already the decision's; its sentence now says how each counts it — a decision in working days, a
+  purchase in calendar days.
+- **ADR-039 and ADR-045 are amended, not replaced.** The next two weeks gain a kind of row, and the
+  agenda a section in its fixed order; the minutes keep a purchase's item under the kind `other`, so
+  migration 017's closed list of kinds does not change. Nothing else of either changes, and their
+  Status lines point here. [ADR-017](#adr-017) is not amended: a decision's deadline stays the
+  plan's, in working days.
+
+**Why the forecast, and not the plan's dates.** A decision's deadline is read from the plan's
+schedule because it is plan knowledge: readiness asks whether the plan's own decisions will be made
+in time for the plan's own dates ([ADR-017](#adr-017), [ADR-018](#adr-018)). An order is the
+opposite: an act on the site's calendar, and its question is when the thing will actually be needed.
+A work three weeks behind on site, whose plan nobody has touched, still has the plan's dates — and
+an order placed by them brings the worktop three weeks early, into a kitchen with no cabinets, to be
+stored, knocked and paid for before its time; a work ahead of its plan gets it late. The forecast is
+the site's own date ([ADR-043](#adr-043)): it moves when the work slips or gets ahead, and the day
+to order by moves with it, while what is already ordered keeps the day it is expected, and says so
+when that day is after the day it is needed. Nothing is lost at the start: with the diary empty and
+today on or before the plan's start, the forecast is the schedule, day for day.
+
+**Why no readiness rule.** Readiness measures what the plan knows ([ADR-008](#adr-008)); a rule that
+fell every time somebody forgot to phone a supplier would make it a measure of the site, mixing the
+plan with the record — the separation the product was built on ([ADR-009](#adr-009)). What to order
+and what is late to arrive are the execution's to say, on the Dashboard and in the meeting, where
+somebody can act on them this week.
+
+**Why facts, and why insert-only.** "I ordered it on the 3rd" and "it never came" are the sentences
+an argument with a supplier, or about one, turns on; a record of orders that could be quietly
+rewritten is a record nobody can point to. An order that fell through is not erased: it is a fact
+that it was placed and a fact that it fell through, and the purchase is to order again, with both on
+its row. The purchase itself is editable because, until it is ordered, it is what somebody intends
+to buy — the quantity corrected, another supplier, a lead time a new quote changed; once something
+has happened to it, the screen offers neither edit nor remove, so an order keeps the lead time it
+was placed with, and its history is in its events, not in its fields.
+
+**Cost accepted.** **The day to order by is as good as the lead time typed and the forecast**: a
+lead time is what the supplier said, and the forecast assumes the rest goes to plan (ADR-043), so a
+crew slowing down moves the day only once its activity runs past its duration. **Lead times are
+calendar days**: a supplier's working week, its holidays and its delivery days are not modelled, and
+a day to order by can fall on a Sunday; a decision's lead time, in working days, and a purchase's,
+in calendar days, are one word counted two ways, which the glossary says. **The product orders
+nothing**: it says when, and ordering is the person's act, by the person's means; it sends nothing,
+to a supplier or to anybody. **Ordered and delivered are what the person records**: the product
+cannot know that an order was placed or that it arrived, and the record is as true as the person who
+wrote it — a delivery recorded is not a delivery inspected. **A purchase is not money**: it has no
+price, no stock and no arithmetic on its quantity; it may name a commitment in its note, and nothing
+more — what it costs is the commitment's and the ledger's. **A purchase is needed by one activity**:
+a delivery needed in parts — the first tiles for the bathroom, the rest for the kitchen — is written
+as two purchases. **What is ordered keeps its expected day**: the product tracks no revised delivery
+date, so a supplier who says the order will be late is said in the purchase's note, and the order
+reads as late to arrive once its day has passed; one that will not come at all is an order that fell
+through, and is placed again.

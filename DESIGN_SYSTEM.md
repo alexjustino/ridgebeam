@@ -748,6 +748,32 @@ breaks one is not merged.
   **Drop** (`action-done`, `action-drop`), each once, and the next agenda opens with the actions
   still open, oldest first. The minutes printed are in the **owner's** words whatever lens is on,
   like the weekly report, and end with what they are: a record, not a signature (ADR-045).
+- **An order-by day is shown with what it is computed from.** The day to order a purchase by is
+  never a date alone on a row: it moves when the work slips or gets ahead, and a bare date reads as
+  a promise somebody made. Beside it the row says the two things it is computed from — **the start
+  as things stand** of the activity that needs it, labelled as the forecast's and never as the
+  plan's (§8, _the plan and the forecast are never the same number on screen_), and **the lead
+  time**, in calendar days, said as days — _"Order by 14 Oct: needed on 4 Nov as things stand, and
+  the supplier takes 21 days."_ The unit is always said, because a decision's lead time is counted
+  in working days and a purchase's in calendar days (§2, _one word, one meaning_). Once ordered, the
+  row says the day it was ordered and the day it is expected, and when that is after the day it is
+  needed it says so in words. On the Plan's **Purchases** tab (`data-tab="purchases"`) each row
+  carries its state (`data-purchase-id`, `data-state`, `data-late`), and **late to order**, **to
+  order this week**, **late to arrive** and **arrives after it is needed** are said in words and
+  with their icon, never by colour alone (§2); a purchase late to order is counted among this
+  week's too, but its row says it once. What happened to a purchase is recorded through
+  **Mark as ordered…** (`purchase-ordered`), **Mark as delivered…** (`purchase-delivered`) and **The
+  order fell through…** (`purchase-cancel`), each a dialog that asks the day (`purchase-event-day`)
+  and takes a note (`purchase-event-note`), confirmed by a button that repeats the verb
+  (`purchase-event-confirm`); none is destructive, none takes the danger tone, and an event once
+  recorded offers no Edit and no Delete. A purchase is edited and removed only while nothing has
+  happened to it. A purchase whose activity is finished, or whose stage is closed, is not flagged,
+  and says why; one whose activity is not scheduled says that it has no day to order by yet, and
+  why. The dashboard's **To order this week** card (`dashboard-purchases`) — to order this week,
+  late to order and late to arrive (`purchases-week-value`, `purchases-late-value`,
+  `purchases-arriving-late-value`), each a figure that opens onto its rows (§2, _a number can be
+  opened_) — is not shown while the work has no purchase. The product orders nothing, and no screen
+  says it will (ADR-046).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries

@@ -1022,6 +1022,67 @@ schedule, the diary and today, every time the meeting screen asks; whether an ac
 overdue is read from these rows and today. No table holds an agenda: what the minutes keep of one is
 the title each item had when the meeting closed.
 
+### `purchase` and `purchase_event` — what to order, and what happened to it (G2)
+
+The materials an activity needs that take time to arrive — a worktop, the windows, the tiles — are
+written down with how long the supplier takes, and the product says the day to order each by
+(ADR-046). **A purchase is plan** and **what happened to it is fact**: the first table is edited like
+a commitment, the second is insert-only, like the money received.
+
+| `purchase`    | Type    | Meaning                                                                                                                      |
+| ------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `id`          | TEXT    | UUID v7                                                                                                                      |
+| `position`    | INTEGER | 1 … n for the whole work, in the order written, unique, closed up when one is removed                                        |
+| `stage_id`    | TEXT    | the stage it is for — required; `REFERENCES stage ON DELETE CASCADE`                                                         |
+| `activity_id` | TEXT    | the activity of that stage that needs it, or `NULL` for the stage's first activity; `REFERENCES activity ON DELETE SET NULL` |
+| `name`        | TEXT    | 1–200 characters, not blank — _Worktop_                                                                                      |
+| `quantity`    | TEXT    | how much, in the person's words, 1–60 characters, or `NULL` — _12 m²_; never read as a number                                |
+| `supplier`    | TEXT    | from whom, 1–120 characters, or `NULL`                                                                                       |
+| `lead_days`   | INTEGER | how long the supplier takes, in **calendar days**, 0–365 — not working days, because that is how a supplier quotes it        |
+| `note`        | TEXT    | up to 2 000 characters, or `NULL`                                                                                            |
+| `created_at`  | TEXT    | UTC                                                                                                                          |
+
+| `purchase_event` | Type    | Meaning                                                                                                        |
+| ---------------- | ------- | -------------------------------------------------------------------------------------------------------------- |
+| `purchase_id`    | TEXT    | `REFERENCES purchase`, with no action — a purchase something has happened to cannot be removed                 |
+| `seq`            | INTEGER | 1, 2, … per purchase — the next after the highest already written; with `purchase_id`, the primary key         |
+| `kind`           | TEXT    | `ordered`, `delivered`, or `cancelled` when the order fell through — the purchase is then to order again       |
+| `day`            | TEXT    | the ISO day it happened — **never after today**, which the host refuses, and never before the event it follows |
+| `note`           | TEXT    | up to 500 characters, or `NULL`                                                                                |
+| `author_name`    | TEXT    | the display name of the Windows account that recorded it                                                       |
+| `created_at`     | TEXT    | UTC                                                                                                            |
+
+**A purchase is plan, and edited freely.** Buying is the work, not its scope: no baseline records a
+purchase, and the approved plan's lock (ADR-027) does not cover one. `purchase_update` writes the
+row whole. The activity, when there is one, is one of the stage's, which a trigger holds on insert
+and on update (`purchase: activity`). A stage removed takes its purchases with it, as it takes its
+commitments; an activity removed sets `activity_id` to `NULL`, and the purchase is then needed when
+its stage's first activity starts. **A purchase something has happened to is not removed**, nor the
+stage it is on: the host refuses with a sentence first, and `purchase_event`'s foreign key, which
+has no action, refuses again.
+
+**What happened to it is a fact, in one order.** A purchase is **to order** while it has no event, or
+when its last is `cancelled`; **ordered** when its last is `ordered`; **delivered** when its last is
+`delivered`. What the host refuses first with a sentence, the schema refuses again
+(`purchase: event`): an `ordered` straight after another `ordered`, or after `delivered`; a
+`delivered` or a `cancelled` that does not follow an `ordered`; anything after `delivered`; and a
+day before the day of any event before it. A day after today is the host's to refuse: the schema has
+no clock it can trust. An order recorded by mistake is cancelled, with its note, and ordered again;
+nothing is undone.
+
+**Insert-only, behind the host.** Migration 018 gives `purchase_event` the money received's battery
+(migration 014): triggers refuse `UPDATE` and `DELETE`, a guard before insert refuses a `seq` already
+there, so `INSERT OR REPLACE` cannot remove a row whether `recursive_triggers` is on or off, and a
+`seq` that is not the next one is refused too. Each raises `purchase: append-only`. The Rust module
+that writes the events holds no `UPDATE`, `DELETE` or `REPLACE`, and a test reads its source to
+prove it. `purchase` itself is not insert-only, by design.
+
+**Every day is computed.** The day it is needed, the day to order by, the day it is expected and
+whether it is to order this week, late to order, late to arrive or due after it is needed are the
+domain's (`purchaseRows`), from these rows, the forecast and today, every time a screen asks — each
+figure with its rows. No column holds one: a purchase whose activity slips is read again, and its
+day to order by moves with it.
+
 ## Nothing is stored per lens, or per arrangement
 
 The breakdown, the works by room and the owner's checklist are three arrangements of the same
@@ -1108,11 +1169,12 @@ migration each database has been through, by number and name.
 
 - Identifiers are UUID v7 as 36-character text; timestamps are UTC with milliseconds and a
   trailing `Z`; dates are ISO 8601 `YYYY-MM-DD` text.
-- Every table that must never lose a row is insert-only: triggers refuse `UPDATE`, `DELETE`
-  and `REPLACE`, and the Rust module that writes it contains no `UPDATE` or `DELETE` statement,
-  by rule. **Shipped for the baselines (F2) and the diary (F4)**, whose entries also carry the
-  hash of the one before; the payments ledger (F6), the change orders (E1), the money received (E2),
-  the snags (E4) and the meetings' minutes and actions (G1) follow the same pattern.
+- Every table that must never lose a row is insert-only: triggers refuse `UPDATE`, `DELETE` and
+  `REPLACE`, and the Rust module that writes it contains no `UPDATE` or `DELETE` statement, by rule.
+  **Shipped for the baselines (F2) and the diary (F4)**, whose entries also carry the hash of the
+  one before; the payments ledger (F6), the change orders (E1), the money received (E2), the snags
+  (E4), the meetings' minutes and actions (G1) and what happened to each purchase (G2) follow the
+  same pattern.
 - Text columns that a person types are bounded by `CHECK (length(...) <= n)` in the schema.
 
 ## Migrations
@@ -1140,6 +1202,7 @@ covered by a round-trip test that opens a work at version N-1 and migrates it wi
 | `015_lost_cause.sql`                 | E3    | `diary_entry.lost_cause` and `.lost_party_person_id`, each with its `CHECK`; the canonical form's conditional `lost` record                                                                                           |
 | `016_snags.sql`                      | E4    | `snag` and `snag_closure`, each with its `CHECK`s and the insert-only battery of migration 013; `payment_milestone` rebuilt with the trigger `retention`, every row and D2's triggers kept                            |
 | `017_meetings.sql`                   | G1    | `meeting`, `meeting_attendee`, `meeting_item`, `meeting_action` and `meeting_action_closure`, each with its `CHECK`s and the snags' insert-only battery; a meeting's counts seal its minutes                          |
+| `018_purchases.sql`                  | G2    | `purchase`, with its `CHECK`s and the trigger that keeps its activity in its stage; `purchase_event` with the insert-only battery of migration 014 and the triggers that keep its events in order                     |
 
 Each migration has its round-trip test in `cargo test`: a work created at schema 1 with its stages
 and activities migrates to schema 2 without loss, a work at schema 2 with rooms and quantities
@@ -1163,7 +1226,9 @@ byte for byte what it was, no cause invented and its chain verifying before and 
 schema 15 with commitments, payment plans — one locked by a payment — and a diary migrates to schema
 16 with every milestone kept with its id, share and trigger, the paid plan still locked, no snag
 invented and its chain still verifying, and a work at schema 16 with change orders, snags and a
-diary migrates to schema 17 losing nothing, with no meeting invented and its chain still verifying.
+diary migrates to schema 17 losing nothing, with no meeting invented and its chain still verifying,
+and a work at schema 17 with meetings, snags and a diary migrates to schema 18 losing nothing, with
+no purchase invented and its chain still verifying.
 
 **Migration 008's backfill.** Every file an earlier slice copied becomes a `document`, linked
 where it came from, one row per hash in this order of precedence: a diary photo (kind `photo`,
@@ -1261,6 +1326,10 @@ slice showed moves with the migration.
 schema 16 has held no meeting, so its first meeting is #1 and its first agenda carries no action,
 and no figure an earlier slice showed moves with the migration.
 
+**Migration 018 adds two tables and nothing else.** No existing row changes: a work migrated from
+schema 17 has no purchase, so the Dashboard shows no **To order this week**, the agenda and the next
+two weeks have nothing to order, and no figure an earlier slice showed moves with the migration.
+
 The migrations live in `src-tauri/work_migrations/`.
 
 ## A comparison, a what-if and a chance are computed, not stored
@@ -1319,6 +1388,14 @@ falling due and held, the delay ledger, the next two weeks and the gates coming 
 computes any of them a second way. Only the minutes store what it said, once, at the close: each
 item's title as it stood that day.
 
+What to order this week (G2) is not stored either. The domain reads each purchase's state from its
+events, the day it is needed from the forecast's start of its activity — or of its stage's first
+activity — and the schedule's where the forecast has none, the day to order by as that day less the
+lead time in calendar days, and the day it is expected as the day it was ordered plus the lead time,
+every time a screen asks (`purchaseRows`, [ADR-046](architecture/ADR.md#adr-046)). No table holds
+one of those days, a flag or a figure: what is written is what the person said — the purchase, and
+what happened to it.
+
 ## Not yet in the schema
 
 Nothing that 1.0 needs. A backup is a file the person keeps, not a table: the work records nothing
@@ -1352,12 +1429,12 @@ field means, or removes one, takes the next number.
 }
 ```
 
-| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks — each saying whether it needs a photo — and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, the care notes, the change orders each with its decision or none, the funds and the money received, the snags each with its closure or none, the meetings with their attendees, items and actions and each action's closure or none, and the open replanning |
-| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos, why a lost day was lost (`lostCause` and `lostPartyPersonId`, `null` when none was given) and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                                                                                                                                                                                      |
+| Field           | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ridgebeamWork` | the format's version, `1`. A reader that does not know the number should refuse the file rather than guess                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `exportedAt`    | when the file was written, UTC with milliseconds and a trailing `Z`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `work`          | the work exactly as the `work_get` command returns it (`WorkSnapshot` in `src-tauri/src/contract.rs`): the work row with its provenance, the calendar and holidays, people, stages, rooms, activities, dependencies, baselines with their activities and stages, decisions, checks — each saying whether it needs a photo — and every answer, cost lines, commitments, the payments ledger with its reversals, documents with their links, the care notes, the change orders each with its decision or none, the funds and the money received, the snags each with its closure or none, the meetings with their attendees, items and actions and each action's closure or none, the purchases each with its events, and the open replanning |
+| `diary`         | every diary entry from 1, in the chain's order — corrections included, as they were written — with its done lines, the people present, its photos, why a lost day was lost (`lostCause` and `lostPartyPersonId`, `null` when none was given) and its `hash` and `prevHash`, so that a reader can recompute the chain from the canonical form above                                                                                                                                                                                                                                                                                                                                                                                          |
 
 Field names are camelCase, as the interface receives them; money is whole minor units, dates are
 `YYYY-MM-DD` and instants UTC, as everywhere in this model. Nothing is computed: no schedule, no

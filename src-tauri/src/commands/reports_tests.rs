@@ -641,6 +641,29 @@ fn the_work_as_json_reads_back_into_the_snapshot_and_the_diary() {
     )
     .unwrap();
 
+    // G2: a purchase, ordered, travels with the work.
+    let worktop = crate::commands::purchases::purchase_add_with(
+        &site.open,
+        &serde_json::from_value(serde_json::json!({
+            "stageId": stage, "name": "Worktop", "leadDays": 21
+        }))
+        .unwrap(),
+    )
+    .unwrap()
+    .purchases[0]
+        .id
+        .clone();
+    crate::commands::purchases::purchase_event_add_with(
+        &site.open,
+        &serde_json::from_value(serde_json::json!({
+            "purchaseId": worktop, "kind": "ordered", "day": "2026-10-08"
+        }))
+        .unwrap(),
+        today(),
+        "A. Owner (synthetic)",
+    )
+    .unwrap();
+
     let file = work_export_json_with(
         &site.open,
         &written,
@@ -681,6 +704,13 @@ fn the_work_as_json_reads_back_into_the_snapshot_and_the_diary() {
     assert!(
         text.contains("\"personId\": null"),
         "an action on nobody, and null never absent"
+    );
+    assert_eq!(export.work.purchases[0].id, worktop);
+    assert_eq!(export.work.purchases[0].events[0].kind, "ordered");
+    assert!(text.contains("\"purchases\": ["));
+    assert!(
+        text.contains("\"supplier\": null"),
+        "a supplier not said, and null never absent"
     );
     assert_eq!(
         export.diary,

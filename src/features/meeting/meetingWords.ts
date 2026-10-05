@@ -167,6 +167,60 @@ export function agendaDetailText(
               ? tp('meeting.action.overdue', detail.overdueDays, { day: day(item.due) })
               : t('meeting.action.byDay', { day: day(item.due) }),
       });
+    case 'purchase-to-order': {
+      // The purchases' own words (G2): what needs it, its lead time, the day to order by.
+      const stage = detail.stageName ?? t('snags.row.goneStage');
+      const orderBy =
+        detail.orderBy === null
+          ? t('purchases.row.notScheduled')
+          : t('purchases.row.orderBy', {
+              orderBy: term('orderBy', { capital: true }),
+              day: day(detail.orderBy),
+            });
+      return t(key, {
+        neededFor:
+          detail.neededActivityName === null
+            ? t('purchases.row.neededForStage', { stage })
+            : t('purchases.row.neededFor', { activity: detail.neededActivityName, stage }),
+        lead: tp('purchases.row.lead', detail.leadDays, {
+          leadTime: term('leadTime', { capital: true }),
+        }),
+        when:
+          detail.lateToOrder && detail.daysLate !== null
+            ? `${orderBy} — ${tp('purchases.row.daysLate', detail.daysLate)}`
+            : orderBy,
+      });
+    }
+    case 'purchase-ordered': {
+      const stage = detail.stageName ?? t('snags.row.goneStage');
+      const ordered =
+        detail.orderedOn === null
+          ? ''
+          : t('purchases.row.ordered', {
+              day: day(detail.orderedOn),
+              expected: detail.expectedOn === null ? '—' : day(detail.expectedOn),
+            });
+      return t(key, {
+        neededFor:
+          detail.neededActivityName === null
+            ? t('purchases.row.neededForStage', { stage })
+            : t('purchases.row.neededFor', { activity: detail.neededActivityName, stage }),
+        when: [
+          ordered,
+          detail.lateToArrive && detail.daysLate !== null
+            ? tp('purchases.row.daysLate', detail.daysLate)
+            : '',
+          detail.arrivesAfterNeeded && detail.expectedOn !== null && detail.neededOn !== null
+            ? tp('purchases.row.afterNeeded', detail.daysAfterNeeded ?? 1, {
+                expected: day(detail.expectedOn),
+                needed: day(detail.neededOn),
+              })
+            : '',
+        ]
+          .filter((part) => part !== '')
+          .join(' — '),
+      });
+    }
     case 'due-now':
       return t(key, { amount: money(detail.amountCents, currency) });
     case 'falling-due':

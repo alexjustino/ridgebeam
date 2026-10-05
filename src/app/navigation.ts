@@ -40,6 +40,8 @@ export interface Navigation {
   openChanges: () => void;
   /** Open the Plan on its Snags tab (E4: the dashboard's Still to fix card leads to the list). */
   openSnags: () => void;
+  /** Open the Plan on its Purchases tab (G2: the dashboard's To order this week card leads there). */
+  openPurchases: () => void;
   /**
    * Open this week's meeting (G1): a full page reached from the dashboard's card, with the agenda the
    * record wrote. Not a destination of the rail — the meeting is something done on the dashboard's
@@ -63,6 +65,7 @@ export const NavigationContext = createContext<Navigation>({
   openSchedule: () => undefined,
   openChanges: () => undefined,
   openSnags: () => undefined,
+  openPurchases: () => undefined,
   openMeeting: () => undefined,
   openMinutes: () => undefined,
 });

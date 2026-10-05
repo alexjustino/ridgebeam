@@ -42,6 +42,7 @@ import { CHANGE_LABEL_KEYS, changeTally, type ChangeTally } from '@/domain/chang
 import { RUNWAY_LABEL_KEYS, type Runway, type RunwayChance } from '@/domain/runway';
 import { DELAY_LABEL_KEYS, type DelayLedger } from '@/domain/delay';
 import { SNAG_LABEL_KEYS, snagFigures, snagRows, type SnagRow } from '@/domain/snags';
+import { PURCHASE_LABEL_KEYS, type PurchaseFigures, type PurchaseRow } from '@/domain/purchases';
 import {
   delayCauseText,
   delayLeftText,
@@ -84,6 +85,7 @@ import {
   snagWhereText,
   snagWhoText,
 } from '@/features/plan/snagWords';
+import { purchaseRowLine, purchaseSentence } from '@/features/plan/purchaseWords';
 import type { MessageKey } from '@/i18n/en';
 import { termsFor } from '@/i18n/terms';
 import type { I18n } from '@/i18n/useI18n';
@@ -359,6 +361,49 @@ export function snagBlocks(
     );
   }
   return blocks;
+}
+
+/**
+ * **To order this week** (G2), as both owner's documents print it, in the owner's words: what to
+ * order and what is late in one sentence, then four figures with their purchases as rows — to order
+ * this week, late to order, ordered and late to arrive, arriving after it is needed — each row with
+ * what needs it and the day to order by or the day expected. Printed once the work has a purchase; a
+ * work that buys nothing with a lead time has nothing to say here, as the dashboard's card has not.
+ */
+export function purchaseBlocks(i18n: I18n, figures: PurchaseFigures, level: 1 | 2): ReportBlock[] {
+  if (figures.total === 0) return [];
+  const { t, number } = i18n;
+  const term = termsFor(i18n.language, 'owner');
+  const rows = (each: { readonly rows: readonly PurchaseRow[] }) =>
+    each.rows.map((purchase) => line(purchaseRowLine(i18n, term, purchase)));
+  return [
+    { type: 'heading', level, text: t('dashboard.purchases.title') },
+    {
+      type: 'paragraph',
+      tone: 'strong',
+      text: shortened(purchaseSentence(i18n, figures), REPORT_LIMITS.text),
+    },
+    figure(
+      t(PURCHASE_LABEL_KEYS.toOrderThisWeek),
+      number(figures.toOrderThisWeek.value),
+      rows(figures.toOrderThisWeek),
+    ),
+    figure(
+      t(PURCHASE_LABEL_KEYS.lateToOrder),
+      number(figures.lateToOrder.value),
+      rows(figures.lateToOrder),
+    ),
+    figure(
+      t(PURCHASE_LABEL_KEYS.lateToArrive),
+      number(figures.lateToArrive.value),
+      rows(figures.lateToArrive),
+    ),
+    figure(
+      t(PURCHASE_LABEL_KEYS.arrivesAfterNeeded),
+      number(figures.arrivesAfterNeeded.value),
+      rows(figures.arrivesAfterNeeded),
+    ),
+  ];
 }
 
 /** The runway and its chance, as the Money page computes them from the same three inputs. */
@@ -808,6 +853,9 @@ export function composeWeekly(
 
   // ── Still to fix (E4) — once a snag has been raised ──
   blocks.push(...snagBlocks(i18n, snapshot, weekly.today, 2, weekly.week));
+
+  // ── To order this week (G2) — once the work has a purchase ──
+  blocks.push(...purchaseBlocks(i18n, weekly.purchases, 2));
 
   // ── Stages ──
   blocks.push({ type: 'heading', level: 2, text: t('reports.weekly.stages') });

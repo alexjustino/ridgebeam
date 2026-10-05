@@ -233,6 +233,21 @@ release that skipped a step is a release nobody can reason about afterwards.
      minutes list the action closed as done. Write the owner's snapshot and find the last meeting in
      it. Do it once in Portuguese, where the card reads _Reunião da semana_, the minutes are the
      _ata_ and an action an _encaminhamento_;
+   - **order what takes time to arrive** on a work with an activity that starts in ten days. On the
+     Plan's **Purchases** tab add _Worktop_ for that activity with a lead time of 21 days, and
+     _Cabinet handles_ with 3. The worktop reads **late to order**, by eleven days, and its row says
+     what its day to order by was computed from — the day the activity starts as things stand and
+     the 21 days; the handles read to order by a day next week, with no flag. On the dashboard, **To
+     order this week** shows 1 to order this week, 1 late to order and none late to arrive, and each
+     figure opens onto its rows. **Mark as ordered…** the worktop today: it is expected in 21 days,
+     and the row says it will arrive after it is needed; the dashboard no longer counts it late to
+     order, and nothing on its row offers an edit or a remove. Open this week's meeting: the
+     agenda's **Purchases** section, between the snags and the money, lists the worktop. **Mark as
+     delivered…** the worktop: it leaves every list. Mark the handles ordered, then **The order fell
+     through…** with a note: they read to order again, and the row says an order fell through. Write
+     the weekly report and the owner's snapshot and find the purchases in both, in the owner's
+     words. Do it once in Portuguese, where the tab reads _Compras_, the lead time is the _prazo de
+     entrega_ and the day to order by reads _encomendar até_;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and

@@ -19,11 +19,14 @@
  * - **money** planned, committed and paid, and paid this week (payments dated in the week,
  *   reversals included, so a reversed payment nets out); and, from the payment plans (slice D2), the
  *   commitments **paid ahead of the work** and what is **earned and not paid**, as of today;
- * - **stages** planned, ready, running, held at a gate ("blocked") and closed.
+ * - **stages** planned, ready, running, held at a gate ("blocked") and closed;
+ * - **purchases** (slice G2): what to order this week, what is late to order, what is ordered and
+ *   late to arrive, and what will arrive after it is needed (`purchaseFigures`, the Dashboard's).
  *
- * The decisions, the money and the stages are the work **as it is today**: a report on a past week
- * says where the work stands now, and which week the diary part is about. A week that has not
- * started yet has nothing to report and is refused; so is a day that is not a day.
+ * The decisions, the money, the stages and the purchases are the work **as it is today** (the
+ * purchases' "this week" is today's week): a report on a past week says where the work stands now,
+ * and which week the diary part is about. A week that has not started yet has nothing to report and
+ * is refused; so is a day that is not a day.
  *
  * What this module is not: text. The interface turns this into a document, in the owner's words.
  */
@@ -51,6 +54,7 @@ import { counted, moneyFigure, type Figure, type ReportRow } from '../figure';
 import { aheadFigure, dueFigure, type PlanRow } from '../milestones';
 import { moneyOfWork, type MoneyRow } from '../money';
 import { latestBaseline, type WorkSnapshot } from '../plan';
+import { purchaseFigures, type PurchaseFigures } from '../purchases';
 import { readiness, readinessFigure, type ReadinessRow } from '../readiness';
 import type { Schedule } from '../schedule';
 import { slip, type SlipRow } from '../schedule/slip';
@@ -163,6 +167,11 @@ export interface Weekly {
     readonly held: Figure<GateHeldRow>;
     readonly closed: Figure<StageRow>;
   };
+  /**
+   * What to order this week, late to order, late to arrive and arriving after it is needed, as of
+   * today (slice G2): the Dashboard's figures, with their rows.
+   */
+  readonly purchases: PurchaseFigures;
 }
 
 export type WeeklyResult =
@@ -325,6 +334,7 @@ export function weekly(
         held: gatesHeldFigure(snapshot),
         closed: closed!,
       },
+      purchases: purchaseFigures(snapshot, scheduled, entries, today),
     },
   };
 }

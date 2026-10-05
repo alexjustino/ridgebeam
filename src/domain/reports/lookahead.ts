@@ -41,7 +41,12 @@
  *   agreed after today; a retention **held** by open snags is money held, never falling due) — each
  *   with what
  *   money already paid ahead on its commitment covers of it; and what is **earned and not paid now**
- *   (`dueFigure`, slice D2).
+ *   (`dueFigure`, slice D2);
+ * - **to order** (slice G2): every purchase still to order whose day to order by (`purchaseRows`:
+ *   the day its activity starts **as things stand** — the forecast — less its lead time in calendar
+ *   days) is in the window or has passed, the most urgent first; a purchase whose activity is
+ *   finished, or whose stage is closed, is not listed. Unlike the rest of the lookahead, this reads
+ *   the forecast, as the Dashboard does: the day to order by has one rule in the product.
  *
  * And the **bars** of a Gantt of the window: every activity starting or running, in breakdown
  * order, as a first column and a length in calendar-day columns from `from`, cut at the window's
@@ -78,6 +83,7 @@ import {
   type PlanRow,
 } from '../milestones';
 import { compareText, stagesInOrder, type Gate, type WorkSnapshot } from '../plan';
+import { purchaseRows, type PurchaseRow } from '../purchases';
 import type { Schedule, ScheduledDates } from '../schedule';
 import { WEEKLY_DECISION_WINDOW_DAYS } from './weekly';
 
@@ -94,6 +100,7 @@ export const LOOKAHEAD_LABEL_KEYS = {
   decisions: 'reports.lookahead.figure.decisions',
   gates: 'reports.lookahead.figure.gates',
   fallingDue: 'reports.lookahead.figure.fallingDue',
+  toOrder: 'reports.lookahead.figure.toOrder',
 } as const;
 
 /**
@@ -225,6 +232,11 @@ export interface Lookahead {
     /** What is earned and not paid now, a row per commitment (slice D2). */
     readonly dueNow: Figure<PlanRow>;
   };
+  /**
+   * Purchases still to order whose day to order by is in the window or has passed, the earliest
+   * first (slice G2). The rows are `purchaseRows`' own.
+   */
+  readonly toOrder: Figure<PurchaseRow>;
   /** The window's Gantt: every activity starting or running, in breakdown order. */
   readonly bars: readonly LookaheadBar[];
 }
@@ -447,6 +459,14 @@ export function lookahead(
   // Stable: commitments stay in plan order within a day.
   falling.sort((a, b) => compareText(a.day, b.day));
 
+  // ── To order: the purchases' one rule, the order-by day in the window or passed ──
+  const toOrder = purchaseRows(snapshot, scheduled, entries, today)
+    .filter(
+      (row) =>
+        row.state === 'to-order' && !row.done && row.orderBy !== null && row.orderBy <= window.to,
+    )
+    .sort((a, b) => compareText(a.orderBy!, b.orderBy!) || a.position - b.position);
+
   return {
     today,
     window,
@@ -460,6 +480,7 @@ export function lookahead(
       fallingDue: moneyFigure('lookahead-falling-due', LOOKAHEAD_LABEL_KEYS.fallingDue, falling),
       dueNow: dueFigure(snapshot, entries, today),
     },
+    toOrder: counted('lookahead-to-order', LOOKAHEAD_LABEL_KEYS.toOrder, toOrder),
     bars,
   };
 }

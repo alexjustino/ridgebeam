@@ -29,6 +29,7 @@ import type {
   MeetingActionOutcome,
   MeetingItemKind,
   MilestoneTrigger,
+  PurchaseEventKind,
   SnagOutcome,
   TargetKind,
   WorkSnapshot,
@@ -234,6 +235,13 @@ export const LIMITS = {
   meetingItemOutcome: 200,
   meetingActionText: 200,
   meetingClosureNote: 500,
+  /** A purchase's name, quantity, supplier and note; an event's note (G2). */
+  purchaseName: 200,
+  purchaseQuantity: 60,
+  purchaseSupplier: 120,
+  purchaseNote: 2000,
+  purchaseLeadDays: 365,
+  purchaseEventNote: 500,
 } as const;
 
 // ── The application ──────────────────────────────────────────────────────────
@@ -1005,6 +1013,57 @@ export interface SnagClosureDraft {
 
 export function snagClose(closure: SnagClosureDraft): Promise<WorkSnapshot> {
   return invoke<WorkSnapshot>('snag_close', { closure });
+}
+
+// ── Purchases (G2) ───────────────────────────────────────────────────────────
+//
+// A purchase is plan: something an activity needs that takes time to arrive, with how long the
+// supplier takes in calendar days — edited freely, not locked by the plan's approval, and removable
+// only while nothing has happened to it. What happened to it — ordered, delivered, the order fell
+// through — is a fact: the events are append-only, and there is no command that edits or removes
+// one. The day to order by is the domain's, computed every time; nothing here carries it.
+
+/** A purchase as it is written: added, or rewritten whole (`null` clears a field). */
+export interface PurchaseDraft {
+  /** The stage it is for. */
+  stageId: string;
+  /** An activity of that stage; `null` for the stage's first activity. */
+  activityId: string | null;
+  name: string;
+  /** How much, in the person's words ("12 m²"); `null` when not said. */
+  quantity: string | null;
+  /** From whom; `null` when not said. */
+  supplier: string | null;
+  /** How long the supplier takes, whole calendar days, 0 to 365. */
+  leadDays: number;
+  note: string | null;
+}
+
+export function purchaseAdd(draft: PurchaseDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('purchase_add', { draft });
+}
+
+/** The purchase named by `id`, rewritten whole. */
+export function purchaseUpdate(draft: PurchaseDraft & { id: string }): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('purchase_update', { draft });
+}
+
+/** Refused once anything has happened to it: an order recorded stays true. */
+export function purchaseRemove(id: string): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('purchase_remove', { id });
+}
+
+/** What happened to a purchase, as the record will keep it. */
+export interface PurchaseEventDraft {
+  purchaseId: string;
+  kind: PurchaseEventKind;
+  /** `YYYY-MM-DD`, never after today, nor before the event it follows. */
+  day: string;
+  note: string | null;
+}
+
+export function purchaseEventAdd(event: PurchaseEventDraft): Promise<WorkSnapshot> {
+  return invoke<WorkSnapshot>('purchase_event_add', { event });
 }
 
 // ── The weekly site meeting (G1) ─────────────────────────────────────────────

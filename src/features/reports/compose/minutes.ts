@@ -64,6 +64,7 @@ export function composeMinutes(
   // ── The agenda: what was said, what was done ──
   blocks.push({ type: 'heading', level: 2, text: t('meeting.agenda.title') });
   const items = [...meeting.items].sort((a, b) => a.position - b.position);
+  const purchases = new Set(snapshot.purchases.map((purchase) => purchase.id));
   if (items.length === 0) {
     blocks.push({ type: 'paragraph', tone: 'muted', text: t('reports.minutes.doc.agendaNone') });
   } else {
@@ -77,7 +78,12 @@ export function composeMinutes(
       rows: tableRows(
         items.map((item) => [
           t('reports.minutes.item', {
-            section: kindText(i18n, item.kind),
+            // A purchase (G2) is written as `other`, the host's kinds being closed: its `refId`
+            // names the purchase, and the minutes say so rather than "Raised in the meeting".
+            section:
+              item.kind === 'other' && purchases.has(item.refId ?? '')
+                ? t('reports.minutes.purchase')
+                : kindText(i18n, item.kind),
             title: item.title,
           }),
           item.note === null || item.note.trim() === ''

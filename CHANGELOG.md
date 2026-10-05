@@ -1417,3 +1417,61 @@ actions still open.
   hold a meeting — the agenda, the attendees, a decision made in it, a change approved in it, an
   action; close it; the next meeting carries the action; the minutes as a PDF, in Portuguese. The
   glossary gains _meeting minutes_ (_ata_) and _action_ (_encaminhamento_).
+
+### Added in G2 — what to order this week
+
+The second slice of the third wave (ADR-046). The most ordinary delay on a small work is nobody's
+decision: the worktop measured once the cabinets are in, a supplier who takes three weeks, and the
+tiler waiting. The materials an activity needs that take time to arrive are now written down with
+**how long the supplier takes** — the **lead time** (_prazo de entrega_), in calendar days — and
+Ridgebeam works out the day to **order by** (_encomendar até_) from when that activity starts **as
+things stand**: the forecast's date, which moves when the work slips or gets ahead, not the plan's.
+The Dashboard says what to order this week, what is late to order and what is late to arrive;
+ordering and delivery are facts on record. Ridgebeam orders nothing: it says when.
+
+- **Purchases** (`purchase`, migration 018). On the Plan's new **Purchases** tab (_Compras_): what
+  to buy, the stage it is for and, optionally, the activity that needs it — with none, the stage's
+  first — how much, in the person's words, the supplier and the lead time, from 0 to 365 calendar
+  days. A purchase is plan: edited freely, not locked by the plan's approval, and removed only while
+  nothing has happened to it. Commands `purchase_add`, `purchase_update` and `purchase_remove`; the
+  work's snapshot carries the purchases in their order, each with its events, and so do the JSON
+  export and every backup.
+- **What happened to it** (`purchase_event`). **Mark as ordered…**, **Mark as delivered…** and **The
+  order fell through…**, each on a day that has happened and with a note; an order that fell through
+  puts the purchase back to order. The events keep one order — ordered first, or after an order that
+  fell through; delivered or fell through only on an open order; nothing after a delivery; never
+  dated before the event before — which the host refuses with a sentence and the schema refuses
+  again. Command `purchase_event_add`.
+- **The day to order by** (`purchaseRows`, in the domain, pure). Each purchase's state from its
+  events — to order, ordered, delivered; the day it is needed, from the forecast's start of its
+  activity, or the schedule's where the forecast has none; the day to order by, that day less the
+  lead time; once ordered, the day it is expected. Flagged in words and with an icon: **late to
+  order**, **to order this week** — Monday to Sunday, the late ones included — **late to arrive**,
+  and **arrives after it is needed**. What is done is not flagged. Each row says what its day was
+  computed from: the start as things stand and the lead time.
+- **On the Dashboard, in the meeting and in the reports.** A **To order this week** card — to order
+  this week, late to order, late to arrive, each a figure that opens onto its rows — not shown while
+  the work has no purchase. The next two weeks list what is to order in them; the meeting's agenda
+  gains a **Purchases** section between the snags and the money; the weekly report and the owner's
+  snapshot say the same, in the owner's words. Readiness learns no rule: a purchase late to order is
+  a fact of the work's execution, not something the plan does not know.
+- **Insert-only, behind the host.** `purchase_event` carries the money received's battery — triggers
+  refuse `UPDATE`, `DELETE` and `REPLACE`, with `recursive_triggers` on and off, and the module that
+  writes the events holds no such statement, which a test reads its source to prove. A purchase
+  something has happened to cannot be removed, nor its stage. **Work migration 018**
+  (`018_purchases.sql`) adds the two tables and nothing else; a work at schema 17 migrates to 18
+  losing nothing, its chain still verifying.
+- **Documentation.** ADR-046 (what to order this week: lead times against the forecast, orders and
+  deliveries as facts), with why the forecast and not the plan's dates, why readiness learns no
+  rule, and its costs: the day to order by is as good as the lead time typed and the forecast; lead
+  times are calendar days, and a supplier's working week is not modelled; the product orders nothing
+  and sends nothing; ordered and delivered are what the person records; a purchase is not money — no
+  price, no stock, no arithmetic on its quantity. ADR-039 and ADR-045 are amended: the next two
+  weeks gain the purchases to order, and the agenda a section.
+  [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md): migration 018 and the two tables.
+  [`SECURITY.md`](SECURITY.md): the events are insert-only, and the product orders nothing and sends
+  nothing. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _an order-by day is shown with what it is
+  computed from_. [`docs/RELEASE.md`](docs/RELEASE.md): add purchases with lead times, see what is
+  late to order and what to order this week, mark ordered and delivered, an order that falls
+  through, the agenda's Purchases, in Portuguese. The glossary gains _order by_ (_encomendar até_),
+  and _lead time_ says how a decision and a purchase each count it.

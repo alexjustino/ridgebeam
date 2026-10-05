@@ -13,13 +13,17 @@
  * 3. **change orders** waiting for their decision (`changeOrderRows`, pending), with how long they
  *    waited; one waiting longer than readiness allows (`waitsTooLong`) is marked overdue;
  * 4. **snags** still open (`snagRows`), overdue first (most days past first), then by number;
- * 5. **money**: what is earned and not paid now and what falls due in the window (the lookahead's
+ * 5. **purchases** (slice G2, `purchaseRows`): what is to order this week — late to order first, by
+ *    the day to order by — then what is ordered and late to arrive, or will arrive after it is
+ *    needed, by the day it is expected. Its minutes items take the kind `other`: the host's list of
+ *    kinds is closed (migration 017), and a purchase needs no kind of its own to be said;
+ * 6. **money**: what is earned and not paid now and what falls due in the window (the lookahead's
  *    payments), then the retentions held by open snags (the runway's `held`);
- * 6. **why it is late**: one item, only while the delay ledger says the work is late — its total and
+ * 7. **why it is late**: one item, only while the delay ledger says the work is late — its total and
  *    its top causes (`delayLedger`);
- * 7. **the next two weeks**: what starts (the lookahead's `starting`) and who must be there (its
+ * 8. **the next two weeks**: what starts (the lookahead's `starting`) and who must be there (its
  *    `people`);
- * 8. **gates** coming up in the window (the lookahead's `gates`).
+ * 9. **gates** coming up in the window (the lookahead's `gates`).
  *
  * Empty sections are left out; an agenda with nothing in it says so (`empty`, with its key). What
  * nobody wrote down is not on it.
@@ -50,6 +54,7 @@ import {
   type WorkSnapshot,
 } from './plan';
 import { LOOKAHEAD_GATE_KEYS, lookahead } from './reports/lookahead';
+import { purchaseRows } from './purchases';
 import { runway } from './runway';
 import type { Schedule } from './schedule';
 import { snagRows } from './snags';
@@ -102,6 +107,7 @@ export const AGENDA_SECTIONS = [
   'decisions',
   'changes',
   'snags',
+  'purchases',
   'money',
   'delay',
   'lookahead',
@@ -109,17 +115,22 @@ export const AGENDA_SECTIONS = [
 ] as const;
 export type AgendaSectionId = (typeof AGENDA_SECTIONS)[number];
 
-/** The minutes kind of each section's items: one section, one kind. */
+/**
+ * The minutes kind of each section's items: one section, one kind. The purchases (slice G2) take
+ * `other`: the host's list of kinds is closed (migration 017), and the item's `refId` (the
+ * purchase) says what it is about.
+ */
 export const AGENDA_SECTION_KINDS = {
   actions: 'action-carried',
   decisions: 'decision',
   changes: 'change',
   snags: 'snag',
+  purchases: 'other',
   money: 'payment',
   delay: 'delay',
   lookahead: 'lookahead',
   gates: 'gate',
-} as const satisfies Record<AgendaSectionId, Exclude<MeetingItemKind, 'other'>>;
+} as const satisfies Record<AgendaSectionId, MeetingItemKind>;
 
 /** Each section's heading: "Actions still open", "Decisions due" … */
 export const AGENDA_SECTION_KEYS = {
@@ -127,6 +138,7 @@ export const AGENDA_SECTION_KEYS = {
   decisions: 'meetings.agenda.section.decisions',
   changes: 'meetings.agenda.section.changes',
   snags: 'meetings.agenda.section.snags',
+  purchases: 'meetings.agenda.section.purchases',
   money: 'meetings.agenda.section.money',
   delay: 'meetings.agenda.section.delay',
   lookahead: 'meetings.agenda.section.lookahead',
@@ -159,6 +171,8 @@ export type AgendaDetailType =
   | 'decision'
   | 'change'
   | 'snag'
+  | 'purchase-to-order'
+  | 'purchase-ordered'
   | 'due-now'
   | 'falling-due'
   | 'held'
@@ -177,6 +191,8 @@ export const AGENDA_ITEM_KEYS = {
   decision: 'meetings.agenda.item.decision',
   change: 'meetings.agenda.item.change',
   snag: 'meetings.agenda.item.snag',
+  'purchase-to-order': 'meetings.agenda.item.purchaseToOrder',
+  'purchase-ordered': 'meetings.agenda.item.purchaseOrdered',
   'due-now': 'meetings.agenda.item.dueNow',
   'falling-due': 'meetings.agenda.item.fallingDue',
   held: 'meetings.agenda.item.held',
@@ -511,6 +527,46 @@ export type AgendaDetail =
       readonly waitedDays: number | null;
     }
   | {
+      /** A purchase to order this week, or late to order (slice G2). The item's `due` is `orderBy`. */
+      readonly type: 'purchase-to-order';
+      readonly stageId: string;
+      readonly stageName: string | null;
+      readonly neededActivityId: string | null;
+      readonly neededActivityName: string | null;
+      readonly supplier: string | null;
+      readonly leadDays: number;
+      /** The day it is needed, as things stand. */
+      readonly neededOn: string | null;
+      readonly orderBy: string | null;
+      readonly lateToOrder: boolean;
+      /** Calendar days past the day to order by, while late. */
+      readonly daysLate: number | null;
+      /** How many orders of it fell through. */
+      readonly fellThrough: number;
+    }
+  | {
+      /**
+       * A purchase ordered and late to arrive, or that will arrive after it is needed (slice G2).
+       * The item's `due` is `expectedOn`.
+       */
+      readonly type: 'purchase-ordered';
+      readonly stageId: string;
+      readonly stageName: string | null;
+      readonly neededActivityId: string | null;
+      readonly neededActivityName: string | null;
+      readonly supplier: string | null;
+      readonly leadDays: number;
+      readonly orderedOn: string | null;
+      readonly expectedOn: string | null;
+      readonly neededOn: string | null;
+      readonly lateToArrive: boolean;
+      readonly arrivesAfterNeeded: boolean;
+      /** Calendar days past the day it was expected, while late to arrive. */
+      readonly daysLate: number | null;
+      /** Calendar days it is expected after it is needed. */
+      readonly daysAfterNeeded: number | null;
+    }
+  | {
       /** Earned and not paid now (D2's "due now"), a commitment. */
       readonly type: 'due-now';
       readonly commitmentId: string;
@@ -583,12 +639,12 @@ export type AgendaDetail =
 /** One item of the agenda. `itemId` is `refId`; `day` is `due`. */
 export interface AgendaItem extends ReportRow {
   readonly section: AgendaSectionId;
-  /** The kind its minutes item takes. */
-  readonly kind: Exclude<MeetingItemKind, 'other'>;
+  /** The kind its minutes item takes (`AGENDA_SECTION_KINDS`): `other` only for a purchase. */
+  readonly kind: MeetingItemKind;
   /**
-   * What it is about, the minutes item's `refId`: the action, decision, change order or snag; the
-   * commitment (due now) or milestone (falling due, held); the activity or person (the next two
-   * weeks); `<stageId>:<gate>` for a gate; `null` for the delay.
+   * What it is about, the minutes item's `refId`: the action, decision, change order, snag or
+   * purchase; the commitment (due now) or milestone (falling due, held); the activity or person (the
+   * next two weeks); `<stageId>:<gate>` for a gate; `null` for the delay.
    */
   readonly refId: string | null;
   /** The day it is due, or comes up; `null` when it has none. */
@@ -787,7 +843,78 @@ export function meetingAgenda(
       ),
     );
 
-  // 5. Money: earned and not paid now, falling due in the window, and held back as retention.
+  // 5. Purchases: to order this week (late first, by the day to order by), then ordered and late to
+  //    arrive or arriving after it is needed (late first, by the day expected).
+  const bought = purchaseRows(snapshot, scheduled, entries, today);
+  const toOrder = bought
+    .filter((row) => row.orderThisWeek)
+    .sort((a, b) => compareText(a.orderBy!, b.orderBy!) || a.position - b.position)
+    .map((row) =>
+      item(
+        'purchases',
+        AGENDA_SECTION_KINDS.purchases,
+        {
+          title: row.name,
+          refId: row.purchaseId,
+          due: row.orderBy,
+          overdue: row.lateToOrder,
+          detail: {
+            type: 'purchase-to-order',
+            stageId: row.stageId,
+            stageName: row.stageName,
+            neededActivityId: row.neededActivityId,
+            neededActivityName: row.neededActivityName,
+            supplier: row.supplier,
+            leadDays: row.leadDays,
+            neededOn: row.neededOn,
+            orderBy: row.orderBy,
+            lateToOrder: row.lateToOrder,
+            daysLate: row.daysLate,
+            fellThrough: row.fellThrough,
+          },
+        },
+        undatedNew(AGENDA_SECTION_KINDS.purchases, row.purchaseId),
+      ),
+    );
+  const arriving = bought
+    .filter((row) => row.lateToArrive || row.arrivesAfterNeeded)
+    .sort(
+      (a, b) =>
+        Number(b.lateToArrive) - Number(a.lateToArrive) ||
+        compareText(a.expectedOn!, b.expectedOn!) ||
+        a.position - b.position,
+    )
+    .map((row) =>
+      item(
+        'purchases',
+        AGENDA_SECTION_KINDS.purchases,
+        {
+          title: row.name,
+          refId: row.purchaseId,
+          due: row.expectedOn,
+          overdue: row.lateToArrive,
+          detail: {
+            type: 'purchase-ordered',
+            stageId: row.stageId,
+            stageName: row.stageName,
+            neededActivityId: row.neededActivityId,
+            neededActivityName: row.neededActivityName,
+            supplier: row.supplier,
+            leadDays: row.leadDays,
+            orderedOn: row.orderedOn,
+            expectedOn: row.expectedOn,
+            neededOn: row.neededOn,
+            lateToArrive: row.lateToArrive,
+            arrivesAfterNeeded: row.arrivesAfterNeeded,
+            daysLate: row.daysLate,
+            daysAfterNeeded: row.daysAfterNeeded,
+          },
+        },
+        undatedNew(AGENDA_SECTION_KINDS.purchases, row.purchaseId),
+      ),
+    );
+
+  // 6. Money: earned and not paid now, falling due in the window, and held back as retention.
   const dueNow = ahead.payments.dueNow.rows.map((row) =>
     item(
       'money',
@@ -853,7 +980,7 @@ export function meetingAgenda(
   );
   const money = [...dueNow, ...fallingDue, ...held];
 
-  // 6. Why it is late: one item, only while the work is late.
+  // 7. Why it is late: one item, only while the work is late.
   const delay: AgendaItem[] = [];
   const ledger = delayLedger(snapshot, scheduled, entries, today);
   if (ledger.status === 'late' && ledger.total !== null && ledger.figures !== null) {
@@ -889,7 +1016,7 @@ export function meetingAgenda(
     );
   }
 
-  // 7. The next two weeks: what starts, and who must be there.
+  // 8. The next two weeks: what starts, and who must be there.
   const starting = ahead.starting.rows.map((row) =>
     item(
       'lookahead',
@@ -934,7 +1061,7 @@ export function meetingAgenda(
     ),
   );
 
-  // 8. Gates coming up in the window, by day.
+  // 9. Gates coming up in the window, by day.
   const gates = ahead.gates.rows.map((row) => {
     const refId = `${row.stageId}:${row.gate}`;
     return item(
@@ -963,6 +1090,7 @@ export function meetingAgenda(
     decisions,
     changes,
     snags,
+    purchases: [...toOrder, ...arriving],
     money,
     delay,
     lookahead: [...starting, ...people],

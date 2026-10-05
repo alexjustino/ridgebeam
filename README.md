@@ -18,17 +18,18 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F11, D1 to D4, U1, E1 to E4, H0 and G1; a third wave in
+> **Status: pre-release — slices F0 to F11, D1 to D4, U1, E1 to E4, H0, G1 and G2; a third wave in
 > progress, and the release to be cut again after it.** The product was named on 2026-09-24
 > ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 — from the foundation to backup,
 > restore and polish — all four differentiators, D1 to D4, a round of dependency updates and U1 —
 > the friction a first real week meets — are in `develop`, and so is the whole second wave, E1 to
 > E4: change orders, whether the money will last, why the work is late, and a work that ends well. A
-> third wave is in progress: H0, hygiene before the acceptance test, and G1, the weekly site
-> meeting, with G2 to G6 to follow. All of it runs from source. There is no published installer yet:
-> that is F12, the release, whose branch is cut again from `develop` once the third wave is in. The
-> [specification](docs/SPEC.md) says what 1.0.0 will be and what "done" means for every slice; [What
-> exists today](#what-exists-today) says exactly how far the code has got.
+> third wave is in progress: H0, hygiene before the acceptance test, G1, the weekly site meeting,
+> and G2, what to order this week, with G3 to G6 to follow. All of it runs from source. There is no
+> published installer yet: that is F12, the release, whose branch is cut again from `develop` once
+> the third wave is in. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done"
+> means for every slice; [What exists today](#what-exists-today) says exactly how far the code has
+> got.
 
 **Differentiators, before first use.** Before using Ridgebeam on a work of his own, its owner
 widened 1.0 with four things no other small-works tool does offline
@@ -57,10 +58,11 @@ last milestone is earned. **All four are in `develop`.**
 acceptance test, the owner answered: all of them, and surprise me
 ([ADR-045](docs/architecture/ADR.md#adr-045)). After **H0**, hygiene, come six slices: **G1, the
 weekly site meeting** — an agenda written from the record, what is decided done there through the
-product's own commands, and minutes never edited; **G2**, purchases with lead times; **G3**, the
-work teaches the next; **G4**, warranties and maintenance after the handover; **G5**, photos from an
-iPhone; and **G6**, the work told in photos. They land in `develop` one at a time, and the release
-branch is cut again from it after them.
+product's own commands, and minutes never edited; **G2, what to order this week** — each purchase's
+lead time against when its activity starts as things stand, and its order and its delivery on
+record; **G3**, the work teaches the next; **G4**, warranties and maintenance after the handover;
+**G5**, photos from an iPhone; and **G6**, the work told in photos. They land in `develop` one at a
+time, and the release branch is cut again from it after them.
 
 ## Why
 
@@ -361,6 +363,19 @@ whole second wave, and from the third, **H0** and **G1** — nothing after them:
   actions still open; each is closed once, done or dropped. The minutes print as a PDF in the
   owner's words, from Reports, and say they are a record, not a signature; the owner's snapshot
   carries the last meeting ([ADR-045](docs/architecture/ADR.md#adr-045)).
+- **What to order this week (G2).** On the Plan's **Purchases** tab, what an activity needs that
+  takes time to arrive — a worktop, the windows, the tiles — is written down with the stage it is
+  for, the activity that needs it, how much, the supplier and the **lead time** the supplier quotes,
+  in calendar days. Ridgebeam works out the day to **order by** from when that activity starts **as
+  things stand** — the forecast's date, which moves when the work slips or gets ahead, not the
+  plan's — and shows it with what it was computed from. **Mark as ordered…**, **Mark as delivered…**
+  and **The order fell through…** record what happened, each on its day, and are never edited: an
+  order that fell through puts the purchase back to order. The dashboard's **To order this week**
+  card says what to order this week, what is late to order and what is late to arrive, each figure
+  opening onto its rows; the next two weeks, the meeting's agenda, the weekly report and the owner's
+  snapshot say it too. Readiness is left alone: a purchase late to order is a fact of the work, not
+  something the plan does not know. Ridgebeam orders nothing and sends nothing — it says when
+  ([ADR-046](docs/architecture/ADR.md#adr-046)).
 - **Readiness.** A figure that says how much of what the plan must know it does know, from nine
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -377,13 +392,13 @@ whole second wave, and from the third, **H0** and **G1** — nothing after them:
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-five binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-six binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **the rest of the third wave**, G2 to G6; and **the release** (F12) —
+Not yet, and not pretended: **the rest of the third wave**, G3 to G6; and **the release** (F12) —
 its branch cut again from `develop` once the third wave is merged, an installer, tried on a clean
 machine, and a real work planned, run for a week and its weekly report read by somebody who is not
 an engineer.
@@ -395,10 +410,11 @@ baseline; a what-if applied to the plan with one button; a work that follows its
 library changes; prices in the library; photos inside a PDF report other than the handover book; a
 snapshot that updates itself, or that the product sends; money received read from a bank or a
 statement rather than recorded by hand; a retention the product holds or enforces rather than shows;
-minutes edited after the meeting, or an action the product enforces rather than carries; a character
-outside the standard PDF fonts' set on paper; non-working days shaded on the printed schedule; an
-encrypted backup, an incremental one, a backup the product makes on its own, or a restore over an
-existing folder.
+minutes edited after the meeting, or an action the product enforces rather than carries; a purchase
+the product orders, sends to a supplier or prices, or a supplier's working week; a character outside
+the standard PDF fonts' set on paper; non-working days shaded on the printed schedule; an encrypted
+backup, an incremental one, a backup the product makes on its own, or a restore over an existing
+folder.
 
 ## What 1.0 does not do
 
@@ -435,12 +451,12 @@ folder and never touches your own works.
 
 ## Roadmap
 
-| Release   | Theme               | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| --------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1.0.0** | The plan            | the work, stages and activities, the schedule with critical path and baselines, decisions, readiness, the diary, checks, money, people, documents, replanning, templates and the library, three lenses, the dashboard, reports, print, backup and restore — and the four differentiators: the finish as a probability, payment milestones earned by facts, the handover book, the owner's snapshot — and the second wave: change orders, the cash runway, the delay ledger, the snag list and retention — and from the third, the weekly site meeting |
-| 1.1.0     | The site            | the diary from a phone: a companion build of the same app for Android, writing into the same work folder                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| 1.2.0     | The crew            | the work shared between the owner, the engineer and the contractors: file-based sync with conflict rules, a read-only owner view                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| 2.0       | Only if it earns it | quantities from drawings · price databases per region · IFC import · resource levelling · the network                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Release   | Theme               | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1.0.0** | The plan            | the work, stages and activities, the schedule with critical path and baselines, decisions, readiness, the diary, checks, money, people, documents, replanning, templates and the library, three lenses, the dashboard, reports, print, backup and restore — and the four differentiators: the finish as a probability, payment milestones earned by facts, the handover book, the owner's snapshot — and the second wave: change orders, the cash runway, the delay ledger, the snag list and retention — and from the third, the weekly site meeting and what to order this week |
+| 1.1.0     | The site            | the diary from a phone: a companion build of the same app for Android, writing into the same work folder                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 1.2.0     | The crew            | the work shared between the owner, the engineer and the contractors: file-based sync with conflict rules, a read-only owner view                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2.0       | Only if it earns it | quantities from drawings · price databases per region · IFC import · resource levelling · the network                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 Deliberately not in 1.0.0: accounts, sync, a phone or web app, BIM/IFC/CAD import, bills of
 quantities and price databases, invoicing and tax, resource levelling, dependencies other than
