@@ -257,6 +257,19 @@ a feature.
 `TabStrip` takes a `label`, and it is **required**: a strip with no accessible name is a row of
 words to anybody who is not looking at it.
 
+**A day is typed in the product's language, never the webview's.** Every date input is
+`DateField`; `<input type="date">` does not appear in this codebase, because it draws the day in the
+order of the machine's locale — `10/02/2026` month-first on an English Windows, read by a Brazilian as
+the 10th of February. Portuguese shows and reads `DD/MM/AAAA`; English shows the product's own short
+day, `Feb 10, 2026` — the month as a word — and refuses a day written in figures alone unless the year
+comes first, the one numeric order nobody reads two ways. The value in and out is always the stored
+form `YYYY-MM-DD` (or `''`), so the language never reaches the data. Typing is forgiving (any
+separator or none, the month as a word in either order, the stored form itself); a year is four
+digits and never guessed; text that is not a day yet is said in the field's own problem line once the
+person leaves it — never silently replaced. The expected form is the field's placeholder and its
+`aria-describedby` hint; the calendar beside it is a month grid driven by the arrows, Page Up/Down,
+Enter and Escape, and Escape closes the calendar, not the dialog the field sits in.
+
 `ChoiceGroup` is for two to four mutually exclusive options — the language, the theme, the lens
 in Settings — a radio group underneath, drawn with the canonical button. A longer list is a
 `Select`, with **one exception**: a quick choice made on site in every diary entry — the day's
