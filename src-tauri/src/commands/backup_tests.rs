@@ -31,6 +31,7 @@ use crate::commands::money::{
 use crate::commands::plan::{
     activity_update_with, calendar_set_with, person_add_with, person_set_stages_with,
 };
+use crate::commands::purchases::{purchase_add_with, purchase_event_add_with};
 use crate::commands::schedule::{baseline_take_with, replan_open_with};
 use crate::commands::snags::{snag_close_with, snag_raise_with};
 use crate::commands::work::tests::{draft, host, host_with_a_work};
@@ -466,8 +467,46 @@ pub fn a_full_work() -> FullWork {
         AUTHOR,
     )
     .unwrap();
+    // G2: two purchases — the tiles ordered and delivered, the skirting to
+    // order, for removing the old tiles.
+    let tiles = purchase_add_with(
+        &open,
+        &from(json!({
+            "stageId": tiling, "name": "Wall tiles", "quantity": "12 m²",
+            "supplier": "The tile shop", "leadDays": 14, "note": "White, matt."
+        })),
+    )
+    .unwrap()
+    .purchases[0]
+        .id
+        .clone();
+    for (kind, day) in [("ordered", "2026-10-02"), ("delivered", "2026-10-08")] {
+        purchase_event_add_with(
+            &open,
+            &from(json!({ "purchaseId": tiles, "kind": kind, "day": day, "note": "On time." })),
+            today(),
+            AUTHOR,
+        )
+        .unwrap();
+    }
+    purchase_add_with(
+        &open,
+        &from(
+            json!({ "stageId": strip, "activityId": remove_tiles, "name": "Skirting",
+                      "leadDays": 5 }),
+        ),
+    )
+    .unwrap();
 
     let plan = work_get_with(&open).unwrap();
+    assert_eq!(
+        plan.purchases
+            .iter()
+            .map(|p| p.events.len())
+            .collect::<Vec<_>>(),
+        vec![2, 0],
+        "one delivered, one to order"
+    );
     assert_eq!(
         plan.funding_receipts.len(),
         3,

@@ -37,6 +37,9 @@ mod meetings_tests;
 pub mod milestones;
 pub mod money;
 pub mod plan;
+pub mod purchases;
+#[cfg(test)]
+mod purchases_tests;
 #[cfg(test)]
 mod range_tests;
 #[cfg(test)]
