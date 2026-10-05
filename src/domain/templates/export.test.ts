@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import { activity, decision, link, onStage, snapshot, stage } from '../__fixtures__/plan';
+import {
+  activity,
+  decision,
+  entry,
+  finished,
+  link,
+  onStage,
+  snapshot,
+  stage,
+  worked,
+} from '../__fixtures__/plan';
 import { libraryOf, sampleTemplate, snapshotFromDraft } from '../__fixtures__/templates';
-import type { WorkSnapshot } from '../plan';
+import type { DiaryEntry } from '../diary';
+import type { Activity, WorkSnapshot } from '../plan';
 import { applyTemplate } from './apply';
 import { exportTemplate, keyFrom, templateText, type ExportOptions } from './export';
 import type { Template } from './format';
@@ -376,5 +387,201 @@ describe('export → validate → apply → export', () => {
     expect(again.activities.every((each) => each.durationDays === null)).toBe(true);
     expect(again.decisions.every((each) => each.leadTimeDays === 0)).toBe(true);
     expect(again.dependencies.every((each) => each.lagDays === 0)).toBe(true);
+  });
+});
+
+describe('learned from this work', () => {
+  // The work starts on Tuesday 1 September 2026, Monday to Friday: 1–4, 7–11, 14–18 are working
+  // days.
+  const TODAY = '2026-09-21';
+  const ranged = (base: Activity, min: number, max: number): Activity => ({
+    ...base,
+    durationMinDays: min,
+    durationMaxDays: max,
+  });
+  const named = (base: Activity, name: string): Activity => ({ ...base, name });
+
+  const JOINERY: WorkSnapshot = snapshot({
+    stages: [stage('s1', 1, 'Joinery')],
+    activities: [
+      // Planned 3, took 7: slower, no template range.
+      named(activity('slow', 's1', 1, 3), 'Fit the cabinets'),
+      // Planned 4 in 2–6, took 2: faster, inside the range, which it never narrows.
+      named(ranged(activity('fast', 's1', 2, 4), 2, 6), 'Hang the doors'),
+      // Planned 2 in 2–4, took 5: outside the range, which widens to hold it.
+      named(ranged(activity('beyond', 's1', 3, 2), 2, 4), 'Fit the handles'),
+      // Planned 3, took 1: faster, no range.
+      named(activity('quick', 's1', 4, 3), 'Seal the joints'),
+      // No planned duration, a range 2–3, took 4.
+      named(ranged(activity('unplanned', 's1', 5, null), 2, 3), 'Trim the edges'),
+      // No planned duration, no range, took 2: a point.
+      named(activity('bare', 's1', 6, null), 'Sand the tops'),
+      // Planned 2, took 2, no range: everything agrees, a point.
+      named(activity('agreed', 's1', 7, 2), 'Oil the tops'),
+      // Planned 3 in 1–5, started, not finished: as kept.
+      named(ranged(activity('running', 's1', 8, 3), 1, 5), 'Fit the lights'),
+      // Nothing planned, not started: as kept, nothing.
+      named(activity('waiting', 's1', 9, null), 'Clean up'),
+    ],
+    decisions: [{ ...decision('d1', 's1', 1, 4), name: 'Which handle' }],
+    costLines: [
+      { id: 'l1', stageId: 's1', activityId: 'slow', label: 'Cabinets', amountCents: 900_00 },
+    ],
+    dependencies: [link('k1', 'slow', 'fast', 1)],
+  });
+
+  const ENTRIES: DiaryEntry[] = [
+    entry(1, '2026-09-01', { done: [worked('slow'), worked('beyond'), worked('agreed')] }),
+    entry(2, '2026-09-02', { done: [worked('unplanned'), finished('agreed')] }),
+    entry(3, '2026-09-03', { done: [worked('bare')] }),
+    entry(4, '2026-09-04', { done: [finished('quick'), finished('bare')] }),
+    entry(5, '2026-09-07', { done: [finished('beyond'), finished('unplanned')] }),
+    entry(6, '2026-09-09', { done: [finished('slow')] }),
+    entry(7, '2026-09-10', { done: [worked('fast')] }),
+    entry(8, '2026-09-11', { done: [finished('fast')] }),
+    entry(9, '2026-09-14', { done: [worked('running')] }),
+  ];
+  const FROM = { entries: ENTRIES, today: TODAY };
+
+  const learned = (parts: Partial<ExportOptions> = {}) =>
+    exportTemplate(JOINERY, options({ numbers: 'learned', learnedFrom: FROM, ...parts }));
+  const kept = (work: WorkSnapshot = JOINERY) => exportTemplate(work, options({ numbers: 'keep' }));
+
+  it('makes a finished duration the hull of the template range, the plan and what it took', () => {
+    const durations = Object.fromEntries(
+      learned().stages[0]!.activities!.map((each) => [each.key, each.durationDays]),
+    );
+    expect(durations).toEqual({
+      'fit-the-cabinets': { min: 3, max: 7 },
+      'hang-the-doors': { min: 2, max: 6 },
+      'fit-the-handles': { min: 2, max: 5 },
+      'seal-the-joints': { min: 1, max: 3 },
+      'trim-the-edges': { min: 2, max: 4 },
+      'sand-the-tops': { min: 2, max: 2 },
+      'oil-the-tops': { min: 2, max: 2 },
+      'fit-the-lights': { min: 3, max: 3 },
+      'clean-up': undefined,
+    });
+  });
+
+  it('keeps everything else as keep does: leads, lags and amounts', () => {
+    const template = learned();
+    expect(template.links).toEqual(kept().links);
+    expect(template.links).toEqual([
+      { blocker: 'joinery/fit-the-cabinets', blocked: 'joinery/hang-the-doors', lagDays: 1 },
+    ]);
+    expect(template.stages[0]!.decisions).toEqual([
+      { key: 'which-handle', name: { en: 'Which handle' }, leadDays: { min: 4, max: 4 } },
+    ]);
+    expect(template.stages[0]!.costLines).toEqual([
+      { label: { en: 'Cabinets' }, activity: 'fit-the-cabinets', amountCents: 900_00 },
+    ]);
+    expect(validateTemplate(template, 'file', NONE)).toMatchObject({ ok: true });
+  });
+
+  it('is keep when there is nothing to learn from', () => {
+    expect(exportTemplate(JOINERY, options({ numbers: 'learned' }))).toEqual(kept());
+    expect(
+      exportTemplate(
+        JOINERY,
+        options({ numbers: 'learned', learnedFrom: { entries: [], today: TODAY } }),
+      ),
+    ).toEqual(kept());
+    // A calendar nothing can be counted on teaches nothing either.
+    const uncounted = { ...JOINERY, calendar: { workingDays: '0000000', hoursPerDay: 8 } };
+    expect(exportTemplate(uncounted, options({ numbers: 'learned', learnedFrom: FROM }))).toEqual(
+      kept(uncounted),
+    );
+  });
+
+  it('reads no diary for strip and keep', () => {
+    expect(exportTemplate(JOINERY, options({ numbers: 'keep', learnedFrom: FROM }))).toEqual(
+      kept(),
+    );
+    expect(exportTemplate(JOINERY, options({ learnedFrom: FROM }))).toEqual(
+      exportTemplate(JOINERY, options()),
+    );
+  });
+
+  it('writes a summary only when one is given, in the work language, within its limit', () => {
+    expect(learned()).not.toHaveProperty('summary');
+    expect(learned({ summary: '   ' })).not.toHaveProperty('summary');
+    expect(learned({ summary: '  Durations learned from a sample work.  ' }).summary).toEqual({
+      en: 'Durations learned from a sample work.',
+    });
+    expect(learned({ language: 'pt-BR', summary: 'Durações aprendidas.' }).summary).toEqual({
+      'pt-BR': 'Durações aprendidas.',
+    });
+    const long = learned({ summary: 's'.repeat(500) });
+    expect([...long.summary!.en!]).toHaveLength(400);
+    expect(validateTemplate(long, 'file', NONE).ok).toBe(true);
+    // Any choice may carry one.
+    expect(exportTemplate(JOINERY, options({ summary: 'Shared.' })).summary).toEqual({
+      en: 'Shared.',
+    });
+  });
+
+  it('never says more than a template can: a duration over the limit is the limit', () => {
+    const long = snapshot({
+      stages: [stage('s', 1, 'Stage')],
+      activities: [activity('a', 's', 1, 2)],
+    });
+    // Fifteen years of Mondays to Fridays: more than 3650 working days.
+    const entries = [
+      entry(1, '2026-09-01', { done: [worked('a')] }),
+      entry(2, '2041-09-02', { done: [finished('a')] }),
+    ];
+    const template = exportTemplate(
+      long,
+      options({ numbers: 'learned', learnedFrom: { entries, today: '2041-09-03' } }),
+    );
+    expect(template.stages[0]!.activities![0]!.durationDays).toEqual({ min: 2, max: 3650 });
+    expect(validateTemplate(template, 'file', NONE).ok).toBe(true);
+  });
+
+  it('goes through a file into the next work as ranges, and as durations where all agreed', () => {
+    const first = learned({ summary: 'Learned.' });
+    const read = JSON.parse(templateText(first)) as unknown;
+    const validated = validateTemplate(read, 'file', NONE);
+    if (!validated.ok) throw new Error(JSON.stringify(validated.problems));
+    const applied = applyTemplate(validated.template, NONE, 'en');
+    const again = snapshotFromDraft(applied.draft);
+    const byName = (name: string) => again.activities.find((each) => each.name === name)!;
+
+    expect(byName('Fit the cabinets')).toMatchObject({
+      durationDays: null,
+      durationMinDays: 3,
+      durationMaxDays: 7,
+    });
+    expect(byName('Hang the doors')).toMatchObject({
+      durationDays: null,
+      durationMinDays: 2,
+      durationMaxDays: 6,
+    });
+    expect(byName('Fit the handles')).toMatchObject({ durationMinDays: 2, durationMaxDays: 5 });
+    expect(byName('Seal the joints')).toMatchObject({ durationMinDays: 1, durationMaxDays: 3 });
+    expect(byName('Trim the edges')).toMatchObject({ durationMinDays: 2, durationMaxDays: 4 });
+    // A point is the duration.
+    expect(byName('Oil the tops')).toMatchObject({
+      durationDays: 2,
+      durationMinDays: 2,
+      durationMaxDays: 2,
+    });
+    expect(byName('Sand the tops').durationDays).toBe(2);
+    expect(byName('Fit the lights').durationDays).toBe(3);
+    expect(byName('Clean up')).toMatchObject({
+      durationDays: null,
+      durationMinDays: null,
+      durationMaxDays: null,
+    });
+    expect(applied.notes).toEqual([{ key: 'template.note.pointDurations', params: { count: 3 } }]);
+
+    // The next work, not started yet, teaches nothing new: it exports what it was given.
+    const next = exportTemplate(
+      again,
+      options({ numbers: 'learned', learnedFrom: { entries: [], today: TODAY } }),
+    );
+    expect(next.stages).toEqual(first.stages);
+    expect(next.links).toEqual(first.links);
   });
 });

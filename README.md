@@ -18,18 +18,18 @@ No cloud. No account. No telemetry. A work is a folder you own.
 
 ---
 
-> **Status: pre-release — slices F0 to F11, D1 to D4, U1, E1 to E4, H0, G1 and G2; a third wave in
-> progress, and the release to be cut again after it.** The product was named on 2026-09-24
+> **Status: pre-release — slices F0 to F11, D1 to D4, U1, E1 to E4, H0 and G1 to G3; a third wave
+> in progress, and the release to be cut again after it.** The product was named on 2026-09-24
 > ([ADR-001](docs/architecture/ADR.md#adr-001)). Slices F0 to F11 — from the foundation to backup,
 > restore and polish — all four differentiators, D1 to D4, a round of dependency updates and U1 —
 > the friction a first real week meets — are in `develop`, and so is the whole second wave, E1 to
 > E4: change orders, whether the money will last, why the work is late, and a work that ends well. A
 > third wave is in progress: H0, hygiene before the acceptance test, G1, the weekly site meeting,
-> and G2, what to order this week, with G3 to G6 to follow. All of it runs from source. There is no
-> published installer yet: that is F12, the release, whose branch is cut again from `develop` once
-> the third wave is in. The [specification](docs/SPEC.md) says what 1.0.0 will be and what "done"
-> means for every slice; [What exists today](#what-exists-today) says exactly how far the code has
-> got.
+> G2, what to order this week, and G3, the work teaches the next, with G4 to G6 to follow. All of it
+> runs from source. There is no published installer yet: that is F12, the release, whose branch is
+> cut again from `develop` once the third wave is in. The [specification](docs/SPEC.md) says what
+> 1.0.0 will be and what "done" means for every slice; [What exists today](#what-exists-today) says
+> exactly how far the code has got.
 
 **Differentiators, before first use.** Before using Ridgebeam on a work of his own, its owner
 widened 1.0 with four things no other small-works tool does offline
@@ -60,9 +60,10 @@ acceptance test, the owner answered: all of them, and surprise me
 weekly site meeting** — an agenda written from the record, what is decided done there through the
 product's own commands, and minutes never edited; **G2, what to order this week** — each purchase's
 lead time against when its activity starts as things stand, and its order and its delivery on
-record; **G3**, the work teaches the next; **G4**, warranties and maintenance after the handover;
-**G5**, photos from an iPhone; and **G6**, the work told in photos. They land in `develop` one at a
-time, and the release branch is cut again from it after them.
+record; **G3, the work teaches the next** — planned against actual on the Schedule, and a template
+learned from the work, its ranges holding what each activity actually took; **G4**, warranties and
+maintenance after the handover; **G5**, photos from an iPhone; and **G6**, the work told in photos.
+They land in `develop` one at a time, and the release branch is cut again from it after them.
 
 ## Why
 
@@ -112,7 +113,7 @@ in Portuguese, "rídj-bim".
 ## What exists today
 
 Slices **F0** to **F11**, the four differentiators, **D1** to **D4**, **U1**, **E1** to **E4**, the
-whole second wave, and from the third, **H0** and **G1** — nothing after them:
+whole second wave, and from the third, **H0** and **G1** to **G3** — nothing after them:
 
 - **A work is a folder.** Create one in an empty folder chosen in the system dialog, or open an
   existing one; the recent works are listed, and one whose folder has gone says so and is found
@@ -376,6 +377,19 @@ whole second wave, and from the third, **H0** and **G1** — nothing after them:
   snapshot say it too. Readiness is left alone: a purchase late to order is a fact of the work, not
   something the plan does not know. Ridgebeam orders nothing and sends nothing — it says when
   ([ADR-046](docs/architecture/ADR.md#adr-046)).
+- **The work teaches the next (G3).** The Schedule's **Planned and actual** card puts, for every
+  activity the diary says started, what it was planned to take beside what it **took** — the
+  working days from the first day the diary says it was worked on to the day it was said finished,
+  waiting included — or has taken **so far**, with the difference in words and whether it fell
+  inside the range it was given; its figures — finished, took longer than planned, outside the
+  range — open onto their rows. **Export as a template…** gains **Learned from this work**: each
+  finished activity's duration becomes a range that holds what was planned and what it took, and
+  never narrows, because one work is one sample. It is saved to **My templates**, a folder in the
+  application's data on this computer, and a new work's template picker offers it under **Your
+  templates**, after the library — its ranges then feeding the chance of finishing by a date, so the
+  next work's probability is drawn from the person's own numbers. A template of yours is removed
+  from the picker, behind a confirmation that says it deletes the file. Nothing migrates
+  ([ADR-047](docs/architecture/ADR.md#adr-047)).
 - **Readiness.** A figure that says how much of what the plan must know it does know, from nine
   rules — every activity has a duration, a responsible, and (in a plan of two or more) a link to
   another; every decision has a deadline and is made in time; every stage has checks at both
@@ -392,13 +406,13 @@ whole second wave, and from the third, **H0** and **G1** — nothing after them:
   [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), the schema;
   [`docs/GLOSSARY.md`](docs/GLOSSARY.md), every term with its plain sentence in both languages,
   generated from data; [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), the UI contract;
-  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-six binding decisions; and
+  [`docs/architecture/ADR.md`](docs/architecture/ADR.md), forty-seven binding decisions; and
   [`docs/RELEASE.md`](docs/RELEASE.md), the release checklist.
 - **The gates**: one script, `npm run gates`, run identically on a developer machine and in CI;
   an end-to-end suite that drives the real binary; and a bundle check that holds the installer
   under 10 MB.
 
-Not yet, and not pretended: **the rest of the third wave**, G3 to G6; and **the release** (F12) —
+Not yet, and not pretended: **the rest of the third wave**, G4 to G6; and **the release** (F12) —
 its branch cut again from `develop` once the third wave is merged, an installer, tried on a clean
 machine, and a real work planned, run for a week and its weekly report read by somebody who is not
 an engineer.
@@ -411,10 +425,11 @@ library changes; prices in the library; photos inside a PDF report other than th
 snapshot that updates itself, or that the product sends; money received read from a bank or a
 statement rather than recorded by hand; a retention the product holds or enforces rather than shows;
 minutes edited after the meeting, or an action the product enforces rather than carries; a purchase
-the product orders, sends to a supplier or prices, or a supplier's working week; a character outside
-the standard PDF fonts' set on paper; non-working days shaded on the printed schedule; an encrypted
-backup, an incremental one, a backup the product makes on its own, or a restore over an existing
-folder.
+the product orders, sends to a supplier or prices, or a supplier's working week; a learned range
+that narrows, lead times learned from what happened, or templates the product syncs or shares; a
+character outside the standard PDF fonts' set on paper; non-working days shaded on the printed
+schedule; an encrypted backup, an incremental one, a backup the product makes on its own, or a
+restore over an existing folder.
 
 ## What 1.0 does not do
 

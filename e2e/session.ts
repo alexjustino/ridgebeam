@@ -372,6 +372,29 @@ export async function chooseTheme(
  * dashboard, where every opened work lands. Navigating before that is a race: a destination
  * pressed while the work is still opening is overtaken by the landing on the dashboard.
  */
+/**
+ * Press Create work and wait until the work is open: the dialog gone and the Dashboard current.
+ * The next click must not land while the dialog is still closing — its backdrop takes the click
+ * (G2's suite failed that way once, after it passed alone).
+ */
+export async function createWork(session: Session): Promise<void> {
+  const { driver } = session;
+  await (await driver.waitForElement('[data-testid="work-create"]')).click();
+  await driver.waitFor(
+    'the new work open',
+    async () =>
+      (await driver.findAll('[aria-modal="true"]')).length === 0 &&
+      (
+        await driver.findAll(
+          'nav[data-rail] button[data-destination="dashboard"][aria-current="page"]',
+        )
+      ).length > 0
+        ? true
+        : null,
+    30_000,
+  );
+}
+
 export async function openRecent(session: Session): Promise<void> {
   const { driver } = session;
   await (await driver.waitForElement('[data-testid="recent-work"]')).click();

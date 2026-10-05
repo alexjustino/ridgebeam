@@ -37,6 +37,25 @@ that are the person's rather than a work's — language, theme, the lens they la
 list of recent works with their folders, and the day each work was last backed up (F11). It holds
 nothing about the content of a work.
 
+**Beside it, the person's own templates** (G3, ADR-047). The application data folder also holds
+**My templates**, the templates a person saved from their own works:
+
+```
+%APPDATA%/io.github.alexjustino.ridgebeam/
+  ridgebeam.sqlite3   the application's database
+  templates/          the person's own templates, one <id>.json each
+```
+
+Each file is a template file like any other (ADR-029) — the JSON an export writes (ADR-030),
+validated by the domain as a template from a file when it is listed — named by its id, kebab-case,
+at most 31 characters. The folder is created when the first one is saved, or when a screen asks
+where it is, and is the person's to copy: it is how their templates go to another computer. It is
+**not part of any work**: no work's folder holds it, no work's backup or JSON export carries it, and
+nothing in a work records that a template was saved from it. Nothing in either database lists the
+templates either — the folder is the list, read when the template picker asks. In debug builds
+`RIDGEBEAM_DATA_DIR` relocates the whole application data folder, `templates/` with it, so the
+end-to-end suite works on its own.
+
 ## The work database
 
 ### `work`, and where the schema version lives
@@ -1330,6 +1349,9 @@ and no figure an earlier slice showed moves with the migration.
 schema 17 has no purchase, so the Dashboard shows no **To order this week**, the agenda and the next
 two weeks have nothing to order, and no figure an earlier slice showed moves with the migration.
 
+**G3 adds no migration.** What each activity took is computed from the diary, and My templates are
+files in the application data folder, so the work's schema stays at 18 and the application's at 3.
+
 The migrations live in `src-tauri/work_migrations/`.
 
 ## A comparison, a what-if and a chance are computed, not stored
@@ -1396,6 +1418,13 @@ every time a screen asks (`purchaseRows`, [ADR-046](architecture/ADR.md#adr-046)
 one of those days, a flag or a figure: what is written is what the person said — the purchase, and
 what happened to it.
 
+What each activity actually took (G3) is not stored either. The domain reads it from the diary and
+the work's calendar every time the Schedule asks (`activityActuals`,
+[ADR-047](architecture/ADR.md#adr-047)): the working days from the first day the diary says the
+activity was worked on to the day it was said finished, both included, waiting and lost days among
+them; while it runs, the working days so far; and against what was planned and the range it was
+given. No table holds an actual duration, a difference or a figure: what is written is the diary.
+
 ## Not yet in the schema
 
 Nothing that 1.0 needs. A backup is a file the person keeps, not a table: the work records nothing
@@ -1409,7 +1438,10 @@ the domain. No table holds a template. Applying one writes ordinary rows — sta
 with their ranges, checks, cost lines with no amount, decisions with their lead ranges, rooms and
 dependencies — with new ids, in one transaction, and the work keeps only the three `template_*`
 columns that say where its plan came from. Exporting a work as a template (ADR-030) reads the
-snapshot and writes a file; nothing in the work records it.
+snapshot and writes a file; nothing in the work records it. A template **learned** from the work
+(ADR-047) is the same: the durations of its finished activities widened to hold what was planned and
+what the diary says they took, written as a file — to a path the person chose, or to **My
+templates** in the application data folder (above, _Two databases_) — and never as a row.
 
 ## The work as JSON — the export format (F10)
 

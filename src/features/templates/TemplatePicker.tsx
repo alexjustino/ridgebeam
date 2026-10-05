@@ -1,16 +1,19 @@
-import { DocumentText20Regular, FolderOpen20Regular } from '@fluentui/react-icons';
+import { Delete20Regular, DocumentText20Regular, FolderOpen20Regular } from '@fluentui/react-icons';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useId, useState } from 'react';
 
+import { useMyTemplatesFolder, useRemoveMyTemplate } from '@/data/queries';
 import { TEMPLATE_PROBLEM_KEYS, type TemplateProblem } from '@/domain/templates/validate';
-import { useI18n } from '@/i18n/useI18n';
+import { useI18n, type I18n } from '@/i18n/useI18n';
+import { announce } from '@/ui/announce';
 import { Button } from '@/ui/Button';
+import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { InfoBar } from '@/ui/InfoBar';
 import { Input } from '@/ui/Input';
 import { Select } from '@/ui/Select';
 
 import { countsText } from './plan';
-import { EMPTY_PLAN, FROM_FILE, type TemplateChoice } from './useTemplateChoice';
+import { EMPTY_PLAN, FROM_FILE, type MineEntry, type TemplateChoice } from './useTemplateChoice';
 
 /** How many of a file's problems are listed before the rest are counted. */
 const PROBLEMS_SHOWN = 8;
@@ -26,6 +29,12 @@ const PROBLEMS_SHOWN = 8;
  *
  * The same picker is the New work form's and the empty breakdown's; `hostProblem` is a refusal the
  * host gave for the plan itself, which belongs here too.
+ *
+ * Slice G3 adds **Your templates** after the library: the person's own, each by its title, checked
+ * as a file. One that does not pass is listed disabled, and every such one is said under the picker
+ * with its first problem (`templates-mine-problems`). With one of yours chosen, the picker says
+ * where the folder is (`templates-mine-folder`) and offers **Remove from my templates…**
+ * (`template-mine-remove`), whose confirmation takes the danger tone and says it deletes the file.
  */
 export function TemplatePicker({
   state,
@@ -37,7 +46,24 @@ export function TemplatePicker({
   const { t, tp, describeError } = useI18n();
   const id = useId();
   const [dialogFailed, setDialogFailed] = useState(false);
-  const { choice, file, preview } = state;
+  const { choice, file, preview, mineChosen } = state;
+  const invalid = state.mine.filter((entry) => entry.template === null);
+  const folder = useMyTemplatesFolder(mineChosen !== null || invalid.length > 0);
+  const remover = useRemoveMyTemplate();
+  // The template of yours the person asked to remove: confirmed before its file is deleted.
+  const [removing, setRemoving] = useState<MineEntry | null>(null);
+  const [removeProblem, setRemoveProblem] = useState<string | null>(null);
+
+  const remove = (entry: MineEntry) => {
+    remover.mutate(entry.id, {
+      onSuccess: () => {
+        setRemoving(null);
+        state.setChoice(state.fallback);
+        announce(t('templates.mine.removed', { title: entry.title }));
+      },
+      onError: (error) => setRemoveProblem(describeError(error)),
+    });
+  };
 
   const choose = async () => {
     try {
@@ -54,11 +80,14 @@ export function TemplatePicker({
   };
 
   const problems: readonly TemplateProblem[] =
-    file?.status === 'read' && !file.validation.ok ? file.validation.problems : [];
+    file?.status === 'read' && !file.validation.ok
+      ? file.validation.problems
+      : (mineChosen?.problems ?? []);
   // A template with no stage passes as a file, but has no plan to start: said, and not previewed.
   const stageless = preview !== null && preview.counts.stages === 0;
   const refusal =
     hostProblem ??
+    mineChosen?.hostProblem ??
     (file?.status === 'failed'
       ? describeError(file.error)
       : state.pathMissing
@@ -90,8 +119,68 @@ export function TemplatePicker({
               ))}
             </optgroup>
           )}
+          {/* The person's own, after the library: one that cannot be used is listed, disabled. */}
+          {state.mine.length > 0 && (
+            <optgroup label={t('templates.mine')}>
+              {state.mine.map((entry) => (
+                <option key={entry.value} value={entry.value} disabled={entry.template === null}>
+                  {entry.title}
+                </option>
+              ))}
+            </optgroup>
+          )}
           <option value={FROM_FILE}>{t('templates.fromFile')}</option>
         </Select>
+        {state.mineNotListed > 0 && (
+          <span data-testid="templates-mine-note" className="text-caption text-fg-tertiary">
+            {tp('templates.mine.notListed', state.mineNotListed)}
+          </span>
+        )}
+        {state.mineError !== null && (
+          <span data-testid="templates-mine-failed" className="text-caption text-fg-secondary">
+            {t('templates.mine.listFailed', { reason: describeError(state.mineError) })}
+          </span>
+        )}
+        {invalid.length > 0 && (
+          <div data-testid="templates-mine-problems" className="text-caption text-fg-secondary">
+            <span>{t('templates.mine.problems')}</span>
+            <ul className="flex flex-col">
+              {invalid.map((entry) => (
+                <li key={entry.value} data-mine-id={entry.id}>
+                  {t('templates.mine.problem', {
+                    file: `${entry.id}.json`,
+                    problem: firstProblem(entry, t),
+                  })}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {(mineChosen !== null || invalid.length > 0) && folder.data !== undefined && (
+          <span className="text-caption text-fg-tertiary">
+            {t('templates.mine.folder')}{' '}
+            <span
+              data-testid="templates-mine-folder"
+              data-selectable
+              className="font-mono break-all"
+            >
+              {folder.data}
+            </span>
+          </span>
+        )}
+        {mineChosen !== null && (
+          <Button
+            icon={<Delete20Regular />}
+            data-testid="template-mine-remove"
+            className="self-start"
+            onClick={() => {
+              setRemoveProblem(null);
+              setRemoving(mineChosen);
+            }}
+          >
+            {t('templates.mine.remove')}
+          </Button>
+        )}
       </div>
 
       {choice === FROM_FILE && (
@@ -142,11 +231,41 @@ export function TemplatePicker({
                 <p className="text-body text-fg">{preview.summary}</p>
               )}
               <p className="text-body font-semibold text-fg">{countsText(preview.counts, tp)}</p>
-              <p className="text-caption text-fg-secondary">{t('templates.preview.notQuote')}</p>
+              <p className="text-caption text-fg-secondary">
+                {t(
+                  preview.carriesNumbers
+                    ? 'templates.preview.notQuote.numbers'
+                    : 'templates.preview.notQuote',
+                )}
+              </p>
             </div>
           </div>
         )
       )}
+
+      <ConfirmDialog
+        open={removing !== null}
+        over
+        danger
+        title={t('templates.mine.remove.title', { title: removing?.title ?? '' })}
+        confirmLabel={t('templates.mine.remove.confirm')}
+        confirmTestId="template-mine-remove-confirm"
+        pending={remover.isPending}
+        onCancel={() => setRemoving(null)}
+        onConfirm={() => {
+          if (removing !== null) remove(removing);
+        }}
+      >
+        <p>{t('templates.mine.remove.body', { id: removing?.id ?? '' })}</p>
+        <p>{t('templates.mine.remove.noCopy')}</p>
+        {removeProblem !== null && (
+          <div data-testid="template-mine-remove-problem" className="mt-2">
+            <InfoBar severity="danger" title={t('templates.mine.removeFailed')}>
+              {removeProblem}
+            </InfoBar>
+          </div>
+        )}
+      </ConfirmDialog>
 
       {(refusal !== null || problems.length > 0) && (
         <div data-testid="template-problem">
@@ -158,6 +277,13 @@ export function TemplatePicker({
       )}
     </div>
   );
+}
+
+/** Why a template of yours cannot be used, in one sentence: the host's, or the domain's first. */
+function firstProblem(entry: MineEntry, t: I18n['t']): string {
+  if (entry.hostProblem !== null) return entry.hostProblem;
+  const first = entry.problems[0];
+  return first === undefined ? '' : `${t(first.key, first.detail)} (${first.path})`;
 }
 
 /** A file's problems: each sentence, and where in the file it is, as JSON path writes it. */

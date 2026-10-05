@@ -1475,3 +1475,71 @@ ordering and delivery are facts on record. Ridgebeam orders nothing: it says whe
   late to order and what to order this week, mark ordered and delivered, an order that falls
   through, the agenda's Purchases, in Portuguese. The glossary gains _order by_ (_encomendar até_),
   and _lead time_ says how a decision and a purchase each count it.
+
+### Added in G3 — the work teaches the next
+
+The third slice of the third wave (ADR-047). Every work ends knowing something its plan did not —
+the cabinets that were to take three days took five — and the product held both halves without
+putting them side by side. The Schedule now shows **planned against actual** for every activity the
+diary says started: how many working days it was planned to take, how many it **took** or has taken
+**so far**, the difference, and whether it fell inside the range it was given. And a work exports as
+a template **learned from this work**: each finished activity's duration becomes a range that holds
+what was planned and what it actually took, saved to **My templates** (_Meus modelos_), the person's
+own library, which the next work offers beside the library. Its ranges are what D1's probability is
+drawn from, so the next work's chance of finishing by a date is the person's own.
+
+- **Planned and actual** (`activityActuals`, in the domain, pure). For each activity, from the
+  diary's progress and the work's calendar: what it was planned to take and the range it was given;
+  its state, the day it started and the day it finished; once finished, the **actual duration**
+  (_duração real_) — the working days from the first day the diary says it was worked on to the day
+  it was said finished, both included, waiting and lost days among them; while it runs, the working
+  days so far, today counted when it is a working day; the difference; whether it fell inside its
+  range; and whether a started activity is already overrunning. Figures with their rows:
+  **finished**, **took longer than planned** — most days over first — **took less** and **outside
+  the range it was given**, with the sum of the days over. A work with no calendar or start date
+  says why it has no days, and invents none.
+- **On the Schedule.** A **Planned and actual** card after the forecast: the figures, each opening
+  onto its rows, and a row for every activity that started, saying it in words and with its unit —
+  _"Planned 3 working days · took 5 — 2 more"_, _"so far 4 — already 1 more than planned"_, _"inside
+  the range it was given (2 to 6)"_. While nothing has started, the card says that the diary is what
+  tells it.
+- **Learned from this work.** **Export as a template…** gains a third choice beside strip and keep:
+  everything as kept, except a finished activity's duration, which becomes the **hull** of the
+  template's range it carried, the planned duration and what it took — from the lowest to the
+  highest, a point when they all agree. A learned range never narrows: one work is one sample. An
+  activity that did not finish is exported as kept. The template's summary says what it learned, in
+  the work's language — _"Durations learned from {work}: {n} of {m} activities finished."_ An export
+  learned, validated and applied puts the range on the new work's activity, which a test holds.
+- **My templates.** The dialog asks **Where**: **My templates** — first for a learned export — or
+  **A file**, as before. My templates is the folder `templates/` in the application data folder; the
+  id is proposed from the title, replacing one asks first, and the dialog says where it went. A new
+  work's template picker lists them under **Your templates**, after the library; one that does not
+  validate is listed, disabled, with its reason. **Remove from my templates…** asks in the danger
+  tone, because it deletes the file, and the picker says where the folder is. Commands
+  `my_templates_list`, `my_template_save`, `my_template_remove` and `my_templates_folder`.
+- **The host builds the path.** None of the four commands takes a path from the interface: an id,
+  kebab-case and at most 31 characters, the names Windows keeps for its devices refused, is turned
+  into `<data folder>/templates/<id>.json` by the host itself. Only regular files directly in the
+  folder are read — a directory or a link named like a template is never followed — each at most
+  1 MiB and UTF-8, at most 200 listed and the rest counted; a save is whole or nothing and replaces
+  only when asked to; a remove deletes that one file. In debug builds the folder moves with the
+  application data folder, so the end-to-end suite never touches the person's.
+- **No migration.** G3 adds no table to a work and none to the application: the work's schema stays
+  at 18. What each activity took is computed every time from the diary, and My templates are files.
+- **Documentation.** ADR-047 (the work teaches the next: planned against actual, and templates
+  learned from it), with why the person's own numbers, why a hull that never narrows, why a folder
+  whose paths the host builds, and its costs: one work is one sample, not a statistic; a learned
+  range widens and never narrows, so an unusually slow job stays in it until somebody edits the
+  file; the actual duration is elapsed working days, not effort, and a gap between two stretches of
+  work is counted; it is only as true as the diary, and an activity never said finished never
+  teaches; My templates is a folder on this computer, not synced or shared by the product; removing
+  one deletes the file; lead times are kept as planned, not learned. ADR-030 is amended: a third
+  choice and a second place to write. [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md): no migration, and
+  My templates as application data, outside every work and every backup.
+  [`SECURITY.md`](SECURITY.md): My templates are reached by id, never by path, and read as data.
+  [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §8 gains _planned and actual are two numbers, side by side,
+  with the difference in words and its unit_ and _a template learned from a work says what it
+  learned, and where it goes_. [`docs/RELEASE.md`](docs/RELEASE.md): planned against actual on the
+  Schedule, a learned export to My templates, a new work started from it, and a template removed, in
+  Portuguese. The glossary gains _actual duration_ (_duração real_) and _my templates_ (_meus
+  modelos_).

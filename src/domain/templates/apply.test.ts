@@ -9,7 +9,7 @@ import {
 } from '../__fixtures__/templates';
 import { readiness } from '../readiness';
 import { schedule } from '../schedule';
-import { applyTemplate, draftCounts, TEMPLATE_NOTE_KEYS } from './apply';
+import { applyTemplate, draftCarriesNumbers, draftCounts, TEMPLATE_NOTE_KEYS } from './apply';
 import type { Template } from './format';
 import { validateTemplate } from './validate';
 
@@ -341,5 +341,29 @@ describe('a plan started from a template', () => {
     expect(
       measure.missing.filter((row) => row.ruleId === 'stage.money').map((row) => row.name),
     ).toEqual(['Strip-out', 'Finishes']);
+  });
+});
+
+describe('draftCarriesNumbers', () => {
+  it('is false for ranges and unpriced lines, true for a point duration or a priced line', () => {
+    expect(draftCarriesNumbers(applyTemplate(sampleTemplate(), NONE, 'en').draft)).toBe(false);
+    const stage = { key: 's', name: { en: 'S' } };
+    const point = {
+      ...sampleTemplate(),
+      stages: [
+        {
+          ...stage,
+          activities: [{ key: 'a', name: { en: 'A' }, durationDays: { min: 2, max: 2 } }],
+        },
+      ],
+      links: [],
+    };
+    expect(draftCarriesNumbers(applyTemplate(point, NONE, 'en').draft)).toBe(true);
+    const priced = {
+      ...sampleTemplate(),
+      stages: [{ ...stage, costLines: [{ label: { en: 'Tiles' }, amountCents: 100 }] }],
+      links: [],
+    };
+    expect(draftCarriesNumbers(applyTemplate(priced, NONE, 'en').draft)).toBe(true);
   });
 });

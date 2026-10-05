@@ -12,7 +12,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, createWork, go, startSession, type Session } from './session';
 
 /**
  * Slice F11's proof of done, against the real binary:
@@ -119,7 +119,7 @@ describe('F11 — a work backed up as one file, and restored whole into a new fo
     await setValue(session, t('work-name'), WORK);
     await setValue(session, t('work-folder'), path.join(parent, 'bathroom'));
     await setValue(session, t('work-template'), 'bathroom-renovation');
-    await click(session, t('work-create'));
+    await createWork(session);
     await driver.waitForElement(t('lens-switch'));
   }, 120_000);
 

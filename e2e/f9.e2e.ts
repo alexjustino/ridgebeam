@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, createWork, go, startSession, type Session } from './session';
 
 /**
  * Slice F9's proof of done, against the real binary:
@@ -172,7 +172,7 @@ describe('F9 — templates: a work starts as a plan with ranges, and exports as 
     expect(preview).toMatch(/not a quote/i);
     await show(session, t('template-preview'));
     await session.screenshot('f9-start-preview-en');
-    await click(session, t('work-create'));
+    await createWork(session);
     await engineer(session);
     await go(session, 'dashboard');
     expect(await text(session, t('template-provenance'))).toContain(
@@ -280,7 +280,7 @@ describe('F9 — templates: a work starts as a plan with ranges, and exports as 
       path.join(parent, 'again'),
       path.join(parent, 'kept.json'),
     );
-    await click(session, t('work-create'));
+    await createWork(session);
     await engineer(session);
     await breakdown(session);
     await driver.waitFor('the exported stages', async () =>
@@ -363,7 +363,7 @@ describe('F9 — templates: a work starts as a plan with ranges, and exports as 
     const { driver } = session;
     for (const id of library.keys()) {
       await newWork(session, `Library ${id}, synthetic`, path.join(parent, `lib-${id}`), id);
-      await click(session, t('work-create'));
+      await createWork(session);
       await breakdown(session);
       await driver.waitFor(`the ${id} stages`, async () =>
         (await driver.findAll('[data-stage-id]')).length === stagesOf(id).length ? true : null,
@@ -382,7 +382,7 @@ describe('F9 — templates: a work starts as a plan with ranges, and exports as 
     );
     expect(option).toBe(bathroom.title['pt-BR']);
     await session.screenshot('f9-start-preview-pt-BR');
-    await click(session, t('work-create'));
+    await createWork(session);
     await engineer(session);
     await breakdown(session);
     await driver.waitForElement('[data-stage-id]');

@@ -34,6 +34,14 @@ export { cycleIfAdded, endpointActivities, expandDependencies } from './expand';
 export type { Expansion, InertDependency, InertReason } from './expand';
 export { cycleFrom, cycleThrough, describeCycle, type Edge } from './graph';
 export type { Plan, Timing } from './criticalPath';
+export {
+  ACTUALS_LABEL_KEYS,
+  ACTUALS_MESSAGE_KEYS,
+  ACTUALS_PROBLEM_KEYS,
+  activityActuals,
+  learnedCounts,
+} from './actuals';
+export type { ActualDaysRow, ActualRow, Actuals, ActualsProblem, LearnedCounts } from './actuals';
 
 /** Why an activity has no place on the calendar. */
 export type UnplacedReason =

@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, createWork, go, startSession, type Session } from './session';
 
 /**
  * Slice F2's proof of done, against the real binary:
@@ -113,7 +113,7 @@ describe('F2 — the schedule: lags on the calendar, the critical path, baseline
     await click(session, t('new-work'));
     await setValue(session, t('work-name'), WORK);
     await setValue(session, t('work-folder'), path.join(parent, 'house'));
-    await click(session, t('work-create'));
+    await createWork(session);
     await (
       await driver.findByXPath(
         '//*[@data-testid="lens-switch"]//button[@role="radio" and normalize-space(.)="Engineer"]',

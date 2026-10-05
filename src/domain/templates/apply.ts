@@ -196,6 +196,19 @@ export function applyTemplate(
   };
 }
 
+/**
+ * Does the draft carry numbers the person did not pick: a duration given as a point, or a cost line
+ * with its amount? The library never does; a work's own export (keep, or learned) does, and the
+ * preview must not promise that every duration stays a range (slice G3).
+ */
+export function draftCarriesNumbers(draft: PlanDraft): boolean {
+  return draft.stages.some(
+    (stage) =>
+      stage.activities.some((activity) => activity.durationDays !== null) ||
+      stage.costLines.some((line) => line.amountCents !== null),
+  );
+}
+
 /** What the Start screen's preview counts: stages, activities, decisions and checks. */
 export interface DraftCounts {
   readonly stages: number;

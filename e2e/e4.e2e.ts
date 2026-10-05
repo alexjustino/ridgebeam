@@ -5,7 +5,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { pdfImageCount, pdfText } from './pdf';
-import { chooseLanguage, chooseTheme, go, startSession, type Session } from './session';
+import { chooseLanguage, chooseTheme, createWork, go, startSession, type Session } from './session';
 
 /**
  * Slice E4's proof of done, against the real binary:
@@ -100,7 +100,7 @@ describe('E4 — a work that ends well: snags closed with a photo, retention hel
     await click(session, t('new-work'));
     await setValue(session, t('work-name'), WORK);
     await setValue(session, t('work-folder'), path.join(parent, 'bathroom'));
-    await click(session, t('work-create'));
+    await createWork(session);
     await (
       await driver.findByXPath(
         '//*[@data-testid="lens-switch"]//button[@role="radio" and normalize-space(.)="Engineer"]',

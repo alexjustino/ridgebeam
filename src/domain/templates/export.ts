@@ -1,5 +1,6 @@
 /**
- * A work, exported as a template: its shape, with its numbers stripped or kept (ADR-030).
+ * A work, exported as a template: its shape, with its numbers stripped, kept or learned (ADR-030,
+ * slice G3).
  *
  * Always exported: the stages, their activities, the rooms, the links, the checks, the decisions
  * and the cost lines' labels, in plan order, in the work's language only. The numbers depend on the
@@ -11,6 +12,17 @@
  *   point (`{ min: d, max: d }`), or the range it carries when it has no duration yet; a decision's
  *   lead time as a point; every lag; and the amount of every priced line. A point comes back as
  *   the same number, so the next work starts with the numbers this one settled on.
+ * - **learned** (what this work teaches the next): everything as `keep`, except the duration of an
+ *   activity the diary says finished (`activityActuals`, `schedule/actuals.ts`), which becomes the
+ *   **hull** of the evidence: the range it carries from its template (if any), its planned duration
+ *   (if any) and the working days it took, from the lowest to the highest. When all agree it is a
+ *   point, applied as the duration. It never narrows a range: one work is one sample. An activity
+ *   not finished, or whose days could not be counted, is as in `keep`; without `learnedFrom`, the
+ *   whole export is `keep`.
+ *
+ * A summary is written only when one is given and is not blank, in the work's language, clipped to
+ * `TEMPLATE_LIMITS.summaryChars`. The words are the interface's ("Durations learned from …"): this
+ * module carries them, it does not write them.
  *
  * Keys are made from the names (kebab-case, accents folded, unique in their scope), so a template
  * exported twice from the same plan is the same template. The result validates as a `file` by
@@ -31,7 +43,9 @@ import {
   type Endpoint,
   type WorkSnapshot,
 } from '../plan';
+import type { DiaryEntry } from '../diary';
 import { stageOfLine } from '../money';
+import { activityActuals } from '../schedule/actuals';
 import {
   KEY_PATTERN,
   TEMPLATE_FORMAT,
@@ -49,7 +63,13 @@ import {
 } from './format';
 
 export interface ExportOptions {
-  readonly numbers: 'strip' | 'keep';
+  /** What happens to the numbers; see the module's header. */
+  readonly numbers: 'strip' | 'keep' | 'learned';
+  /**
+   * What `learned` learns from: the work's diary and the day it is asked on. Read only with
+   * `learned`; absent, `learned` is `keep`.
+   */
+  readonly learnedFrom?: { readonly entries: readonly DiaryEntry[]; readonly today: string };
   /** The work's language: the one text is in. */
   readonly language: TemplateLanguage;
   /**
@@ -61,6 +81,11 @@ export interface ExportOptions {
   readonly title: string;
   /** The template's version; 1 when not said. */
   readonly version?: number;
+  /**
+   * The template's summary, in the work's language, clipped to `TEMPLATE_LIMITS.summaryChars`;
+   * none is written when absent or blank.
+   */
+  readonly summary?: string;
 }
 
 /**
@@ -122,15 +147,38 @@ function rangeOf(min: number | null, max: number | null, low: number): DayRange 
   return { min, max };
 }
 
-function durationOf(activity: Activity, keep: boolean): DayRange | undefined {
+/**
+ * An activity's duration in the template. `took` is the working days it took, for `learned`; `null`
+ * when it is not learned from (not finished, not counted, or not `learned`).
+ */
+function durationOf(activity: Activity, keep: boolean, took: number | null): DayRange | undefined {
   const range = rangeOf(activity.durationMinDays, activity.durationMaxDays, L.durationMin);
   const days = activity.durationDays;
   const known = hasDuration(activity) && wholeIn(days, L.durationMin, L.durationMax);
   if (!keep) return range ?? undefined;
+  if (took !== null) {
+    // The hull of the evidence: what the template said, what was planned and what it took. More
+    // than a template can say is said as the most it can.
+    const evidence = [Math.min(Math.max(took, L.durationMin), L.durationMax)];
+    if (known) evidence.push(days!);
+    if (range !== null) evidence.push(range.min, range.max);
+    return { min: Math.min(...evidence), max: Math.max(...evidence) };
+  }
   // The number picked is the number kept: a range widened around it would come back as the range
   // again, and the next work would have to pick once more.
   if (known) return { min: days!, max: days! };
   return range ?? undefined;
+}
+
+/** The working days each finished activity took, for `learned`; empty for any other choice. */
+function tookOf(snapshot: WorkSnapshot, options: ExportOptions): ReadonlyMap<string, number> {
+  const took = new Map<string, number>();
+  if (options.numbers !== 'learned' || options.learnedFrom === undefined) return took;
+  const { entries, today } = options.learnedFrom;
+  for (const row of activityActuals(snapshot, entries, today).rows) {
+    if (row.tookDays !== null) took.set(row.activityId, row.tookDays);
+  }
+  return took;
 }
 
 /**
@@ -138,7 +186,8 @@ function durationOf(activity: Activity, keep: boolean): DayRange | undefined {
  * and activities whose stage is not, are left out: a template holds what the plan shows.
  */
 export function exportTemplate(snapshot: WorkSnapshot, options: ExportOptions): Template {
-  const keep = options.numbers === 'keep';
+  const keep = options.numbers !== 'strip';
+  const took = tookOf(snapshot, options);
   const say = (name: string, limit: number): LocalisedText => ({
     [options.language]: clip(name, limit),
   });
@@ -167,7 +216,7 @@ export function exportTemplate(snapshot: WorkSnapshot, options: ExportOptions): 
       .map((activity): TemplateActivity => {
         const own = keys.next(activity.name);
         activityKey.set(activity.id, { stage: key, key: own });
-        const durationDays = durationOf(activity, keep);
+        const durationDays = durationOf(activity, keep, took.get(activity.id) ?? null);
         const touched = [...activity.roomIds]
           .map((id) => roomKey.get(id))
           .filter((each): each is string => each !== undefined)
@@ -250,6 +299,7 @@ export function exportTemplate(snapshot: WorkSnapshot, options: ExportOptions): 
   }
 
   const version = options.version;
+  const summary = options.summary?.trim() ?? '';
   return {
     ridgebeamTemplate: TEMPLATE_FORMAT,
     id: keyFrom(options.id ?? '', keyFrom(snapshot.work.name, 'my-work', L.idChars), L.idChars),
@@ -258,6 +308,7 @@ export function exportTemplate(snapshot: WorkSnapshot, options: ExportOptions): 
         ? version
         : 1,
     title: say(options.title.trim() === '' ? snapshot.work.name : options.title, L.nameChars),
+    ...(summary === '' ? {} : { summary: say(summary, L.summaryChars) }),
     ...(rooms.length === 0 ? {} : { rooms }),
     stages,
     ...(links.length === 0 ? {} : { links }),
