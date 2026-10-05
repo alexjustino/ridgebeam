@@ -248,6 +248,28 @@ release that skipped a step is a release nobody can reason about afterwards.
      the weekly report and the owner's snapshot and find the purchases in both, in the owner's
      words. Do it once in Portuguese, where the tab reads _Compras_, the lead time is the _prazo de
      entrega_ and the day to order by reads _encomendar até_;
+   - **let the work teach the next** on a work whose plan has three activities in one stage —
+     _Fit the cabinets_ planned at 3 working days, _Hang the doors_ at 2 with a range of 2 to 4,
+     _Fit the handles_ at 1. In the diary, say the cabinets started on a day three weeks back and
+     finished a week later, the doors started and finished within two days, and the handles started
+     yesterday and did not finish. On the **Schedule**, the **Planned and actual** card reads 2
+     finished, 1 took longer than planned; the cabinets' row says, in words and with the unit,
+     planned 3 working days, what they took, and how many more; the doors' row says inside the range
+     it was given; the handles' row says so far, and nothing about a difference yet. Each figure
+     opens onto its rows. On a work where nothing has started, the card says the diary is what tells
+     it. On the Plan, **Export as a template…**: choose **Learned from this work** — its hint says
+     what it does and that 2 activities finished — and **Where** offers **My templates** first; save
+     it as _kitchen-joinery-learned_ and the dialog says where it went. Save it again under the same
+     id: it asks before replacing. Create a new work and open the template picker: under **Your
+     templates**, after the library, is the template by its title, and the picker says where the
+     folder is. Start from it: the cabinets' activity has **no duration**, and its range runs from 3
+     up to what the cabinets took; the **Schedule**'s chance of finishing is drawn from it. Put a
+     file that is not a template into that folder by hand: it is listed, disabled, with its reason.
+     Choose your template again and **Remove from my templates…**: the confirmation, in the danger
+     tone, says it deletes the file; confirm, and it leaves the picker and the folder. Export once
+     more **to a file**, as before, and find the file where the save dialog put it. Do it once in
+     Portuguese, where the card reads _Planejado e real_, the actual duration is the _duração real_
+     and My templates are _meus modelos_;
    - for every capability the release adds, the check its slice's proof of done names.
 9. **The host proof, when the release carries one** (SPEC §6). For 1.0.0: a real small work — not
    committed — planned from a template to readiness 100 %, run for a week through the diary, and
