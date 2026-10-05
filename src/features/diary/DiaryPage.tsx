@@ -9,19 +9,24 @@ import { schedule } from '@/domain/schedule';
 import { useI18n } from '@/i18n/useI18n';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
+import { ChoiceGroup } from '@/ui/ChoiceGroup';
 import { EmptyState } from '@/ui/EmptyState';
 import { InfoBar } from '@/ui/InfoBar';
 
+import { DIARY_VIEWS, useDiaryView, type DiaryView } from './diaryView';
 import { EntryForm } from './EntryForm';
 import { PhotoThumb } from './PhotoThumb';
+import { StoryView } from './StoryView';
 import { lostDayText, WEATHER_KEYS } from './weather';
 
 /**
  * The diary (slice F4): what actually happened, day by day.
  *
- * The form on top writes one entry — one press on an ordinary day. Below, every day that has an
- * entry, newest first, each entry with who wrote it and when, what was done, who was there, the
- * weather and its photos. An entry is never edited (ADR-019): where an edit would be expected
+ * The form on top writes one entry — one press on an ordinary day. Below, a view switch (G6):
+ * **Day by day** — every day that has an entry, newest first, each entry with who wrote it and
+ * when, what was done, who was there, the weather and its photos — or **In photos**, the work told
+ * room by room from its first photo to its last (`StoryView`). The view chosen lasts for the
+ * session (`diaryView.ts`). An entry is never edited (ADR-019): where an edit would be expected
  * there is "Correct…", which opens the form as a correction of that entry; the original stays,
  * struck through, and says which entry corrected it. The diary is read on its own, not with the
  * plan, and every entry written reads it again.
@@ -84,7 +89,7 @@ export function DiaryPage({
             correcting={correcting}
             onDone={() => setCorrecting(null)}
           />
-          <DayView
+          <DiaryViews
             snapshot={snapshot}
             entries={entries}
             onCorrect={(entry) => {
@@ -96,6 +101,46 @@ export function DiaryPage({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * The two ways to read the diary (G6): the switch, then the view it chose — day by day, or the
+ * work in photos. The switch comes before the view it changes, in reading and in Tab order.
+ */
+export function DiaryViews({
+  snapshot,
+  entries,
+  onCorrect,
+}: {
+  snapshot: WorkSnapshot;
+  entries: readonly DiaryEntry[];
+  onCorrect: (entry: DiaryEntry) => void;
+}) {
+  const { t } = useI18n();
+  const [view, setView] = useDiaryView();
+  const labels: Record<DiaryView, string> = {
+    days: t('diary.view.days'),
+    story: t('diary.view.story'),
+  };
+
+  return (
+    <>
+      <div data-testid="diary-view">
+        <ChoiceGroup<DiaryView>
+          label={t('diary.view')}
+          options={DIARY_VIEWS}
+          value={view}
+          labels={labels}
+          onChange={setView}
+        />
+      </div>
+      {view === 'story' ? (
+        <StoryView snapshot={snapshot} entries={entries} />
+      ) : (
+        <DayView snapshot={snapshot} entries={entries} onCorrect={onCorrect} />
+      )}
+    </>
   );
 }
 
