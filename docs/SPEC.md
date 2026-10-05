@@ -194,7 +194,7 @@ auto-update · AI.
 > with an end day and maintenance with a period, as a calendar of what comes due; **G5** photos from
 > an iPhone — HEIC converted through Windows' own decoder when it is installed, and refused in a
 > sentence that says how to get it when it is not; **G6** the work told in photos — each room's
-> photos from the diary, first to last. They land in `develop` one at a time, and the release is
+> photos, first to last: the diary's, the hidden work's and the snags' (ADR-050). They land in `develop` one at a time, and the release is
 > cut again after them. Nothing else in this specification changes — no network, no account, no AI,
 > one machine, every figure with its rows, the record append-only, two languages, three lenses. The
 > reasons and the cost are in [ADR-045](architecture/ADR.md#adr-045), which also records G1.
