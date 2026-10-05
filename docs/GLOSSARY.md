@@ -12,7 +12,7 @@ language, a term or a sentence, or names a lens that does not exist.
 
 A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 
-72 terms.
+74 terms.
 
 | Key | English term | Sentence (en) | Termo (pt-BR) | Frase (pt-BR) |
 | --- | --- | --- | --- | --- |
@@ -21,6 +21,7 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `stage` | stage | A chapter of the work — demolition, rough-in, plaster, tiling — that holds activities and cannot start or close before its checks are answered. | etapa | Um capítulo da obra — demolição, instalações, reboco, revestimento — que reúne atividades e não começa nem fecha antes de as suas verificações serem respondidas. |
 | `activity` | activity | One piece of work inside a stage, with a duration, a person responsible and the rooms it touches. | atividade | Um pedaço de trabalho dentro de uma etapa, com duração, um responsável e os cômodos que ela toca. |
 | `duration` | duration | How many working days an activity takes. An activity with no duration cannot be scheduled, and the plan says so. | duração | Quantos dias úteis uma atividade leva. Uma atividade sem duração não entra no cronograma, e o plano avisa. |
+| `actualDuration` | actual duration | The working days an activity took, from the first day the diary says it was worked on to the day it was said finished, waiting included. It is shown beside the planned duration, never in its place, and it is only as true as the diary. | duração real | Os dias úteis que uma atividade levou, do primeiro dia em que o diário diz que se trabalhou nela até o dia em que ela foi dada como terminada, esperas incluídas. Aparece ao lado da duração planejada, nunca no lugar dela, e é tão verdadeira quanto o diário. |
 | `responsible` | responsible | The person who answers for an activity — the tiler, the electrician, you. An activity with no responsible is not ready. | responsável | A pessoa que responde por uma atividade — o azulejista, o eletricista, você. Uma atividade sem responsável não está pronta. |
 | `schedule` | schedule | When each activity happens: the plan laid on the working calendar, with its dependencies and lags, from the start date to the finish date. | cronograma | Quando cada atividade acontece: o plano posto sobre o calendário de trabalho, com suas dependências e esperas, da data de início à data de término. |
 | `dependency` | dependency | "This cannot start until that has finished." The links that turn a list of activities into a schedule. | dependência | "Isto não começa enquanto aquilo não terminar." Os elos que transformam uma lista de atividades num cronograma. |
@@ -71,6 +72,7 @@ A term shown on a screen that is not here is a defect (SPEC §2.13, §6).
 | `reason` | reason | The sentence that explains why an approved plan changed. Required, and kept with the baseline it produced. | motivo | A frase que explica por que um plano aprovado mudou. Obrigatória, e guardada com a linha de base que gerou. |
 | `changeOrder` | change order | A change to an approved plan asked for on record: who asked, what changes, what it costs and how many working days it moves the finish — worked out by the schedule, never typed. It is approved, declined or withdrawn once, and never edited. | aditivo | Uma mudança num plano aprovado pedida com registro: quem pediu, o que muda, quanto custa e quantos dias úteis ela move o término — calculado pelo cronograma, nunca digitado. É aprovado, recusado ou retirado uma única vez, e nunca editado. |
 | `template` | template | A plan to start from — stages, typical activities, dependencies, duration ranges, the decisions and checks each stage needs. A starting point, not a promise. | modelo | Um plano para começar — etapas, atividades típicas, dependências, faixas de duração, as decisões e verificações de cada etapa. Um ponto de partida, não uma promessa. |
+| `myTemplates` | my templates | Templates you saved from your own works, kept in the application's data folder on this computer. One learned from a work carries ranges that hold what was planned and what each activity actually took. Ridgebeam does not sync or share them: it is a folder, and you can copy it. | meus modelos | Modelos que você salvou das suas próprias obras, guardados na pasta de dados do aplicativo neste computador. Um modelo aprendido de uma obra traz faixas que contêm o que foi planejado e o que cada atividade de fato levou. O Ridgebeam não os sincroniza nem os compartilha: é uma pasta, e você pode copiá-la. |
 | `range` | range | A duration or a lead time given as a low and a high — the optimistic and the pessimistic — instead of a single number. A template brings its durations as ranges because it cannot know your site, and you can give any activity one; the chance of finishing by a date is computed from them. Costs have no ranges in 1.0: a template’s cost line has no amount. | faixa | Uma duração ou um prazo de entrega dado como um mínimo e um máximo — o otimista e o pessimista — em vez de um número só. Um modelo traz as durações como faixas porque não conhece a sua obra, e você pode dar uma faixa a qualquer atividade; a chance de terminar até uma data é calculada a partir delas. Custos não têm faixa na 1.0: a linha de custo de um modelo vem sem valor. |
 | `lens` | lens | A way of looking at the same work in the words of the engineer, the architect or the owner. Switching lenses changes the words and the arrangement, never the data. | lente | Um jeito de olhar a mesma obra nas palavras do engenheiro, do arquiteto ou do dono. Trocar de lente muda as palavras e a disposição, nunca os dados. |
 | `lensEngineer` | engineer's lens | Work breakdown, critical path, float, S-curve, quantities. | lente do engenheiro | Estrutura analítica, caminho crítico, folga, curva S, quantidades. |
@@ -95,7 +97,7 @@ A lens is a vocabulary and an arrangement over the same rows (ADR-014). Where a 
 with the lens, the word each lens shows is below; a lens with no word of its own shows the term.
 The sentence never changes with the lens, and nothing about a work is stored per lens.
 
-9 of the 72 terms change with the lens.
+9 of the 74 terms change with the lens.
 
 | Key | Engineer (en) | Architect (en) | Owner (en) | Engenheiro (pt-BR) | Arquiteto (pt-BR) | Dono (pt-BR) |
 | --- | --- | --- | --- | --- | --- | --- |

@@ -40,6 +40,7 @@ import {
   PAYMENT_PLAN_QUESTION_KEYS,
   QUESTION_MESSAGE_KEYS,
 } from '@/domain/questions';
+import { ACTUALS_MESSAGE_KEYS } from '@/domain/schedule/actuals';
 import { FORECAST_LABEL_KEYS, FORECAST_PROBLEM_KEYS } from '@/domain/schedule/forecast';
 import { PROBABILITY_MESSAGE_KEYS } from '@/domain/schedule/probability';
 import { SLIP_LABEL_KEY } from '@/domain/schedule/slip';
@@ -235,6 +236,7 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         ...SNAG_MESSAGE_KEYS,
         ...MEETING_MESSAGE_KEYS,
         ...PURCHASE_MESSAGE_KEYS,
+        ...ACTUALS_MESSAGE_KEYS,
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }

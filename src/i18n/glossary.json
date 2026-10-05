@@ -98,6 +98,17 @@
       }
     },
     {
+      "key": "actualDuration",
+      "en": {
+        "term": "actual duration",
+        "sentence": "The working days an activity took, from the first day the diary says it was worked on to the day it was said finished, waiting included. It is shown beside the planned duration, never in its place, and it is only as true as the diary."
+      },
+      "pt-BR": {
+        "term": "duração real",
+        "sentence": "Os dias úteis que uma atividade levou, do primeiro dia em que o diário diz que se trabalhou nela até o dia em que ela foi dada como terminada, esperas incluídas. Aparece ao lado da duração planejada, nunca no lugar dela, e é tão verdadeira quanto o diário."
+      }
+    },
+    {
       "key": "responsible",
       "en": {
         "term": "responsible",
@@ -695,6 +706,17 @@
       "pt-BR": {
         "term": "modelo",
         "sentence": "Um plano para começar — etapas, atividades típicas, dependências, faixas de duração, as decisões e verificações de cada etapa. Um ponto de partida, não uma promessa."
+      }
+    },
+    {
+      "key": "myTemplates",
+      "en": {
+        "term": "my templates",
+        "sentence": "Templates you saved from your own works, kept in the application's data folder on this computer. One learned from a work carries ranges that hold what was planned and what each activity actually took. Ridgebeam does not sync or share them: it is a folder, and you can copy it."
+      },
+      "pt-BR": {
+        "term": "meus modelos",
+        "sentence": "Modelos que você salvou das suas próprias obras, guardados na pasta de dados do aplicativo neste computador. Um modelo aprendido de uma obra traz faixas que contêm o que foi planejado e o que cada atividade de fato levou. O Ridgebeam não os sincroniza nem os compartilha: é uma pasta, e você pode copiá-la."
       }
     },
     {
