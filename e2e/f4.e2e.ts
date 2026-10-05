@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, go, openRecent, startSession, type Session } from './session';
+import { chooseLanguage, createWork, go, openRecent, startSession, type Session } from './session';
 
 /**
  * Slice F4's proof of done, against the real binary:
@@ -88,7 +88,7 @@ describe('F4 — the diary: append-only, chained, corrected, and the source of p
     await click(session, t('new-work'));
     await setValue(session, t('work-name'), WORK);
     await setValue(session, t('work-folder'), workFolder);
-    await click(session, t('work-create'));
+    await createWork(session);
     await (
       await driver.findByXPath(
         '//*[@data-testid="lens-switch"]//button[@role="radio" and normalize-space(.)="Engineer"]',

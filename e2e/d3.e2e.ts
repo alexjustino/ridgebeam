@@ -5,7 +5,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { pdfImageCount, pdfText } from './pdf';
-import { chooseLanguage, go, startSession, type Session } from './session';
+import { chooseLanguage, createWork, go, startSession, type Session } from './session';
 
 /**
  * Slice D3's proof of done, against the real binary:
@@ -61,7 +61,7 @@ describe('D3 — the handover book: the record of the work, with the photos of w
     await setValue(session, t('work-name'), WORK);
     await setValue(session, t('work-folder'), path.join(parent, 'bathroom'));
     await setValue(session, t('work-template'), 'bathroom-renovation');
-    await click(session, t('work-create'));
+    await createWork(session);
     await driver.waitForElement(t('lens-switch'));
     await go(session, 'plan');
     await click(session, '[data-testid="plan-tabs"] [data-tab="breakdown"]');

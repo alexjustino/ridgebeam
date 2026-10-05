@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, chooseTheme, go, startSession, type Session } from './session';
+import { chooseLanguage, chooseTheme, createWork, go, startSession, type Session } from './session';
 
 /**
  * Slice E3's proof of done, against the real binary:
@@ -101,7 +101,7 @@ describe('E3 — why is it late: a forecast from the diary, and the causes of th
     await setValue(session, t('work-name'), WORK);
     await setValue(session, t('work-folder'), path.join(parent, 'laundry'));
     await setValue(session, t('work-start'), week[0]!);
-    await click(session, t('work-create'));
+    await createWork(session);
     await (
       await driver.findByXPath(
         '//*[@data-testid="lens-switch"]//button[@role="radio" and normalize-space(.)="Engineer"]',

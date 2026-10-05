@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, chooseTheme, go, startSession, type Session } from './session';
+import { chooseLanguage, chooseTheme, createWork, go, startSession, type Session } from './session';
 
 /**
  * Slice G3's proof of done, against the real binary:
@@ -125,7 +125,7 @@ describe('G3 — the work teaches the next: planned against actual, and a templa
     await setValue(session, t('work-name'), WORK);
     await setValue(session, t('work-folder'), path.join(parent, 'joinery'));
     await setValue(session, t('work-start'), days[0]!);
-    await click(session, t('work-create'));
+    await createWork(session);
     await engineer(session);
     await go(session, 'plan');
     await click(session, '[data-testid="plan-tabs"] [data-tab="breakdown"]');
@@ -238,7 +238,7 @@ describe('G3 — the work teaches the next: planned against actual, and a templa
       `document.querySelector('[data-testid="templates-mine-folder"]').scrollIntoView({ block: 'center' })`,
     );
     await session.screenshot('g3-picker-en');
-    await click(session, t('work-create'));
+    await createWork(session);
     await engineer(session);
     await go(session, 'plan');
     await click(session, '[data-testid="plan-tabs"] [data-tab="breakdown"]');

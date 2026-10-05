@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { chooseLanguage, chooseTheme, go, startSession, type Session } from './session';
+import { chooseLanguage, chooseTheme, createWork, go, startSession, type Session } from './session';
 
 /**
  * Slice G2's proof of done, against the real binary:
@@ -101,7 +101,7 @@ describe('G2 — what to order this week: lead times against the forecast, order
     await setValue(session, t('work-folder'), path.join(parent, 'kitchen'));
     // The work starts in two weeks: the worktop, three weeks away, is already late to order.
     await setValue(session, t('work-start'), day(14));
-    await click(session, t('work-create'));
+    await createWork(session);
     await (
       await driver.findByXPath(
         '//*[@data-testid="lens-switch"]//button[@role="radio" and normalize-space(.)="Engineer"]',
