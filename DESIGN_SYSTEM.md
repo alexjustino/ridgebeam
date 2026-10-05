@@ -606,7 +606,9 @@ breaks one is not merged.
   any stage is open says on its first page that it was _written while the work was in progress_, and
   that page prints the same gaps, with their rows. The book is in the **owner's** words whatever
   lens is on, like the weekly report. A photo in it is captioned with what it shows — the check or
-  the activity, and the day — and a photo of hidden work is printed full width, others two to a row.
+  the activity, and the day — and a photo of hidden work is printed full width; from G6 the
+  section's other photos are told first to last, three to a row (below, _a story of photos runs
+  first to last_).
   A care note is printed as the person wrote it, and never offered by the product as advice. Where a
   check needs a photo, its photo field is open from the start and the Gates tab says why, so nobody
   learns of the rule from a refusal (ADR-038).
@@ -854,6 +856,31 @@ breaks one is not merged.
   icon alone — so nobody wonders why the copy is not the file they chose. A HEIC Windows cannot read is refused like any
   other photo, under the control that chose it, in the host's own sentence, which says how to get
   the decoder (ADR-049).
+- **A story of photos runs first to last, and says what it left out.** Wherever the product tells
+  the work in photos — the Diary's **In photos**, the handover book's sections, the owner's snapshot
+  — each room's photos, or each stage's when the work has no rooms, run **from the first to the
+  last**, oldest first, never newest first: a story is read in the order the room was built. Each
+  section opens with its name and its span — _"From 3 Mar to 18 Jun · 14 photos"_ — and **a month
+  label stands where the month changes**, so three months of photos never read as three days. Every
+  photo is captioned with **its day and what it shows**, in words — the activities its entry names,
+  the check it answered, _Snag #3 — problem_ or _Snag #3 — fixed_ — never a file name alone and never
+  a kind told by an icon alone. Where a page cannot hold every photo — the book, twelve to a section;
+  the snapshot, thirty in all — **the first and the last are always there**, the rest evenly spaced
+  between, and the section **says in words how many it left out** (§2, _a view says what it left
+  out_). **On screen, nothing is sampled.** The Diary's view switch (`diary-view`, a `ChoiceGroup`,
+  values `days` and `story`) offers **Day by day** and **In photos**; the chosen view lasts for the
+  session and no longer. **In photos** (`diary-story`) gives each section an element
+  `[data-story-section]` whose `data-key` is its section's key — its room's or its stage's, `other`
+  for what touches no room, or `work` for the work as a whole when it has no rooms — and every photo of it, in order, as `[data-story-photo]` with `data-day` and `data-kind`
+  (`diary`, `hidden-work`, `snag-problem`, `snag-fix`). The thumbnails **wrap, in reading order**,
+  rather than run in a strip that scrolls sideways: nothing waits past an edge, the keyboard
+  reaches each one in order, and no second scrolling region needs a name (§7). Each thumbnail is
+  the diary's own — a labelled button that opens the original in the system's viewer, its image's
+  `alt` naming the day — never a bare click on an image (_a photo is a copy the work owns_, above),
+  and its caption sits under it as text. A work with no photo
+  says in a sentence where its story will come from — the diary, the hidden-work checks and the
+  snags — rather than showing empty sections, and a room with no photo has no story: nothing is
+  drawn in its place (ADR-050).
 
 - **The rail is `nav[data-rail]`, and each entry carries `data-destination`.** The rail is one
   `<nav>` element marked `data-rail`, and each destination in it carries
