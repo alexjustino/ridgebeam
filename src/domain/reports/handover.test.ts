@@ -18,6 +18,7 @@ import {
 } from '../__fixtures__/plan';
 import type { Photo } from '../diary';
 import { traceable } from '../figure';
+import { photoStory } from './story';
 import type {
   CareNote,
   Check,
@@ -30,8 +31,9 @@ import type {
 import {
   HANDOVER_DOCUMENT_KINDS,
   HANDOVER_GAP_KEYS,
+  HANDOVER_IMAGE_CAP,
   HANDOVER_LABEL_KEYS,
-  HANDOVER_PHOTO_LIMIT,
+  HANDOVER_STORY_LIMIT,
   handover,
   handoverGaps,
   type HandoverSection,
@@ -320,22 +322,38 @@ describe('the handover book, by room', () => {
     expect(book.sections[2]!.hiddenWork).toEqual([]);
   });
 
-  it('shows the diary photos of the entries naming its activities', () => {
-    expect(book.sections[0]!.photos.map((each) => [each.photoHash, each.activityId])).toEqual([
-      [h('d-pipes'), 'pipes'],
-      [h('d-walls'), 'walls'],
+  it('tells the diary photos of the entries naming its activities, first to last', () => {
+    expect(book.sections[0]!.photos.map((each) => [each.photoHash, each.activityNames])).toEqual([
+      [h('d-pipes'), ['Run pipes']],
+      [h('d-walls'), ['Tile walls']],
     ]);
     expect(book.sections[1]!.photos).toEqual([
       {
         photoHash: h('d-pipes'),
         fileName: 'd-pipes.jpg',
         day: '2026-09-02',
+        kind: 'diary',
         entrySeq: 1,
-        activityId: 'pipes',
-        activityName: 'Run pipes',
+        activityNames: ['Run pipes'],
+        stageName: 'Plumbing',
+        checkName: null,
+        snagNumber: null,
+        snagTitle: null,
       },
     ]);
-    expect(book.sections[0]!.photosNotShown).toBe(0);
+    expect(book.sections[0]).toMatchObject({
+      photosNotShown: 0,
+      storyFirst: '2026-09-02',
+      storyLast: '2026-09-10',
+      storyCount: 2,
+    });
+    expect(book.sections[2]).toMatchObject({
+      photos: [],
+      photosNotShown: 0,
+      storyFirst: null,
+      storyLast: null,
+      storyCount: 0,
+    });
   });
 
   it("gives a room's notes, then its stages', each by position", () => {
@@ -556,17 +574,60 @@ describe('picking the photos of a section', () => {
     expect(only.photos.map((each) => each.photoHash)).not.toContain(h('shared'));
   });
 
-  it('takes the latest per activity first, round by round, up to the limit', () => {
-    expect(HANDOVER_PHOTO_LIMIT).toBe(6);
-    expect(only.photos.map((each) => [each.activityId, each.photoHash.slice(0, 2)])).toEqual([
-      ['x', 'p2'],
-      ['y', 'q3'],
-      ['x', 'p3'],
-      ['y', 'q4'],
-      ['x', 'p1'],
-      ['y', 'q2'],
+  it('tells every other photo first to last while they fit (G6: no more latest per activity)', () => {
+    expect(only.photos.map((each) => each.photoHash.slice(0, 2))).toEqual([
+      'p1',
+      'q1',
+      'p2',
+      'p3',
+      'q2',
+      'q3',
+      'q4',
     ]);
-    expect(only.photosNotShown).toBe(1); // q1
+    expect(only).toMatchObject({
+      photosNotShown: 0,
+      storyFirst: '2026-09-01',
+      storyLast: '2026-09-05',
+      storyCount: 7,
+    });
+  });
+
+  it('keeps the first and the last past the limit, the rest evenly spaced', () => {
+    expect(HANDOVER_STORY_LIMIT).toBe(12);
+    const labels = Array.from({ length: 20 }, (_, i) => `s${String(i + 1).padStart(2, '0')}`);
+    const many = snapshot({
+      stages: [stage('s', 1, 'Finishes')],
+      activities: [{ ...activity('x', 's', 1, 2), name: 'Paint' }],
+      documents: labels.map((label) => document(label)),
+    });
+    const diary = labels.map((label, i) =>
+      entry(i + 1, `2026-09-${String(i + 1).padStart(2, '0')}`, {
+        done: [worked('x')],
+        photos: [photo(label)],
+      }),
+    );
+    const picked = handover(many, diary).sections[0]!;
+    // round(i × 19 / 11), i = 0 … 11.
+    expect(picked.photos.map((each) => each.photoHash.slice(0, 3))).toEqual([
+      's01',
+      's03',
+      's04',
+      's06',
+      's08',
+      's10',
+      's11',
+      's13',
+      's15',
+      's17',
+      's18',
+      's20',
+    ]);
+    expect(picked).toMatchObject({
+      photosNotShown: 8,
+      storyFirst: '2026-09-01',
+      storyLast: '2026-09-20',
+      storyCount: 20,
+    });
   });
 
   it('picks only images the work holds, and only from entries that speak for their day', () => {
@@ -576,7 +637,7 @@ describe('picking the photos of a section', () => {
     expect(hashes).not.toContain(h('old'));
   });
 
-  it('shows a photo once, for the first activity that takes it', () => {
+  it('shows a photo once, where it first comes, with every activity its entry names', () => {
     const both = snapshot({
       stages: [stage('s', 1, 'Finishes')],
       activities: [activity('x', 's', 1, 2), activity('y', 's', 2, 2)],
@@ -586,7 +647,9 @@ describe('picking the photos of a section', () => {
       entry(1, '2026-09-01', { done: [worked('x'), worked('y')], photos: [photo('one')] }),
       entry(2, '2026-09-02', { done: [worked('x')], photos: [photo('one')] }),
     ]).sections[0]!;
-    expect(picked.photos.map((each) => [each.activityId, each.day])).toEqual([['x', '2026-09-02']]);
+    expect(picked.photos.map((each) => [each.activityNames, each.day])).toEqual([
+      [['Activity x', 'Activity y'], '2026-09-01'],
+    ]);
     expect(picked.photosNotShown).toBe(0);
   });
 });
@@ -706,8 +769,8 @@ describe('the handover book, on ties and odd rows', () => {
     const only = book.sections[0]!;
     expect(book.sections.map((each) => each.key)).toEqual(['stage:a', 'stage:b']);
     expect(only.hiddenWork.map((each) => each.checkId)).toEqual(['k1', 'k2']);
-    // The same day: the entry written later is the newer.
-    expect(only.photos.map((each) => each.entrySeq)).toEqual([2, 1]);
+    // The same day: the entry written first comes first.
+    expect(only.photos.map((each) => each.entrySeq)).toEqual([1, 2]);
     expect(book.cover.finishedOn).toBe('2026-09-20');
     expect(book.cover.trades).toEqual([
       {
@@ -956,5 +1019,154 @@ describe('aftercare in the book', () => {
     expect(handoverGaps(AFTER, ROOMED_DIARY)).toEqual(handoverGaps(ROOMED, ROOMED_DIARY));
     expect({ ...book, warranties: [], maintenance: [] }).toEqual(before);
     expect([before.warranties, before.maintenance]).toEqual([[], []]);
+  });
+});
+
+// ── In photos, first to last (slice G6) ──────────────────────────────────────
+
+describe('the book in photos, first to last', () => {
+  it('tells an open snag’s problem among the photos, never a fixed snag’s again', () => {
+    const plan = snapshot({
+      stages: [stage('s', 1, 'Wet areas')],
+      activities: [{ ...activity('a', 's', 1, 2), name: 'Lay the tiles' }],
+      documents: [document('crack'), document('fixed'), document('was')],
+      snags: [
+        snag('open', 2, 's', { activityId: 'a', photoHash: h('crack'), raisedOn: '2026-09-22' }),
+        snag('done', 1, 's', {
+          photoHash: h('was'),
+          closure: snagClosure('fixed', '2026-09-24', h('fixed')),
+        }),
+      ],
+    });
+    const only = handover(plan, []).sections[0]!;
+    expect(only.snagsFixed.map((row) => row.snagId)).toEqual(['done']);
+    expect(only.photos).toEqual([
+      {
+        photoHash: h('crack'),
+        fileName: 'crack.jpg',
+        day: '2026-09-22',
+        kind: 'snag-problem',
+        entrySeq: null,
+        activityNames: ['Lay the tiles'],
+        stageName: 'Wet areas',
+        checkName: null,
+        snagNumber: 2,
+        snagTitle: 'Snag open',
+      },
+    ]);
+  });
+
+  it('ends with the photos no section takes: `other` with rooms, the whole work without', () => {
+    const roomed = snapshot({
+      rooms: [{ id: 'bath', position: 1, name: 'Bathroom' }],
+      stages: [stage('s', 1, 'Plumbing')],
+      activities: [{ ...activity('a', 's', 1, 2), roomIds: ['bath'] }],
+      documents: [document('yard')],
+    });
+    const diary = [entry(1, '2026-09-03', { photos: [photo('yard')] })];
+    const book = handover(roomed, diary);
+    expect(book.sections.map((each) => [each.key, each.kind, each.storyCount])).toEqual([
+      ['room:bath', 'room', 0],
+      ['other', 'other', 1],
+    ]);
+    expect(book.sections[1]).toMatchObject({ name: null, activities: 0, stages: [] });
+    expect(book.sections[1]!.photos[0]).toMatchObject({ activityNames: [], stageName: null });
+
+    const flat = { ...roomed, rooms: [] };
+    const byStage = handover(flat, diary);
+    expect(byStage.sections.map((each) => [each.key, each.kind, each.storyCount])).toEqual([
+      ['stage:s', 'stage', 0],
+      ['work', 'work', 1],
+    ]);
+    // With no such photo, no such section.
+    expect(handover(flat, []).sections.map((each) => each.key)).toEqual(['stage:s']);
+  });
+
+  it('tells the same photos, in the same sections, as the story', () => {
+    const book = handover(ROOMED, ROOMED_DIARY);
+    const story = photoStory(ROOMED, ROOMED_DIARY);
+    for (const told of story.sections) {
+      const section = book.sections.find((each) => each.key === told.key)!;
+      const shown = new Set([
+        ...section.hiddenWork.map((each) => each.photoHash),
+        ...section.snagsFixed.flatMap((row) =>
+          [row.before, row.after].flatMap((each) => (each === null ? [] : [each.photoHash])),
+        ),
+        ...section.photos.map((each) => each.photoHash),
+      ]);
+      expect([...shown].sort()).toEqual(told.photos.map((each) => each.photoHash).sort());
+    }
+    expect(
+      book.sections.filter((each) => each.storyCount + each.hiddenWork.length > 0),
+    ).toHaveLength(story.sections.length);
+  });
+
+  it('keeps the whole book within the host’s image cap, however many rooms and photos', () => {
+    expect(HANDOVER_IMAGE_CAP).toBe(400);
+    const ROOMS = 60;
+    const PER_ROOM = 20;
+    const rooms = Array.from({ length: ROOMS }, (_, i) => ({
+      id: `r${i}`,
+      position: i + 1,
+      name: `Room ${i}`,
+    }));
+    const hidden = Array.from({ length: 40 }, (_, i) => `hid${i}z`);
+    const fixedSnags = Array.from({ length: 30 }, (_, i) => i);
+    const diaryLabels = rooms.flatMap((room) =>
+      Array.from({ length: PER_ROOM }, (_, i) => `${room.id}-${i}z`),
+    );
+    const plan = snapshot({
+      rooms,
+      stages: [stage('s', 1, 'Everything')],
+      activities: rooms.map((room, i) => ({
+        ...activity(`a${i}`, 's', i + 1, 2),
+        roomIds: [room.id],
+      })),
+      checks: hidden.map((label, i) => check(label, 's', 'close', i + 1, true)),
+      checkAnswers: hidden.map((label) => answer(label, 1, 'yes', h(label))),
+      snags: fixedSnags.map((i) =>
+        snag(`n${i}`, i + 1, 's', {
+          photoHash: h(`before${i}z`),
+          closure: snagClosure('fixed', '2026-09-25', h(`after${i}z`)),
+        }),
+      ),
+      documents: [
+        ...hidden,
+        ...fixedSnags.flatMap((i) => [`before${i}z`, `after${i}z`]),
+        ...diaryLabels,
+      ].map((label) => document(label)),
+    });
+    const diary = rooms.map((room, i) =>
+      entry(i + 1, '2026-09-10', {
+        done: [worked(`a${i}`)],
+        photos: Array.from({ length: PER_ROOM }, (_, j) => photo(`${room.id}-${j}z`)),
+      }),
+    );
+    const book = handover(plan, diary);
+    const distinct = new Set(
+      book.sections.flatMap((section) => [
+        ...section.hiddenWork.map((each) => each.photoHash),
+        ...section.snagsFixed.flatMap((row) =>
+          [row.before, row.after].flatMap((each) => (each === null ? [] : [each.photoHash])),
+        ),
+        ...section.photos.map((each) => each.photoHash),
+      ]),
+    );
+    expect(distinct.size).toBeLessThanOrEqual(HANDOVER_IMAGE_CAP);
+    // Hidden work and snags are never cut: 40 + 60, in every room. (Labels end in `z`: `h` pads
+    // with zeros, so `hid1` and `hid10` would be one hash.)
+    expect(book.sections[0]!.hiddenWork).toHaveLength(40);
+    expect(book.sections[0]!.snagsFixed).toHaveLength(30);
+    // The 300 left spread fairly: 5 each, the first and the last always.
+    const rooms60 = book.sections.filter((each) => each.kind === 'room');
+    expect(rooms60.map((each) => each.photos.length)).toEqual(rooms60.map(() => 5));
+    for (const each of rooms60) {
+      expect(each.photosNotShown).toBe(PER_ROOM - 5);
+      expect(each.photos[0]!.photoHash).toBe(h(`${each.id}-0z`));
+      expect(each.photos.at(-1)!.photoHash).toBe(h(`${each.id}-${PER_ROOM - 1}z`));
+    }
+    // With few rooms, the cap is not felt: 12 each.
+    const few = handover({ ...plan, rooms: rooms.slice(0, 3) }, diary);
+    expect(few.sections.slice(0, 3).map((each) => each.photos.length)).toEqual([12, 12, 12]);
   });
 });

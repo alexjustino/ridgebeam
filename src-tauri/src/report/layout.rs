@@ -14,7 +14,11 @@
 //!
 //! A photo (D3) is laid out by its size in pixels, which the caller passes in
 //! by hash ([`lay_out_with`]): `full` may take the line's width, `half` half of
-//! it, and two `half` photos in a row sit side by side. A photo is never drawn
+//! it, and two `half` photos in a row sit side by side; `third` (G6) a third of
+//! it, and up to three `third` photos in a row share one — the last one or two
+//! of a run sit in the first columns, left-aligned. A run is of one size: a
+//! `third` after a `half` starts a row of its own. A row is kept whole on one
+//! page; one that does not fit moves to the next. A photo is never drawn
 //! larger than its pixels at 150 dpi (`width ≤ pixels × 72 / 150` points), so a
 //! small photo sits at its natural size; the column's width is the most it
 //! takes. It is never taller than a page can hold with its caption: it is
@@ -59,7 +63,7 @@ const GANTT_HEADER: f32 = 12.0;
 /// The widest a day column is drawn: a short plan does not fill the page with
 /// three enormous days.
 const MAX_DAY_WIDTH: f32 = 24.0;
-/// The space between two half photos side by side.
+/// The space between two photos side by side, halves or thirds.
 const IMAGE_GUTTER: f32 = 12.0;
 /// The space between a photo and its caption.
 const CAPTION_GAP: f32 = 4.0;
@@ -709,14 +713,11 @@ impl Writer {
         self.y -= 8.0;
     }
 
-    /// One photo, or two half photos side by side, each with its caption
-    /// under it; kept together on one page.
+    /// One row of photos: one full, up to two halves or up to three thirds
+    /// side by side, each with its caption under it; kept together on one
+    /// page.
     fn photos(&mut self, items: &[(&str, &str)], size: ImageSize, sizes: &ImageSizes) {
-        let full = self.content_width();
-        let column = match size {
-            ImageSize::Full => full,
-            ImageSize::Half => (full - IMAGE_GUTTER) / 2.0,
-        };
+        let column = column_width(self.content_width(), size);
         let leading = SMALL_SIZE * LEADING;
         let most_lines = ((self.capacity() / 4.0) / leading).floor().max(1.0) as usize;
         // Each photo that can be drawn: its column, its pixel size, its caption.
@@ -828,6 +829,13 @@ fn height_of(cells: &[Vec<Vec<u8>>], leading: f32) -> f32 {
     count as f32 * leading + 2.0 * CELL_PAD_Y
 }
 
+/// The width of one photo's column in a line `full` wide: the line, or the
+/// line less the gutters between two halves or three thirds, shared.
+fn column_width(full: f32, size: ImageSize) -> f32 {
+    let per_row = size.per_row() as f32;
+    (full - (per_row - 1.0) * IMAGE_GUTTER) / per_row
+}
+
 /// The widest a photo of `pixels` across is drawn, in points: its pixels at
 /// [`PRINT_DPI`].
 pub fn natural_width(pixels: u32) -> f32 {
@@ -902,25 +910,26 @@ pub fn lay_out_with(
             Block::Image {
                 hash,
                 caption,
-                size: ImageSize::Half,
+                size,
             } => {
+                // A row: the photos of one size that follow, as many as the
+                // size holds — one full, two halves, three thirds.
                 let mut items = vec![(hash.as_str(), caption.as_str())];
-                if let Some(Block::Image {
-                    hash: next,
-                    caption: next_caption,
-                    size: ImageSize::Half,
-                }) = blocks.get(index)
-                {
-                    items.push((next.as_str(), next_caption.as_str()));
-                    index += 1;
+                while items.len() < size.per_row() {
+                    match blocks.get(index) {
+                        Some(Block::Image {
+                            hash: next,
+                            caption: next_caption,
+                            size: next_size,
+                        }) if next_size == size => {
+                            items.push((next.as_str(), next_caption.as_str()));
+                            index += 1;
+                        }
+                        _ => break,
+                    }
                 }
-                writer.photos(&items, ImageSize::Half, sizes);
+                writer.photos(&items, *size, sizes);
             }
-            Block::Image {
-                hash,
-                caption,
-                size: ImageSize::Full,
-            } => writer.photos(&[(hash.as_str(), caption.as_str())], ImageSize::Full, sizes),
             Block::Heading { level, text } => writer.heading(*level, text),
             Block::Paragraph { text, tone } => writer.paragraph(text, *tone),
             Block::Figure { label, value, rows } => writer.figure(label, value, rows),
@@ -1533,6 +1542,222 @@ mod tests {
         inside_the_margins(&pages);
     }
 
+    /// The rows a page's photos make: grouped by their top edge, in order,
+    /// each photo's left edge and hash.
+    fn rows(page: &Page) -> Vec<Vec<(f32, String)>> {
+        let mut rows: Vec<(f32, Vec<(f32, String)>)> = Vec::new();
+        for (x, y, _, h, hash) in photo_marks(page) {
+            let top = y + h;
+            match rows.last_mut() {
+                Some((at, row)) if (*at - top).abs() < 0.01 => row.push((x, hash)),
+                _ => rows.push((top, vec![(x, hash)])),
+            }
+        }
+        rows.into_iter().map(|(_, row)| row).collect()
+    }
+
+    #[test]
+    fn three_thirds_share_a_row_a_fourth_starts_the_next_and_a_lone_third_sits_alone() {
+        let (a, b, c, d) = (
+            "a".repeat(64),
+            "b".repeat(64),
+            "c".repeat(64),
+            "d".repeat(64),
+        );
+        let sizes: ImageSizes = [
+            (a.clone(), (1600, 1200)),
+            (b.clone(), (1200, 1600)),
+            (c.clone(), (800, 800)),
+            (d.clone(), (1600, 1200)),
+        ]
+        .into_iter()
+        .collect();
+        let blocks = vec![
+            photo(&a, "Day 1 — the empty room", ImageSize::Third),
+            photo(&b, "Day 4 — the pipes", ImageSize::Third),
+            photo(&c, "Day 9 — the tiles", ImageSize::Third),
+            photo(&d, "Day 12 — finished", ImageSize::Third),
+            Block::Paragraph {
+                text: "Between.".into(),
+                tone: Tone::Normal,
+            },
+            photo(&a, "Alone", ImageSize::Third),
+        ];
+        let pages = lay_out_with("Book", "", PageSize::A4, Language::En, &blocks, &sizes);
+        assert_eq!(pages.len(), 1);
+        let content = paper(PageSize::A4).0 - 2.0 * MARGIN;
+        let column = (content - 2.0 * IMAGE_GUTTER) / 3.0;
+        assert!((column_width(content, ImageSize::Third) - column).abs() < 0.001);
+
+        let marks = photo_marks(&pages[0]);
+        assert_eq!(marks.len(), 5);
+        for (_, _, w, _, hash) in &marks {
+            assert!(*w <= column + 0.01, "{hash}: a third's width at most");
+        }
+        // The row of three: the same top, one to a column, in order.
+        let three = &marks[..3];
+        for (k, (x, y, _, h, _)) in three.iter().enumerate() {
+            assert!(
+                (x - (MARGIN + k as f32 * (column + IMAGE_GUTTER))).abs() < 0.01,
+                "column {k}"
+            );
+            assert!(
+                ((y + h) - (three[0].1 + three[0].3)).abs() < 0.01,
+                "the same top"
+            );
+        }
+        let large = &marks[0];
+        assert!((large.2 - column).abs() < 0.01 && (large.3 - column * 0.75).abs() < 0.01);
+        // The fourth starts the next row, in the first column, below the
+        // tallest of the three and its caption.
+        let lowest = three.iter().map(|m| m.1).fold(f32::MAX, f32::min);
+        let fourth = &marks[3];
+        assert_eq!(fourth.4, d);
+        assert!((fourth.0 - MARGIN).abs() < 0.01, "left-aligned");
+        assert!(fourth.1 + fourth.3 < lowest - SMALL_SIZE, "below the row");
+        // A lone third, after a paragraph: a third's width, at the left.
+        let alone = &marks[4];
+        assert!((alone.0 - MARGIN).abs() < 0.01 && (alone.2 - column).abs() < 0.01);
+        assert!(alone.1 + alone.3 < fourth.1);
+        assert_eq!(
+            rows(&pages[0]).iter().map(Vec::len).collect::<Vec<_>>(),
+            vec![3, 1, 1]
+        );
+
+        // Each caption under its own photo, in its column.
+        for (caption, (x, y, _, _, _)) in [
+            "Day 1 — the empty room",
+            "Day 4 — the pipes",
+            "Day 9 — the tiles",
+            "Day 12 — finished",
+            "Alone",
+        ]
+        .iter()
+        .zip(&marks)
+        {
+            let at = pages[0]
+                .marks
+                .iter()
+                .find_map(|m| match m {
+                    Mark::Text { x, y, bytes, .. } if *bytes == encode(caption) => Some((*x, *y)),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("{caption}"));
+            assert!(
+                (at.0 - x).abs() < 0.01 && at.1 < *y,
+                "{caption} under its photo"
+            );
+        }
+        photos_inside(&pages);
+        inside_the_margins(&pages);
+    }
+
+    #[test]
+    fn a_third_after_a_half_starts_its_own_row_and_each_size_keeps_its_row_rule() {
+        let (a, b, c) = ("a".repeat(64), "b".repeat(64), "c".repeat(64));
+        let sizes: ImageSizes = [
+            (a.clone(), (1600, 1200)),
+            (b.clone(), (1600, 1200)),
+            (c.clone(), (1600, 1200)),
+        ]
+        .into_iter()
+        .collect();
+        let content = paper(PageSize::A4).0 - 2.0 * MARGIN;
+        let half = (content - IMAGE_GUTTER) / 2.0;
+        let third = (content - 2.0 * IMAGE_GUTTER) / 3.0;
+        let blocks = vec![
+            photo(&a, "", ImageSize::Third),
+            photo(&b, "", ImageSize::Third),
+            photo(&c, "", ImageSize::Half),
+            photo(&a, "", ImageSize::Third),
+            photo(&b, "", ImageSize::Half),
+            photo(&c, "", ImageSize::Half),
+            photo(&a, "", ImageSize::Half),
+            photo(&b, "", ImageSize::Full),
+            photo(&c, "", ImageSize::Third),
+        ];
+        let pages = lay_out_with("Book", "", PageSize::A4, Language::En, &blocks, &sizes);
+        let marks: Vec<_> = pages.iter().flat_map(photo_marks).collect();
+        let expected = [third, third, half, third, half, half, half, content, third];
+        assert_eq!(marks.len(), expected.len());
+        for (k, (mark, width)) in marks.iter().zip(expected).enumerate() {
+            assert!(
+                (mark.2 - width).abs() < 0.01,
+                "photo {k}: {}, not {width}",
+                mark.2
+            );
+        }
+        let shape: Vec<usize> = pages.iter().flat_map(rows).map(|r| r.len()).collect();
+        assert_eq!(
+            shape,
+            vec![2, 1, 1, 2, 1, 1, 1],
+            "two thirds; a half; a third; two halves; a half; a full; a third"
+        );
+        // Every row begins at the left margin.
+        for row in pages.iter().flat_map(rows) {
+            assert!((row[0].0 - MARGIN).abs() < 0.01);
+        }
+        photos_inside(&pages);
+        inside_the_margins(&pages);
+    }
+
+    #[test]
+    fn a_run_of_thirds_crossing_a_page_moves_a_row_whole_to_the_next() {
+        let hashes: Vec<String> = (0..31).map(|n| format!("{n:064x}")).collect();
+        let sizes: ImageSizes = hashes
+            .iter()
+            .map(|hash| (hash.clone(), (1200, 1600)))
+            .collect();
+        let mut blocks = vec![Block::Paragraph {
+            text: "From 2 March to 30 September: 31 photos.".into(),
+            tone: Tone::Muted,
+        }];
+        blocks.extend(
+            hashes
+                .iter()
+                .enumerate()
+                .map(|(n, hash)| photo(hash, &format!("Day {}", n + 1), ImageSize::Third)),
+        );
+        let pages = lay_out_with("Book", "", PageSize::A4, Language::En, &blocks, &sizes);
+        assert!(pages.len() >= 3, "{} pages", pages.len());
+        let content = paper(PageSize::A4).0 - 2.0 * MARGIN;
+        let column = (content - 2.0 * IMAGE_GUTTER) / 3.0;
+
+        // Every row is three photos in order, one to a column, except the
+        // run's last, which holds the one left over.
+        let laid: Vec<Vec<(f32, String)>> = pages.iter().flat_map(rows).collect();
+        let shape: Vec<usize> = laid.iter().map(Vec::len).collect();
+        assert_eq!(shape, [vec![3; 10], vec![1]].concat());
+        let order: Vec<&String> = laid.iter().flatten().map(|(_, hash)| hash).collect();
+        assert_eq!(order, hashes.iter().collect::<Vec<_>>(), "in order");
+        for row in &laid {
+            for (k, (x, _)) in row.iter().enumerate() {
+                assert!((x - (MARGIN + k as f32 * (column + IMAGE_GUTTER))).abs() < 0.01);
+            }
+        }
+        // Each page holds whole rows: the row that did not fit was moved to
+        // the next page whole, its captions with it.
+        let mut seen = 0;
+        for page in &pages {
+            let lines = page.lines();
+            for row in rows(page) {
+                assert!(row.len() == 3 || seen + row.len() == hashes.len());
+                for (_, hash) in &row {
+                    let n = hashes.iter().position(|h| h == hash).unwrap();
+                    assert!(
+                        lines.contains(&format!("Day {}", n + 1)),
+                        "Day {} with its photo",
+                        n + 1
+                    );
+                }
+                seen += row.len();
+            }
+        }
+        assert_eq!(seen, hashes.len());
+        photos_inside(&pages);
+        inside_the_margins(&pages);
+    }
+
     #[test]
     fn a_photo_taller_than_the_page_is_scaled_to_fit_with_its_caption_and_a_long_caption_is_cut() {
         let tall = "d".repeat(64);
@@ -1625,6 +1850,7 @@ mod tests {
         for (size, column) in [
             (ImageSize::Full, content),
             (ImageSize::Half, (content - IMAGE_GUTTER) / 2.0),
+            (ImageSize::Third, (content - 2.0 * IMAGE_GUTTER) / 3.0),
         ] {
             for (hash, expected) in [
                 (&dot, (72.0 / 150.0, 72.0 / 150.0)),

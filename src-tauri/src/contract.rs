@@ -185,6 +185,14 @@
 //!   commands answer the snapshot, as before, and do not say it. Where
 //!   Windows cannot read HEIC, the refusal is a host sentence, as every
 //!   intake refusal is.
+//! - G6: the work told in photos. A report's `image` block takes a third
+//!   size: `{ type: 'image', hash, caption, size: 'full' | 'half' | 'third' }`
+//!   (`report::model`). Up to three `third` images in a row share one, in the
+//!   PDF and in the snapshot's page, as two `half` images do; a run is of one
+//!   size. A photo placed only as a third is prepared smaller — 1 000 px for
+//!   the PDF, 640 for the snapshot (`report::images`). The caps are
+//!   unchanged. No work shape changes: the story is the domain's, computed
+//!   every time.
 
 use serde::{Deserialize, Deserializer, Serialize};
 

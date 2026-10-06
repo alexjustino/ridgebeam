@@ -48,6 +48,7 @@ import { SLIP_LABEL_KEY } from '@/domain/schedule/slip';
 import { MEETING_MESSAGE_KEYS } from '@/domain/meetings';
 import { PURCHASE_MESSAGE_KEYS } from '@/domain/purchases';
 import { SNAG_MESSAGE_KEYS } from '@/domain/snags';
+import { STORY_MESSAGE_KEYS } from '@/domain/reports/story';
 import { WHAT_IF_LABEL_KEY, WHAT_IF_PROBLEM_KEYS } from '@/domain/schedule/whatIf';
 import { LANGUAGES as LANGUAGE_CHOICES } from '@/domain/settings';
 import { TEMPLATE_NOTE_KEYS } from '@/domain/templates/apply';
@@ -239,6 +240,7 @@ describe('every rule is named and explained, in both languages (F3)', () => {
         ...PURCHASE_MESSAGE_KEYS,
         ...ACTUALS_MESSAGE_KEYS,
         ...AFTERCARE_MESSAGE_KEYS,
+        ...STORY_MESSAGE_KEYS,
       ]) {
         expect(dictionary[key], `${language} ${key}`).toBeTruthy();
       }

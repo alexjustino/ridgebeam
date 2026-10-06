@@ -7,21 +7,31 @@
  * - **the cover**: the work, its place and start, the day the last stage closed (`finishedOn`) or,
  *   while any stage is open, "in progress"; the people by trade; where the plan came from.
  * - **the sections**, by **room** in room order when the work has rooms, otherwise by **stage** in
- *   stage order. A room's section holds the activities that touch it and the stages of those
- *   activities; when the work has rooms, one last section (`other`) holds the activities that touch
- *   none and the stages none of whose activities touch a room, so nothing done is left out of the
- *   book. A stage's things (its decisions, its hidden-work photos, its care notes) are told in every
- *   section the stage is in. Each section says:
+ *   stage order (`sections.ts`, shared with the work told in photos). A room's section holds the
+ *   activities that touch it and the stages of those activities; when the work has rooms, one last
+ *   section (`other`) holds the activities that touch none and the stages none of whose activities
+ *   touch a room, so nothing done is left out of the book. A stage's things (its decisions, its
+ *   hidden-work photos, its care notes) are told in every section the stage is in. When the story
+ *   in photos has photos no section takes (an entry naming no activity), the book ends the sections
+ *   with that story's last one — `other` when the work has rooms, the whole work (`work`) when it
+ *   has none — holding only those photos. Each section says:
  *   - **what was done and when**: its finished activities, in plan order, with the day the diary
  *     says they finished (effective entries only), and how many of its activities are not finished;
  *   - **the decisions made** of its stages: name, answer, day;
  *   - **hidden-work photos**: every photo an answer carries on a check that needs one
  *     (`needsPhoto`) of its stages, in check order (stage, then start before close, then position),
  *     each answer by seq — all of them: they are what the book is for, and never cut;
- *   - **other photos**: photos of the effective diary entries naming its activities, at most
- *     `HANDOVER_PHOTO_LIMIT`, picked **the latest per activity first** — each activity's newest
- *     photo in plan order, then each one's second newest, and so on — never one already shown as
- *     hidden work, each photo once; how many were left out is said (`photosNotShown`);
+ *   - **in photos, first to last** (slice G6, amending D3's latest-per-activity pick): the
+ *     section's story (`story.ts`: its diary photos, hidden-work photos and snag photos, by day)
+ *     minus the photos it already shows as hidden work or as a snag fixed, picked with `pickStory`:
+ *     at most `HANDOVER_STORY_LIMIT`, the first and the last always, the rest evenly spaced; how
+ *     many were left out is said (`photosNotShown`), with that story's first and last day and its
+ *     count before picking (`storyFirst`, `storyLast`, `storyCount`). The whole book stays within
+ *     `HANDOVER_IMAGE_CAP` photos: hidden work and snags are never cut, and what they leave of the
+ *     cap is spread over the sections round by round (`allotStory`) — every section its first and
+ *     its last before any its third — so a work with many rooms shows fewer per room, never more
+ *     than the host prints. Only when hidden work and snags alone pass the cap is the cut the
+ *     host's;
  *   - **snags fixed** (slice E4): each fixed snag of its stages, by number, with **both photos** —
  *     the problem and the fix — when the work holds them. A snag naming an activity is told where
  *     that activity is; one naming none, in every section its stage is in. A withdrawn snag is not
@@ -69,7 +79,7 @@ import {
   type AftercareDocument,
   type AftercareTarget,
 } from '../aftercare';
-import { breakdown, byRoom } from '../arrangements';
+import { breakdown } from '../arrangements';
 import { latestAnswers, stageState, type StageState } from '../checks';
 import { effectiveEntries, progress, type DiaryEntry } from '../diary';
 import {
@@ -86,11 +96,9 @@ import {
   compareText,
   decisionsInOrder,
   stagesInOrder,
-  type Activity,
   type Answer,
   type CareNote,
   type CareTargetKind,
-  type Check,
   type DocumentKind,
   type Gate,
   type Stage,
@@ -98,9 +106,28 @@ import {
 } from '../plan';
 import { daysOnSite } from '../people';
 import { diaryReport } from './diary';
+import {
+  fallbackScope,
+  hiddenAnswersOf,
+  hiddenChecks,
+  imagesOf,
+  scopes,
+  snagIn,
+  type Scope,
+  type ScopeBy,
+  type ScopeKind,
+} from './sections';
+import { allotStory, pickStory, storyOfScopes, type StoryPhoto } from './story';
 
-/** At most this many diary photos per section, besides the hidden-work photos. */
-export const HANDOVER_PHOTO_LIMIT = 6;
+/** At most this many photos per section "in photos", besides its hidden work and snags fixed. */
+export const HANDOVER_STORY_LIMIT = 12;
+
+/**
+ * At most this many distinct photos in the whole book: the host's cap on the images of one
+ * document (`REPORT_LIMITS.images`). The story's picks keep within what hidden work and snags
+ * leave of it.
+ */
+export const HANDOVER_IMAGE_CAP = 400;
 
 /** The documents the book lists, by kind, in this order. Photos are shown, not listed. */
 export const HANDOVER_DOCUMENT_KINDS = [
@@ -114,10 +141,13 @@ export const HANDOVER_DOCUMENT_KINDS = [
 export type HandoverDocumentKind = (typeof HANDOVER_DOCUMENT_KINDS)[number];
 
 /** How the book is divided: by room when the work has rooms, by stage otherwise. */
-export type HandoverBy = 'room' | 'stage';
+export type HandoverBy = ScopeBy;
 
-/** A section is a room, a stage, or the rest of the work (`other`) when the work has rooms. */
-export type HandoverSectionKind = 'room' | 'stage' | 'other';
+/**
+ * A section is a room, a stage, the rest of the work (`other`) when the work has rooms, or — only
+ * for photos no stage takes, when it has none — the whole work (`work`).
+ */
+export type HandoverSectionKind = ScopeKind;
 
 export const HANDOVER_LABEL_KEYS = {
   /** The gaps figure: "The book has 4 gaps". */
@@ -223,17 +253,11 @@ export interface HandoverHiddenPhoto {
   readonly day: string;
 }
 
-/** A diary photo of an entry naming one of the section's activities. */
-export interface HandoverDiaryPhoto {
-  readonly photoHash: string;
-  readonly fileName: string;
-  /** The day of the entry it came with. */
-  readonly day: string;
-  readonly entrySeq: number;
-  /** The activity it was picked for. */
-  readonly activityId: string;
-  readonly activityName: string;
-}
+/**
+ * A photo of the section's story, with what its caption needs: the day, what it is (`kind`), and
+ * the activities, the check or the snag it shows (slice G6).
+ */
+export type HandoverStoryPhoto = StoryPhoto;
 
 /** A photo the work holds, as the book shows it. */
 export interface HandoverPhoto {
@@ -275,12 +299,12 @@ export interface HandoverCareNote {
 }
 
 export interface HandoverSection {
-  /** `room:<id>`, `stage:<id>` or `other`. */
+  /** `room:<id>`, `stage:<id>`, `other` or `work`. */
   readonly key: string;
   readonly kind: HandoverSectionKind;
-  /** The room's or the stage's id; `null` for `other`. */
+  /** The room's or the stage's id; `null` for `other` and `work`. */
   readonly id: string | null;
-  /** The room's or the stage's name; `null` for `other` (`HANDOVER_LABEL_KEYS.other`). */
+  /** The room's or the stage's name; `null` for `other` (`HANDOVER_LABEL_KEYS.other`) and `work`. */
   readonly name: string | null;
   readonly stages: readonly HandoverStageRow[];
   /** How many activities the section holds; `done` lists the finished ones. */
@@ -288,9 +312,15 @@ export interface HandoverSection {
   readonly done: readonly HandoverDoneRow[];
   readonly decisions: readonly HandoverDecisionRow[];
   readonly hiddenWork: readonly HandoverHiddenPhoto[];
-  readonly photos: readonly HandoverDiaryPhoto[];
-  /** Diary photos of the section's activities that the limit left out. */
+  /** In photos, first to last: the picked photos of its story not shown above, in story order. */
+  readonly photos: readonly HandoverStoryPhoto[];
+  /** The photos of that story the pick left out. */
   readonly photosNotShown: number;
+  /** That story's first and last day, before picking; `null` when it has no photo. */
+  readonly storyFirst: string | null;
+  readonly storyLast: string | null;
+  /** How many photos that story holds before picking: `photos` plus `photosNotShown`. */
+  readonly storyCount: number;
   /** The snags of the section fixed, by number, with both photos (slice E4). */
   readonly snagsFixed: readonly HandoverSnagRow[];
   readonly careNotes: readonly HandoverCareNote[];
@@ -408,12 +438,7 @@ interface Reading {
 }
 
 function read(snapshot: WorkSnapshot, entries: readonly DiaryEntry[]): Reading {
-  const images = new Map<string, string>();
-  for (const document of snapshot.documents) {
-    if (document.width !== null && document.height !== null && !images.has(document.fileHash)) {
-      images.set(document.fileHash, document.fileName);
-    }
-  }
+  const images = imagesOf(snapshot);
   const finishedOn = new Map<string, string>();
   for (const [id, each] of progress(snapshot, entries)) {
     if (each.finishedOn !== null) finishedOn.set(id, each.finishedOn);
@@ -432,77 +457,6 @@ function read(snapshot: WorkSnapshot, entries: readonly DiaryEntry[]): Reading {
   };
 }
 
-/** A section's scope: its activities in plan order, and its stages in plan order. */
-interface Scope {
-  readonly key: string;
-  readonly kind: HandoverSectionKind;
-  readonly id: string | null;
-  readonly name: string | null;
-  readonly activities: readonly Activity[];
-  readonly stages: readonly Stage[];
-  /** The room's own notes come first, for a room. */
-  readonly roomId: string | null;
-}
-
-function scopes(snapshot: WorkSnapshot): { by: HandoverBy; scopes: Scope[] } {
-  const ordered = stagesInOrder(snapshot);
-  const stagesOf = (activities: readonly Activity[]) => {
-    const ids = new Set(activities.map((activity) => activity.stageId));
-    return ordered.filter((stage) => ids.has(stage.id));
-  };
-
-  if (snapshot.rooms.length === 0) {
-    return {
-      by: 'stage',
-      scopes: ordered.map((stage) => ({
-        key: `stage:${stage.id}`,
-        kind: 'stage',
-        id: stage.id,
-        name: stage.name,
-        activities: snapshot.activities
-          .filter((activity) => activity.stageId === stage.id)
-          .sort((a, b) => a.position - b.position || compareText(a.id, b.id)),
-        stages: [stage],
-        roomId: null,
-      })),
-    };
-  }
-
-  const result: Scope[] = [];
-  const roomed = new Set<string>();
-  let rest: readonly Activity[] = [];
-  for (const group of byRoom(snapshot)) {
-    if (group.roomId === null) {
-      rest = group.activities;
-      continue;
-    }
-    for (const activity of group.activities) roomed.add(activity.stageId);
-    result.push({
-      key: `room:${group.roomId}`,
-      kind: 'room',
-      id: group.roomId,
-      name: group.name,
-      activities: group.activities,
-      stages: stagesOf(group.activities),
-      roomId: group.roomId,
-    });
-  }
-  const restStages = new Set(stagesOf(rest).map((stage) => stage.id));
-  const others = ordered.filter((stage) => restStages.has(stage.id) || !roomed.has(stage.id));
-  if (rest.length > 0 || others.length > 0) {
-    result.push({
-      key: 'other',
-      kind: 'other',
-      id: null,
-      name: null,
-      activities: rest,
-      stages: others,
-      roomId: null,
-    });
-  }
-  return { by: 'room', scopes: result };
-}
-
 function careNoteRow(
   note: CareNote,
   targetName: string | null,
@@ -518,103 +472,29 @@ function careNoteRow(
   };
 }
 
-/** A stage's checks that need a photo: start before close, then by position. */
-function hiddenChecks(snapshot: WorkSnapshot, stage: Stage): Check[] {
-  const gateOrder: Record<Gate, number> = { start: 0, close: 1 };
-  return snapshot.checks
-    .filter((check) => check.stageId === stage.id && check.needsPhoto)
-    .sort(
-      (a, b) =>
-        gateOrder[a.gate] - gateOrder[b.gate] || a.position - b.position || compareText(a.id, b.id),
-    );
-}
-
 /** Every answer's photo on a check that needs one, of these stages, in check order, each once. */
 function hiddenWorkOf(reading: Reading, stages: readonly Stage[]): HandoverHiddenPhoto[] {
-  const { snapshot, images } = reading;
   const photos: HandoverHiddenPhoto[] = [];
   const seen = new Set<string>();
-  for (const stage of stages) {
-    const checks = hiddenChecks(snapshot, stage);
-    for (const check of checks) {
-      const answers = snapshot.checkAnswers
-        .filter((answer) => answer.checkId === check.id)
-        .sort((a, b) => a.seq - b.seq);
-      for (const answer of answers) {
-        const hash = answer.photoHash;
-        if (hash === null || seen.has(hash)) continue;
-        const fileName = images.get(hash);
-        if (fileName === undefined) continue;
-        seen.add(hash);
-        photos.push({
-          photoHash: hash,
-          fileName,
-          checkId: check.id,
-          checkName: check.name,
-          gate: check.gate,
-          stageId: stage.id,
-          stageName: stage.name,
-          answer: answer.answer,
-          seq: answer.seq,
-          day: answer.answeredAt.slice(0, 10),
-        });
-      }
-    }
+  for (const { stage, check, answer, photoHash } of hiddenAnswersOf(reading.snapshot, stages)) {
+    if (seen.has(photoHash)) continue;
+    const fileName = reading.images.get(photoHash);
+    if (fileName === undefined) continue;
+    seen.add(photoHash);
+    photos.push({
+      photoHash,
+      fileName,
+      checkId: check.id,
+      checkName: check.name,
+      gate: check.gate,
+      stageId: stage.id,
+      stageName: stage.name,
+      answer: answer.answer,
+      seq: answer.seq,
+      day: answer.answeredAt.slice(0, 10),
+    });
   }
   return photos;
-}
-
-/**
- * The diary photos of a section, the latest per activity first: round by round, each activity's
- * next newest photo in plan order, until the limit; never a hash already taken. Returns the picked
- * photos and how many distinct others there were.
- */
-function diaryPhotosOf(
-  reading: Reading,
-  activities: readonly Activity[],
-  taken: ReadonlySet<string>,
-): { photos: HandoverDiaryPhoto[]; notShown: number } {
-  const newestFirst = [...reading.effective].sort(
-    (a, b) => compareText(b.day, a.day) || b.seq - a.seq,
-  );
-  const queues = activities.map((activity) => {
-    const queue: HandoverDiaryPhoto[] = [];
-    const own = new Set<string>();
-    for (const entry of newestFirst) {
-      if (!entry.done.some((line) => line.activityId === activity.id)) continue;
-      for (const photo of entry.photos) {
-        const fileName = reading.images.get(photo.fileHash);
-        if (fileName === undefined || own.has(photo.fileHash) || taken.has(photo.fileHash)) {
-          continue;
-        }
-        own.add(photo.fileHash);
-        queue.push({
-          photoHash: photo.fileHash,
-          fileName,
-          day: entry.day,
-          entrySeq: entry.seq,
-          activityId: activity.id,
-          activityName: activity.name,
-        });
-      }
-    }
-    return queue;
-  });
-
-  const picked: HandoverDiaryPhoto[] = [];
-  const used = new Set<string>();
-  const longest = Math.max(0, ...queues.map((queue) => queue.length));
-  for (let round = 0; round < longest && picked.length < HANDOVER_PHOTO_LIMIT; round += 1) {
-    for (const queue of queues) {
-      const photo = queue[round];
-      if (photo === undefined || used.has(photo.photoHash)) continue;
-      used.add(photo.photoHash);
-      picked.push(photo);
-      if (picked.length === HANDOVER_PHOTO_LIMIT) break;
-    }
-  }
-  const all = new Set(queues.flatMap((queue) => queue.map((photo) => photo.photoHash)));
-  return { photos: picked, notShown: all.size - picked.length };
 }
 
 /**
@@ -623,8 +503,6 @@ function diaryPhotosOf(
  */
 function snagsFixedOf(reading: Reading, scope: Scope): HandoverSnagRow[] {
   const { snapshot, images } = reading;
-  const activityIds = new Set(scope.activities.map((activity) => activity.id));
-  const stageIds = new Set(scope.stages.map((stage) => stage.id));
   const activities = new Map(snapshot.activities.map((activity) => [activity.id, activity]));
   const people = new Map(snapshot.people.map((person) => [person.id, person.name]));
   const photo = (hash: string | null): HandoverPhoto | null => {
@@ -636,9 +514,8 @@ function snagsFixedOf(reading: Reading, scope: Scope): HandoverSnagRow[] {
   for (const snag of snagsInOrder(snapshot)) {
     const closure = snag.closure;
     if (closure === null || closure.outcome !== 'fixed') continue;
+    if (!snagIn(scope, snag, activities)) continue;
     const activity = snag.activityId === null ? undefined : activities.get(snag.activityId);
-    const here = activity !== undefined ? activityIds.has(activity.id) : stageIds.has(snag.stageId);
-    if (!here) continue;
     rows.push({
       snagId: snag.id,
       number: snag.number,
@@ -660,9 +537,44 @@ function snagsFixedOf(reading: Reading, scope: Scope): HandoverSnagRow[] {
   return rows;
 }
 
-function section(reading: Reading, scope: Scope): HandoverSection {
+/** What a section shows before its story in photos is picked. */
+interface Shown {
+  readonly scope: Scope;
+  readonly hiddenWork: readonly HandoverHiddenPhoto[];
+  readonly snagsFixed: readonly HandoverSnagRow[];
+  /** Its story, minus what its hidden work and its snags fixed already show. */
+  readonly rest: readonly StoryPhoto[];
+}
+
+/** The photos a section's hidden work and snags fixed show. */
+function fixedPhotos(
+  hiddenWork: readonly HandoverHiddenPhoto[],
+  snagsFixed: readonly HandoverSnagRow[],
+): string[] {
+  return [
+    ...hiddenWork.map((photo) => photo.photoHash),
+    ...snagsFixed.flatMap((row) =>
+      [row.before, row.after].flatMap((photo) => (photo === null ? [] : [photo.photoHash])),
+    ),
+  ];
+}
+
+function shownOf(reading: Reading, scope: Scope, story: readonly StoryPhoto[]): Shown {
+  const hiddenWork = hiddenWorkOf(reading, scope.stages);
+  const snagsFixed = snagsFixedOf(reading, scope);
+  const taken = new Set(fixedPhotos(hiddenWork, snagsFixed));
+  return {
+    scope,
+    hiddenWork,
+    snagsFixed,
+    rest: story.filter((photo) => !taken.has(photo.photoHash)),
+  };
+}
+
+function section(reading: Reading, shown: Shown, limit: number): HandoverSection {
   const { snapshot } = reading;
-  const stageIds = new Set(scope.stages.map((stage) => stage.id));
+  const { scope, hiddenWork, snagsFixed, rest } = shown;
+  const stageIds = scope.stageIds;
 
   const done: HandoverDoneRow[] = [];
   for (const activity of scope.activities) {
@@ -689,18 +601,7 @@ function section(reading: Reading, scope: Scope): HandoverSection {
       stageName: reading.stageById.get(decision.stageId)!.name,
     }));
 
-  const hiddenWork = hiddenWorkOf(reading, scope.stages);
-  const snagsFixed = snagsFixedOf(reading, scope);
-  const { photos, notShown } = diaryPhotosOf(
-    reading,
-    scope.activities,
-    new Set(
-      [
-        ...hiddenWork.map((photo) => photo.photoHash),
-        ...snagsFixed.flatMap((row) => [row.before?.photoHash, row.after?.photoHash]),
-      ].filter((hash): hash is string => hash !== undefined),
-    ),
-  );
+  const picked = pickStory(rest, limit);
 
   const careNotes: HandoverCareNote[] = [];
   if (scope.roomId !== null) {
@@ -730,8 +631,11 @@ function section(reading: Reading, scope: Scope): HandoverSection {
     done,
     decisions,
     hiddenWork,
-    photos,
-    photosNotShown: notShown,
+    photos: picked.shown,
+    photosNotShown: picked.notShown,
+    storyFirst: rest[0]?.day ?? null,
+    storyLast: rest.at(-1)?.day ?? null,
+    storyCount: rest.length,
     snagsFixed,
     careNotes,
   };
@@ -970,9 +874,33 @@ function gapsOf(reading: Reading, sections: readonly HandoverSection[]): Figure<
 
 // ── Entry points ─────────────────────────────────────────────────────────────
 
+/**
+ * The sections, each with its story in photos picked: up to `HANDOVER_STORY_LIMIT` each, within
+ * what hidden work and snags leave of `HANDOVER_IMAGE_CAP`, spread round by round. It counts
+ * places, not distinct photos — a photo in two sections counts twice — so the book never passes
+ * the cap while hidden work and snags alone do not.
+ */
 function sectionsOf(reading: Reading): { by: HandoverBy; sections: HandoverSection[] } {
   const found = scopes(reading.snapshot);
-  return { by: found.by, sections: found.scopes.map((scope) => section(reading, scope)) };
+  const fallback = fallbackScope(found.by);
+  const told = storyOfScopes(reading, found.scopes, fallback);
+  const all =
+    found.scopes.some((each) => each.key === fallback.key) ||
+    (told.get(fallback.key)?.length ?? 0) === 0
+      ? found.scopes
+      : [...found.scopes, fallback];
+
+  const shown = all.map((scope) => shownOf(reading, scope, told.get(scope.key) ?? []));
+  const fixed = new Set(shown.flatMap((each) => fixedPhotos(each.hiddenWork, each.snagsFixed)));
+  const limits = allotStory(
+    shown.map((each) => each.rest.length),
+    HANDOVER_IMAGE_CAP - fixed.size,
+    HANDOVER_STORY_LIMIT,
+  );
+  return {
+    by: found.by,
+    sections: shown.map((each, i) => section(reading, each, limits[i]!)),
+  };
 }
 
 /** The handover book's content, from the plan and every diary entry. Never throws. */

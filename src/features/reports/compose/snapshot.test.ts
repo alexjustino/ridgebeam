@@ -21,7 +21,14 @@ import { capitalised, termFor } from '@/i18n/terms';
 import { build, type I18n } from '@/i18n/useI18n';
 
 import { REPORT_LIMITS, stringsOf } from './document';
-import { composeSnapshot, SNAPSHOT_ENTRIES, SNAPSHOT_PHOTOS_PER_ENTRY } from './snapshot';
+import {
+  composeSnapshot,
+  SNAPSHOT_ENTRIES,
+  SNAPSHOT_IMAGE_CAP,
+  SNAPSHOT_PHOTOS_PER_ENTRY,
+  SNAPSHOT_STORY_PER_SECTION,
+  SNAPSHOT_STORY_PHOTOS,
+} from './snapshot';
 import { readinessSentence } from './words';
 
 /**
@@ -189,13 +196,15 @@ describe.each(LANGUAGES)('the owner’s snapshot, in %s', (language) => {
     expect(document.subtitle).toContain(i18n.day(TODAY));
   });
 
-  it('holds five sections, in order, and the closing line last', () => {
+  it('holds six sections, in order, and the closing line last', () => {
     expect(headings(document, 1)).toEqual([
       t('reports.snapshot.today'),
       // E3: why it is late — before approval, the sentence that it needs an approved plan.
       t('delay.title'),
       t('reports.snapshot.next.title'),
       t('reports.snapshot.lately.title'),
+      // G6: the work holds photos, so it is told in them, after lately on site, before money.
+      t('reports.snapshot.story.title'),
       t('nav.money'),
     ]);
     expect(document.blocks.at(-1)).toEqual({
@@ -247,10 +256,10 @@ describe.each(LANGUAGES)('the owner’s snapshot, in %s', (language) => {
     const lately = document.blocks.findIndex(
       (block) => block.type === 'heading' && block.text === t('reports.snapshot.lately.title'),
     );
-    const money = document.blocks.findIndex(
-      (block) => block.type === 'heading' && block.text === t('nav.money'),
+    const story = document.blocks.findIndex(
+      (block) => block.type === 'heading' && block.text === t('reports.snapshot.story.title'),
     );
-    const section = document.blocks.slice(lately, money);
+    const section = document.blocks.slice(lately, story);
     const days = section.filter((block) => block.type === 'heading' && block.level === 2);
     expect(days).toHaveLength(SNAPSHOT_ENTRIES);
     expect(days[0]?.type === 'heading' && days[0].text).toContain('7');
@@ -261,7 +270,8 @@ describe.each(LANGUAGES)('the owner’s snapshot, in %s', (language) => {
   });
 
   it(`embeds at most ${SNAPSHOT_PHOTOS_PER_ENTRY} photos of an entry, half width, and counts the rest`, () => {
-    const shown = images(document);
+    // The story's photos are thirds (G6); lately on site's are its halves.
+    const shown = images(document).filter((block) => block.size !== 'third');
     expect(shown).toHaveLength(SNAPSHOT_PHOTOS_PER_ENTRY);
     for (const block of shown) {
       expect(block.size).toBe('half');
@@ -336,5 +346,200 @@ describe('a quiet work', () => {
     expect(text(document)).toContain(i18n.t('reports.snapshot.next.nothingPlaced'));
     expect(document.blocks.some((block) => block.type === 'gantt')).toBe(false);
     expect(figureOf(document, i18n.t('reports.lookahead.figure.starting'))?.value).toBe('0');
+  });
+});
+
+// ── The work in photos (G6) ──────────────────────────────────────────────────
+
+/** The blocks of "The work in photos", up to the money; empty when the part is not there. */
+function storyPart(document: ReportDocument, i18n: I18n): ReportBlock[] {
+  const start = document.blocks.findIndex(
+    (block) => block.type === 'heading' && block.text === i18n.t('reports.snapshot.story.title'),
+  );
+  if (start === -1) return [];
+  const end = document.blocks.findIndex(
+    (block) => block.type === 'heading' && block.text === i18n.t('nav.money'),
+  );
+  return document.blocks.slice(start, end);
+}
+
+/** The story's sections: each level-2 heading with the blocks under it. */
+function storySections(
+  part: readonly ReportBlock[],
+): Array<{ name: string; blocks: ReportBlock[] }> {
+  const sections: Array<{ name: string; blocks: ReportBlock[] }> = [];
+  for (const block of part.slice(1)) {
+    if (block.type === 'heading' && block.level === 2)
+      sections.push({ name: block.text, blocks: [] });
+    else sections.at(-1)?.blocks.push(block);
+  }
+  return sections;
+}
+
+const thirdsOf = (blocks: readonly ReportBlock[]) =>
+  blocks.filter(
+    (block): block is Extract<ReportBlock, { type: 'image' }> =>
+      block.type === 'image' && block.size === 'third',
+  );
+
+/**
+ * A work of `stages` stages, one activity each, and `rounds` diary entries on each stage — one a
+ * day, the stages in turn — each with `perEntry` photos the work holds.
+ */
+function crowded(stages: number, rounds: number, perEntry: number) {
+  const ids = Array.from({ length: stages }, (_, index) => index + 1);
+  const documents: Document[] = [];
+  const entries: DiaryEntry[] = [];
+  let made = 0;
+  for (let round = 0; round < rounds; round += 1) {
+    for (const id of ids) {
+      const seq = entries.length + 1;
+      const day = new Date(Date.UTC(2026, 0, 1) + seq * 86_400_000).toISOString().slice(0, 10);
+      const photos = Array.from({ length: perEntry }, () => {
+        made += 1;
+        const fileHash = (0x1000 + made).toString(16).padStart(64, '0');
+        documents.push(image(`img-${made}`, fileHash, `foto-${made}.jpg`));
+        return photo(fileHash, `foto-${made}.jpg`);
+      });
+      entries.push(entry(seq, day, { done: [worked(`a${id}`)], photos }));
+    }
+  }
+  const plan: WorkSnapshot = snapshot({
+    work: { ...snapshot().work, name: 'Obra de ensaio cheia de fotos' },
+    stages: ids.map((id) => stage(`s${id}`, id, `Etapa ${id}`)),
+    activities: ids.map((id) => ({ ...activity(`a${id}`, `s${id}`, 1, 2), name: `Serviço ${id}` })),
+    documents,
+  });
+  return { plan, entries, photos: made };
+}
+
+describe.each(LANGUAGES)('the work in photos (G6), in %s', (language) => {
+  const i18n = i18nOf(language);
+  const { t, tp } = i18n;
+
+  it('tells each stage first to last, after lately on site and before money, as thirds', () => {
+    const document = compose(PLAN, language);
+    const part = storyPart(document, i18n);
+    expect(part[0]).toEqual({ type: 'heading', level: 1, text: t('reports.snapshot.story.title') });
+    expect(part[1]).toMatchObject({
+      type: 'paragraph',
+      text: t('reports.snapshot.story.lead.byStage', {
+        stage: termFor(language, 'owner', 'stage'),
+      }),
+    });
+    const sections = storySections(part);
+    expect(sections.map((each) => each.name)).toEqual(['Instalações']);
+    const [installations] = sections;
+    expect(installations?.blocks[0]).toEqual({
+      type: 'paragraph',
+      tone: 'muted',
+      text: tp('story.span.on', 3, { first: i18n.day('2026-09-07') }),
+    });
+    expect(thirdsOf(installations!.blocks)).toEqual(
+      [hash('b'), hash('c'), hash('d')].map((each) => ({
+        type: 'image',
+        hash: each,
+        caption: t('story.caption', { day: i18n.dayShort('2026-09-07'), what: 'Trocar os canos' }),
+        size: 'third',
+      })),
+    );
+  });
+
+  it('is not there when the work holds no photo', () => {
+    const quiet = compose(PLAN, language, [entry(1, '2026-09-07', { done: [worked('a1')] })]);
+    expect(headings(quiet, 1)).not.toContain(t('reports.snapshot.story.title'));
+    expect(images(quiet)).toEqual([]);
+    expect(headings(compose(PLAN, language, []), 1)).not.toContain(
+      t('reports.snapshot.story.title'),
+    );
+  });
+
+  it(`spends at most ${SNAPSHOT_STORY_PHOTOS}, the first and the last of each, and says what it left out`, () => {
+    // Five stages of twenty photos each, and every one of the last five entries with two photos.
+    const { plan, entries } = crowded(5, 10, 2);
+    const document = compose(plan, language, entries);
+    const sections = storySections(storyPart(document, i18n));
+    expect(sections.map((each) => each.name)).toEqual([1, 2, 3, 4, 5].map((n) => `Etapa ${n}`));
+    expect(sections.flatMap((each) => thirdsOf(each.blocks))).toHaveLength(SNAPSHOT_STORY_PHOTOS);
+    for (const [index, each] of sections.entries()) {
+      const shown = thirdsOf(each.blocks);
+      expect(shown.length).toBeLessThanOrEqual(SNAPSHOT_STORY_PER_SECTION);
+      expect(shown).toHaveLength(6);
+      // The stage's first photo (its first entry's first) and its last (its last entry's last).
+      const first = (0x1000 + 2 * index + 1).toString(16).padStart(64, '0');
+      const last = (0x1000 + 2 * (45 + index) + 2).toString(16).padStart(64, '0');
+      expect(shown[0]?.hash).toBe(first);
+      expect(shown.at(-1)?.hash).toBe(last);
+      expect(each.blocks).toContainEqual({
+        type: 'paragraph',
+        tone: 'muted',
+        text: tp('reports.snapshot.story.notShown', 14),
+      });
+    }
+    // Lately on site keeps its own: two photos for each of its five entries.
+    const halves = images(document).filter((block) => block.size === 'half');
+    expect(halves).toHaveLength(SNAPSHOT_ENTRIES * SNAPSHOT_PHOTOS_PER_ENTRY);
+    expect(images(document).length).toBeLessThanOrEqual(SNAPSHOT_IMAGE_CAP);
+  });
+
+  it(`never places more than ${SNAPSHOT_IMAGE_CAP} images, however many photos the work holds`, () => {
+    const { plan, entries, photos } = crowded(12, 10, 3);
+    expect(photos).toBe(360);
+    const document = compose(plan, language, entries);
+    expect(thirdsOf(document.blocks).length).toBeLessThanOrEqual(SNAPSHOT_STORY_PHOTOS);
+    expect(images(document).length).toBeLessThanOrEqual(SNAPSHOT_IMAGE_CAP);
+    expect(images(document).length).toBe(
+      SNAPSHOT_STORY_PHOTOS + SNAPSHOT_ENTRIES * SNAPSHOT_PHOTOS_PER_ENTRY,
+    );
+    expect(document.blocks.length).toBeLessThanOrEqual(REPORT_LIMITS.blocks);
+  });
+
+  it('names a stage the budget gave nothing, with its span and how many it left out', () => {
+    // Thirty-five stages of one photo each: the first thirty get theirs, the last five none.
+    const { plan, entries } = crowded(35, 1, 1);
+    const sections = storySections(storyPart(compose(plan, language, entries), i18n));
+    expect(sections).toHaveLength(35);
+    expect(sections.slice(0, 30).every((each) => thirdsOf(each.blocks).length === 1)).toBe(true);
+    const last = sections.at(-1)!;
+    expect(last.name).toBe('Etapa 35');
+    expect(thirdsOf(last.blocks)).toEqual([]);
+    expect(last.blocks).toEqual([
+      {
+        type: 'paragraph',
+        tone: 'muted',
+        text: tp('story.span.on', 1, { first: i18n.day('2026-02-05') }),
+      },
+      { type: 'paragraph', tone: 'muted', text: tp('reports.snapshot.story.notShown', 1) },
+    ]);
+  });
+});
+
+describe('the work in photos, in words', () => {
+  it('names the part as the e2e reads it, in both languages', () => {
+    expect(headings(compose(PLAN, 'en'), 1)).toContain('The work in photos');
+    expect(headings(compose(PLAN, 'pt-BR'), 1)).toContain('A obra em fotos');
+  });
+
+  it('tells a work with rooms room by room, and what touches no room last', () => {
+    const plan: WorkSnapshot = {
+      ...PLAN,
+      rooms: [{ id: 'r1', position: 1, name: 'Cozinha' }],
+      activities: PLAN.activities.map((each) =>
+        each.id === 'a1' ? { ...each, roomIds: ['r1'] } : each,
+      ),
+    };
+    const entries: readonly DiaryEntry[] = [
+      ...ENTRIES,
+      entry(7, '2026-09-08', { photos: [photo(hash('d'), 'piso.jpg')] }),
+    ];
+    const i18n = i18nOf('en');
+    const part = storyPart(compose(plan, 'en', entries), i18n);
+    expect(part[1]).toMatchObject({
+      text: i18n.t('reports.snapshot.story.lead.byRoom', { room: 'room' }),
+    });
+    expect(storySections(part).map((each) => each.name)).toEqual([
+      'Cozinha',
+      'Elsewhere in the work',
+    ]);
   });
 });

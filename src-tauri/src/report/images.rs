@@ -52,6 +52,14 @@
 //! resolution — the document row, the folder, the caps, the re-hash, the
 //! limits — is the same code for both ([`resolve_with`]).
 //!
+//! **A third's long edge** (G6). A photo the document places only as a
+//! `third` is printed at a third of the line, and is prepared smaller: at most
+//! [`THIRD_SIDE`] pixels for the PDF, `report::html::THIRD_SIDE` for the
+//! snapshot — five eighths of the setting's long edge, still more than a third
+//! of the line needs at 150 dpi, or on a phone's screen two to a row. A photo
+//! also placed `full` or `half` anywhere in the document is prepared for the
+//! widest place, once: a photo is embedded once, whatever its placements.
+//!
 //! Nothing here writes a file or reaches the network.
 //!
 //! # Changelog of this module
@@ -59,6 +67,8 @@
 //! - D3: the module.
 //! - D4: [`Setting`]: the encode and the cap on the data are a setting;
 //!   [`PRINTED`] is D3's, unchanged.
+//! - G6: [`Setting::third_side`]: a photo placed only as a third is prepared
+//!   at a smaller long edge ([`THIRD_SIDE`]); `full` and `half` unchanged.
 
 use std::collections::BTreeMap;
 use std::io::{Cursor, Read};
@@ -71,10 +81,16 @@ use crate::error::{Error, Result};
 use crate::files::intake::{
     self, Format, Sniffed, MAX_DECODE_ALLOC, MAX_PHOTO_BYTES, MAX_PHOTO_SIDE,
 };
-use crate::report::model::Block;
+use crate::report::model::{Block, ImageSize};
 
 /// The longest edge of an embedded image, in pixels.
 pub const MAX_SIDE: u32 = 1600;
+
+/// The longest edge of an image the PDF places only as a third (G6), in
+/// pixels: a third of an A4 page's line is about 153 points, 318 pixels at
+/// 150 dpi — a photo in a third's column, upright or lying, keeps more than
+/// that.
+pub const THIRD_SIDE: u32 = 1000;
 
 /// The JPEG quality an image is re-encoded at.
 pub const QUALITY: u8 = 82;
@@ -95,6 +111,9 @@ pub const TOO_MUCH_IMAGE_DATA: &str =
 pub struct Setting {
     /// The longest edge, in pixels.
     pub max_side: u32,
+    /// The longest edge of a photo the document places only as a third
+    /// (G6), in pixels.
+    pub third_side: u32,
     /// The JPEG quality a photo is re-encoded at.
     pub quality: u8,
     /// Whether a JPEG that already fits may go in as it is, without its
@@ -109,6 +128,7 @@ pub struct Setting {
 /// A report printed as a PDF (D3).
 pub const PRINTED: Setting = Setting {
     max_side: MAX_SIDE,
+    third_side: THIRD_SIDE,
     quality: QUALITY,
     pass_through: true,
     max_bytes: MAX_IMAGE_BYTES,
@@ -190,7 +210,8 @@ pub(crate) fn resolve_within(
     )
 }
 
-/// [`resolve`], each photo prepared by `setting` and the data capped by it.
+/// [`resolve`], each photo prepared by `setting` and the data capped by it —
+/// at `setting.third_side` when every place the document gives it is a third.
 ///
 /// # Errors
 ///
@@ -201,6 +222,17 @@ pub fn resolve_with(
     blocks: &[Block],
     setting: &Setting,
 ) -> Result<Images> {
+    // Each photo is prepared once, for the widest place it is given.
+    let mut only_thirds: BTreeMap<&str, bool> = BTreeMap::new();
+    for block in blocks {
+        if let Block::Image { hash, size, .. } = block {
+            let third = *size == ImageSize::Third;
+            only_thirds
+                .entry(hash.as_str())
+                .and_modify(|only| *only &= third)
+                .or_insert(third);
+        }
+    }
     let mut images = Images::new();
     let mut total = 0usize;
     for (index, block) in blocks.iter().enumerate() {
@@ -238,8 +270,19 @@ pub fn resolve_with(
                 "is a photo whose file is not the one recorded: it was changed outside Ridgebeam.",
             ));
         }
-        let embedded = prepare_with(&bytes, setting)
-            .map_err(|why| refuse(&format!("is a photo that {why}.")))?;
+        let side = if only_thirds.get(hash.as_str()) == Some(&true) {
+            setting.third_side.min(setting.max_side)
+        } else {
+            setting.max_side
+        };
+        let embedded = prepare_with(
+            &bytes,
+            &Setting {
+                max_side: side,
+                ..*setting
+            },
+        )
+        .map_err(|why| refuse(&format!("is a photo that {why}.")))?;
         total += embedded.jpeg.len();
         if total > setting.max_bytes {
             return Err(Error::InvalidInput(setting.too_much.into()));

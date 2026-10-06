@@ -661,7 +661,12 @@ for the backup, which is F11's.
   their amounts and days — and the work's place. It carries **no phone number, no e-mail address,
   not the Windows account that wrote an entry, no document** (a PDF, a quote, a receipt), no
   baseline and no diary chain. Contacts belong in the handover book, which is kept, not forwarded.
-  The snapshot is not encrypted, has no password and does not expire.
+  From G6 (ADR-050) it also carries **The work in photos**: up to **30 more photos** of the work,
+  room by room — the diary's, the hidden work's, a snag's problem and its fix — each captioned with
+  its day. They are found and **re-encoded** exactly as every photo above, so they carry no
+  metadata either, and they are counted inside the same caps of 60 photos, 8 MiB of image data and
+  a 12 MiB file. More photos of somebody's home, behind its walls included, travel with every
+  snapshot sent. The snapshot is not encrypted, has no password and does not expire.
 - **Open is for the file just written.** `report_open` hands a file to the operating system's own
   viewer only when a report command wrote that exact path **in this session** — the host keeps
   the set in memory and refuses every other path, so the command cannot be used to open anything

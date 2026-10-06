@@ -406,3 +406,56 @@ fn a_page_that_fails_its_verification_is_refused_as_a_bug_and_not_written() {
     assert_eq!(files_in(site.out.path()), vec!["snapshot.html"]);
     work_close_with(&site.open);
 }
+
+/// G6: a photo the snapshot places only as a third is re-encoded within
+/// 640 px; one also placed as a half keeps 1 024. A run of thirds is one
+/// grid on the page.
+#[test]
+fn a_photo_placed_only_as_a_third_is_re_encoded_within_640_px_and_a_wider_place_wins() {
+    let site = a_site();
+    let page = site
+        .write(&snapshot(
+            "en",
+            vec![
+                json!({ "type": "heading", "level": 1, "text": "The work in photos" }),
+                image(&site.pipes, "2 Mar", "third"),
+                image(&site.floor, "30 Sep", "third"),
+                image(&site.floor, "The finished floor", "half"),
+            ],
+        ))
+        .unwrap();
+    let mut sizes = Vec::new();
+    for part in page.split("src=\"data:image/jpeg;base64,").skip(1) {
+        use base64::Engine as _;
+        let jpeg = base64::engine::general_purpose::STANDARD
+            .decode(&part[..part.find('"').unwrap()])
+            .unwrap();
+        let frame = jpeg_frame(&jpeg).unwrap();
+        sizes.push((frame.width, frame.height));
+        assert!(!header_markers(&jpeg).contains(&0xE1), "no APP1");
+    }
+    assert_eq!(sizes, vec![(640, 427), (640, 480), (640, 480)]);
+    assert!(page.contains("<div class=\"trio\">\n<figure>"));
+    assert_eq!(page.matches("<div class=\"trio\">").count(), 1);
+    assert_eq!(page.matches("<div class=\"pair\">").count(), 1);
+
+    // The same photo placed as a half too: prepared once, for the wider place.
+    let page = site
+        .write(&snapshot(
+            "en",
+            vec![
+                image(&site.pipes, "2 Mar", "third"),
+                image(&site.pipes, "Pipes before the wall", "half"),
+            ],
+        ))
+        .unwrap();
+    assert_eq!(page.matches("width=\"1024\" height=\"683\"").count(), 2);
+    assert_eq!(
+        (
+            crate::report::html::SENT.max_side,
+            crate::report::html::SENT.third_side
+        ),
+        (1024, 640)
+    );
+    work_close_with(&site.open);
+}

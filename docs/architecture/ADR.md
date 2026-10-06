@@ -81,7 +81,12 @@ reminder itself. A finished work's Dashboard leads with it, and its handover boo
 converted once, as it is taken in, through the decoder Windows itself provides, into a JPEG that the
 rest of the product keeps, shows and prints as it does any other — the person's name for it kept,
 its location not — and where Windows cannot read HEIC, it is refused with a sentence that says how
-to get the extensions ([ADR-049](#adr-049)).
+to get the extensions ([ADR-049](#adr-049)). The sixth, slice G6, completes the wave: the photos a
+work collects — the diary's, the hidden work's, a snag's problem and its fix — are told room by
+room, or stage by stage, each as a timeline from the first photo to the last, in the Diary's **In
+photos** view, in each section of the handover book and in a new part of the owner's snapshot; where
+a page holds fewer, the first and the last are always kept, the rest evenly spaced, and what was
+left out is said ([ADR-050](#adr-050)). With it the third wave is complete.
 
 | #               | Decision                                                                                                              | Status                         |
 | --------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
@@ -134,6 +139,7 @@ to get the extensions ([ADR-049](#adr-049)).
 | [047](#adr-047) | The work teaches the next: planned against actual, and templates learned from it                                      | Accepted — 2026-10-05          |
 | [048](#adr-048) | After the handover: warranties, maintenance, and a calendar of what comes due                                         | Accepted — 2026-10-05          |
 | [049](#adr-049) | Photos from an iPhone: HEIC converted through Windows' own decoder                                                    | Accepted — 2026-10-05          |
+| [050](#adr-050) | The work told in photos: a timeline per room, in the diary, the handover book and the snapshot                        | Accepted — 2026-10-05          |
 
 ---
 
@@ -2220,9 +2226,11 @@ before it.
 ## ADR-038 — The handover book: the work's record for its owner, photos of hidden work required where it matters {#adr-038}
 
 **Status.** Accepted — 2026-10-01. Amended by [ADR-044](#adr-044): each open snag is a gap of its
-own, and each fixed snag is printed with both photos, before and after; and by
+own, and each fixed snag is printed with both photos, before and after; by
 [ADR-048](#adr-048): the book carries the work's warranties and its maintenance, and its gaps
-gain nothing.
+gain nothing; and by [ADR-050](#adr-050): each section's other photos — the latest per activity, at
+most six, two to a row — become the section's photos told first to last, at most twelve, three to a
+row, and the image block gains a third size, `third`.
 
 **Context.** The third differentiator ([ADR-036](#adr-036)). At the end of a work the owner is left
 with a folder of receipts, a phone full of photos and what the builder remembers to say on the way
@@ -2329,7 +2337,8 @@ never reproduced: the book points to it, and the work's folder keeps it.
 
 **Status.** Accepted — 2026-10-02. Two details of its lookahead — gates with no checks, and the
 decisions' window — are amended by [ADR-040](#adr-040). Its lookahead gains the purchases to order
-in the next two weeks, by [ADR-046](#adr-046).
+in the next two weeks, by [ADR-046](#adr-046). It gains a part, **The work in photos**, after
+_Lately on site_ — at most 30 more photos, inside the same caps — by [ADR-050](#adr-050).
 
 **Context.** The fourth differentiator ([ADR-036](#adr-036)). The owner of a small work is rarely
 where the product runs: they are at their own job, and at the end of the day they ask, by message,
@@ -3800,3 +3809,109 @@ pixel is copied — and is patched by Microsoft, not by a Ridgebeam release. **A
 carries no metadata**: no location, no camera, no time the camera recorded — the diary's day and the
 document's day are what date it. **A conversion takes a moment**: it runs while the photo is being
 taken in, as the thumbnail does, and a large photo can take a few seconds.
+
+## ADR-050 — The work told in photos: a timeline per room, in the diary, the handover book and the snapshot {#adr-050}
+
+**Status.** Accepted — 2026-10-05.
+
+**Context.** This is G6, the sixth and last slice of the third wave ([ADR-045](#adr-045)). A work
+collects photos from its first week: the diary's, taken in on the day they were taken
+([ADR-021](#adr-021)); the photos of hidden work a check asks for before a wall or a floor is
+closed ([ADR-038](#adr-038)); a snag's photo when it is raised and its photo when it is fixed
+([ADR-044](#adr-044)); and, since G5, the ones straight from an iPhone ([ADR-049](#adr-049)). Each
+is kept, and each is shown where it was taken in — a day of the diary, a check, a snag — and none
+of those places tells a room. The diary goes day by day, so the bathroom's photos are scattered
+across months between the kitchen's. The handover book printed, for each room, at most six of the
+diary's photos, the latest of each activity first: the room as it was finished, which anybody who
+walks into it can already see. The owner's snapshot shows at most two photos of each of the last
+five entries. Nothing put a room's photos in the order the room was built — the empty room, the pipes
+before the wall was closed, the tiles going down, the finished bathroom — and that order is what the
+owner, a buyer or the next builder asks of the photos years later.
+
+**Decision.**
+
+- **The story is read from the record** (`src/domain/reports/story.ts`, pure, keys and no strings).
+  It is told **room by room**, in room order, with a last section for what touches no room — or,
+  when the work has no rooms, **stage by stage**, in stage order. Which section a photo belongs to
+  is decided by **the handover book's own rules**, shared with it rather than copied: the same
+  scopes, the diary's effective entries only — a superseded entry's photos are gone, and its
+  correction's are told — and only photos the work holds as images. So a photo in the book's
+  _Bathroom_ section is in the bathroom's story, and the reverse. A diary photo whose entry names no
+  activity is told in the last section — what touches no room, or, in a work with no rooms, the
+  work as a whole.
+- **Four kinds of photo, each dated by its fact.** **A diary photo**, on the day of its entry, with
+  the activities its entry says were done that fall in the section; **a photo of hidden work**, on
+  the day of the answer that carries it, with the check and its stage; **a snag's problem**, on the
+  day the snag was raised, and **its fix**, on the day it was fixed, each with the snag's number and
+  title. A photo is in a section **once**, and a photo in an entry that names activities of two rooms
+  is in both rooms' stories.
+- **First to last.** A section's photos run by day, oldest first. On the same day a photo of hidden
+  work comes first — the pipe is photographed before the day's work closes the wall over it — then a
+  snag's problem and its fix, then the diary's; and then they keep the order they were recorded in:
+  the entry's number, then the photo's place in it. Each section carries its first and last day, how many photos it has and how many
+  calendar months they span.
+- **When a place holds fewer, the first and the last are always kept** (`pickStory`, pure). With
+  more photos than a place holds, the first and the last are kept and the rest are taken **evenly
+  spaced by position** between them, so the same story always gives the same photos; a place that
+  holds one shows the first. The pick never judges what a photo shows. Every place that picks
+  **says how many it left out**, in words.
+- **In the Diary, every photo.** The Diary gains a second view beside **Day by day**: **In photos**
+  (_Em fotos_). Each section shows its name, _"From {first} to {last} · {n} photos"_, and the
+  thumbnail of **every** photo in order — nothing is sampled on screen — each captioned with its day
+  and what it shows, with the month named where it changes; a photo opens in the system's viewer, as
+  the diary's thumbnails do. With no photo at all, the view says where its photos will come from:
+  the diary, hidden-work checks and snags. The view chosen is remembered for the session only.
+- **In the handover book, first to last.** Each section's other photos — until now the diary's, the
+  latest of each activity first, at most six, two to a row — become **In photos, first to last**:
+  the section's story less the photos the section already prints, those of its hidden work and of
+  its fixed snags, picked at most **twelve** to a section. They are printed **three to a row**, each
+  captioned with its day and what it shows — the activities, the check, or the snag and whether it is
+  the problem or the fix — under a line that says from which day to which and how many photos, with
+  a subheading where the month changes; how many were not printed is said, as before. The book's
+  model keeps its fields — its photos and how many were not shown — and changes what fills them. A
+  document's cap of 400 images stands ([ADR-038](#adr-038)), and a test of the domain holds that a
+  book with many rooms stays inside it.
+- **In the owner's snapshot, a strip per room.** A new part, **The work in photos** (_A obra em
+  fotos_), after _Lately on site_ and before the money: each section that has photos, by its name,
+  from which day to which, and its picked photos three to a row, each captioned with its day, and how
+  many it left out. The part places at most **30 photos** in all (`storyBudget`, pure), given round
+  the sections in order one photo at a time, at most **nine** to a section — so each section has its
+  first and its last, or its only one, before any has a third. When thirty cannot give every
+  section two, the earlier sections come first, and a section left with none says how many it
+  leaves out. With _Lately on site_'s ten at most, a snapshot places at
+  most forty of the sixty photos the host allows ([ADR-039](#adr-039)); the host's caps — 60 photos,
+  8 MiB of image data, a 12 MiB file — and its re-encoding of every photo are unchanged. A work with
+  no photo has no such part.
+- **A third size of image.** The report model's image block, `full` or `half` since D3, gains
+  `third`: up to three thirds in a row sit side by side, as two halves do, and a third alone keeps a
+  third's width. The host validates it, and lays it out in the PDF and in the HTML alike.
+- **No migration and no new term.** The story is computed from the record each time it is asked
+  for, and nothing of it is stored: the work's schema stays at 19. _In photos_ and _The work in
+  photos_ are labels, not terms of the work, so the glossary gains nothing.
+- **ADR-038 and ADR-039 are amended, not replaced.** The book's pick of its other photos changes,
+  and the snapshot gains a part; everything else in both stays as it was, and their Status lines
+  point here.
+
+**Why.** A work's photos are its most convincing record: a sentence in the diary says the bathroom
+was waterproofed, and a photo shows it. But a photo says what it shows only beside the ones before
+and after it, and a timeline per room is how an owner, a buyer or the next builder reads what was
+done there and in what order — hidden work included, since the photo of the pipe is the only way
+anyone will see it again. Telling the book's photos first to last puts in the book the before,
+which the room no longer shows, where latest-per-activity printed the after, which the room still
+does.
+
+**Why the first, the last, and evenly between.** The product cannot see what a photo shows, so it
+cannot pick the best one, and it does not pretend to. The first and the last are the two a story
+cannot do without — how it started and how it ended — and spacing the rest evenly is a rule that
+gives the same photos every time and can be told to the reader in one sentence. The screen samples
+nothing, because the person deciding what is worth keeping needs to see every photo; only a page,
+which has a size, picks.
+
+**Cost accepted.** **The story is the record's**: a room with no photo has no story, and nothing is
+invented or filled in. **Sampling shows the first and the last**: it does not pick the "best"
+photos, so a dull photo in the middle can be chosen over a telling one. **A photo in an entry that
+names two rooms' activities is in both stories**, and is counted in each. **The handover book's
+photos change rule**: latest-per-activity becomes first-to-last, so a book written before G6 and
+one written after differ for the same work. **The snapshot grows**: at most 30 more photos,
+re-encoded by the host as every photo in it is, and the file is larger — a messaging app may
+compress or refuse a large attachment sooner.

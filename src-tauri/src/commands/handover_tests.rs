@@ -445,3 +445,45 @@ fn the_diary_export_embeds_a_diary_photo_by_its_hash() {
     assert!(reading.text().contains("Chain verified"));
     work_close_with(&open);
 }
+
+/// G6: a photo the book places only as a third is prepared at most 1 000 px
+/// on its long edge; one also placed full keeps the full's 1 600; a small
+/// JPEG still passes through, its metadata gone. Three thirds print their
+/// captions, each photo embedded once.
+#[test]
+fn a_photo_placed_only_as_a_third_is_embedded_within_1000_px_and_a_wider_place_wins() {
+    let book = a_book();
+    let document = handover(vec![
+        json!({ "type": "heading", "level": 1, "text": "Bathroom — in photos, first to last" }),
+        json!({ "type": "paragraph", "text": "From 2 March to 30 September: 3 photos." }),
+        image(&book.wiring, "2 Mar — Wiring", "third"),
+        image(&book.png, "9 Mar — Pipes", "third"),
+        image(&book.floor, "30 Sep — Snag #3 — fixed", "third"),
+        json!({ "type": "heading", "level": 1, "text": "Hall" }),
+        image(&book.png, "Pipes, the whole wall", "full"),
+    ]);
+    let reading = read(&book.write(&document).unwrap());
+    assert_eq!(reading.images.len(), 3, "each distinct photo once");
+    assert_eq!(reading.placements, 4);
+    let sizes: Vec<(i64, i64)> = reading.images.iter().map(|i| (i.width, i.height)).collect();
+    for expected in [(1000, 750), (1200, 900), (640, 480)] {
+        assert!(sizes.contains(&expected), "{expected:?} in {sizes:?}");
+    }
+    assert!(
+        reading.images.iter().any(|i| i.bytes == book.floor_clean),
+        "a small JPEG placed as a third still passes through, without its metadata"
+    );
+    let text = reading.text();
+    for words in [
+        "2 Mar — Wiring",
+        "9 Mar — Pipes",
+        "30 Sep — Snag #3 — fixed",
+    ] {
+        assert!(text.contains(words), "{words:?} in {text}");
+    }
+    assert_eq!(
+        (images::PRINTED.max_side, images::PRINTED.third_side),
+        (1600, 1000)
+    );
+    work_close_with(&book.open);
+}
