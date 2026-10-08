@@ -36,7 +36,7 @@ sha2 = "0.10"
 hex = "0.4"
 # A thumbnail reaches the screen as a `data:` URL: the interface is never handed
 # a path, and there is no asset protocol and no filesystem permission.
-base64 = "0.22"
+base64 = "0.23"
 # Photos are hostile files. Default features off: only the five formats a photo
 # may arrive as are compiled in, each a decoder reachable from a file, and every
 # one is used under `image::Limits` after the header has been read and capped
