@@ -30,7 +30,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.102.8",
     "@tauri-apps/api": "^2.12.1",
-    "@tauri-apps/plugin-dialog": "^2.7.3",
+    "@tauri-apps/plugin-dialog": "^2.8.1",
     "@tauri-apps/plugin-log": "^2.10.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
