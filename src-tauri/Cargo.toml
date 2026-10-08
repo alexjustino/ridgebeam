@@ -32,7 +32,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 
 # The diary (F4). An entry carries the SHA-256 of its canonical form and of the
 # entry before it; a photo is stored under the SHA-256 of its bytes.
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
 # A thumbnail reaches the screen as a `data:` URL: the interface is never handed
 # a path, and there is no asset protocol and no filesystem permission.
